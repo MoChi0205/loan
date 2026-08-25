@@ -6,7 +6,6 @@
 #   -Dnacos.server-addr=124.221.150.239:9848       prd Nacos（HTTP 映射 9848→容器内 8848）
 #   -Dnacos.namespace=prd                            prd 命名空间
 #   -Dspring.cloud.nacos.discovery.register-enabled=false  不向 Nacos 注册服务
-#   -Ddubbo.enabled=false                            关闭 Dubbo
 #   -Dapp.gateway.trust-only=false                   网关不强制信任头
 #
 # 用法：bash scripts/run-dev-prd.sh [模块名，默认 loan-service]
@@ -18,10 +17,10 @@ set -e
 MODULE="${1:-loan-service}"
 cd "$(dirname "$0")/.."
 
-JVM_ARGS="-Dnacos.server-addr=124.221.150.239:9848 -Dnacos.namespace=prd -Dspring.cloud.nacos.discovery.register-enabled=false -Ddubbo.enabled=false -Dapp.gateway.trust-only=false"
+JVM_ARGS="-Dnacos.server-addr=124.221.150.239:9848 -Dnacos.namespace=prd -Dspring.cloud.nacos.discovery.register-enabled=false -Dapp.gateway.trust-only=false"
 
 echo ">>> 安装依赖模块 loan-api（首次需 install 供 loan-service 解析）"
 mvn -pl loan-api -am install -DskipTests -q
 
-echo ">>> 启动 ${MODULE}：直连 prd Nacos(124.221.150.239:9848) · namespace=prd · 不注册服务 · 关 Dubbo"
+echo ">>> 启动 ${MODULE}：直连 prd Nacos(124.221.150.239:9848) · namespace=prd · 不注册服务"
 mvn -pl "${MODULE}" spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="${JVM_ARGS}"
