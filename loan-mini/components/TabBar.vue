@@ -28,12 +28,11 @@ import { useUserStore } from '../store/user';
  *
  * 角色差异（对齐交互原型 §7 角色导航 & 结论 C1/C3/服务单模块）：
  * - 客户 / 企业员工（顾问/经理/老板/运营/超管）：首页 · 智能匹配 · 我的报告 · 服务单 · 我的
- * - 渠道合作方（沙箱隔离）：首页 · 我的产品 · 我的（隐藏匹配/报告/服务单；
- *   「录入客户」tab 待阶段三线索录入落地后追加）
+ * - 渠道合作方（沙箱隔离）：首页 · 我的产品 · 录入客户 · 我的（隐藏匹配/报告/服务单）
  *
  * 用法（tab 页面底部）：
  *   <TabBar current="home" />
- * current 取值：home / match / report / order / mine / product
+ * current 取值：home / match / report / order / mine / product / client
  *
  * 注意：移除原生 tabBar 后 uni.switchTab 不可用，切换用 uni.reLaunch。
  */
@@ -49,6 +48,7 @@ const tabList = computed(() => {
     return [
       { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home' },
       { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list' },
+      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create' },
       { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine' },
     ];
   }
