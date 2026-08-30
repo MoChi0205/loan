@@ -246,7 +246,9 @@
       <view v-else-if="currentStep === 2" class="card step-card">
         <view class="step-head">
           <text class="step-title">上传经营材料</text>
-          <AppTag type="danger" size="sm">{{ pendingUploadCount }} 项待处理</AppTag>
+          <AppTag :type="uploadedMaterialCount > 0 ? 'success' : 'danger'" size="sm">
+            {{ uploadedMaterialCount > 0 ? `已上传 ${uploadedMaterialCount} 份材料` : '待上传材料' }}
+          </AppTag>
         </view>
         <view class="upload-grid">
           <view v-for="m in materials" :key="m.key" class="upload-tile" @click="onUpload(m)">
@@ -449,15 +451,19 @@ function onOperateChange(e) { enterpriseFacts.operateStatus = operateOptions[Num
 function onEmployChange(e) { personalFacts.employType = employOptions[Number(e.detail.value)]; }
 function onSwitch(key, e) { personalFacts[key] = e.detail.value ? 1 : 0; }
 
-/* ===== 步骤 2：上传材料 ===== */
+/* ===== 步骤 2：上传材料 =====
+ * 注意：status / statusText 仅反映「用户本会话是否真实上传过该分类材料」，
+ * 不得编造「已核验 / 需补充 / 待核验」等核验结论（核验由后端完成，前端无真实数据源）。
+ * 初始均为「待上传材料」，onUpload 成功后才置为「已上传」。 */
 const materials = reactive([
-  { key: 'operation', name: '经营数据', icon: 'trend', status: 'ok',      statusText: '已核验' },
-  { key: 'annual',    name: '企业年报', icon: 'doc',   status: 'fail',     statusText: '需补充' },
-  { key: 'attach',    name: '附件',     icon: 'file',  status: 'pending',  statusText: '待核验' },
-  { key: 'photo',     name: '照片',     icon: 'photo', status: 'empty',    statusText: '未上传' },
+  { key: 'operation', name: '经营数据', icon: 'trend', status: 'empty', statusText: '待上传材料' },
+  { key: 'annual',    name: '企业年报', icon: 'doc',   status: 'empty', statusText: '待上传材料' },
+  { key: 'attach',    name: '附件',     icon: 'file',  status: 'empty', statusText: '待上传材料' },
+  { key: 'photo',     name: '照片',     icon: 'photo', status: 'empty', statusText: '待上传材料' },
 ]);
-const pendingUploadCount = computed(
-  () => materials.filter(m => m.status === 'fail' || m.status === 'empty').length,
+/** 已真实上传的材料份数（status==='ok'），用于顶部诚实角标统计 */
+const uploadedMaterialCount = computed(
+  () => materials.filter(m => m.status === 'ok').length,
 );
 function onUpload(m) {
   uni.chooseImage({

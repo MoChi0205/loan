@@ -84,17 +84,18 @@
         <text class="menu-arrow">›</text>
       </view>
 
-      <!-- 分配审批（C19）：仅运营/超管/老板可见 -->
+      <!-- 审批中心（C19）：仅运营/超管/老板可见 -->
       <view v-if="isApproverRole" class="card menu-card" @click="goApproval">
         <view class="menu-left">
           <view class="menu-icon-wrap">
             <AppIcon name="check" size="md" />
           </view>
           <view class="menu-body">
-            <text class="menu-title">分配审批</text>
+            <text class="menu-title">审批中心</text>
             <text class="menu-desc">无归宿客户分配申请 · 通过后归属流转</text>
           </view>
         </view>
+        <view v-if="approvalTotal > 0" class="menu-badge">{{ approvalTotal }}</view>
         <text class="menu-arrow">›</text>
       </view>
 
@@ -148,6 +149,7 @@ import { useUserStore } from '../../store/user';
 import TabBar from '../../components/TabBar.vue';
 import { mine as getMyInviteCode } from '../../api/invitation';
 import { orderList, rewardSummary } from '../../api/order';
+import { approvalCounts } from '../../api/approval';
 
 const store = useUserStore();
 
@@ -177,10 +179,13 @@ const isChannelRole = computed(() => role.value === 'channel');
 const isStaffRole = computed(
   () => ['adviser', 'deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
-/** 分配审批可操作角色：运营 / 超管 / 老板（C19） */
+/** 审批中心可操作角色：运营 / 超管 / 老板（C19） */
 const isApproverRole = computed(
   () => ['boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
+
+/** 审批中心待审总数（角标，来自 approvalCounts 的 TOTAL） */
+const approvalTotal = ref(0);
 
 /** 档案卡标题 */
 const accountTitle = computed(() => {
@@ -254,9 +259,22 @@ onShow(() => {
         loadSummary();
       }
       loadOrderTip();
+      // 审批中心角标：仅审批角色拉取待审总数
+      if (isApproverRole.value) loadApprovalCount();
     }
   }).catch(() => {});
 });
+
+/** 拉取审批中心待审总数（TOTAL），用于「我的」页菜单项角标 */
+async function loadApprovalCount() {
+  try {
+    const c = await approvalCounts();
+    const total = (c && typeof c.TOTAL === 'number') ? c.TOTAL : ((c && c.ALLOCATION) || 0);
+    approvalTotal.value = total;
+  } catch (e) {
+    approvalTotal.value = 0;
+  }
+}
 
 async function loadInviteCode() {
   try { inviteCode.value = await getMyInviteCode(); }
@@ -297,7 +315,7 @@ function goOrder() { uni.reLaunch({ url: '/pages/order/list' }); }
 function goProduct() {  uni.navigateTo({ url: '/pages/product/list' });
 }
 
-/** C19：分配审批入口（运营/超管/老板） */
+/** C19：审批中心入口（运营/超管/老板） */
 function goApproval() {
   uni.navigateTo({ url: '/pages/approval/list' });
 }
@@ -491,6 +509,21 @@ function onLogout() {
 .menu-title { font-size: 29rpx; font-weight: 600; color: var(--text-primary); }
 .menu-desc { margin-top: 6rpx; font-size: 23rpx; color: var(--text-placeholder); }
 .menu-arrow { font-size: 40rpx; color: var(--line); }
+
+.menu-badge {
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: var(--danger);
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  text-align: center;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+}
 
 .code-row { display: flex; align-items: center; gap: 16rpx; }
 
