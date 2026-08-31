@@ -261,7 +261,7 @@ function onRowContextMenu(ev, row) {
   6. DictTag 外层 span 加 `role="img" :aria-label="状态：${text}"`
   7. ThemeSwitch 按钮加 `:aria-pressed="isDark ? 'true' : 'false'"`
   8. el-breadcrumb 加 `aria-label="面包屑导航"`
-  9. 404/403 错误页（views/error/NotFound + Forbidden.vue）+ router catchAll + /403 路由
+  9. 404/403 错误页组件（待创建）+ router catchAll + /403 路由
   10. 动态面包屑：Layout currentTitle 优先 `route.meta.title`（支持子页面如 /report/overview）
   11. metric-grid gap 16→20px（卡片呼吸更舒展）
 - [ ] **el-table 表头/数据列错位修复（关键）**
