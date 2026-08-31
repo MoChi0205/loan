@@ -30,8 +30,8 @@ description: >-
 ## 扩展点模式：检索顺序
 
 ```
-1. 方案评审定稿纪要（契约基线）   output/方案评审定稿纪要.html
-2. 工程蓝图三件套                 output/loan-db-schema.sql + 后端/前端逻辑蓝图.html
+1. 方案评审定稿纪要（契约基线）   docs/方案评审定稿纪要.html
+2. 数据库 schema 基线             db/loan-db-schema.sql（68 张 t_ 表）
 3. 项目长期记忆 MEMORY.md         .workbuddy/memory/MEMORY.md
 4. 当日工作日志                   .workbuddy/memory/YYYY-MM-DD.md
 5. 参考项目骨架                   tse（骨架）/ mds（规则引擎）
@@ -55,5 +55,5 @@ description: >-
 ## 相关文档
 
 - `.workbuddy/memory/MEMORY.md`（项目长期记忆）
-- `output/方案评审定稿纪要.html`（唯一有效契约基线）
+- `docs/方案评审定稿纪要.html`（唯一有效契约基线）
 - 参考 mds：`/Users/admin/IdeaProjects/mds/AGENTS.md`（知识检索优先原则）

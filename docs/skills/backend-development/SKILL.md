@@ -12,6 +12,11 @@ description: >-
 - 新增或修改 loan-platform 后端业务代码（`com.loan.*`）
 - 编写 Controller / Service / Mapper / 规则 Handler / 缓存 / 定时任务
 - 在公共 Service 写「某渠道 / 某客群专用」逻辑前——**先读本文**
+- **每次代码改动前必读**：`backend-development` + `business-id` 规范（接口身份、FK 编码、批量/分层约束，避免返工）
+  - 接口入参 / 实体字段 / FK 列 / 业务 ID → 先读 `business-id/SKILL.md`
+  - 新增或修改接口 → 同步核对前端 `frontend-ui`（业务ID展示 / 时间排序参数）
+  - 改表 / 索引 / 报表统计 / 分页排序 → 先读 `database-optimization/SKILL.md`（日期索引 + 聚合 SQL + PageOrder）
+  - 新增/修改 Controller 接口 / 角色接口授权 / Web 与小程序端可访问性 → 先读 `gateway-auth/SKILL.md`（网关统一鉴权：角色 × 接口 × 端，未登记接口一律拦截）
 
 ## 核心原则：分层 + 下沉 + 批量 + 可配
 
@@ -78,9 +83,11 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - [ ] 不经常变更的数据是否走了 Caffeine + Redis 二级缓存？写后是否 evict？
 - [ ] 是否复用 tse / mds 骨架，未重复造轮子？
 - [ ] 是否跑过 `mvn compile` 自检（JDK 8 约束：禁 var / List.of / 文本块）？
+- [ ] 业务标识是否走业务 ID（禁 `@PathVariable Long id` / `selectById` 作业务查询）？→ 见 `business-id` 规范
 
 ## 相关文档
 
-- `../../output/方案评审定稿纪要.html` 第 15 章规则引擎语义、第 24 章代码开发规范
+- `../../方案评审定稿纪要.html` 第 15 章规则引擎语义、第 24 章代码开发规范
+- **业务唯一 ID 规范（必读）**：`../business-id/SKILL.md`
 - 参考 tse：`/Users/admin/Documents/crm/tse`（骨架）
 - 参考 mds：`/Users/admin/IdeaProjects/mds/mds-service/.../com/xr/dam/mds/v2`（规则引擎）

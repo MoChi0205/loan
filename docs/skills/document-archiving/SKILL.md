@@ -44,7 +44,8 @@ loan-platform 落地目录：
 
 ```
 docs/skills/           # 开发规范 Skill（本目录）
-output/                # 交付物（纪要 / DDL / 蓝图）——契约基线与工程蓝图
+docs/                  # 交付物（纪要 / 评审结论）——契约基线（如 方案评审定稿纪要.html）
+db/                    # DDL 与迁移脚本（如 loan-db-schema.sql）
 .workbuddy/memory/     # 项目长期记忆（MEMORY.md）+ 当日日志（YYYY-MM-DD.md）
 ```
 
@@ -62,5 +63,5 @@ output/                # 交付物（纪要 / DDL / 蓝图）——契约基线�
 ## 相关文档
 
 - `.workbuddy/memory/MEMORY.md`（项目长期记忆）
-- `output/方案评审定稿纪要.html`（唯一有效契约基线）
+- `docs/方案评审定稿纪要.html`（唯一有效契约基线）
 - 参考 mds：`/Users/admin/IdeaProjects/mds/AGENTS.md`、`/Users/admin/IdeaProjects/mds/llm-wiki/AGENTS.md`

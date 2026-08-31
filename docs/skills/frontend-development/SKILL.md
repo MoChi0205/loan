@@ -12,6 +12,9 @@ description: >-
 - 新增或修改 Web 管理端（Vue 3 + Element Plus）20 模块页面
 - 新增或修改 uni-app 小程序页面（12+ 页）
 - 编写公共组件 / 工具方法 / 路由 / 权限指令前——**先读本文**
+- **每次代码改动前必读**：`frontend-development` + `frontend-ui` + `business-id` 三份规范（后端接口 / 业务 ID / UI 交互对齐，避免返工）
+  - UI/布局/表格/多页签/排序/侧边栏/固定列/中文化 → 先读 `frontend-ui/SKILL.md`（一~九章全量覆盖用户反馈的 UI 硬性规范）
+  - 业务 ID 展示与接口字段 → 先读 `business-id/SKILL.md`
 
 ## 核心原则：按功能分包 + 提取 utils + 统一工具
 
@@ -71,6 +74,9 @@ src/
 
 ## 相关文档
 
-- `../../output/方案评审定稿纪要.html` 第 11 章小程序页面、第 12 章 Web 20 模块、第 24 章前端规范
-- `../../output/前端交互逻辑蓝图.html`（Web 20 模块 + 小程序交互流）
+- `../frontend-ui/SKILL.md`（**UI 与交互规范**：多页签 / 业务ID展示 / 操作列防重叠 / 时间排序 / 菜单分组）
+- `../frontend-components/SKILL.md`（**公共组件库**：AppSearchBar / AppPagination / AppDialog / AppDateTime / AppTableActions / useTable / appConfirm / v-permission）
+- `../business-id/SKILL.md`（**业务 ID 规范**：前端展示必须对齐）
+- `../gateway-auth/SKILL.md`（**网关统一鉴权**：请求必须带 `X-Client-Type: WEB` 头，接口未授权会 403）
+- `../../方案评审定稿纪要.html` 第 11 章小程序页面、第 12 章 Web 20 模块、第 24 章前端规范
 - 参考 tse-frontend：`/Users/admin/Documents/crm/tse-frontend`
