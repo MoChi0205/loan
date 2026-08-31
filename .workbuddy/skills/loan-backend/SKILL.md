@@ -87,7 +87,7 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 
 ## 契约与红线速查
 
-- **契约真源**：`db/loan-db-schema.sql`（**68** 张 `t_` 表）→ `loan-service` 代码 → `docs/knowledge-base/`
+- **契约真源**：`db/loan-db-schema.sql`（**表数以 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 为准，不写死数字**，规则 9）→ `loan-service` 代码 → `docs/knowledge-base/`
 - **禁止引用** `前端交互逻辑蓝图.html` / `后端逻辑蓝图.html` / `output/`（均不存在或已删除，见 `loan-knowledge`）
 - **审批权限真值（D0-4）**：`ALLOCATION` 审批仅 `OPERATOR` / `SUPER_ADMIN` / `SUPER` / `BOSS`
   （**不含 DEPT_MANAGER**）；`PRODUCT` / `DOWNLOAD` 才含 `DEPT_MANAGER`。
@@ -119,7 +119,7 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - `docs/knowledge-base/03-数据模型（DB schema 索引）.md#关键业务表`
 - `docs/knowledge-base/04-后端 API 契约.md#字段命名红线`
 - `docs/knowledge-base/06-业务结论沉淀索引（C1-C19）.md#结论速查`
-- `docs/方案评审定稿纪要.html`（契约基线：第 15 章规则引擎语义、第 24 章代码开发规范；表数以 `db/loan-db-schema.sql` 为准）
+- `docs/plans/archive/方案评审定稿纪要.html`（契约基线：第 15 章规则引擎语义、第 24 章代码开发规范；表数以 `db/loan-db-schema.sql` 为准）
 - 生成入口：`loan-service/src/main/java/com/loan/common/util/BizIdGenerator.java`
 - 参考 tse：`/Users/admin/Documents/crm/tse`（骨架）
 - 参考 mds：`/Users/admin/IdeaProjects/mds/mds-service/.../com/xr/dam/mds/v2`（规则引擎）

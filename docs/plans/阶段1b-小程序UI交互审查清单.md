@@ -142,7 +142,7 @@
 | R2 | TabBar label 文案：员工/运营场景原型为「全部报告」，实现恒为「我的报告」（列表页头已正确显示「全部报告」，仅 tab label 偏差） | TabBar.vue L58 | 原型 tabsFor | P2 |
 | R3 | 员工从 mine 进入 product/list 渲染无高亮 tabBar（见 P3） | product/list.vue L70 | C17 | P2 |
 | R4 | product/list 状态图例按渠道语境渲染，员工角色语境不符（见 P2） | product/list.vue L98 | C9 | P2 |
-| R5 | 渠道 3 tab（首页/我的产品/我的）隐藏匹配/报告/服务单 ✅；「录入客户」tab 待阶段三（原型 4 tab → 实现 3 tab，符合 C17 规划）✅ | TabBar.vue L48-53 | C1/C3/C7/C17 | ✅ |
+| R5 | 渠道 4 tab（首页/我的产品/录入客户/我的）隐藏匹配/报告/服务单 ✅；「录入客户」tab 已于阶段三落地（**纠错证据**：原文记「实现 3 tab」有误，实测 `TabBar.vue` 为 4 tab）✅ | TabBar.vue L48-53 | C1/C3/C7/C17 | ✅ |
 | R6 | 客户仅日期筛选、员工四维、渠道不可见 ✅；报告详情客户脱敏/员工全量 ✅；match 渠道禁入 ✅；mine C8 差异化 ✅ | 各页 | C1/C3/C4/C7/C8 | ✅ |
 
 ---

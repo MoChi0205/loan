@@ -81,7 +81,7 @@ src/
 
 ## 契约红线速查
 
-- **契约真源**：`db/loan-db-schema.sql`（**68** 张 `t_` 表）→ `loan-service` 代码 → `docs/knowledge-base/`
+- **契约真源**：`db/loan-db-schema.sql`（**表数以 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 为准，不写死数字**，规则 9）→ `loan-service` 代码 → `docs/knowledge-base/`
 - **禁止引用** `前端交互逻辑蓝图.html` / `后端逻辑蓝图.html` / `output/`（均不存在或已删除，见 `loan-knowledge`）
 - **审批入口真值（D0-4）**：`ALLOCATION` 审批按钮仅 `OPERATOR` / `SUPER_ADMIN` / `SUPER` / `BOSS` 可见可点
   （**不含 DEPT_MANAGER**）；`PRODUCT` / `DOWNLOAD` 才含 `DEPT_MANAGER`
@@ -108,6 +108,6 @@ src/
 - `docs/knowledge-base/04-后端 API 契约.md#前后端契约变更纪律`
 - `docs/knowledge-base/04-后端 API 契约.md#通用约定`
 - `docs/knowledge-base/08-小程序角色功能矩阵.md#结论`
-- `docs/ui-design-spec.md`（设计令牌与视觉规范）
-- `docs/方案评审定稿纪要.html`（契约基线：第 12 章 Web 模块、第 24 章前端规范；表数以 `db/loan-db-schema.sql` 为准）
+- `docs/plans/archive/ui-design-spec.md`（设计令牌与视觉规范）
+- `docs/plans/archive/方案评审定稿纪要.html`（契约基线：第 12 章 Web 模块、第 24 章前端规范；表数以 `db/loan-db-schema.sql` 为准）
 - 参考 tse-frontend：`/Users/admin/Documents/crm/tse-frontend`

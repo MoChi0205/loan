@@ -18,6 +18,39 @@ set -e
 MODULE="${1:-loan-service}"
 cd "$(dirname "$0")/.."
 
+# ============================================================
+# JDK8 自动探测：环境变量 JAVA_HOME 可能失效（如 ~/.bash_profile
+# 写死旧路径且二进制无执行权限/架构不符），这里通过"实际执行
+# java -version"验证候选 JDK 是否真能跑，保证任何环境都能启动。
+# 优先级：已知可用固定 JDK > 系统注册 JDK > 继承的 $JAVA_HOME > PATH
+# ============================================================
+detect_java8() {
+  local candidates h
+  candidates=(
+    "/Library/Java/JavaVirtualMachines/jdk1.8.0_202.jdk/Contents/Home"
+    "$(/usr/libexec/java_home -v 1.8 2>/dev/null || true)"
+    "$JAVA_HOME"
+  )
+  for h in "${candidates[@]}"; do
+    [ -z "$h" ] && continue
+    if [ -x "$h/bin/java" ] && "$h/bin/java" -version >/dev/null 2>&1 \
+      && "$h/bin/java" -version 2>&1 | grep -q '1\.8'; then
+      echo "$h"; return 0
+    fi
+  done
+  # 兜底：从 PATH 里解析 java 的上级目录
+  local j
+  j=$(command -v java 2>/dev/null || true)
+  if [ -n "$j" ] && "$j" -version >/dev/null 2>&1 && "$j" -version 2>&1 | grep -q '1\.8'; then
+    echo "$(cd "$(dirname "$j")/.." && pwd)"; return 0
+  fi
+  return 1
+}
+
+JAVA_HOME=$(detect_java8) || { echo "ERROR: 未找到可用的 JDK 8，请先安装"; exit 1; }
+export JAVA_HOME
+echo ">>> 使用 JDK: ${JAVA_HOME}"
+
 JVM_ARGS="-Dnacos.server-addr=124.221.150.239:9848 -Dnacos.namespace=prd -Dspring.cloud.nacos.discovery.register-enabled=false -Ddubbo.enabled=false -Dapp.gateway.trust-only=false"
 
 echo ">>> 安装依赖模块 loan-api（首次需 install 供 loan-service 解析）"

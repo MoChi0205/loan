@@ -1,0 +1,641 @@
+{
+  "version": "1.1",
+  "updatedAt": "2026-08-31",
+  "owner": "T02 + T03",
+  "description": "loan-main 业务 7 角色的机器可读索引。内容镜像自 .workbuddy/skills/role-*.md 7 份技能，并与设计文档 §B.2.3 能力速查矩阵、代码真源（MiniRoleGuard / TabBar.vue / MiniAuthController）交叉验证。冲突时一律以代码为准，并同步回写技能与本文件。",
+  "sourceOfTruth": {
+    "roleDerivation": [
+      "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
+      "loan-mini/store/user.js#resolveRole"
+    ],
+    "approvalWhitelist": [
+      "loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java#APPROVER_ROLES (ALLOCATION)",
+      "loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java#APPROVAL_ROLES (PRODUCT/DOWNLOAD)"
+    ],
+    "tabBar": "loan-mini/components/TabBar.vue (L47-54 渠道分支 / L55-61 默认分支)",
+    "approvalEntryGuard": "loan-mini/pages/mine/mine.vue#isApproverRole (L183-185)",
+    "approvalTypeWhitelist": "loan-service/src/main/resources/application.properties:98 (loan.mini.approval.types=ALLOCATION)",
+    "apiContract": "docs/knowledge-base/04-后端 API 契约.md",
+    "note": "本文件不写死历史结论编号的最大序号；取号前必须实时 grep docs/knowledge-base/10-历史结论与决策日志.md"
+  },
+  "conventions": {
+    "legend": {
+      "YES": "已实现（代码可跑）",
+      "NO": "禁止 / 不可达",
+      "MASKED": "部分可见（脱敏）",
+      "PLANNED": "规划中，当前不存在"
+    },
+    "dataScopeValues": [
+      "own",
+      "ownPlusOwnLeads",
+      "fullCrossOwner",
+      "deptSubtree",
+      "companyWide",
+      "unrestricted"
+    ],
+    "tabBarSwitch": "自绘 TabBar（C17）；pages.json 已无原生 tabBar；切换一律 uni.reLaunch，禁用 uni.switchTab"
+  },
+  "roles": [
+    {
+      "id": "customer",
+      "skill": "role-customer",
+      "label": "客户",
+      "userType": "CUSTOMER",
+      "roleCode": null,
+      "isStaff": false,
+      "isChannel": false,
+      "fallback": true,
+      "fallbackNote": "全局最小权限兜底：未登录 / userType 为空 / 非 CUSTOMER|CHANNEL|STAFF 一律判 customer",
+      "dataScope": "own",
+      "dataScopeNote": "clientCode == user.userNo；报告仅日期维度，工单仅状态+时间",
+      "tabBar": {
+        "count": 5,
+        "tabs": [
+          "home",
+          "match",
+          "report",
+          "order",
+          "mine"
+        ],
+        "source": "TabBar.vue:55-61（默认分支）"
+      },
+      "cannotCount": 6,
+      "apis": [
+        "POST /api/mini/auth/login",
+        "GET /api/mini/me",
+        "POST /api/mini/auth/enterprise",
+        "POST /api/mini/match/run",
+        "GET /api/mini/match/history",
+        "GET /api/mini/report/list",
+        "GET /api/mini/report/{reportNo}",
+        "GET /api/mini/report/{reportNo}/diagnosis",
+        "GET /api/mini/order/list",
+        "GET /api/mini/order/{orderNo}",
+        "POST /api/mini/upload"
+      ],
+      "conclusions": [
+        "C1",
+        "C3",
+        "C4",
+        "C7",
+        "C8",
+        "C17",
+        "C21"
+      ],
+      "derivation": {
+        "backend": "`MiniAuthController.resolveRoleInfo()`：`user == null` 或 `userType == null` 时**兜底 customer**；`TYPE_CUSTOMER` → `role = \"customer\"`",
+        "frontend": "`store/user.js resolveRole()`：`!user \\|\\| !user.userType` → `customer`；`type === 'CUSTOMER'` → `customer`；**未知 userType 也归 customer（最小权限兜底）**",
+        "getter": "",
+        "storage": "`store.role` + storage key `loan_role`（`/api/mini/me` 返回 `roleInfo` 时以服务端为准刷新）",
+        "evidence": [
+          "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
+          "loan-mini/store/user.js#resolveRole"
+        ]
+      },
+      "cannot": [
+        "**看不到命中产品明细**（`bankName` / `productName` 对客脱敏）—— C4；`MiniMatchController.reportProducts` 仅 STAFF 可见；`04#通用约定`「产品名/银行名对客脱敏（仅员工可见）」",
+        "**不能看他人报告 / 工单** —— `report/list` 客户分支强制 `user.getUserNo()`，`order` 客户校验归属；C3 / C7",
+        "**不能用员工四维筛选**（客户姓名 / 信用代码 / 归属 / 时间组合）—— `report/list` 客户分支**忽略所有跨用户检索参数**（`query` / `credit` / `owner`），**只透传 `dateRange`**；C3 / C11",
+        "**无审批中心入口** —— `mine.vue` `isApproverRole = ['boss','operator','super']` 不含 customer；08 矩阵 ❌",
+        "**不能录入产品、不能查重 / 归属流转** —— `POST /api/mini/product` 后端 `requireChannel`（仅渠道）；`GET /api/mini/client/search` 仅 STAFF",
+        "**不能进客户管理 / 线索公海** —— 08 矩阵对**全部 7 角色**均为 ❌，规划在 Web 端阶段二"
+      ],
+      "approvalTypes": [],
+      "skillPath": ".workbuddy/skills/role-customer",
+      "skillFile": ".workbuddy/skills/role-customer/SKILL.md",
+      "approvalEntry": false
+    },
+    {
+      "id": "channel",
+      "skill": "role-channel",
+      "label": "渠道合作方",
+      "userType": "CHANNEL",
+      "roleCode": null,
+      "isStaff": false,
+      "isChannel": true,
+      "fallback": false,
+      "sandbox": true,
+      "sandboxNote": "沙箱隔离：只能看到自己产出的东西（自有产品 + 本人录入线索），看不到任何公司侧资产",
+      "dataScope": "ownPlusOwnLeads",
+      "dataScopeNote": "仅自有产品 + 本人提交 t_lead；报告/匹配/工单/客户档案/归属信息一律不可见",
+      "tabBar": {
+        "count": 4,
+        "tabs": [
+          "home",
+          "product",
+          "client",
+          "mine"
+        ],
+        "source": "TabBar.vue:47-54（store.isChannel 分支）",
+        "docConflict": "docs/knowledge-base/01-角色权限模型.md 写 3 tab（错误）；已记 D13，以代码 4 tab 为准"
+      },
+      "cannotCount": 6,
+      "apis": [
+        "POST /api/mini/auth/login",
+        "GET /api/mini/me",
+        "GET /api/mini/product/list",
+        "POST /api/mini/product",
+        "GET /api/mini/product/{code}",
+        "PUT /api/mini/product/{code}",
+        "POST /api/mini/product/{code}/submit",
+        "POST /api/mini/product/{code}/revoke",
+        "POST /api/mini/product/{code}/delete-apply",
+        "POST /api/mini/product/{code}/delete-cancel",
+        "POST /api/mini/lead/submit",
+        "GET /api/mini/lead/my",
+        "POST /api/mini/upload"
+      ],
+      "conclusions": [
+        "C1",
+        "C3",
+        "C8",
+        "C9",
+        "C20"
+      ],
+      "derivation": {
+        "backend": "`MiniAuthController.resolveRoleInfo()`：`LoanUser.TYPE_CHANNEL.equals(userType)` → `role = \"channel\"`",
+        "frontend": "`store/user.js resolveRole()`：`type === 'CHANNEL'` → `channel`",
+        "getter": "`store.isChannel` = `role === 'channel'`",
+        "storage": "`store.role` + storage key `loan_role`",
+        "evidence": [
+          "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
+          "loan-mini/store/user.js#resolveRole"
+        ]
+      },
+      "cannot": [
+        "**不可操作智能匹配 —— 渠道是唯一不可操作匹配的角色**（C1） 后端 `MiniMatchController` 在 `run`(L61)、`history`(L135)、`reportList`(L135)、`products`(L162)、 `diagnosis`(L185)、`detail`(L203) **六处均有 `TYPE_CHANNEL` 守卫**",
+        "**不可见任何报告（含自己的）** —— C3；`reportList` 渠道分支**直接返回空 `PageResult`**（不是过滤，是拒绝）",
+        "**不可见服务单 tab** —— `TabBar.vue` 渠道分支无 `order`；08 矩阵「❌ 隐藏」",
+        "**不可见客户档案、不可查重、不可归属流转** —— C2 / C10；`GET /api/mini/client/search` 仅 STAFF",
+        "**录入命中唯一索引冲突时，只返友好文案，严禁泄露归属人** —— C20（`msg=\"该客户已被录入，请联系运营\"`）",
+        "**看不到匹配结果、看不到客户归属、看不到报告命中产品明细** —— `report/{reportNo}/products` 渠道直接拒绝"
+      ],
+      "approvalTypes": [],
+      "skillPath": ".workbuddy/skills/role-channel",
+      "skillFile": ".workbuddy/skills/role-channel/SKILL.md",
+      "approvalEntry": false
+    },
+    {
+      "id": "adviser",
+      "skill": "role-adviser",
+      "label": "顾问",
+      "userType": "STAFF",
+      "roleCode": "ADVISER",
+      "isStaff": true,
+      "isChannel": false,
+      "fallback": true,
+      "fallbackNote": "F7：userType=STAFF 但 roleCode 未识别（空/未知/未登记）一律兜底 adviser；故本角色边界 = 员工侧能力下界",
+      "dataScope": "fullCrossOwner",
+      "dataScopeNote": "全量（跨归属）报告/工单；客户归属自己的部分",
+      "tabBar": {
+        "count": 5,
+        "tabs": [
+          "home",
+          "match",
+          "report",
+          "order",
+          "mine"
+        ],
+        "source": "TabBar.vue:55-61（默认分支）"
+      },
+      "cannotCount": 3,
+      "apis": [
+        "POST /api/mini/match/run",
+        "GET /api/mini/match/history",
+        "GET /api/mini/report/list",
+        "GET /api/mini/report/{reportNo}/products",
+        "GET /api/mini/report/{reportNo}/diagnosis",
+        "GET /api/mini/order/list",
+        "GET /api/mini/client/search",
+        "POST /api/mini/client/{clientCode}/claim",
+        "GET /api/mini/client/{clientCode}/claim-status",
+        "POST /api/mini/upload"
+      ],
+      "conclusions": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C7",
+        "C10",
+        "C19"
+      ],
+      "knownDocIssue": "04-后端 API 契约.md 第 45 行的 POST /api/mini/client（录入新客户）在 MiniClientController 中不存在；客户录入实际走 POST /api/mini/lead/submit",
+      "derivation": {
+        "backend": "`MiniAuthController.resolveRoleInfo()`：`TYPE_STAFF` + `roleCode.toUpperCase() == \"ADVISER\"` → `role = \"adviser\"`",
+        "frontend": "`store/user.js resolveRole()`：同上",
+        "getter": "`isStaff` 含 adviser；`isChannel` 为 false",
+        "storage": "",
+        "evidence": [
+          "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
+          "loan-mini/store/user.js#resolveRole"
+        ]
+      },
+      "cannot": [
+        "**不能审批任何审批类型** `ALLOCATION` 白名单 `MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS]` —— **不含 ADVISER** `PRODUCT` / `DOWNLOAD` 白名单 `APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]` —— **也不含 ADVISER** → **顾问只能\"提交分配申请\"（`/claim`），不能审批**",
+        "**无审批中心入口** —— `mine.vue` `isApproverRole = ['boss','operator','super']` 不含 adviser；08 矩阵对顾问为 ❌ / —",
+        "**无客户管理列表、无线索公海** —— 08 矩阵当前 ❌（**全部 7 角色均为 ❌**），规划在 Web 端阶段二"
+      ],
+      "approvalTypes": [],
+      "skillPath": ".workbuddy/skills/role-adviser",
+      "skillFile": ".workbuddy/skills/role-adviser/SKILL.md",
+      "approvalEntry": false
+    },
+    {
+      "id": "deptmgr",
+      "skill": "role-deptmgr",
+      "label": "部门经理",
+      "userType": "STAFF",
+      "roleCode": "DEPT_MANAGER",
+      "isStaff": true,
+      "isChannel": false,
+      "fallback": false,
+      "pitfall": "全项目最高频权限误判点：直觉上经理能审，但 APPROVER_ROLES 不含 DEPT_MANAGER",
+      "dataScope": "deptSubtree",
+      "dataScopeNote": "本部门（deptCode 子树）全量 + 本人全量",
+      "tabBar": {
+        "count": 5,
+        "tabs": [
+          "home",
+          "match",
+          "report",
+          "order",
+          "mine"
+        ],
+        "source": "TabBar.vue:55-61（默认分支）",
+        "note": "无 mine 页审批中心入口（isApproverRole 不含 deptmgr）"
+      },
+      "cannotCount": 3,
+      "apis": [
+        "role-adviser 全部接口",
+        "GET /api/mini/approval/pending（仅 type != ALLOCATION）",
+        "POST /api/mini/approval/{type}/{approvalNo}/audit（仅 type != ALLOCATION）"
+      ],
+      "conclusions": [
+        "D0-4",
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C7",
+        "C19",
+        "C22"
+      ],
+      "knownDocIssue": "04-后端 API 契约.md 第 90-91 行写 ALLOCATION 含 DEPT_MANAGER，与 MiniRoleGuard.APPROVER_ROLES 及 D0-4 冲突；以代码为准（不可审），文档待修正",
+      "derivation": {
+        "backend": "`MiniAuthController.resolveRoleInfo()`：`TYPE_STAFF` + `\"DEPT_MANAGER\"` → `role = \"deptmgr\"`",
+        "frontend": "`store/user.js resolveRole()`：同上",
+        "getter": "`isStaff` 含 deptmgr；`isChannel` 为 false；**`isApproverRole` 不含 deptmgr**",
+        "storage": "",
+        "evidence": [
+          "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
+          "loan-mini/store/user.js#resolveRole"
+        ]
+      },
+      "cannot": [
+        "**不能审批 `ALLOCATION`（分配审批）—— 本角色最关键的红线** 依据：`MiniRoleGuard.APPROVER_ROLES = [\"OPERATOR\", \"SUPER_ADMIN\", \"SUPER\", \"BOSS\"]` **不含 `DEPT_MANAGER`** 代码位置：`loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java:25-26` 调用链：`requireApproverFor(\"ALLOCATION\", user)` → `requireApprover(user)` → `APPROVER_ROLES.contains(code)` 失败 → 抛 `BusinessException(FORBIDDEN, \"仅运营管理员或超级管理员可审批分配\")` 来源结论：**D0-4**（已推翻《遗留项增量设计-2026-08-30》中的相反描述） → deptmgr **只能\"申请\"分配，不能审批** 🚨 **误判高发原因**：直觉上\"经理能审\"。代码不允许的理由是：**分配审批涉及跨部门归属变更**",
+        "**无审批中心入口** `loan-mini/pages/mine/mine.vue:183-185` `isApproverRole = ['boss','operator','super']` **不含 deptmgr**； 08 矩阵对 deptmgr 的审批中心行为 ❌ / —，与 `APPROVER_ROLES` 白名单一致",
+        "**不能改系统配置 / 角色权限菜单** 属 `operator` / `super` 在 **Web 管理端**（`views/config`、`views/org`）的能力"
+      ],
+      "approvalTypes": [
+        "PRODUCT",
+        "DOWNLOAD"
+      ],
+      "skillPath": ".workbuddy/skills/role-deptmgr",
+      "skillFile": ".workbuddy/skills/role-deptmgr/SKILL.md",
+      "approvalEntry": false
+    },
+    {
+      "id": "boss",
+      "skill": "role-boss",
+      "label": "老板",
+      "userType": "STAFF",
+      "roleCode": "BOSS",
+      "isStaff": true,
+      "isChannel": false,
+      "fallback": false,
+      "dataScope": "companyWide",
+      "dataScopeNote": "全公司全量；网关层 ApiAuthGlobalFilter 对 BOSS 全量放行（t_role_api 不落库），但配置域不可见",
+      "tabBar": {
+        "count": 5,
+        "tabs": [
+          "home",
+          "match",
+          "report",
+          "order",
+          "mine"
+        ],
+        "source": "TabBar.vue:55-61（默认分支）",
+        "extraEntry": [
+          "mine 页「审批中心」→ /pages/approval/list"
+        ]
+      },
+      "cannotCount": 2,
+      "apis": [
+        "role-adviser 全部接口",
+        "GET /api/mini/approval/counts",
+        "GET /api/mini/approval/pending（全类型，含 ALLOCATION）",
+        "POST /api/mini/approval/{type}/{approvalNo}/audit（全类型，含 ALLOCATION）",
+        "GET /api/admin/approval/counts",
+        "GET /api/admin/approval/pending"
+      ],
+      "conclusions": [
+        "D0-4",
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C7",
+        "C19",
+        "C22"
+      ],
+      "derivation": {
+        "backend": "`MiniAuthController.resolveRoleInfo()`：`TYPE_STAFF` + `\"BOSS\"` → `role = \"boss\"`",
+        "frontend": "`store/user.js resolveRole()`：同上",
+        "getter": "`isStaff` 含 boss；**`isApproverRole` 含 boss**（`mine.vue:184`）",
+        "storage": "",
+        "evidence": [
+          "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
+          "loan-mini/store/user.js#resolveRole"
+        ]
+      },
+      "cannot": [
+        "**不等于超级管理员**：**不能改系统配置、不能配角色 / 菜单 / 接口授权** 这些属 `operator` / `super` 在 **Web 管理端**（`views/config`、`views/org`、`组织权限 → 接口权限`）的能力。 ⚠️ 网关层 BOSS 虽\"全量放行\"，但这**只是接口鉴权放行**，**不等于**拥有配置管理界面与配置写权限。",
+        "**小程序端无客户管理列表、无线索公海** 08 矩阵对**全部 7 角色**均为 ❌，规划在 Web 端阶段二"
+      ],
+      "approvalTypes": [
+        "ALLOCATION",
+        "PRODUCT",
+        "DOWNLOAD"
+      ],
+      "skillPath": ".workbuddy/skills/role-boss",
+      "skillFile": ".workbuddy/skills/role-boss/SKILL.md",
+      "approvalEntry": true
+    },
+    {
+      "id": "operator",
+      "skill": "role-operator",
+      "label": "运营管理员",
+      "userType": "STAFF",
+      "roleCode": "OPERATOR",
+      "isStaff": true,
+      "isChannel": false,
+      "fallback": false,
+      "note": "小程序侧承载轻；配置/审计/短信/模板主体在 Web 管理端（/api/admin/**，AdminAuthInterceptor）",
+      "dataScope": "companyWide",
+      "dataScopeNote": "全公司全量 + 配置域（Web 管理端）",
+      "tabBar": {
+        "count": 5,
+        "tabs": [
+          "home",
+          "match",
+          "report",
+          "order",
+          "mine"
+        ],
+        "source": "TabBar.vue:55-61（默认分支）",
+        "extraEntry": [
+          "mine 页「审批中心」→ /pages/approval/list"
+        ]
+      },
+      "cannotCount": 2,
+      "apis": [
+        "role-adviser 全部接口",
+        "GET /api/mini/approval/counts",
+        "GET /api/mini/approval/pending（全类型）",
+        "POST /api/mini/approval/{type}/{approvalNo}/audit（全类型）",
+        "GET /api/mini/partner-product/delete/pending",
+        "POST /api/mini/partner-product/delete/{approvalNo}/audit",
+        "GET /api/admin/approval/counts",
+        "GET /api/admin/approval/pending",
+        "Web /api/admin/**（配置/组织/短信/模板/审计）"
+      ],
+      "conclusions": [
+        "C9",
+        "C19",
+        "C22"
+      ],
+      "derivation": {
+        "backend": "`MiniAuthController.resolveRoleInfo()`：`TYPE_STAFF` + `\"OPERATOR\"` → `role = \"operator\"`",
+        "frontend": "`store/user.js resolveRole()`：同上",
+        "getter": "`isStaff` 含 operator；**`isApproverRole` 含 operator**（`mine.vue:184`）",
+        "storage": "",
+        "evidence": [
+          "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
+          "loan-mini/store/user.js#resolveRole"
+        ]
+      },
+      "cannot": [
+        "**小程序端不做客户管理列表、不做线索公海** 08 矩阵对**全部 7 角色**均为 ❌，规划在 **Web 端阶段二**；小程序可后续追加轻量入口，但**当前不存在**",
+        "**不在小程序改系统级配置** 走 Web 管理端 `views/config`、`views/org`；小程序侧只承载审批等轻量能力"
+      ],
+      "approvalTypes": [
+        "ALLOCATION",
+        "PRODUCT",
+        "DOWNLOAD"
+      ],
+      "skillPath": ".workbuddy/skills/role-operator",
+      "skillFile": ".workbuddy/skills/role-operator/SKILL.md",
+      "approvalEntry": true
+    },
+    {
+      "id": "super",
+      "skill": "role-super",
+      "label": "超级管理员",
+      "userType": "STAFF",
+      "roleCode": [
+        "SUPER_ADMIN",
+        "SUPER"
+      ],
+      "isStaff": true,
+      "isChannel": false,
+      "fallback": false,
+      "dualWrite": true,
+      "dualWriteNote": "F6：SUPER 与 SUPER_ADMIN 两种 roleCode 并存；任何新增角色校验必须同时兼容两种写法，只写一个会静默漏判",
+      "dataScope": "unrestricted",
+      "dataScopeNote": "全量无限制；系统级配置、角色/菜单/接口授权在 Web 管理端",
+      "tabBar": {
+        "count": 5,
+        "tabs": [
+          "home",
+          "match",
+          "report",
+          "order",
+          "mine"
+        ],
+        "source": "TabBar.vue:55-61（默认分支）",
+        "extraEntry": [
+          "mine 页「审批中心」→ /pages/approval/list"
+        ]
+      },
+      "cannotCount": 2,
+      "apis": [
+        "role-operator 全部接口",
+        "Web /api/admin/* 全量（含角色/菜单/接口授权）"
+      ],
+      "conclusions": [
+        "C9",
+        "C19",
+        "C22"
+      ],
+      "derivation": {
+        "backend": "`MiniAuthController.resolveRoleInfo()` L118：`\"SUPER_ADMIN\".equals(code) \\|\\| \"SUPER\".equals(code)` → `role = \"super\"`",
+        "frontend": "`store/user.js resolveRole()` L58：同上",
+        "getter": "`isStaff` 含 super；**`isApproverRole` 含 super**（`mine.vue:184`）",
+        "storage": "",
+        "evidence": [
+          "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
+          "loan-mini/store/user.js#resolveRole"
+        ]
+      },
+      "cannot": [
+        "**小程序侧能力边界与 operator 一致**：无客户管理列表、无线索公海 08 矩阵对**全部 7 角色**均为 ❌（规划在 Web 阶段二）；超管的系统级能力**在 Web 管理端，不在小程序**",
+        "**禁止只写 `SUPER_ADMIN` 或只写 `SUPER` 一种判断** 新增角色校验必须**同时兼容两种写法**。只写一个会**静默漏判**： 真实数据里两种 roleCode 都存在，漏掉的那个会被判成 adviser（兜底）或直接 403。 ⚠️ **本角色最易出的代码缺陷**（F6）。自查：凡出现 `equals(\"SUPER_ADMIN\")` 的地方， 同处应能看到 `\"SUPER\"`；反之亦然。"
+      ],
+      "approvalTypes": [
+        "ALLOCATION",
+        "PRODUCT",
+        "DOWNLOAD"
+      ],
+      "skillPath": ".workbuddy/skills/role-super",
+      "skillFile": ".workbuddy/skills/role-super/SKILL.md",
+      "approvalEntry": true
+    }
+  ],
+  "capabilityMatrix": {
+    "note": "源自代码真值（MiniRoleGuard + TabBar.vue + mine.vue），供 docs/knowledge-base/08-小程序角色功能矩阵.md 修正时对照",
+    "columns": [
+      "customer",
+      "channel",
+      "adviser",
+      "deptmgr",
+      "boss",
+      "operator",
+      "super"
+    ],
+    "rows": {
+      "智能匹配": [
+        "YES:自己",
+        "NO",
+        "YES:替客",
+        "YES",
+        "YES",
+        "YES",
+        "YES"
+      ],
+      "命中产品明细": [
+        "MASKED",
+        "NO",
+        "YES",
+        "YES",
+        "YES",
+        "YES",
+        "YES"
+      ],
+      "全量报告/工单四维": [
+        "NO",
+        "NO",
+        "YES",
+        "YES",
+        "YES",
+        "YES",
+        "YES"
+      ],
+      "审批_ALLOCATION": [
+        "NO",
+        "NO",
+        "NO",
+        "NO",
+        "YES",
+        "YES",
+        "YES"
+      ],
+      "审批_PRODUCT_DOWNLOAD": [
+        "NO",
+        "NO",
+        "NO",
+        "YES",
+        "YES",
+        "YES",
+        "YES"
+      ],
+      "审批中心入口": [
+        "NO",
+        "NO",
+        "NO",
+        "NO",
+        "YES",
+        "YES",
+        "YES"
+      ],
+      "客户管理/线索公海": [
+        "NO",
+        "NO",
+        "NO",
+        "NO",
+        "NO",
+        "NO",
+        "NO"
+      ]
+    },
+    "evidence": {
+      "审批_ALLOCATION": "MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS]（不含 DEPT_MANAGER）→ D0-4",
+      "审批_PRODUCT_DOWNLOAD": "MiniRoleGuard.APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]",
+      "审批中心入口": "mine.vue:183-185 isApproverRole = ['boss','operator','super']",
+      "智能匹配": "C1：客户自身 + 全部 STAFF 可操作；渠道是唯一不可操作角色（MiniMatchController 六处 TYPE_CHANNEL 守卫）",
+      "命中产品明细": "C4 + MiniMatchController.reportProducts（仅 STAFF；客户脱敏）",
+      "全量报告/工单四维": "C3/C7/C11：reportList 与 orderList 的三分支（渠道空集 / 客户 own / 员工全量）"
+    }
+  },
+  "crossCheck": {
+    "totalCannotItems": 24,
+    "requiredMinimum": 20,
+    "perRole": {
+      "role-customer": 6,
+      "role-channel": 6,
+      "role-adviser": 3,
+      "role-deptmgr": 3,
+      "role-boss": 2,
+      "role-operator": 2,
+      "role-super": 2
+    },
+    "verifiedAgainst": [
+      "docs/plans/知识治理体系设计.md §B.2.3 角色能力速查矩阵（能力结论一致）",
+      "docs/knowledge-base/08-小程序角色功能矩阵.md（功能矩阵一致）",
+      "代码真源（MiniRoleGuard / TabBar.vue / MiniAuthController / store/user.js / mine.vue）",
+      "docs/knowledge-base/11-业务域文档索引.md §G4 审批中心 / §G1 渠道 / §G9 小程序接口层（域索引交叉引用一致）",
+      "docs/plans/知识治理体系设计.md §A.6 / §B.2.3（字段规范与能力矩阵一致）"
+    ],
+    "deviationsFromDesignDoc": [
+      "设计文档 §B.2.3 的接口列写了 /api/mini/match/allReports、/api/mini/match/reportProducts、/api/mini/match/reportDiagnosis、/api/mini/approval/apply —— 均为陈旧路径。代码真值为 /api/mini/report/list、/api/mini/report/{reportNo}/products、/api/mini/report/{reportNo}/diagnosis、/api/mini/approval/{type}/{approvalNo}/audit（与 04-后端 API 契约.md 2026-08-30 校正版一致）。本索引按代码真值填写。"
+    ]
+  },
+  "fieldGuide": {
+    "derivation": "角色推导来源（后端 resolveRoleInfo + 前端 store/user.js resolveRole）",
+    "cannot": "关键禁止项，逐条镜像自 role-<id>/SKILL.md §3（本索引的核心价值）",
+    "approvalTypes": "可审批类型，由 MiniRoleGuard 两个白名单按 roleCode 计算得出（代码真值）",
+    "approvalEntry": "小程序 mine 页是否有「审批中心」入口（mine.vue isApproverRole = boss/operator/super）",
+    "tabBar": "自绘 TabBar 结构，真值来源 loan-mini/components/TabBar.vue",
+    "skillPath": "对应角色技能目录（只读引用，本索引不修改技能内容）"
+  },
+  "approvalWhitelistTruth": {
+    "ALLOCATION": "MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS] —— 不含 DEPT_MANAGER / ADVISER",
+    "PRODUCT": "MiniRoleGuard.APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]",
+    "DOWNLOAD": "同上 APPROVAL_ROLES",
+    "runtimeRestriction": "application.properties loan.mini.approval.types=ALLOCATION —— 当前仅开放 ALLOCATION，PRODUCT/DOWNLOAD 为前瞻能力（不可达）",
+    "docConflict": "04-后端 API 契约.md 第 90-91 行写「ALLOCATION 含 DEPT_MANAGER」，与代码冲突，以代码 + D0-4 为准"
+  },
+  "counts": {
+    "roles": 7,
+    "totalCannotItems": 24,
+    "perRole": {
+      "role-customer": 6,
+      "role-channel": 6,
+      "role-adviser": 3,
+      "role-deptmgr": 3,
+      "role-boss": 2,
+      "role-operator": 2,
+      "role-super": 2
+    }
+  }
+}

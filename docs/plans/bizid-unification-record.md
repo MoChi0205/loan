@@ -39,7 +39,7 @@ Java 改造文件（14 个）：
 ## 四、规范文档
 
 - 新建 `docs/skills/business-id/SKILL.md`（业务 ID + FK 引用列规范，含自检清单）
-- 更新 `docs/业务ID规范.md` → v1.1（新增「四·五 FK 引用列统一为业务编码」）
+- 更新 `docs/业务ID规范.md` → v1.1（新增「四·五 FK 引用列统一为业务编码」）。**已执行动作记录**：该 md 现已归档为 `docs/plans/archive/业务ID规范.md`（仅历史留痕），规范真源并入 `.workbuddy/skills/loan-biz-id/SKILL.md`
 - 更新 `docs/skills/backend-development/SKILL.md`（自检清单 + 链接 business-id）
 
 ## 五、前端同步

@@ -76,9 +76,9 @@ List<Map<String, Object>> rows = orderMapper.selectMaps(wrapper);
 
 ## 契约红线速查
 
-- **契约真源（D7 / D0-2）**：`db/loan-db-schema.sql`（**68** 张 `t_` 表，以 `grep -c "CREATE TABLE"` 为准）
+- **契约真源（D7 / D0-2）**：`db/loan-db-schema.sql`——**表数以该文件的 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 为准，不写死数字**（规则 9）
   → `loan-service` 代码 → `docs/knowledge-base/`
-- **「65 表 / 66 表」是错的**，任何新增文档一律写 **68**
+- **「65 表 / 66 表」是错的**（历史纠错，见 D6 / D0-2，保留原值备查）；新增文档一律写「表数以 `db/loan-db-schema.sql` 为准」，**不写死表数**（规则 9）
 - **禁止引用** `output/` 目录与两张不存在的「逻辑蓝图.html」（见 `loan-knowledge`）
 
 ## 自检清单
@@ -89,7 +89,7 @@ List<Map<String, Object>> rows = orderMapper.selectMaps(wrapper);
 - [ ] page 接口是否支持 `orderBy` / `orderDir`？是否走 `PageOrder` 白名单？
 - [ ] 分页是否默认走 `created_at` 索引排序？
 - [ ] 名称映射是否批量 `in` 查询（非逐行查）？
-- [ ] 新增表是否同步 `db/loan-db-schema.sql` 与 `docs/knowledge-base/03-*`？表数是否为 68+N？
+- [ ] 新增表是否同步 `db/loan-db-schema.sql` 与 `docs/knowledge-base/03-*`？实际表数是否用 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 核对过（勿凭记忆写数字）？
 
 ## 相关文档
 

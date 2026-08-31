@@ -50,7 +50,7 @@ description: >-
 | 红线与编码规范 | `docs/knowledge-base/02-业务红线与编码规范.md` |
 | 数据模型 | `docs/knowledge-base/03-数据模型（DB schema 索引）.md`、`db/loan-db-schema.sql` |
 | 接口契约 | `docs/knowledge-base/04-后端 API 契约.md` |
-| 前端工程 | `docs/knowledge-base/05-前端工程要点.md`、`docs/ui-design-spec.md` |
+| 前端工程 | `docs/knowledge-base/05-前端工程要点.md`、`docs/plans/archive/ui-design-spec.md` |
 | 业务结论 | `docs/knowledge-base/06-业务结论沉淀索引（C1-C19）.md` |
 | 上线测试部署 | `docs/knowledge-base/07-沟通-上线-测试-部署清单.md` |
 | 流程图谱 | `docs/knowledge-base/09-业务流程知识图谱.md` / `.json` |
@@ -89,7 +89,7 @@ description: >-
 
 ## 契约真源（三件套，按此顺序裁决）
 
-1. `db/loan-db-schema.sql` —— **数据契约**：当前 **68** 张 `t_` 表（以 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 为准）
+1. `db/loan-db-schema.sql` —— **数据契约**：表数以 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 为准，**不写死数字**（规则 9）
 2. `loan-service` 实际代码 —— **实现契约**：代码与文档冲突时，**以代码为准并回写文档**
 3. `docs/knowledge-base/` —— **业务契约**：结论沉淀、角色矩阵、流程图谱
 
@@ -99,8 +99,8 @@ description: >-
 |---|---|
 | `前端交互逻辑蓝图.html` | **全仓不存在**，从未落盘 |
 | `后端/前端逻辑蓝图.html` | **全仓不存在**，从未落盘 |
-| `output/` 目录 | **已不存在**；纪要实际在 `docs/方案评审定稿纪要.html`，DDL 在 `db/loan-db-schema.sql` |
-| 「65 表」/「66 表」 | **错误**；真值 **68**（`docs/方案评审定稿纪要.html` 已按 D6 直接改为 68，不加勘误） |
+| `output/` 目录 | **已不存在**；纪要实际在 `docs/plans/archive/方案评审定稿纪要.html`，DDL 在 `db/loan-db-schema.sql` |
+| 「65 表」/「66 表」 | **错误**（历史纠错，见 D6 / D0-2：D6 时点真值为 68，纪要同期已按 D6 直接改为 68、不加勘误）；**当前真值一律以 `db/loan-db-schema.sql` 为准，不写死数字** |
 | `docs/skills/` 下旧技能 | 不在系统加载路径（F12），已被本目录 `loan-*` 技能取代 |
 
 > 上表内容如后续被创建或恢复，须由**用户确认后**才可从本表移除，不得凭推测恢复引用。
@@ -151,7 +151,7 @@ description: >-
 ```
 .workbuddy/skills/            # 项目级技能（随 git，唯一加载路径）
 docs/plans/                   # 计划 / 设计 / 实施方案
-docs/                         # 交付物：方案评审定稿纪要.html、业务ID规范.md、ui-design-spec.md
+docs/plans/archive/           # 已归档交付物（2026-08-31 由 docs/ 根目录移入，见 D14）：方案评审定稿纪要.html、业务ID规范.md、ui-design-spec.md
 db/                           # DDL 与迁移脚本（loan-db-schema.sql、migrate-*.sql）
 docs/knowledge-base/          # 项目长期记忆：10-历史结论与决策日志.md（D 系列台账，修改前必查）
 loan-service/                 # 后端实现真源
@@ -201,5 +201,5 @@ loan-service/                 # 后端实现真源
 - `docs/knowledge-base/README.md#使用规则`（知识库总入口与跳到索引）
 - `docs/knowledge-base/00-项目结构与代码地图.md#活跃项目根（必读）`
 - `docs/knowledge-base/06-业务结论沉淀索引（C1-C19）.md#结论速查`
-- `docs/方案评审定稿纪要.html`（唯一有效契约基线；表数以 `db/loan-db-schema.sql` 为准，勿引用纪要中的具体表数）
+- `docs/plans/archive/方案评审定稿纪要.html`（唯一有效契约基线；表数以 `db/loan-db-schema.sql` 为准，勿引用纪要中的具体表数）
 - 参考 mds：`/Users/admin/IdeaProjects/mds/AGENTS.md`（知识检索优先原则）

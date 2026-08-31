@@ -51,5 +51,5 @@
 5. **验证**：`mvn compile` + `vite build` + 登录按角色查看菜单
 
 ## 相关规范
-- `docs/skills/frontend-ui/SKILL.md`（多标签 / 菜单分组 / 业务ID展示）
-- `docs/skills/frontend-development/SKILL.md`、`docs/skills/backend-development/SKILL.md`
+- `.workbuddy/skills/loan-web-ui/SKILL.md`（多标签 / 菜单分组 / 业务ID展示）
+- `.workbuddy/skills/loan-web-dev/SKILL.md`、`.workbuddy/skills/loan-backend/SKILL.md`

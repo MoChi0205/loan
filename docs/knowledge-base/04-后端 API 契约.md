@@ -1,6 +1,7 @@
 # 04 · 后端 API 契约（小程序端 /api/mini/*）
 
-> **最新校正**：2026-08-30 据 `loan-service` 全部 `com.loan.mini.controller.*` 源码逐接口复核，修正以下陈旧项——① `match/report/{reportNo}/products|diagnosis` → 实际归属 `MiniMatchController` 的 `report/{reportNo}/products|diagnosis`；② 产品操作路径 `{no}` → `{code}`；③ 分配审批 `{no}` → `{approvalNo}`；④ 工单/报告 `{no}` → `{orderNo}/{reportNo}`；⑤ `auth/login-bind` 已废弃（合并进 `auth/login.inviteCode`）；补 `auth/enterprise`、`wecom/qrcode`、`client`(录入)。以本文 + 源码为准。
+> **最新校正（2026-08-31）**：据 `scripts/check-kb-consistency.py` 检查 5 全量复核，修正 3 条管理端审批路径（实际为 `unified/*`，旧文 `allocation/{approvalNo}/audit`、`/approval/counts`、`/approval/pending` 在代码中不存在）；统一 2 处占位符命名（`{code}` → 代码实际 `@PathVariable` 名 `{clientCode}`）；补登记 8 个代码已有而文档遗漏的 `/api/mini/**` 接口（`auth/personal`、`match/history`、`partner-product/active`、`invitation/{bind,mine,records}`、`reward/{mine,mine/summary}`）。**契约以 `loan-service` 源码为准。**
+> **2026-08-30 校正**：据 `loan-service` 全部 `com.loan.mini.controller.*` 源码逐接口复核，修正以下陈旧项——① `match/report/{reportNo}/products|diagnosis` → 实际归属 `MiniMatchController` 的 `report/{reportNo}/products|diagnosis`；② 产品操作路径 `{no}` → `{code}`；③ 分配审批 `{no}` → `{approvalNo}`；④ 工单/报告 `{no}` → `{orderNo}/{reportNo}`；⑤ `auth/login-bind` 已废弃（合并进 `auth/login.inviteCode`）；补 `auth/enterprise`、`wecom/qrcode`、`client`(录入)。以本文 + 源码为准。
 
 ## 通用约定
 
@@ -21,12 +22,14 @@
 | `GET /api/mini/me` | 当前用户档案摘要（含 `roleInfo`） | 已登录 |
 | ~~`POST /api/mini/auth/login-bind`~~ ⚠️ 已废弃 | 合并进 `POST /api/mini/auth/login` 的 `inviteCode` 参数（2026-08-30 校正，旧方案文档仍写 login-bind 不实） | — |
 | `POST /api/mini/auth/enterprise` | 企业/个人认证（CUSTOMER） | 已登录(CUSTOMER) |
+| `POST /api/mini/auth/personal` | **个人实名认证**（Mock 三要素校验 + 落库留痕，`PersonalController`；未登录抛 `UNAUTHORIZED`） | 已登录 |
 | `GET /api/mini/wecom/qrcode` | 企微客服活码 URL | 公开 |
 
 ### 匹配（C15）
 | 接口 | 说明 | 权限 |
 |------|------|------|
 | `POST /api/mini/match/run` | 发起匹配；body 可传 `clientCode`（**C2 替客匹配必传目标客户**；客户不传用登录态） | CUSTOMER / STAFF；CHANNEL **禁入（后端已守卫）** |
+| `GET /api/mini/match/history?page&size` | 我的匹配历史（`PageResult<Map>`） | 客户本人（后端 `requireClient` 兜底） |
 | `GET /api/mini/report/{reportNo}/products` | 报告命中产品明细（MiniMatchController，非 match/report） | **仅 STAFF**（C4 对客脱敏） |
 | `GET /api/mini/report/{reportNo}/diagnosis` | 报告经营诊断 | 客户校验归属 / 员工全量 |
 
@@ -43,8 +46,8 @@
 |------|------|------|
 | `GET /api/mini/client/search?keyword=...` | 查重（≥2 字） | 仅 STAFF；CHANNEL **禁止** |
 | `POST /api/mini/client` | 录入新客户（自动归属） | 仅 STAFF |
-| `POST /api/mini/client/{code}/claim` | 申请分配（AUTO_CLAIMED 或 PENDING_APPROVAL） | 仅 STAFF |
-| `GET /api/mini/client/{code}/claim-status` | 分配审批状态轮询 | 仅 STAFF |
+| `POST /api/mini/client/{clientCode}/claim` | 申请分配（AUTO_CLAIMED 或 PENDING_APPROVAL） | 仅 STAFF |
+| `GET /api/mini/client/{clientCode}/claim-status` | 分配审批状态轮询 | 仅 STAFF |
 | ~~`GET /api/mini/client/allocation-approvals/pending`~~ ⚠️ 已废弃（兼容期） | 待审列表 → 改用 `GET /api/mini/approval/pending?type=ALLOCATION` | STAFF + OPERATOR/SUPER/BOSS |
 | ~~`POST /api/mini/client/allocation-approvals/{approvalNo}/approve`~~ ⚠️ 已废弃（兼容期） | 通过 → 改用 `POST /api/mini/approval/ALLOCATION/{approvalNo}/audit` | 同上 |
 | ~~`POST /api/mini/client/allocation-approvals/{approvalNo}/reject`~~ ⚠️ 已废弃（兼容期） | 驳回 → 改用 `POST /api/mini/approval/ALLOCATION/{approvalNo}/audit` | 同上 |
@@ -71,6 +74,20 @@
 | `POST /api/mini/product/{code}/delete-cancel` | 撤销删除 | 仅本人（PENDING_DELETE） |
 | `GET /api/mini/partner-product/delete/pending` | **实际路径** 待删列表（历史文档写 /product/pending-delete 有误） | 仅运营/超管 |
 | `POST /api/mini/partner-product/delete/{approvalNo}/audit` | **实际路径** 终审删除（历史文档写 /product/{code}/audit-delete 有误） | 仅运营/超管 |
+| `GET /api/mini/partner-product/active` | 合作产品只读列表（ACTIVE 且未过期；**无角色守卫，仅校验登录态**） | 已登录 |
+
+### 邀请（invitation）
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `POST /api/mini/invitation/bind` | 绑定邀请码（登录后可补绑）；body `{inviteCode}`，返回 `referrerType`/`referrerName` | 客户本人（`requireClient`） |
+| `GET /api/mini/invitation/mine` | 我的邀请码（幂等生成，7 天有效） | 客户本人（`requireClient`） |
+| `GET /api/mini/invitation/records?page&size` | 我的邀请记录（经我的邀请码注册的客户），`PageResult<Map>` | 客户本人（`requireClient`） |
+
+### 奖励（reward）
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `GET /api/mini/reward/mine/summary` | 我的奖励汇总（`Map`） | 客户本人（`requireClient`） |
+| `GET /api/mini/reward/mine?page&size` | 我的奖励记录，`PageResult<Map>` | 客户本人（`requireClient`） |
 
 ### 材料上传（G3 · 2026-08-30 新增）
 | 接口 | 说明 | 权限 |
@@ -90,9 +107,11 @@
 | `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}` | 同上（ALLOCATION 含 DEPT_MANAGER） |
 | `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}` | 同上（ALLOCATION 含 DEPT_MANAGER） |
 | `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER/BOSS/DEPT_MANAGER |
-| `POST /api/admin/approval/allocation/{approvalNo}/audit` | 管理端 allocation 终审 | 同上 |
-| `GET /api/admin/approval/counts` | 管理端统一计数 | OPERATOR/SUPER/BOSS |
-| `GET /api/admin/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 管理端统一待审 | OPERATOR/SUPER/BOSS |
+| `POST /api/admin/approval/allocation/{approvalNo}/approve` | 管理端 allocation 通过（`ApprovalController`，非 `/audit`） | 同上 |
+| `POST /api/admin/approval/allocation/{approvalNo}/reject` | 管理端 allocation 驳回 | 同上 |
+| `GET /api/admin/approval/unified/counts` | 管理端统一计数（**2026-08-31 校正**：实际路径带 unified 前缀，旧文写 `/approval/counts` 在代码中不存在） | OPERATOR/SUPER/BOSS |
+| `GET /api/admin/approval/unified/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 管理端统一待审（**2026-08-31 校正**：实际路径带 unified 前缀） | OPERATOR/SUPER/BOSS |
+| `POST /api/admin/approval/unified/{type}/{approvalNo}/audit` | 管理端统一终审 body `{approve, opinion}`（**2026-08-31 校正**：`type` 为路径变量，旧文写死 `allocation/{approvalNo}/audit` 不存在） | OPERATOR/SUPER/BOSS |
 
 ## 错误码（ResultCode）
 
