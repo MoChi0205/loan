@@ -30,13 +30,36 @@ description: >-
 ## 扩展点模式：检索顺序
 
 ```
-1. 方案评审定稿纪要（契约基线）   docs/方案评审定稿纪要.html
-2. 数据库 schema 基线             db/loan-db-schema.sql（68 张 t_ 表）
-3. 项目长期记忆 MEMORY.md         .workbuddy/memory/MEMORY.md
-4. 当日工作日志                   .workbuddy/memory/YYYY-MM-DD.md
-5. 参考项目骨架                   tse（骨架）/ mds（规则引擎）
-6. 子规范 Skill                   docs/skills/backend-development / frontend-development / document-archiving
+1. 结论台账（修改前必读）        docs/knowledge-base/10-历史结论与决策日志.md
+2. 契约基线（评审定稿）          docs/方案评审定稿纪要.html（68 表）
+3. 数据真源                      db/loan-db-schema.sql（68 张 t_ 表）+ db/migrate-*.sql
+4. 实现真源                      loan-service/src/main/java/com/loan/
+5. 业务知识库                    docs/knowledge-base/（00-10 各模块索引）
+6. 参考项目骨架                  /Users/admin/Documents/crm/tse（骨架）
+                                 /Users/admin/IdeaProjects/mds（规则引擎）
+7. 子规范 Skill                  docs/skills/backend-development
+                                 docs/skills/frontend-development
+                                 docs/skills/document-archiving
 ```
+
+### 契约真源（三件套）
+
+契约的最终解释权归以下三项，**按此顺序裁决**：
+
+1. `db/loan-db-schema.sql` —— 数据契约（当前 **68** 张 `t_` 表，以 `grep -c "CREATE TABLE"` 为准）
+2. `loan-service` 实际代码 —— 实现契约（代码与文档冲突时，以代码为准并回写文档）
+3. `docs/knowledge-base/` —— 业务契约（结论沉淀、角色矩阵、流程图谱）
+
+### ⚠️ 已确认失效，禁止再引用（2026-08-31 全仓搜索核实）
+
+| 失效引用 | 核实结论 |
+|----------|----------|
+| `output/` 目录 | **已不存在**，原文件已归档进 `docs/` |
+| `前端交互逻辑蓝图.html` | **全仓不存在**，从未落盘，勿再引用 |
+| `后端/前端逻辑蓝图.html` | **全仓不存在**，从未落盘，勿再引用 |
+| `.workbuddy/memory/MEMORY.md` | 本项目下 `.workbuddy/` 目录**不存在**；长期红线暂由 `docs/knowledge-base/10-历史结论与决策日志.md` 承担 |
+
+> 上表内容如后续被创建，须由用户确认后再从本表移除，不得凭推测恢复引用。
 
 ### 检索命中后
 
@@ -47,13 +70,13 @@ description: >-
 ## 自检清单（改完必过）
 
 - [ ] 动手前是否查了 `方案评审定稿纪要.html` 对应章节？
-- [ ] 是否查了 `.workbuddy/memory/MEMORY.md` 的复用映射与红线？
+- [ ] 是否查了 `docs/knowledge-base/10-历史结论与决策日志.md` 的复用映射与红线？
 - [ ] 是否确认该结论是「已定稿」而非「历史讨论稿」？
 - [ ] 是否找到对应的子规范 Skill 并按其「禁止 / 应该」约束？
 - [ ] 是否存在「凭假设写代码」的隐患？→ 先查库，缺失才问
 
 ## 相关文档
 
-- `.workbuddy/memory/MEMORY.md`（项目长期记忆）
-- `docs/方案评审定稿纪要.html`（唯一有效契约基线）
+- `docs/knowledge-base/10-历史结论与决策日志.md`（**修改前必查**：D 系列结论台账）
+- `docs/方案评审定稿纪要.html`（唯一有效契约基线，68 表）
 - 参考 mds：`/Users/admin/IdeaProjects/mds/AGENTS.md`（知识检索优先原则）

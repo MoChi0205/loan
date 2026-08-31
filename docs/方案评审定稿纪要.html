@@ -70,7 +70,7 @@
   <div class="pill"><b>报告定位</b><span>匹配程度分析 ≠ 银行承诺</span></div>
   <div class="pill"><b>后端技术栈</b><span>参考 tse 骨架</span></div>
   <div class="pill"><b>Web 技术栈</b><span>参考 tse-frontend</span></div>
-  <div class="pill"><b>数据库</b><span>65 张表</span></div>
+  <div class="pill"><b>数据库</b><span>68 张表</span></div>
   <div class="pill"><b>管理端</b><span>20 模块</span></div>
 </div>
 
@@ -400,7 +400,7 @@
   </ul>
 </div>
 
-<h2><span class="no">16</span>数据库与域边界（65 张表）</h2>
+<h2><span class="no">16</span>数据库与域边界（68 张表）</h2>
 <div class="card teal">
   <ul>
     <li><b>匹配域 31 张</b>：渠道产品 4（t_bank_channel / t_bank_product / t_partner_product / t_product_admission_config）· 规则目录 9（t_rule_category / t_rule / t_rule_version / t_rule_category_rel / t_product_strategy / t_product_strategy_bind / t_admission_execution_plan / t_admission_plan_module / t_admission_plan_step）· 模板库 7（策略模板 4 + 规则模板 3）· 客户认证 4（t_client_profile / t_personal_profile / t_personal_auth / t_client_submission）· 事实提取 2（t_extract_field_def / t_client_business_fact）· 初筛报告 2（t_client_authorization / t_client_screening）· 审计 2（t_match_trace / t_match_rule_log）</li>
@@ -519,7 +519,7 @@
 <h2><span class="no">21</span>开发阶段划分</h2>
 <table>
   <tr><th>阶段</th><th>范围</th></tr>
-  <tr><td>阶段一</td><td>建库（65 表 schema，含线索域 6 表 / 服务工单域 5 表 / 奖励域 3 表 / 短信域 3 表 / <b>渠道体系 4 表（含银行渠道联系人库）/ 组织权限域 7 表（含兜底顾问池配置）/ 风控黑名单 1 表 / VIP 域 2 表（档位配置 + 订单）/ 识别记录 1 表 / 系统配置 1 表</b>，回收规则与短信模板配置初始化，<b>组织权限初始化：预置三级角色（老板/部门主管/顾问）与示例部门（老板直属/咨询部/市场部/运营部）、角色菜单与操作权限、审核人配置、黑名单初始化、银行渠道联系人初始化</b>）→ 后端规则引擎骨架（SegmentRouter → 双套规则目录 → 全局前置风控 → 准入配置 → 审计 → 档位聚合层）→ <b>短信模块骨架（SmsFacade + 策略工厂 + 腾讯云接入 + 登录验证码策略 + 频控）</b>→ <b>文件存储骨架（复用 tse OssStorageService：本地磁盘模式先行，阿里云 OSS 接口对齐）+ 水印渲染服务骨架（动态水印渲染 / 水印副本烙印生成 / 免责声明页合成）</b>→ <b>OCR 识别服务骨架（腾讯云专项 OCR Client + 通义 Qwen-VL Client + OcrStrategyFactory 策略工厂 + 识别记录落库）</b>→ <b>用户上下文骨架（UserContext ThreadLocal + @CurrentUser 注解切面 + LoanUser 组装含 referrer 邀请人查询，参考 tse AuthenticationContextSupport/EnterpriseContext）+ 第三方密钥配置项骨架（@ConfigurationProperties+@RefreshScope 各服务 Config 类 + t_config 配置表）</b>→ <b>组织权限骨架（部门树 / 员工映射 / 角色菜单操作权限 / 审核人配置 / 兜底顾问池，参考 tse 角色菜单模型）</b>→ 线索回收定时任务骨架（含归档迁移任务）→ Web 端配置 2 个武汉真实产品（企业税贷优先，个人消费贷按占位处理）→ 调试中心跑通匹配</td></tr>
+  <tr><td>阶段一</td><td>建库（68 表 schema，含线索域 6 表 / 服务工单域 5 表 / 奖励域 3 表 / 短信域 3 表 / <b>渠道体系 4 表（含银行渠道联系人库）/ 组织权限域 7 表（含兜底顾问池配置）/ 风控黑名单 1 表 / VIP 域 2 表（档位配置 + 订单）/ 识别记录 1 表 / 系统配置 1 表</b>，回收规则与短信模板配置初始化，<b>组织权限初始化：预置三级角色（老板/部门主管/顾问）与示例部门（老板直属/咨询部/市场部/运营部）、角色菜单与操作权限、审核人配置、黑名单初始化、银行渠道联系人初始化</b>）→ 后端规则引擎骨架（SegmentRouter → 双套规则目录 → 全局前置风控 → 准入配置 → 审计 → 档位聚合层）→ <b>短信模块骨架（SmsFacade + 策略工厂 + 腾讯云接入 + 登录验证码策略 + 频控）</b>→ <b>文件存储骨架（复用 tse OssStorageService：本地磁盘模式先行，阿里云 OSS 接口对齐）+ 水印渲染服务骨架（动态水印渲染 / 水印副本烙印生成 / 免责声明页合成）</b>→ <b>OCR 识别服务骨架（腾讯云专项 OCR Client + 通义 Qwen-VL Client + OcrStrategyFactory 策略工厂 + 识别记录落库）</b>→ <b>用户上下文骨架（UserContext ThreadLocal + @CurrentUser 注解切面 + LoanUser 组装含 referrer 邀请人查询，参考 tse AuthenticationContextSupport/EnterpriseContext）+ 第三方密钥配置项骨架（@ConfigurationProperties+@RefreshScope 各服务 Config 类 + t_config 配置表）</b>→ <b>组织权限骨架（部门树 / 员工映射 / 角色菜单操作权限 / 审核人配置 / 兜底顾问池，参考 tse 角色菜单模型）</b>→ 线索回收定时任务骨架（含归档迁移任务）→ Web 端配置 2 个武汉真实产品（企业税贷优先，个人消费贷按占位处理）→ 调试中心跑通匹配</td></tr>
   <tr><td>阶段二</td><td>Web 管理端完善：<b>我的工作台（五卡片聚合 + 快捷操作（新增客户/公海认领/黑名单查询新增）+ 指标按角色裁剪）</b>、<b>组织与权限中心（部门管理/员工映射/角色与菜单操作权限/审核人配置/兜底顾问池配置）</b>、配置向导 Step0-5、审计中心、报表中心（<b>服务工单多维透视 + 推荐人成交明细</b>）、客户管理（<b>含黑名单管理：多维命中查询/新增留痕/解禁仅老板；银行匹配明细 Tab：命中银行/产品/渠道联系人一键拨号复制企微</b>）、渠道用户管理 + 产品审核中心（<b>含银行渠道联系人库维护</b>）、<b>线索公海中心（录入/指派/认领/回收规则参数配置/离职转移）</b>、<b>服务工单管理 + 服务工作台（建单/状态流转/退款冲减/双备注/资料库上传与跨单引用/沟通记录时间轴/查看预览动态水印与下载水印副本/工单详情含银行匹配明细 Tab）</b>、<b>资料下载审批中心（无水印下载申请队列/审批人按部门审核人配置/24h 限时链接/我的审批进度/下载日志/水印与免责配置）</b>、<b>奖励结算中心（工单 DEAL 联动成交/比例配置/审核队列/四维查账/对账单导出）</b>、<b>短信中心（模板管理/发送记录/回执明细/频控配置/退订黑名单）</b>、初筛闸门、报告模板中心（档位映射规则+免责声明配置+<b>多维建议文案库</b>）</td></tr>
   <tr><td>阶段三</td><td>uni-app 小程序端：登录 → 邀请/引荐绑定 → 身份选择 → 企业认证（拍照/截图 OCR 识别回填 + 工商核验）→ 提交 → 匹配（档位+数量展示、产品名屏蔽、免责页脚）→ 报告（<b>匹配程度总览 + 多维建议清单（提升审核通过率）+ 企微引导尾页（有归属顾问个人码 / 无归属兜底顾问池码）</b>）；<b>短信接入（小程序登录验证码 / 渠道注册验证码 / 邀请成功通知双方短信）</b>；<b>线索录入页（员工/渠道移动端）+ 我录的线索跟进看板</b>；<b>我的服务单页（客户查工单列表/金额/时间/备注 + 资料清单查看：预览动态水印 + 页脚免责声明，下载水印副本 + 免责勾选）</b>；<b>推荐有礼页（仅受邀用户：分享链接/奖励单状态查看）</b>；企微活码组件（归属判断 → 顾问个人码 / 兜底顾问池码）；渠道轻量工作台；个人链路认证+占位</td></tr>
   <tr><td>阶段四</td><td>VIP 在线付费（微信支付 sandbox→生产）、<b>受邀用户免费自动 VIP 身份发放</b>、订阅消息触达、<b>营销短信群发（已留资名单确认 + 回 T 退订 + 退订黑名单）</b>、AI 专家团接入、CRM 联动（SSO + 六事件推送，含企微咨询线索与合同金额回写自动建单）、<b>推荐奖励发放（仅受邀用户：服务工单 DEAL 自动结算 + 手动调整兜底 + 审核通过自动提现到微信零钱（商家转账）+ 推荐人奖励中心看板 + REFUND 退款冲减 + 全链路对账审计）</b></td></tr>

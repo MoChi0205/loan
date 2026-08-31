@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>企融通小程序 · 业务流程全景图</title>
+<style>
+  :root{
+    --bg:#f5f7fb; --card:#ffffff; --ink:#1f2937; --sub:#5b6472;
+    --line:#cbd5e1; --arrow:#64748b;
+    --customer:#2563eb; --channel:#d97706; --staff:#4f46e5; --approve:#b91c1c; --neutral:#475569;
+    --ok:#16a34a; --warn:#d97706; --soft:#eef2ff;
+    --shadow:0 6px 22px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;}
+  header{padding:26px 22px 14px;max-width:1120px;margin:0 auto;}
+  header h1{margin:0 0 6px;font-size:24px;}
+  header p{margin:0;color:var(--sub);font-size:14px;}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:16px auto 4px;max-width:1120px;padding:0 22px;}
+  .legend span{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--sub);}
+  .legend i{width:14px;height:14px;border-radius:4px;display:inline-block;}
+  .wrap{max-width:1120px;margin:0 auto;padding:10px 22px 60px;}
+  .panel{background:var(--card);border-radius:16px;box-shadow:var(--shadow);
+    padding:18px 20px 8px;margin-bottom:22px;}
+  .panel h2{margin:0 0 4px;font-size:17px;}
+  .panel .desc{margin:0 0 10px;color:var(--sub);font-size:13px;}
+  svg{width:100%;height:auto;display:block;}
+  .box{fill:#fff;stroke:var(--line);stroke-width:1.6;rx:10;}
+  .box-hd{rx:10;stroke-width:1.6;}
+  .t{font-size:13px;font-weight:600;fill:var(--ink);}
+  .ts{font-size:10.5px;fill:var(--sub);}
+  .edge{stroke:var(--arrow);stroke-width:1.8;fill:none;}
+  text.edge-l{font-size:10.5px;fill:var(--arrow);}
+  .tag{font-size:10px;fill:#fff;}
+  footer{max-width:1120px;margin:0 auto;padding:0 22px 50px;color:var(--sub);font-size:12.5px;}
+  footer code{background:#eef2f7;padding:1px 6px;border-radius:5px;}
+</style>
+</head>
+<body>
+
+<!-- shared arrow marker -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="var(--arrow)"></path>
+    </marker>
+  </defs>
+</svg>
+
+<header>
+  <h1>企融通小程序 · 业务流程全景图</h1>
+  <p>端到端业务流 + 三大状态机 + 角色化分支。数据真源：<code>09-业务流程知识图谱.json</code> / 后端源码 / 逻辑设计文档 §1–§14。</p>
+</header>
+
+<div class="legend">
+  <span><i style="background:var(--customer)"></i>客户 CUSTOMER</span>
+  <span><i style="background:var(--channel)"></i>渠道 CHANNEL</span>
+  <span><i style="background:var(--staff)"></i>企业员工 STAFF</span>
+  <span><i style="background:var(--approve)"></i>运营/老板/超管（审批）</span>
+  <span><i style="background:var(--neutral)"></i>通用模块</span>
+</div>
+
+<div class="wrap">
+
+  <!-- Panel 1 -->
+  <section class="panel">
+    <h2>① 端到端业务全景（泳道主线）</h2>
+    <p class="desc">登录 → 角色化导航 → 首页分流；客户/员工走匹配主线，渠道走产品主线，管理侧负责审批闭环。</p>
+    <svg viewBox="0 0 1000 420" role="img" aria-label="业务全景">
+      <!-- edges -->
+      <path class="edge" marker-end="url(#ar)" d="M180,87 L228,87"></path>
+      <path class="edge" marker-end="url(#ar)" d="M380,87 L428,87"></path>
+      <path class="edge" marker-end="url(#ar)" d="M580,87 L628,87"></path>
+      <path class="edge" marker-end="url(#ar)" d="M780,87 L828,87"></path>
+      <path class="edge" marker-end="url(#ar)" d="M880,114 L880,150"></path>
+      <path class="edge" marker-end="url(#ar)" d="M880,184 L880,220"></path>
+      <path class="edge" marker-end="url(#ar)" d="M880,254 L880,290"></path>
+      <path class="edge" marker-end="url(#ar)" d="M580,114 L580,150"></path>
+      <path class="edge" marker-end="url(#ar)" d="M580,184 L580,220"></path>
+      <path class="edge" marker-end="url(#ar)" d="M480,114 L480,150"></path>
+      <path class="edge" marker-end="url(#ar)" d="M480,184 L480,220"></path>
+      <path class="edge" marker-end="url(#ar)" d="M80,114 L80,150"></path>
+      <path class="edge" marker-end="url(#ar)" d="M80,184 L80,220"></path>
+      <text class="edge-l" x="492" y="104">员工替客</text>
+      <text class="edge-l" x="392" y="170">渠道</text>
+      <text class="edge-l" x="22" y="170">支线</text>
+
+      <!-- A 登录/认证 (customer) -->
+      <g>
+        <rect class="box-hd" x="30" y="60" width="150" height="54" fill="var(--customer)"></rect>
+        <text class="t" x="105" y="84" text-anchor="middle" fill="#fff">登录 / 认证</text>
+        <text class="ts" x="105" y="102" text-anchor="middle" fill="#eaf0ff">A1/A2/A3/A4</text>
+      </g>
+      <!-- B 导航 (neutral) -->
+      <g>
+        <rect class="box-hd" x="230" y="60" width="150" height="54" fill="var(--neutral)"></rect>
+        <text class="t" x="305" y="84" text-anchor="middle" fill="#fff">角色化导航</text>
+        <text class="ts" x="305" y="102" text-anchor="middle" fill="#e7ecf3">store.role 驱动</text>
+      </g>
+      <!-- C 首页 (neutral) -->
+      <g>
+        <rect class="box-hd" x="430" y="60" width="150" height="54" fill="var(--neutral)"></rect>
+        <text class="t" x="505" y="84" text-anchor="middle" fill="#fff">首页分流</text>
+        <text class="ts" x="505" y="102" text-anchor="middle" fill="#e7ecf3">按角色差异化</text>
+      </g>
+      <!-- D 智能匹配 (staff) -->
+      <g>
+        <rect class="box-hd" x="630" y="60" width="150" height="54" fill="var(--staff)"></rect>
+        <text class="t" x="705" y="84" text-anchor="middle" fill="#fff">智能匹配</text>
+        <text class="ts" x="705" y="102" text-anchor="middle" fill="#e9e7ff">M1/M3/M4</text>
+      </g>
+      <!-- E 我的报告 (neutral) -->
+      <g>
+        <rect class="box-hd" x="830" y="60" width="150" height="54" fill="var(--neutral)"></rect>
+        <text class="t" x="905" y="84" text-anchor="middle" fill="#fff">我的报告</text>
+        <text class="ts" x="905" y="102" text-anchor="middle" fill="#e7ecf3">R1i/R2i</text>
+      </g>
+      <!-- F 命中产品 (staff) -->
+      <g>
+        <rect class="box" x="830" y="150" width="150" height="54"></rect>
+        <rect x="830" y="150" width="6" height="54" fill="var(--staff)"></rect>
+        <text class="t" x="907" y="174" text-anchor="middle">命中产品</text>
+        <text class="ts" x="907" y="192" text-anchor="middle">R3i · 仅员工</text>
+      </g>
+      <!-- G 经营诊断 (neutral) -->
+      <g>
+        <rect class="box" x="830" y="220" width="150" height="54"></rect>
+        <text class="t" x="905" y="244" text-anchor="middle">经营诊断</text>
+        <text class="ts" x="905" y="262" text-anchor="middle">R4i · C5</text>
+      </g>
+      <!-- H 服务单 (neutral) -->
+      <g>
+        <rect class="box" x="830" y="290" width="150" height="54"></rect>
+        <text class="t" x="905" y="314" text-anchor="middle">服务单</text>
+        <text class="ts" x="905" y="332" text-anchor="middle">O1/O2 · C7</text>
+      </g>
+      <!-- I 查重→归属流转 (staff) -->
+      <g>
+        <rect class="box-hd" x="580" y="150" width="150" height="54" fill="var(--staff)"></rect>
+        <text class="t" x="655" y="174" text-anchor="middle" fill="#fff">查重→归属流转</text>
+        <text class="ts" x="655" y="192" text-anchor="middle" fill="#e9e7ff">C2/C10/C19</text>
+      </g>
+      <!-- J 分配审批 (approve) -->
+      <g>
+        <rect class="box-hd" x="580" y="220" width="150" height="54" fill="var(--approve)"></rect>
+        <text class="t" x="655" y="244" text-anchor="middle" fill="#fff">分配审批</text>
+        <text class="ts" x="655" y="262" text-anchor="middle" fill="#ffe1e1">M7/M8/M9</text>
+      </g>
+      <!-- K 我的产品 (channel) -->
+      <g>
+        <rect class="box-hd" x="430" y="180" width="150" height="54" fill="var(--channel)"></rect>
+        <text class="t" x="505" y="204" text-anchor="middle" fill="#fff">我的产品</text>
+        <text class="ts" x="505" y="222" text-anchor="middle" fill="#fff3df">P1–P8 · C9</text>
+      </g>
+      <!-- L 删除终审 (approve) -->
+      <g>
+        <rect class="box-hd" x="430" y="300" width="150" height="54" fill="var(--approve)"></rect>
+        <text class="t" x="505" y="324" text-anchor="middle" fill="#fff">删除终审</text>
+        <text class="ts" x="505" y="342" text-anchor="middle" fill="#ffe1e1">P9/P10</text>
+      </g>
+      <!-- M 邀请/奖励 (customer) -->
+      <g>
+        <rect class="box-hd" x="30" y="180" width="150" height="54" fill="var(--customer)"></rect>
+        <text class="t" x="105" y="204" text-anchor="middle" fill="#fff">邀请 / 奖励</text>
+        <text class="ts" x="105" y="222" text-anchor="middle" fill="#eaf0ff">I1–I3/W1/W2</text>
+      </g>
+      <!-- N 线索录入 (neutral) -->
+      <g>
+        <rect class="box" x="30" y="300" width="150" height="54"></rect>
+        <text class="t" x="105" y="324" text-anchor="middle">线索录入</text>
+        <text class="ts" x="105" y="342" text-anchor="middle">L1</text>
+      </g>
+    </svg>
+  </section>
+
+  <!-- Panel 2 -->
+  <section class="panel">
+    <h2>② 智能匹配 4 步流程 + 员工替客分支</h2>
+    <p class="desc">客户仅对自己企业；员工先查重/归属流转再匹配。M1 发起匹配，返回 MiniMatchResult（对客脱敏）。</p>
+    <svg viewBox="0 0 1000 320" role="img" aria-label="智能匹配流程">
+      <path class="edge" marker-end="url(#ar)" d="M188,80 L236,80"></path>
+      <path class="edge" marker-end="url(#ar)" d="M388,80 L436,80"></path>
+      <path class="edge" marker-end="url(#ar)" d="M588,80 L636,80"></path>
+      <path class="edge" marker-end="url(#ar)" d="M788,80 L836,80"></path>
+      <path class="edge" marker-end="url(#ar)" d="M905,107 L905,150"></path>
+      <path class="edge" marker-end="url(#ar)" d="M180,150 L180,210"></path>
+      <path class="edge" marker-end="url(#ar)" d="M180,250 L320,250"></path>
+      <path class="edge" marker-end="url(#ar)" d="M470,250 L470,210"></path>
+      <text class="edge-l" x="740" y="70">POST /match/run</text>
+
+      <!-- steps -->
+      <g><rect class="box-hd" x="40" y="54" width="148" height="52" fill="var(--staff)"></rect>
+        <text class="t" x="114" y="78" text-anchor="middle" fill="#fff">步骤0 选企业</text><text class="ts" x="114" y="95" text-anchor="middle" fill="#e9e7ff">查重 C10</text></g>
+      <g><rect class="box" x="240" y="54" width="148" height="52"></rect>
+        <text class="t" x="314" y="78" text-anchor="middle">步骤1 经营事实</text><text class="ts" x="314" y="95" text-anchor="middle">纳税/开票/行业</text></g>
+      <g><rect class="box" x="440" y="54" width="148" height="52"></rect>
+        <text class="t" x="514" y="78" text-anchor="middle">步骤2 上传材料</text><text class="ts" x="514" y="95" text-anchor="middle">OSS 直传</text></g>
+      <g><rect class="box" x="640" y="54" width="148" height="52"></rect>
+        <text class="t" x="714" y="78" text-anchor="middle">步骤3 确认条件</text><text class="ts" x="714" y="95" text-anchor="middle">城市/偏好</text></g>
+      <g><rect class="box-hd" x="840" y="54" width="148" height="52" fill="var(--neutral)"></rect>
+        <text class="t" x="914" y="78" text-anchor="middle" fill="#fff">步骤4 发起匹配</text><text class="ts" x="914" y="95" text-anchor="middle" fill="#e7ecf3">生成报告</text></g>
+      <g><rect class="box" x="840" y="150" width="148" height="52"></rect>
+        <text class="t" x="914" y="174" text-anchor="middle">我的报告</text><text class="ts" x="914" y="191" text-anchor="middle">{reportNo,grade}</text></g>
+
+      <!-- employee branch -->
+      <g><rect class="box-hd" x="40" y="210" width="140" height="80" fill="var(--staff)"></rect>
+        <text class="t" x="110" y="234" text-anchor="middle" fill="#fff">查重结果</text>
+        <text class="ts" x="110" y="252" text-anchor="middle" fill="#e9e7ff">命中？≥2字</text>
+        <text class="ts" x="110" y="270" text-anchor="middle" fill="#e9e7ff">M3 search</text></g>
+      <g><rect class="box" x="320" y="210" width="150" height="80"></rect>
+        <text class="t" x="395" y="234" text-anchor="middle">未命中→录新客户</text>
+        <text class="ts" x="395" y="252" text-anchor="middle">M4 自动归属当前用户</text>
+        <text class="ts" x="395" y="270" text-anchor="middle">AUTO_CLAIMED</text></g>
+      <g><rect class="box" x="470" y="210" width="260" height="80"></rect>
+        <text class="t" x="600" y="234" text-anchor="middle">命中→申请分配</text>
+        <text class="ts" x="600" y="252" text-anchor="middle">有归属人：自动归属(无审批)</text>
+        <text class="ts" x="600" y="270" text-anchor="middle">无归宿：M5→审批 M7-M9</text></g>
+    </svg>
+  </section>
+
+  <!-- Panel 3 -->
+  <section class="panel">
+    <h2>③ 客户归属流转状态机（C2 / C19）</h2>
+    <p class="desc">匹配只能在「我归属的客户」上发起。新客户录入即归属；老客户有归属人自动归属，无归宿走审批。</p>
+    <svg viewBox="0 0 1000 300" role="img" aria-label="归属流转状态机">
+      <path class="edge" marker-end="url(#ar)" d="M250,80 L330,80"></path>
+      <path class="edge" marker-end="url(#ar)" d="M250,150 L330,150"></path>
+      <path class="edge" marker-end="url(#ar)" d="M560,150 L640,150"></path>
+      <path class="edge" marker-end="url(#ar)" d="M560,210 L640,210"></path>
+      <path class="edge" marker-end="url(#ar)" d="M560,260 L640,260"></path>
+
+      <g><rect class="box" x="40" y="64" width="210" height="32"></rect><text class="t" x="145" y="85" text-anchor="middle">情形A 系统中无该企业</text></g>
+      <g><rect class="box" x="40" y="134" width="210" height="32"></rect><text class="t" x="145" y="155" text-anchor="middle">情形B 已有该企业</text></g>
+      <g><rect class="box-hd" x="330" y="64" width="230" height="32" fill="var(--staff)"></rect><text class="t" x="445" y="85" text-anchor="middle" fill="#fff">录入基础数据 → 自动归属(M4)</text></g>
+      <g><rect class="box" x="330" y="134" width="230" height="32"></rect><text class="t" x="445" y="155" text-anchor="middle">有归属人？→ 自动归属</text></g>
+      <g><rect class="box-hd" x="640" y="134" width="230" height="32" fill="var(--ok)"></rect><text class="t" x="755" y="155" text-anchor="middle" fill="#fff">AUTO_CLAIMED</text></g>
+      <g><rect class="box-hd" x="330" y="244" width="230" height="32" fill="var(--approve)"></rect><text class="t" x="445" y="265" text-anchor="middle" fill="#fff">无归宿 → PENDING_APPROVAL(M5)</text></g>
+      <g><rect class="box-hd" x="640" y="194" width="230" height="32" fill="var(--ok)"></rect><text class="t" x="755" y="215" text-anchor="middle" fill="#fff">APPROVED → 归属流转</text></g>
+      <g><rect class="box-hd" x="640" y="244" width="230" height="32" fill="var(--warn)"></rect><text class="t" x="755" y="265" text-anchor="middle" fill="#fff">REJECTED(M9,opinion)</text></g>
+      <text class="edge-l" x="340" y="128">情形A</text>
+      <text class="edge-l" x="340" y="198">情形B</text>
+    </svg>
+  </section>
+
+  <!-- Panel 4 -->
+  <section class="panel">
+    <h2>④ 渠道产品状态机（C9，复用 t_product_approval）</h2>
+    <p class="desc">渠道自有产品沙箱：录入→审批→上架；删除需运营/超管终审。撤销/撤回即时回退，无需审批。</p>
+    <svg viewBox="0 0 1000 300" role="img" aria-label="产品状态机">
+      <path class="edge" marker-end="url(#ar)" d="M170,90 L250,90"></path>
+      <path class="edge" marker-end="url(#ar)" d="M420,90 L500,90"></path>
+      <path class="edge" marker-end="url(#ar)" d="M280,120 L280,160"></path>
+      <path class="edge" marker-end="url(#ar)" d="M600,90 L600,150"></path>
+      <path class="edge" marker-end="url(#ar)" d="M600,200 L600,250"></path>
+      <path class="edge" marker-end="url(#ar)" d="M600,280 L500,280 L500,120 L420,120"></path>
+      <path class="edge" marker-end="url(#ar)" d="M750,180 L830,180"></path>
+
+      <g><rect class="box-hd" x="40" y="64" width="130" height="52" fill="var(--channel)"></rect><text class="t" x="105" y="88" text-anchor="middle" fill="#fff">DRAFT</text><text class="ts" x="105" y="105" text-anchor="middle" fill="#fff3df">草稿</text></g>
+      <g><rect class="box-hd" x="250" y="64" width="170" height="52" fill="var(--channel)"></rect><text class="t" x="335" y="88" text-anchor="middle" fill="#fff">PENDING</text><text class="ts" x="335" y="105" text-anchor="middle" fill="#fff3df">待审批 submit</text></g>
+      <g><rect class="box-hd" x="500" y="64" width="170" height="52" fill="var(--ok)"></rect><text class="t" x="585" y="88" text-anchor="middle" fill="#fff">OK</text><text class="ts" x="585" y="105" text-anchor="middle" fill="#e7ffe9">已上架</text></g>
+      <g><rect class="box-hd" x="430" y="120" width="170" height="52" fill="var(--warn)"></rect><text class="t" x="515" y="144" text-anchor="middle" fill="#fff">DRAFT</text><text class="ts" x="515" y="161" text-anchor="middle" fill="#fff3df">←revoke 撤销审批</text></g>
+      <g><rect class="box-hd" x="500" y="150" width="200" height="52" fill="var(--approve)"></rect><text class="t" x="600" y="174" text-anchor="middle" fill="#fff">PENDING_DELETE</text><text class="ts" x="600" y="191" text-anchor="middle" fill="#ffe1e1">delete-apply</text></g>
+      <g><rect class="box-hd" x="500" y="250" width="200" height="52" fill="var(--ok)"></rect><text class="t" x="600" y="274" text-anchor="middle" fill="#fff">OK</text><text class="ts" x="600" y="291" text-anchor="middle" fill="#e7ffe9">←audit(reject)/cancel</text></g>
+      <g><rect class="box-hd" x="830" y="154" width="150" height="52" fill="var(--neutral)"></rect><text class="t" x="905" y="178" text-anchor="middle" fill="#fff">物理删除</text><text class="ts" x="905" y="195" text-anchor="middle" fill="#e7ecf3">audit(approve)</text></g>
+      <text class="edge-l" x="300" y="58">submit</text>
+      <text class="edge-l" x="560" y="58">终审通过</text>
+    </svg>
+  </section>
+
+  <!-- Panel 5 -->
+  <section class="panel">
+    <h2>⑤ 分配审批闭环（C19，运营/老板/超管）</h2>
+    <p class="desc">员工替客匹配遇「无归宿」客户时发起分配审批；审批人在小程序入口（待补，见 §13 缺口）通过/驳回，通过后归属流转。</p>
+    <svg viewBox="0 0 1000 230" role="img" aria-label="分配审批闭环">
+      <path class="edge" marker-end="url(#ar)" d="M250,80 L330,80"></path>
+      <path class="edge" marker-end="url(#ar)" d="M560,80 L640,80"></path>
+      <path class="edge" marker-end="url(#ar)" d="M870,80 L870,140"></path>
+      <path class="edge" marker-end="url(#ar)" d="M870,170 L640,170"></path>
+      <path class="edge" marker-end="url(#ar)" d="M560,170 L330,170"></path>
+      <path class="edge" marker-end="url(#ar)" d="M250,140 L250,80"></path>
+
+      <g><rect class="box-hd" x="40" y="64" width="210" height="52" fill="var(--staff)"></rect><text class="t" x="145" y="88" text-anchor="middle" fill="#fff">员工申请分配(M5)</text><text class="ts" x="145" y="105" text-anchor="middle" fill="#e9e7ff">无归宿客户</text></g>
+      <g><rect class="box-hd" x="330" y="64" width="230" height="52" fill="var(--neutral)"></rect><text class="t" x="445" y="88" text-anchor="middle" fill="#fff">生成审批单(M7 待审)</text><text class="ts" x="445" y="105" text-anchor="middle" fill="#e7ecf3">t_client_allocation_approval</text></g>
+      <g><rect class="box-hd" x="640" y="64" width="230" height="52" fill="var(--approve)"></rect><text class="t" x="755" y="88" text-anchor="middle" fill="#fff">审批人通过/驳回</text><text class="ts" x="755" y="105" text-anchor="middle" fill="#ffe1e1">M8 approve / M9 reject</text></g>
+      <g><rect class="box" x="640" y="144" width="230" height="52"></rect><text class="t" x="755" y="168" text-anchor="middle">APPROVED → 归属流转</text><text class="ts" x="755" y="185" text-anchor="middle">可发起匹配</text></g>
+      <g><rect class="box" x="330" y="144" width="230" height="52"></rect><text class="t" x="445" y="168" text-anchor="middle">REJECTED（opinion）</text><text class="ts" x="445" y="185" text-anchor="middle">退回重新申请</text></g>
+    </svg>
+  </section>
+
+</div>
+
+<footer>
+  配套文档：<code>artifacts/小程序分模块交互逻辑与接口设计.md</code>（§1–§14）·
+  <code>docs/knowledge-base/09-业务流程知识图谱.md</code> + <code>09-业务流程知识图谱.json</code>·
+  <code>docs/knowledge-base/04-后端API契约.md</code>（接口真源，2026-08-30 已校正）。
+  所有接口路径、角色分支、状态机均以来源代码为准。
+</footer>
+</body>
+</html>
