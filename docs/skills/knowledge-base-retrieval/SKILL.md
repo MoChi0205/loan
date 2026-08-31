@@ -31,8 +31,8 @@ description: >-
 
 ```
 1. 结论台账（修改前必读）        docs/knowledge-base/10-历史结论与决策日志.md
-2. 契约基线（评审定稿）          docs/方案评审定稿纪要.html（68 表）
-3. 数据真源                      db/loan-db-schema.sql（68 张 t_ 表）+ db/migrate-*.sql
+2. 契约基线（评审定稿）          docs/方案评审定稿纪要.html（表数勿引此文件，见下方数据真源）
+3. 数据真源                      db/loan-db-schema.sql（表数以此为准）+ db/migrate-*.sql
 4. 实现真源                      loan-service/src/main/java/com/loan/
 5. 业务知识库                    docs/knowledge-base/（00-10 各模块索引）
 6. 参考项目骨架                  /Users/admin/Documents/crm/tse（骨架）
@@ -46,7 +46,7 @@ description: >-
 
 契约的最终解释权归以下三项，**按此顺序裁决**：
 
-1. `db/loan-db-schema.sql` —— 数据契约（当前 **68** 张 `t_` 表，以 `grep -c "CREATE TABLE"` 为准）
+1. `db/loan-db-schema.sql` —— 数据契约。**表数唯一真源**，取值命令：`grep -c "CREATE TABLE" db/loan-db-schema.sql`（禁止在任何文档中写死该数值）
 2. `loan-service` 实际代码 —— 实现契约（代码与文档冲突时，以代码为准并回写文档）
 3. `docs/knowledge-base/` —— 业务契约（结论沉淀、角色矩阵、流程图谱）
 
@@ -78,5 +78,5 @@ description: >-
 ## 相关文档
 
 - `docs/knowledge-base/10-历史结论与决策日志.md`（**修改前必查**：D 系列结论台账）
-- `docs/方案评审定稿纪要.html`（唯一有效契约基线，68 表）
+- `docs/方案评审定稿纪要.html`（唯一有效契约基线；表数以 `db/loan-db-schema.sql` 为准）
 - 参考 mds：`/Users/admin/IdeaProjects/mds/AGENTS.md`（知识检索优先原则）
