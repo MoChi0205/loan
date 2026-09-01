@@ -51,8 +51,14 @@ public class LoanUser implements Serializable {
     /** 角色（仅员工：BOSS / DEPT_MANAGER / ADVISER） */
     private String roleCode;
 
-    /** 部门 ID（仅员工） */
-    private Long deptId;
+    /** 部门编码（仅员工，业务编码） */
+    private String deptCode;
+
+    /** 所属银行渠道 ID（仅渠道，t_channel_user.bank_channel_id，数据范围硬隔离用；T11/D28） */
+    private Long bankChannelId;
+
+    /** 所属银行渠道编码（仅渠道，t_bank_channel.channel_code 业务编码；T11/D28） */
+    private String bankChannelCode;
 
     /** 受邀标记（仅客户：受邀用户免费自动 VIP + 独享分享推荐奖励） */
     private Boolean invitedFlag;

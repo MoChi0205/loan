@@ -23,6 +23,8 @@ export function formatDateTime(value) {
  */
 export function desensitizePhone(phone) {
   if (!phone || phone.length < 7) return phone || '-';
+  // 防御：手机号明文才是 11 位纯数字；AES 密文/异常值不解密直接返 "-"，避免显示乱码
+  if (!/^\d{11}$/.test(phone)) return '-';
   return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
 }
 
@@ -41,10 +43,13 @@ export function formatMoney(amount) {
 /**
  * 状态字典转换：按映射表取中文名。
  *
+ * <p>注意：命名为 statusLabel 而非 statusText，避免与各列表页局部状态字典对象
+ * （const statusText = {...}）同名造成阅读混淆。
+ *
  * @param {string} code 状态码
  * @param {Object} map 映射表 { code: 中文名 }
  * @returns {string} 中文名，未命中返回原码
  */
-export function statusText(code, map) {
+export function statusLabel(code, map) {
   return (map && map[code]) || code;
 }

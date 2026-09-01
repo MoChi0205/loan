@@ -97,6 +97,14 @@
 
 > 前端：`api/upload.js` 新增 `uploadMaterial(filePath,{bizType,clientCode})` → 走 `uploadImage()` 封装（H5/小程序统一）；`materialUrl(fileKey)` 拼预览地址。已接线：① `pages/match/match.vue` 材料上传 `bizType=m.key`、补充上传 `bizType=OTHER`；② `pages/report/detail.vue` 诊断补充材料 `bizType=FINANCIAL_STATEMENT` → 成功后 `loadDiagnosis(reportNo)` 刷新。业务 ID 遵守红线：fileKey=`att`+32 位随机；`spring.servlet.multipart.max-file-size/request-size=10MB` 已开。
 
+### 微信 H5 JS-SDK
+
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `GET /api/mini/wechat/jssdk/signature?url=...` | 为不含 `#` 片段的当前 H5 页面 URL 生成 `{appId,timestamp,nonceStr,signature}` | 无需登录；网关需保留公开白名单 |
+
+> JS-SDK 使用公众号 `oaAppid/oaSecret`，与微信小程序 AppID/Secret 不是同一套凭证；真实值按上线配置阶段处理。
+
 ### 审批中心（统一，T5）
 
 > 方案 A：**无统一审批表**，采用「视图层统一 + 入口统一」（不建表、不迁移数据）。`type=ALL` 为**分段分页**语义：各类型各取一页后内存归并、按 `createdAt` 倒序、截断 `size`，`total` 为三类型 PENDING 之和；前端仅概览、不深翻页。白名单 `loan.mini.approval.types=ALLOCATION`（产品/下载待阶段四）。
@@ -104,9 +112,9 @@
 | 接口 | 说明 | 权限 |
 |------|------|------|
 | `GET /api/mini/approval/counts` | 待审计数 `{PRODUCT, DOWNLOAD, ALLOCATION, TOTAL}` | 运营/超管/老板（OPERATOR/SUPER_ADMIN/SUPER/BOSS） |
-| `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}` | 同上（ALLOCATION 含 DEPT_MANAGER） |
-| `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}` | 同上（ALLOCATION 含 DEPT_MANAGER） |
-| `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER/BOSS/DEPT_MANAGER |
+| `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}` | ALLOCATION 仅 OPERATOR/SUPER_ADMIN/SUPER/BOSS；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
+| `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}` | ALLOCATION 仅 OPERATOR/SUPER_ADMIN/SUPER/BOSS；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
+| `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER_ADMIN/SUPER/BOSS |
 | `POST /api/admin/approval/allocation/{approvalNo}/approve` | 管理端 allocation 通过（`ApprovalController`，非 `/audit`） | 同上 |
 | `POST /api/admin/approval/allocation/{approvalNo}/reject` | 管理端 allocation 驳回 | 同上 |
 | `GET /api/admin/approval/unified/counts` | 管理端统一计数（**2026-08-31 校正**：实际路径带 unified 前缀，旧文写 `/approval/counts` 在代码中不存在） | OPERATOR/SUPER/BOSS |
@@ -132,6 +140,16 @@ DATA_NOT_FOUND("数据不存在")
 - **审批单号**：`approvalNo`
 - **归属人工号**：`ownerStaffCode`（员工）/ `ownerStaffName`（姓名，C19 接 t_staff）
 - **匹配结果态**：`totalResult` ∈ PASS / CONDITION / REJECT / SKIP_SEGMENT_MISMATCH / ERROR
+
+## 管理端业务 ID 契约
+
+- 渠道准入策略以 `strategyCode` 作对外身份：`PUT/DELETE /api/admin/channel-strategy/{strategyCode}`、`POST /{strategyCode}/enable|disable|validate-before-enable`。
+- 跨渠道复制传 `sourceStrategyCode`，模版导入传 `templateCode`；创建、复制、导入均返回策略业务编码，不返回自增主键。
+- 渠道名单记录以 16 位 `listCode` 作对外身份：`GET/PUT/DELETE /api/admin/channel-user-list/{listCode}`；批量查询/删除传 `{listCodes:[...]}`，分页统一使用组合 Query 模型。
+- 产品城市关系以 16 位 `productCityCode` 作对外身份：`GET/PUT/DELETE /api/admin/product-city/relation/{productCityCode}`；批量查询传 `{productCityCodes:[...]}`，组合分页使用 `GET /api/admin/product-city/page`，按产品查询仍使用产品短码 `GET /api/admin/product-city/{productCode}`。
+- `listCode` 使用 `culist` 前缀、`productCityCode` 使用 `pcity` 前缀，总长度均为 16；响应实体隐藏物理 `id`。
+- 修改接口只用路径业务编码定位；修改体不接收物理 `id`，也不允许改写 `listCode` / `productCityCode`。
+- 其余存量管理接口按 `loan-biz-id` 逐域迁移；涉及新增业务编码列/唯一索引时，需先确认数据库迁移方案。
 
 ## 前后端契约变更纪律
 

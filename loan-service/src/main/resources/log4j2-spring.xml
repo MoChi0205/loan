@@ -3,7 +3,8 @@
 <Configuration status="WARN">
     <Properties>
         <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</Property>
-        <Property name="LOG_DIR">logs</Property>
+        <!-- 后台启动由 LOAN_LOG_DIR 指定绝对目录；未设置时仍兼容本地前台运行。 -->
+        <Property name="LOG_DIR">${env:LOAN_LOG_DIR:-logs}</Property>
     </Properties>
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">

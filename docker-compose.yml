@@ -1,0 +1,55 @@
+# ============================================================
+# loan 本地 dev 环境（MySQL 8 + Redis + Nacos）
+# 对齐 nacos/config/dev/application.properties 的连接约定：
+#   MySQL  loan_db / erp_user / Erp@User2024!（root 密码 Erp@Root2024!）
+#   Redis  无密码
+#   Nacos  standalone（内嵌 derby，无需额外存储），账号 nacos/nacos
+# 启动：docker compose up -d
+# ============================================================
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: loan-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: Erp@Root2024!
+      MYSQL_DATABASE: loan_db
+      MYSQL_USER: erp_user
+      MYSQL_PASSWORD: Erp@User2024!
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - loan-mysql-data:/var/lib/mysql
+      # 按文件名排序执行：先建表，再初始化数据（默认库为 loan_db）
+      - ./db/loan-db-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/init-data.sql:/docker-entrypoint-initdb.d/02-init-data.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pErp@Root2024!"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    container_name: loan-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: loan-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+
+volumes:
+  loan-mysql-data:

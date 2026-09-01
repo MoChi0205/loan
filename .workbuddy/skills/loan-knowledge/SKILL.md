@@ -64,6 +64,7 @@ description: >-
 
 | 场景 | 使用的技能 |
 |---|---|
+| 跨端代码标准 / 重构 / 接口 / 并发 / 缓存 / 稳定性 / 数据展示 | `loan-code-standard` |
 | 写/改 Java 业务代码 | `loan-backend` |
 | 定业务 ID / 建表 / FK | `loan-biz-id` |
 | 写 SQL / 索引 / 报表 / 分页排序 | `loan-database` |

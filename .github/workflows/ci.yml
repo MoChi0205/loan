@@ -1,0 +1,78 @@
+# =============================================================================
+# loan-main CI：PR 质量门禁
+# -----------------------------------------------------------------------------
+# 覆盖范围（默认流程，绝不触碰生产库）：
+#   - 后端 L1（Controller 接口契约）+ M3（L2 Service 单测）：JaCoCo 门禁
+#       * L1（com.loan.*.controller）= 行覆盖率 ≥ 60%
+#   - 前端 loan-web / 小程序 loan-mini（T0 调用层）：vitest 覆盖率门禁 ≥ 70%
+# L3（生产库集成）不在此流程内，见 l3-manual.yml（仅手动触发）。
+# =============================================================================
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master, dev]
+  push:
+    branches: [main, master]
+
+jobs:
+  backend:
+    name: Backend (L1 + M3) · JaCoCo ≥60% controller
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Build dependency loan-api
+        run: mvn -B -q install -DskipTests -pl loan-api
+
+      - name: Test loan-service (L1 + M3) with coverage gate
+        run: mvn -B verify -pl loan-service -DskipTests=false
+        # verify 阶段会执行 test → jacoco:report → jacoco:check（controller ≥60%）
+
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-backend
+          path: loan-service/target/site/jacoco
+
+  frontend-web:
+    name: Web T0 · vitest ≥70%
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loan-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: loan-web/package-lock.json
+      - run: npm install
+      - run: npm test -- --coverage
+        # 门槛在 loan-web/vitest.config.js 的 coverage.thresholds（lines/statements/functions ≥70）
+
+  frontend-mini:
+    name: Mini T0 · vitest ≥70%
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loan-mini
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: loan-mini/package-lock.json
+      - run: npm install
+      - run: npm test -- --coverage
+        # 门槛在 loan-mini/vitest.config.js 的 coverage.thresholds（lines/statements/functions ≥70）

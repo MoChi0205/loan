@@ -9,9 +9,9 @@
     "usingComponents": true
   },
   "mp-weixin": {
-    "appid": "wx_CHANGE_ME",
+    "appid": "wxe1d824a56e80154a",
     "setting": {
-      "urlCheck": false,
+      "urlCheck": true,
       "es6": true,
       "minified": true
     },

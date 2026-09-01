@@ -68,4 +68,39 @@ public final class DesensitizeUtils {
         }
         return creditCode.substring(0, 4) + "********" + creditCode.substring(creditCode.length() - 4);
     }
+
+    /**
+     * 银行卡号脱敏：保留前 4 后 4（参考 tse SensitiveDataMaskUtil）。
+     *
+     * @param bankCard 银行卡号
+     * @return 脱敏后银行卡号，空值原样返回
+     */
+    public static String bankCard(String bankCard) {
+        if (bankCard == null || bankCard.length() < 8) {
+            return bankCard;
+        }
+        int starCount = Math.max(1, bankCard.length() - 8);
+        StringBuilder stars = new StringBuilder(starCount);
+        for (int i = 0; i < starCount; i++) {
+            stars.append('*');
+        }
+        return bankCard.substring(0, 4) + stars + bankCard.substring(bankCard.length() - 4);
+    }
+
+    /**
+     * 邮箱脱敏：保留首字符与 @ 后域名（如 z***@qq.com）。
+     *
+     * @param email 邮箱
+     * @return 脱敏后邮箱，空值原样返回
+     */
+    public static String email(String email) {
+        if (email == null || email.isEmpty()) {
+            return email;
+        }
+        int at = email.indexOf('@');
+        if (at <= 0) {
+            return "***";
+        }
+        return email.charAt(0) + "***" + email.substring(at);
+    }
 }

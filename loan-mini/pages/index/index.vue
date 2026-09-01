@@ -15,32 +15,6 @@
 
     <!-- 主内容区 -->
     <view class="main-body">
-      <!-- 邀请码 / 引荐绑定 -->
-      <view class="card invite-card">
-        <view class="card-label-row">
-          <view class="label-icon">
-            <text class="label-icon-text">邀请</text>
-          </view>
-          <text class="card-label">邀请码 / 引荐绑定</text>
-        </view>
-        <text class="card-hint">输入渠道顾问提供的邀请码，绑定专属服务关系</text>
-        <view class="invite-input-wrap">
-          <input
-            class="invite-input"
-            v-model="inviteCode"
-            placeholder="请输入邀请码（选填）"
-            placeholder-class="ph"
-          />
-          <button
-            class="bind-btn"
-            size="mini"
-            :loading="binding"
-            :disabled="binding"
-            @click="onBind"
-          >{{ inviteCode ? '登录并绑定' : '绑定' }}</button>
-        </view>
-      </view>
-
       <!-- 三步流程：横向时间线风格 -->
       <view class="card flow-card">
         <text class="card-label">三步开启贷款咨询</text>
@@ -107,8 +81,10 @@ import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { wxLogin, isH5Env } from '../../utils/wx';
 import { loginByWx, loginByCrm } from '../../api/auth';
-import { bind } from '../../api/invitation';
 import { useUserStore } from '../../store/user';
+import {
+  captureInvitation, clearPendingInviteCode, consumePendingInvitation, getPendingInviteCode,
+} from '../../utils/invitation';
 
 /**
  * 落地页（P0-1/P0-2）：微信登录 + 邀请码绑定。
@@ -124,9 +100,7 @@ const store = useUserStore();
 /** H5 浏览器环境标识（wxLogin 在 H5 返回模拟 code，靠后端 wechat.mock 打通登录） */
 const isH5 = computed(() => isH5Env());
 
-const inviteCode = ref('');
 const loggingIn = ref(false);
-const binding = ref(false);
 
 const flow = [
   { title: '微信一键登录', desc: '授权获取 openid，自动创建客户档案' },
@@ -197,9 +171,7 @@ function pickRole(r) {
 /* ---------- 角色切换结束 ---------- */
 
 onLoad(async (query) => {
-  if (query && query.inviteCode) {
-    inviteCode.value = String(query.inviteCode);
-  }
+  captureInvitation(query);
   // 恢复上次选择的开发角色
   try {
     const saved = uni.getStorageSync('loan_dev_role');
@@ -208,6 +180,7 @@ onLoad(async (query) => {
   // 已登录则直接进入首页
   const ok = await store.init();
   if (ok) {
+    await consumePendingInvitation(store);
     jumpHome();
   }
 });
@@ -222,9 +195,11 @@ async function doLogin() {
   loggingIn.value = true;
   try {
     const code = await wxLogin();
+    const pendingInviteCode = getPendingInviteCode();
     const data = await loginByWx(code, {
-      inviteCode: inviteCode.value || undefined,
+      inviteCode: pendingInviteCode || undefined,
     });
+    if (pendingInviteCode) clearPendingInviteCode();
     store.setToken(data.token);
     store.setUser(data.user);
     await store.refreshProfile().catch(() => {});
@@ -256,31 +231,6 @@ function onStart() {
   doLogin();
 }
 
-async function onBind() {
-  if (binding.value) return;
-  if (!inviteCode.value) {
-    uni.showToast({ title: '请输入邀请码', icon: 'none' });
-    return;
-  }
-  if (!store.token) {
-    await doLogin();
-    return;
-  }
-  binding.value = true;
-  try {
-    const res = await bind(inviteCode.value);
-    if (res && res.referrerName) {
-      store.setReferrer(res.referrerName);
-    }
-    uni.showToast({ title: '绑定成功', icon: 'success' });
-    await store.refreshProfile().catch(() => {});
-    setTimeout(() => jumpHome(), 600);
-  } catch (e) {
-    // toast 已由 request 层弹出
-  } finally {
-    binding.value = false;
-  }
-}
 </script>
 
 <style scoped>
@@ -362,95 +312,10 @@ async function onBind() {
   margin-bottom:24rpx;
   box-shadow: var(--shadow-md)
 }
-.card-label-row{
-  display:flex;
-  align-items:center;
-  gap:16rpx;
-  margin-bottom:12rpx
-}
-.label-icon{
-  width:48rpx;
-  height:48rpx;
-  border-radius:14rpx;
-  background:linear-gradient(135deg,var(--brand-deep),var(--brand-bright));
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-shrink:0
-}
-.label-icon-text{
-  color:var(--bg-card);
-  font-size:22rpx;
-  font-weight:700
-}
 .card-label{
   font-size:30rpx;
   font-weight:700;
   color:var(--text-primary)
-}
-.card-hint{
-  display:block;
-  font-size:24rpx;
-  color:var(--text-secondary);
-  margin-top:6rpx;
-  line-height:1.5
-}
-.invite-card{
-  margin-bottom:40rpx
-}
-.invite-input-wrap{
-  display:flex;
-  flex-direction:row;
-  flex-wrap:nowrap;
-  align-items:center;
-  gap:16rpx;
-  margin-top:28rpx
-}
-.invite-input{
-  flex:1 1 0;
-  min-width:0;
-  width:auto;
-  box-sizing:border-box;
-  height:88rpx;
-  line-height:88rpx;
-  padding:0 24rpx;
-  background:var(--bg-input);
-  border:2rpx solid var(--line);
-  border-radius: var(--radius-sm);
-  font-size:28rpx;
-  color:var(--text-primary);
-  transition:border-color .2s
-}
-/* #ifdef H5 */
-.invite-input:focus{
-  border-color:var(--brand-deep)
-}
-/* #endif */
-.ph{
-  color:var(--text-secondary);
-  font-size:26rpx
-}
-.bind-btn{
-  flex:0 0 auto;
-  flex-shrink:0;
-  min-width:176rpx;
-  box-sizing:border-box;
-  margin:0;
-  height:88rpx;
-  line-height:88rpx;
-  padding:0 28rpx;
-  background:var(--brand-deep);
-  color:var(--bg-card);
-  font-size:27rpx;
-  font-weight:600;
-  border-radius: var(--radius-sm);
-  white-space:nowrap;
-  display:flex;
-  align-items:center;
-  justify-content:center
-}
-.bind-btn:after{
-  border:none
 }
 .timeline{
   display:flex;

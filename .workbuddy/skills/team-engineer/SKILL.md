@@ -24,7 +24,7 @@ description: >-
 1. **变更安全检查**：调用用户级技能 `change-safety-check`。
    用本次改动的**关键符号**（类名、方法名、表名、字段名、接口路径）检索历史结论 / 决策台账，
    **命中即遵守**；**无结论且不确定 → 停下来问用户**，禁止臆断。
-2. **知识检索**：调用项目级元技能 `loan-knowledge`，按 Step 0–2 读全涉及章节。
+2. **知识检索**：调用项目级元技能 `loan-knowledge`，按 Step 0–2 读全涉及章节；所有代码变更同时执行 `loan-code-standard`。
 3. **红线速查**：先读本文件「红线速查（4 条，不可破）」，确认本次改动不触碰。
 4. **可见输出**：回复开头固定输出
 
@@ -72,6 +72,7 @@ description: >-
 **S2 定位与复用勘察**
 - grep 定位同类实现：命名风格、返回类型、异常处理、事务边界 → 照已有范式写。
 - 命中可复用能力 → 直接复用；确需重写必须在回复中说明理由。
+- 后端读取 `loan-code-standard/references/backend-standard.md`；Web / mini 读取 `references/frontend-standard.md`。
 
 **S3 编码**
 - 分层落地：`Controller`（入参校验）→ `Service`（业务 + 事务 + 加解密）→ `Mapper`（数据访问）。
@@ -79,7 +80,7 @@ description: >-
 - 敏感字段：写入前摘要 / 加密；精确匹配前对入参做同样处理，不以明文比对。
 
 **S4 自验证（交付前必做）**
-- 后端编译：`mvn -q -pl loan-service -am compile -DskipTests` → 必须 BUILD SUCCESS。
+- 后端测试：`mvn -q -pl loan-service -am test` → 必须 BUILD SUCCESS；仅明确的联调/快速打包流程可显式跳过测试。
 - 关键路径冒烟：启动后 `curl` 验证目标接口返回结构正确。
 - 用真实符号核查（查实体、查 Mapper XML），**不靠记忆字段名**。
 
@@ -133,6 +134,7 @@ description: >-
 - **G8 复用优先**：已确认无既有能力可复用，或已说明为何不可复用
 - **G9 无占位**：无 `TODO` / 空实现 / 未实现分支
 - **G10 结论已回写**：新坑 / 新约束已入台账，非只留代码注释
+- **G11 标准化门禁**：已通过 `loan-code-standard` 涉及端验收清单；查询复用、名称主显、幂等/并发、缓存与稳定性要求均有结论
 
 ---
 
@@ -159,7 +161,7 @@ description: >-
 - [ ] R2：定时任务是否走 XXL-Job？有无新增 `@Scheduled`？
 - [ ] R3：是否用业务编码做查询与契约？新表是否有业务 ID + 唯一索引？
 - [ ] R4：加密字段读取是否在 Service 手动解密？
-- [ ] `mvn compile` 是否 BUILD SUCCESS？关键路径是否冒烟通过？
+- [ ] `mvn test` 是否 BUILD SUCCESS？关键路径是否冒烟通过？
 - [ ] 字段名 / 方法名是否都 grep 核实过，无凭记忆？
 - [ ] 是否复用了既有能力？未复用是否说明理由？
 - [ ] 是否有 `TODO` / 空实现残留？
@@ -172,6 +174,6 @@ description: >-
 - 用户级技能 `doc-hygiene`（注释与文档不写死易腐化值；**例外条款：恢复锚点 / 纠错证据 /
   已执行动作记录必须保留原值，禁止抽象化**）
 - 项目级元技能 `loan-knowledge`（知识检索六步闭环，本技能的前置）
-- 交叉必读：`loan-backend`（Java 业务代码）、`loan-biz-id`（业务 ID）、`loan-database`（SQL / 索引）、
+- 交叉必读：`loan-code-standard`（跨端质量与稳定性）、`loan-backend`（Java 业务代码）、`loan-biz-id`（业务 ID）、`loan-database`（SQL / 索引）、
   `loan-gateway-auth`（接口与授权）、`loan-service-ops`（启停排查）
 - 上游：`team-pm`（需求）、`team-architect`（方案）；下游：`team-qa`（验证）

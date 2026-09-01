@@ -23,6 +23,8 @@ public enum ResultCode {
     DATA_NOT_FOUND(1002, "数据不存在"),
     /** 操作过于频繁 */
     TOO_FREQUENT(1003, "操作过于频繁，请稍后重试"),
+    /** 敏感数据查看达日限额 */
+    SENSITIVE_QUOTA_EXCEEDED(1004, "今日敏感数据查看次数已用完"),
 
     /** 未登录 / 会话过期 */
     UNAUTHORIZED(2000, "未登录或会话已过期"),

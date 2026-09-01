@@ -36,38 +36,6 @@
         <text class="promo-arrow">›</text>
       </view>
 
-      <!-- 顾问服务卡（渠道为供给方，无绑定顾问场景） -->
-      <view class="card advisor-card" v-if="!store.isChannel">
-        <view class="sec-header">
-          <text class="sec-title">顾问服务</text>
-          <text class="sec-badge" :class="isBound ? 'badge-on' : 'badge-off'">{{ isBound ? '已绑定' : '未绑定' }}</text>
-        </view>
-
-        <template v-if="isBound">
-          <view class="advisor-profile">
-            <view class="advisor-avatar">{{ advisorName[0] || '顾' }}</view>
-            <view class="advisor-info">
-              <text class="advisor-name">{{ advisorName }}</text>
-              <text class="advisor-role">专属贷款顾问 · 全程跟进</text>
-            </view>
-            <view class="advisor-status-dot" />
-          </view>
-        </template>
-
-        <template v-else>
-          <text class="bind-hint">绑定渠道顾问邀请码，建立专属服务关系</text>
-          <view class="bind-row">
-            <input
-              class="bind-input"
-              v-model="inviteCode"
-              placeholder="输入邀请码"
-              placeholder-class="ph"
-            />
-            <button class="bind-btn" size="mini" :loading="binding" :disabled="binding" @click="onBind">绑定</button>
-          </view>
-        </template>
-      </view>
-
       <!-- 功能入口：双列大卡片（渠道：我的产品 / 我的；其余：智能匹配 / 我的报告） -->
       <view class="entry-row">
         <template v-if="store.isChannel">
@@ -126,19 +94,17 @@ import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
 import TabBar from '../../components/TabBar.vue';
-import { bind } from '../../api/invitation';
 import { partnerProducts } from '../../api/match';
+import { consumePendingInvitation } from '../../utils/invitation';
 
 /**
  * tabBar 首页：瑞幸风格重设计。
  * - 深色品牌渐变头部 + 圆形头像环
  * - 阴影大圆角卡片（无边框）
- * - 双列功能入口（emoji 图标替代单字方块）
+ * - 双列功能入口（统一使用 AppIcon 线性图标）
  */
 const store = useUserStore();
 
-const inviteCode = ref('');
-const binding = ref(false);
 const partnerCount = ref(0);
 
 /** 展示名称截断 */
@@ -169,15 +135,10 @@ const timeGreeting = computed(() => {
   return `${m}月${d}日 周${w}`;
 });
 
-/** 是否已绑定顾问 */
-const isBound = computed(() => !!store.referrerName || !!((store.profile && store.profile.ownerStaffCode)));
-
-/** 顾问昵称 */
-const advisorName = computed(() => store.referrerName || '专属顾问');
-
 onShow(() => {
-  store.init().catch(() => {});
-  store.loadReferrer();
+  store.init().then((ok) => {
+    if (ok) consumePendingInvitation(store);
+  }).catch(() => {});
   loadPartnerCount();
 });
 
@@ -199,25 +160,6 @@ async function loadPartnerCount() {
 
 function onGoAuth() {
   uni.navigateTo({ url: '/pages/auth/auth' });
-}
-
-async function onBind() {
-  if (binding.value) return;
-  if (!inviteCode.value) {
-    uni.showToast({ title: '请输入邀请码', icon: 'none' });
-    return;
-  }
-  binding.value = true;
-  try {
-    const res = await bind(inviteCode.value);
-    if (res && res.referrerName) {
-      store.setReferrer(res.referrerName);
-    }
-    uni.showToast({ title: '绑定成功', icon: 'success' });
-    inviteCode.value = '';
-    store.refreshProfile().catch(() => {});
-  } catch (e) { /* toast 已弹出 */ }
-  finally { binding.value = false; }
 }
 
 function onMatch() {
@@ -427,87 +369,6 @@ function onMine() {
   color:var(--warning-text);
   flex-shrink:0
 }
-.advisor-profile{
-  display:flex;
-  align-items:center;
-  gap:20rpx
-}
-.advisor-avatar{
-  width:80rpx;
-  height:80rpx;
-  border-radius:50%;
-  background:linear-gradient(135deg,var(--brand-deep),var(--brand-bright));
-  color:var(--bg-card);
-  font-size:34rpx;
-  font-weight:700;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-shrink:0
-}
-.advisor-info{
-  flex:1;
-  display:flex;
-  flex-direction:column
-}
-.advisor-name{
-  font-size:30rpx;
-  font-weight:600;
-  color:var(--text-primary)
-}
-.advisor-role{
-  margin-top:6rpx;
-  font-size:23rpx;
-  color:var(--text-secondary)
-}
-.advisor-status-dot{
-  width:16rpx;
-  height:16rpx;
-  border-radius:50%;
-  background:var(--success);
-  flex-shrink:0;
-  margin-top:4rpx
-}
-.bind-hint{
-  display:block;
-  font-size:25rpx;
-  color:var(--text-body);
-  margin-bottom:20rpx;
-  line-height:1.5
-}
-.bind-row{
-  display:flex;
-  align-items:center;
-  gap:16rpx
-}
-.bind-input{
-  flex:1;
-  height:80rpx;
-  padding:0 24rpx;
-  background:var(--bg-input);
-  border:2rpx solid var(--line);
-  border-radius: var(--radius-sm);
-  font-size:27rpx;
-  color:var(--text-primary)
-}
-.ph{
-  color:var(--text-secondary)
-}
-.bind-btn{
-  margin:0;
-  height:80rpx;
-  line-height:80rpx;
-  padding:0 32rpx;
-  background:var(--brand-deep);
-  color:var(--bg-card);
-  font-size:27rpx;
-  font-weight:600;
-  border-radius: var(--radius-sm);
-  white-space:nowrap
-}
-.bind-btn:after{
-  border:none
-}
 .entry-row{
   display:flex;
   gap:24rpx;
@@ -568,7 +429,4 @@ function onMine() {
   color:var(--text-secondary)
 }
 
-/* #ifdef H5 */
-.bind-input:focus { border-color: var(--gold); background: var(--bg-card); }
-/* #endif */
 </style>

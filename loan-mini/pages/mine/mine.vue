@@ -34,13 +34,13 @@
         </view>
       </view>
 
-      <!-- 顾问服务 -->
-      <view class="card">
+      <!-- 顾问服务：仅真实 owner 归属，分享引荐人与顾问严格分离 -->
+      <view v-if="!isChannelRole && !isStaffRole" class="card advisor-card">
         <view class="sec-header">
           <text class="sec-title">顾问服务</text>
-          <text class="sec-badge" :class="isBound ? 'badge-on' : 'badge-off'">{{ isBound ? '已绑定' : '未绑定' }}</text>
+          <text class="sec-badge" :class="hasAdvisor ? 'badge-on' : 'badge-off'">{{ hasAdvisor ? '服务中' : '待分配' }}</text>
         </view>
-        <view class="advisor-row" v-if="isBound">
+        <view class="advisor-row" v-if="hasAdvisor">
           <view class="advisor-avatar">{{ advisorName[0] || '顾' }}</view>
           <view class="advisor-info">
             <text class="advisor-name">{{ advisorName }}</text>
@@ -49,8 +49,11 @@
           <view class="status-led" />
         </view>
         <view class="bind-empty" v-else>
-          <text class="bind-empty-text">尚未绑定顾问，可回首页输入邀请码</text>
-          <button class="go-bind-btn" size="mini" @click="goHome">去绑定</button>
+          <view class="advisor-empty-icon"><AppIcon name="support" size="md" /></view>
+          <view class="advisor-empty-body">
+            <text class="bind-empty-title">暂未分配服务顾问</text>
+            <text class="bind-empty-text">平台管理员可为您分配，顾问也可从客户公海认领后提供服务</text>
+          </view>
         </view>
       </view>
 
@@ -99,18 +102,30 @@
         <text class="menu-arrow">›</text>
       </view>
 
-      <!-- 邀请码 -->
-      <view class="card">
+      <!-- 分享邀请：分享链接自动携带邀请码，接收方无需手填 -->
+      <view v-if="role === 'customer'" class="card share-card">
         <view class="sec-header">
-          <text class="sec-title">我的邀请码</text>
+          <text class="sec-title">分享邀请</text>
           <text class="sec-sub">推荐有礼 · 7 天有效</text>
         </view>
-        <view class="code-row" v-if="inviteCode">
-          <view class="code-box">{{ inviteCode }}</view>
-          <button class="copy-btn" size="mini" @click="onCopy">复制</button>
+        <text class="share-desc">分享链接或小程序码会自动携带引荐码，对方在有效期内登录即可建立邀请关系。</text>
+        <view class="share-actions" v-if="inviteCode">
+          <!-- #ifdef MP-WEIXIN -->
+          <button class="share-btn" open-type="share">
+            <AppIcon name="share" size="sm" />
+            <text>分享给好友</text>
+          </button>
+          <!-- #endif -->
+          <!-- #ifdef H5 -->
+          <button class="share-btn" @click="onCopyShareLink">
+            <AppIcon name="share" size="sm" />
+            <text>复制分享链接</text>
+          </button>
+          <!-- #endif -->
+          <button class="copy-btn" size="mini" @click="onCopyCode">复制引荐码</button>
         </view>
         <view class="code-empty" v-else>
-          <text class="code-empty-text">邀请码生成中…</text>
+          <text class="code-empty-text">分享信息生成中…</text>
         </view>
       </view>
 
@@ -144,12 +159,13 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
 import TabBar from '../../components/TabBar.vue';
 import { mine as getMyInviteCode } from '../../api/invitation';
 import { orderList, rewardSummary } from '../../api/order';
 import { approvalCounts } from '../../api/approval';
+import { buildInviteSharePath, consumePendingInvitation } from '../../utils/invitation';
 
 const store = useUserStore();
 
@@ -240,19 +256,13 @@ const accountRows = computed(() => {
   ];
 });
 
-const customerGroupLabel = computed(() => {
-  if (store.profile && store.profile.customerGroup === 'ENTERPRISE') return '企业客户';
-  if (store.profile && store.profile.customerGroup === 'PERSONAL') return '个人客户';
-  return '未认证';
-});
-
-const isBound = computed(() => !!store.referrerName || !!((store.profile && store.profile.ownerStaffCode)));
-const advisorName = computed(() => store.referrerName || '专属顾问');
+const hasAdvisor = computed(() => !!(store.profile && store.profile.ownerStaffCode));
+const advisorName = computed(() => (store.profile && store.profile.ownerStaffName) || '平台顾问');
 
 onShow(() => {
   store.init().then((ok) => {
     if (ok) {
-      store.loadReferrer();
+      consumePendingInvitation(store);
       // 邀请码 / 奖励汇总为客户专属接口：仅客户角色调用，员工/渠道不触发（避免报错 toast）
       if (store.role === 'customer') {
         loadInviteCode();
@@ -296,19 +306,37 @@ async function loadSummary() {
   catch (e) { summary.value = null; }
 }
 
-function onCopy() {
+function onCopyCode() {
   uni.setClipboardData({
     data: inviteCode.value,
-    success: () => uni.showToast({ title: '邀请码已复制', icon: 'success' }),
+    success: () => uni.showToast({ title: '引荐码已复制', icon: 'success' }),
   });
 }
+
+function onCopyShareLink() {
+  const path = buildInviteSharePath(inviteCode.value);
+  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+  uni.setClipboardData({
+    data: `${origin}/#${path}`,
+    success: () => uni.showToast({ title: '分享链接已复制', icon: 'success' }),
+  });
+}
+
+onShareAppMessage(() => ({
+  title: '企融通 · 企业融资智能匹配',
+  path: buildInviteSharePath(inviteCode.value),
+}));
+
+onShareTimeline(() => ({
+  title: '企融通 · 企业融资智能匹配',
+  query: inviteCode.value ? `inviteCode=${encodeURIComponent(inviteCode.value)}` : '',
+}));
 
 function onGoAuth() {
   if (store.isAuthed) { uni.showToast({ title: '已完成身份认证', icon: 'none' }); return; }
   uni.navigateTo({ url: '/pages/auth/auth' });
 }
 
-function goHome() { uni.reLaunch({ url: '/pages/home/home' }); }
 function goOrder() { uni.reLaunch({ url: '/pages/order/list' }); }
 
 /** C9：跳转我的产品（渠道 / 员工可见） */
@@ -473,22 +501,11 @@ function onLogout() {
 
 .status-led { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--success); flex-shrink: 0; }
 
-.bind-empty { display: flex; align-items: center; justify-content: space-between; }
-.bind-empty-text { font-size: 25rpx; color: var(--text-placeholder); }
-
-.go-bind-btn {
-  margin: 0;
-  background: var(--brand-deep);
-  color: var(--text-invert);
-  font-size: 24rpx;
-  font-weight: 600;
-  padding: 0 28rpx;
-  height: 64rpx;
-  line-height: 64rpx;
-  border-radius: 14rpx;
-}
-
-.go-bind-btn::after { border: none; }
+.bind-empty { display: flex; align-items: center; gap: var(--space-3); }
+.advisor-empty-icon { width: 72rpx; height: 72rpx; border-radius: var(--radius-md); background: var(--gold-bg); color: var(--gold-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.advisor-empty-body { display: flex; flex-direction: column; min-width: 0; }
+.bind-empty-title { font-size: var(--fs-md); font-weight: 600; color: var(--text-primary); }
+.bind-empty-text { margin-top: var(--space-1); font-size: var(--fs-sm); line-height: var(--lh-base); color: var(--text-secondary); }
 
 .menu-card { display: flex; align-items: center; justify-content: space-between; }
 .menu-left { display: flex; align-items: center; gap: 20rpx; }
@@ -525,27 +542,14 @@ function onLogout() {
   flex-shrink: 0;
 }
 
-.code-row { display: flex; align-items: center; gap: 16rpx; }
-
-.code-box {
-  flex: 1;
-  height: 84rpx;
-  line-height: 84rpx;
-  padding: 0 24rpx;
-  background: var(--bg-card);
-  border: 1rpx dashed var(--line);
-  border-radius: 16rpx;
-  color: var(--role-deptmgr);
-  font-size: 30rpx;
-  font-weight: 700;
-  letter-spacing: 4rpx;
-  text-align: center;
-}
+.share-desc { display: block; color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-base); }
+.share-actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+.share-btn { flex: 1; height: 72rpx; padding: 0 var(--space-3); border-radius: var(--radius-sm); background: var(--brand-deep); color: var(--text-invert); display: flex; align-items: center; justify-content: center; gap: var(--space-1); font-size: var(--fs-sm); font-weight: 600; }
 
 .copy-btn {
   margin: 0;
-  background: var(--brand-deep);
-  color: var(--text-invert);
+  background: var(--bg-input);
+  color: var(--brand-deep);
   font-size: 25rpx;
   font-weight: 600;
   padding: 0 28rpx;

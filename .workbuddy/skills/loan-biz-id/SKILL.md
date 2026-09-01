@@ -51,6 +51,10 @@ description: >-
 | t_reward_record | reward_no | reward |
 | t_report | report_no | report |
 | t_match_trace | trace_uuid | trace（32 位 UUID 保留） |
+| t_channel_user_list | list_code | culist（本表经用户确认总长 16） |
+| t_bank_product_city | product_city_code | pcity（本表经用户确认总长 16） |
+
+> 长度例外：仅 `list_code` 与 `product_city_code` 按用户确认使用 16 位总长；其余记录级业务 ID 继续遵守“前缀 + 32 位随机”。
 
 ## FK 引用列规范（Wave 2 落地，2026-08-26）
 
@@ -99,6 +103,8 @@ description: >-
 
 - Controller 入参：`@PathVariable String leadNo` / `@RequestBody { "leadNo": "lead8b1c...", "toStaffCode": "ADV001" }`，**不用 Long**。
 - Service：按业务编码列 `LambdaQueryWrapper.eq(Entity::getXxxCode, code)` 查询；创建返回业务 ID（`Result<String>`）。
+- 查询：同一资源提供单条、批量与组合分页入口；批量和分页同样按业务编码组织结果，禁止循环逐条查库。
+- 修改：详情 / 修改 / 删除均以业务唯一编码定位；更新请求不得接收物理 `id`，也不得改写业务编码本身。
 - DTO：出参暴露业务编码，不暴露 `xxxId`；Dubbo 契约同理（如 `ProductDTO.bankChannelCode`）。
 - 前端：编号 / 单号列展示业务 ID（截断展示、完整可复制）—— 展示细节见 `loan-web-ui`。
 
@@ -112,6 +118,7 @@ description: >-
 - [ ] Step 0 结论核对是否已输出？
 - [ ] Controller / DTO / 跨系统契约里是否出现 `Long id` / `xxxId` 作业务标识？→ 改业务编码
 - [ ] Service 是否用 `selectById` / `eq(id)` 做业务查询？→ 按业务编码列查询
+- [ ] 同一资源是否支持单条、批量、组合分页？修改是否按业务编码定位且禁止改写业务编码？
 - [ ] 新表 / 新实体是否有业务 ID 列 + UNIQUE 索引？
 - [ ] 引用其他表的列是否 `varchar` 存业务编码（非 BIGINT）？
 - [ ] 生成新业务 ID 是否走 `BizIdGenerator.generate(prefix)`？

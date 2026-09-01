@@ -23,6 +23,7 @@ description: >-
 - 编写 Controller / Service(Impl) / Mapper / 规则 Handler / 缓存 / 审计 / 定时任务
 - 在公共 Service 写「某渠道 / 某客群专用」逻辑前 —— **先读本文件**
 - **每次代码改动前必读本规范**，并按场景交叉可读：
+  - 接口设计、代码复用、并发、幂等、缓存、异常、限流、熔断、traceId、日志 → **必读** `loan-code-standard` 的 `references/backend-standard.md`
   - 接口入参 / 实体字段 / FK 列 / 业务 ID → **先读** `loan-biz-id`
   - 改表 / 索引 / 报表统计 / 分页排序 → **先读** `loan-database`
   - 新增/修改 Controller 接口 / 角色接口授权 / Web 与小程序端可访问性 → **先读** `loan-gateway-auth`
@@ -101,6 +102,7 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - [ ] 公共 Service 是否新增渠道 / 客群硬编码分支？→ 应下沉 Handler / 策略子类
 - [ ] 是否在通用 DTO 上增加「仅某渠道 / 客群使用」字段？→ 改为 Handler 内局部变量或私有方法
 - [ ] 是否出现循环内逐条 RPC / 查库？→ 改批量 `handleBatch`
+- [ ] 同一资源是否支持单条、批量、组合条件分页并复用统一 Query 模型，而非按条件增加方法？
 - [ ] 是否出现魔法值 / 硬编码文案阈值？→ 走 Nacos / `t_config` / 枚举
 - [ ] 所有类 / 方法是否有 Javadoc？DTO 字段是否逐字段注释？
 - [ ] 不经常变更的数据是否走了 Caffeine + Redis 二级缓存？写后是否 evict？
@@ -109,10 +111,13 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - [ ] 业务标识是否走业务 ID（禁 `@PathVariable Long id` / `selectById` 作业务查询）？→ 见 `loan-biz-id`
 - [ ] 新增定时任务是否用 XXL-Job（禁 `@Scheduled`）？
 - [ ] 涉及审批权限是否按 D0-4 真值校验（ALLOCATION 不含 DEPT_MANAGER）？
+- [ ] 重要写接口的幂等、状态 CAS、锁与线程安全是否有明确设计和并发验证？
+- [ ] 限流/熔断/traceId/日志分流与脱敏是否符合 `loan-code-standard` 后端验收清单？
 
 ## 相关文档
 
 - `docs/knowledge-base/10-历史结论与决策日志.md#结论台账`（**Step 0 必查**，D0-1 / D0-3 / D0-4 为后端高频红线）
+- `.workbuddy/skills/loan-code-standard/references/backend-standard.md`（接口、并发、缓存、稳定性与日志唯一标准）
 - `docs/knowledge-base/02-业务红线与编码规范.md#编码规范`
 - `docs/knowledge-base/02-业务红线与编码规范.md#用户明示红线（不可破）`
 - `docs/knowledge-base/00-项目结构与代码地图.md#模块地图（阶段四规划）`

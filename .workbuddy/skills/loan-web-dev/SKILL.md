@@ -24,6 +24,7 @@ description: >-
 - 新增或修改 Web 管理端（Vue 3 + Element Plus）模块页面
 - 编写公共组件 / 工具方法 / 路由 / 权限指令前 —— **先读本文件**
 - **每次代码改动前交叉必读**：
+  - 分层复用、接口契约、并发请求、名称主显与编码降级 → **必读** `loan-code-standard` 的 `references/frontend-standard.md`
   - UI / 布局 / 表格 / 多页签 / 排序 / 侧边栏 / 固定列 / 中文化 → **`loan-web-ui`**（用户逐条确认过的硬性 UI 规范）
   - 用公共组件 / `useTable` / `appConfirm` / `v-permission` → **`loan-web-components`**
   - 业务 ID 展示与接口字段 → **`loan-biz-id`**
@@ -99,10 +100,13 @@ src/
 - [ ] keep-alive 场景是否用 `onActivated` 拉库回显？
 - [ ] 请求是否统一走 request 拦截器并带 `X-Client-Type`？
 - [ ] 数据范围过滤是否由后端完成（前端不做安全边界）？
+- [ ] 用户、企业、产品、部门等关联数据是否名称主显，内部 ID / 业务编码仅作必要的次要信息？
+- [ ] 名称是否由后端批量补齐，前端无逐行查询名称的 N+1 请求？
 
 ## 相关文档
 
 - `docs/knowledge-base/10-历史结论与决策日志.md#结论台账`（**Step 0 必查**，D0-1 分工红线）
+- `.workbuddy/skills/loan-code-standard/references/frontend-standard.md`（复用、契约与可理解展示唯一标准）
 - `docs/knowledge-base/02-业务红线与编码规范.md#编码规范`
 - `docs/knowledge-base/01-角色权限模型.md#7 角色体系（必须严格区分）`
 - `docs/knowledge-base/04-后端 API 契约.md#前后端契约变更纪律`

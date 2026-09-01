@@ -210,6 +210,7 @@ export const useUserStore = defineStore('user', {
       this.clientCode = (profile && profile.clientCode) || this.clientCode;
       this.invitedFlag = (profile && profile.invitedFlag) || 0;
       this.authStatus = resolveAuthStatus(profile);
+      this.referrerName = (profile && profile.referrerName) || '';
       // 后端 /api/mini/me 已返回 roleInfo：以服务端角色为准并刷新本地缓存，
       // 避免清缓存 / 换设备登录后角色停留在旧值
       const roleInfo = profile && profile.roleInfo;
@@ -224,28 +225,12 @@ export const useUserStore = defineStore('user', {
     },
 
     /**
-     * 记录绑定成功的引荐人姓名（本地缓存，home/mine 展示顾问用）。
+     * 记录绑定成功的引荐人姓名。引荐人只用于邀请链展示，不代表服务顾问。
      *
      * @param {string} name 引荐人昵称/姓名
      */
     setReferrer(name) {
       this.referrerName = name || '';
-      try {
-        uni.setStorageSync('loan_referrer_name', this.referrerName);
-      } catch (e) {
-        /* storage 异常忽略 */
-      }
-    },
-
-    /**
-     * 从本地缓存恢复引荐人姓名（无接口时兜底展示）。
-     */
-    loadReferrer() {
-      try {
-        this.referrerName = uni.getStorageSync('loan_referrer_name') || '';
-      } catch (e) {
-        this.referrerName = '';
-      }
     },
 
     /**
@@ -258,6 +243,7 @@ export const useUserStore = defineStore('user', {
       this.profile = null;
       this.invitedFlag = 0;
       this.authStatus = 'UNAUTHED';
+      this.referrerName = '';
       this.role = 'customer';
       clearTokenStorage();
       try {

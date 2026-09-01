@@ -5,10 +5,45 @@
  * 大圆角阴影卡片、无 AI 模板感。
  */
 import { useUserStore } from './store/user';
+import { initWxJsSdk } from './utils/wx-jssdk';
+import { captureInvitation, consumePendingInvitation } from './utils/invitation';
+
+/**
+ * H5 SPA 路由变化后重新注入 JS-SDK（签名须与当前页 URL 匹配）。
+ * uni-app H5 使用 history API 导航，包裹 pushState/replaceState 并在 popstate 上重签。
+ */
+function bindH5RouteJsSdk() {
+  // #ifdef H5
+  if (typeof window === 'undefined' || !window.history) return;
+  const reinit = () => initWxJsSdk();
+  window.addEventListener('popstate', reinit);
+  const _push = window.history.pushState;
+  window.history.pushState = function (...args) {
+    const r = _push.apply(window.history, args);
+    reinit();
+    return r;
+  };
+  const _replace = window.history.replaceState;
+  window.history.replaceState = function (...args) {
+    const r = _replace.apply(window.history, args);
+    reinit();
+    return r;
+  };
+  // #endif
+}
 
 export default {
-  onLaunch() {
+  onLaunch(options) {
+    captureInvitation(options);
     // 阶段三：接入 wx.login 静默换 token + 手机号一键登录
+
+    // #ifdef H5
+    // 微信 JS-SDK 全局初始化：按当前页 URL 从后端拉签名并注入 wx.config，
+    // 使各页可调用分享 / 支付等 jsApi。具体页面如需自定义分享内容，调用 setWxShare(shareData)。
+    // SPA 路由变化后重新签名，保证每页 URL 与签名一致。
+    initWxJsSdk();
+    bindH5RouteJsSdk();
+    // #endif
 
     // 平板 / iPad 限宽判别（T3 · C 类修复）：
     // windowWidth > 768 视为平板，启用 600px 居中限宽（u-shell / tab-bar.is-tablet）。
@@ -23,6 +58,11 @@ export default {
     } catch (e) {
       // 取窗口信息失败时不限宽，降级为全宽渲染
     }
+  },
+  onShow(options) {
+    captureInvitation(options);
+    const store = useUserStore();
+    if (store.token) consumePendingInvitation(store);
   },
 };
 </script>

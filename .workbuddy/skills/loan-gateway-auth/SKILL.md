@@ -24,6 +24,7 @@ description: >-
 - 控制某接口是否允许小程序（`MINI_APP`）端访问
 - 排查 401 / 403 网关拦截问题
 - **每次新增/修改接口后**：重启服务自动同步接口清单，或调 `POST /api/admin/api-perm/sync`
+- 网关限流/限频、traceId 生成透传、外部依赖熔断与日志必须同时遵守 `loan-code-standard` 的 `references/backend-standard.md`
 
 ## 核心模型：角色 × 接口 × 端
 
@@ -111,6 +112,8 @@ description: >-
 - [ ] 审批类接口是否按 D0-4 真值授权（ALLOCATION 不放 DEPT_MANAGER）？
 - [ ] 前端请求头是否带 `X-Client-Type`？
 - [ ] 本地联调是否 `curl localhost:8080/loan/...`（确认是 8080 直连验证，非 8088）？
+- [ ] traceId 是否由网关接受/生成并全链路透传？高风险/高成本接口是否配置可观测、可调整的限流/限频？
+- [ ] 网关外部依赖是否有超时、隔离、熔断和安全重试，日志是否分流、滚动并脱敏？
 
 ## 相关文档
 
@@ -125,3 +128,4 @@ description: >-
 - 表结构：`db/migrate-api-perm.sql`
 - 代码：`loan-gateway/.../filter/ApiAuthGlobalFilter.java`、`loan-service/.../apiperm/**`
 - 交叉技能：`loan-backend`、`loan-web-dev`、`loan-service-ops`
+- 稳定性真源：`.workbuddy/skills/loan-code-standard/references/backend-standard.md`

@@ -66,6 +66,7 @@ SCHEMA_SQL = os.path.join("db", "loan-db-schema.sql")
 TABBAR_VUE = os.path.join("loan-mini", "components", "TabBar.vue")
 JAVA_ROOT = os.path.join("loan-service", "src", "main", "java", "com", "loan")
 API_CONTRACT_DOC = os.path.join("docs", "knowledge-base", "04-后端 API 契约.md")
+DECISION_LOG = os.path.join("docs", "knowledge-base", "10-历史结论与决策日志.md")
 
 DOCS_DIR = "docs"
 KB_DIR = os.path.join("docs", "knowledge-base")
@@ -265,6 +266,9 @@ def check_table_count() -> CheckResult:
 
     docs_root = os.path.join(REPO_ROOT, DOCS_DIR)
     for doc_path in walk_files(docs_root, TEXT_EXT):
+        # D15 要求历史决策台账保留当时数字，不参与当前真值校验。
+        if rel(doc_path) == DECISION_LOG:
+            continue
         lines = read_lines(doc_path)
         if lines is None:
             continue
@@ -502,7 +506,10 @@ def check_packages() -> CheckResult:
 
 
 def collect_pointer_files() -> List[str]:
-    """收集需要做死链检查的文档：知识库 + 各 SKILL.md。"""
+    """收集需要做死链检查的文档：知识库 + 各 SKILL.md。
+
+    历史决策台账受 D15 保护，其中旧路径是时点证据，不代表当前文档指针。
+    """
     files: List[str] = []
     kb_root = os.path.join(REPO_ROOT, KB_DIR)
     if os.path.isdir(kb_root):
@@ -511,7 +518,7 @@ def collect_pointer_files() -> List[str]:
         for path in walk_files(skills_root, (".md",)):
             if os.path.basename(path).lower() == "skill.md":
                 files.append(path)
-    return sorted(set(files))
+    return sorted(path for path in set(files) if rel(path) != DECISION_LOG)
 
 
 def is_tree_line(line: str) -> bool:

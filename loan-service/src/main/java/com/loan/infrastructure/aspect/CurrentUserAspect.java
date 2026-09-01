@@ -109,8 +109,8 @@ public class CurrentUserAspect {
                 return user.getAvatar();
             case "roleCode":
                 return user.getRoleCode();
-            case "deptId":
-                return user.getDeptId();
+            case "deptCode":
+                return user.getDeptCode();
             case "invitedFlag":
                 return user.getInvitedFlag();
             default:

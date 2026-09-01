@@ -26,6 +26,7 @@ description: >-
 - 用视觉元素（图标 / 空态 / 卡片 / 按钮 / 标签 / TabBar）前必读
 - 写列表页 / 详情页 / 表单页前必读
 - **每次代码改动前先读本规范 + `docs/knowledge-base/05-前端工程要点.md` 的 TabBar / AppIcon / Token 章节**
+- 页面分层复用、接口数据与名称/编码展示同时必读 `loan-code-standard` 的 `references/frontend-standard.md`
 - 管理端页面请看 `loan-web-ui` —— **两侧风格独立，互不套用**
 
 ## 一、设计令牌（瑞幸风，全局唯一真源在 App.vue）
@@ -138,12 +139,14 @@ description: >-
 - [ ] 列表页是否配了 `AppSkeleton` + `AppEmpty` 且两者互斥？
 - [ ] TabBar 是否自绘（`components/TabBar.vue`）？有无回退到原生 tabBar？
 - [ ] 重要操作是否 `:loading` 防重复？不可逆操作是否 `uni.showModal` 二次确认？
+- [ ] 人员、企业、产品、部门等是否名称主显，内部 ID / 业务编码仅作必要的次要信息且无行级 N+1？
 - [ ] 是否与 Web 管理端风格混用（品牌色 / 组件）？
 - [ ] 是否跑过 `npm run build:mp-weixin`（注意 manifest 在根目录，必须用 `npm run` 而非 `npx uni build`）？
 
 ## 相关文档
 
 - `docs/knowledge-base/10-历史结论与决策日志.md#结论台账`（**Step 0 必查**）
+- `.workbuddy/skills/loan-code-standard/references/frontend-standard.md`（跨端复用、契约与展示唯一标准）
 - `docs/knowledge-base/05-前端工程要点.md#Token 体系（设计系统 v1.0，全在 App.vue 注入）`
 - `docs/knowledge-base/05-前端工程要点.md#AppIcon（已扩 16 个）`
 - `docs/knowledge-base/05-前端工程要点.md#自绘 TabBar（C17，禁用原生）`

@@ -8,7 +8,6 @@
         <groupId>com.loan</groupId>
         <artifactId>loan-parent</artifactId>
         <version>1.0.0</version>
-        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>loan-api</artifactId>
@@ -23,6 +22,12 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- Dubbo（facade 契约层，供跨系统服务定义） -->
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo</artifactId>
         </dependency>
 
         <!-- Validation API -->

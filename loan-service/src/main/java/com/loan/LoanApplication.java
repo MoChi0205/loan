@@ -1,5 +1,6 @@
 package com.loan;
 
+import com.loan.config.NacosJvmBootstrap;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -19,9 +20,16 @@ public class LoanApplication {
     /**
      * 应用入口。
      *
+     * <p>对齐 tse：先调用 {@link NacosJvmBootstrap#prepare} 校验并注入 Nacos 连接参数
+     * （VM -D + System.setProperty + setDefaultProperties），保证 {@code @EnableNacos} 注解阶段
+     * 的占位符能正确解析；NacosEnvironmentPostProcessor（spring.factories 注册）会在 Spring
+     * 上下文创建前直接 HTTP 拉取 Nacos 配置注入 Environment。
+     *
      * @param args 启动参数（Nacos 地址与命名空间经 -Dnacos.server-addr / -Dnacos.namespace 指定）
      */
     public static void main(String[] args) {
-        SpringApplication.run(LoanApplication.class, args);
+        SpringApplication application = new SpringApplication(LoanApplication.class);
+        NacosJvmBootstrap.prepare(application);
+        application.run(args);
     }
 }

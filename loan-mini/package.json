@@ -4,10 +4,11 @@
   "private": true,
   "description": "企业贷款咨询服务产品系统小程序端（uni-app，一套代码发布微信小程序 + H5）",
   "scripts": {
-    "dev:h5": "uni",
-    "dev:mp-weixin": "uni -p mp-weixin",
-    "build:h5": "uni build",
-    "build:mp-weixin": "uni build -p mp-weixin"
+    "dev:h5": "UNI_INPUT_DIR=. uni",
+    "dev:mp-weixin": "UNI_INPUT_DIR=. uni -p mp-weixin",
+    "build:h5": "UNI_INPUT_DIR=. uni build",
+    "build:mp-weixin": "UNI_INPUT_DIR=. uni build -p mp-weixin",
+    "test": "vitest run"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4020420240722001",
@@ -18,6 +19,8 @@
   },
   "devDependencies": {
     "@dcloudio/vite-plugin-uni": "3.0.0-4020420240722001",
-    "vite": "^5.2.0"
+    "@vitest/coverage-v8": "^2.1.9",
+    "vite": "^5.2.0",
+    "vitest": "^2.1.9"
   }
 }
