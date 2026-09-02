@@ -12,6 +12,10 @@ export function channelSummary() {
   return request({ url: '/api/admin/channel-strategy/channel-summary', method: 'get' });
 }
 
+export function strategyExistsByPlan(planCode) {
+  return request({ url: `/api/admin/channel-strategy/exists-by-plan/${planCode}`, method: 'get' });
+}
+
 export function createStrategy(data) {
   return request({ url: '/api/admin/channel-strategy', method: 'post', data });
 }

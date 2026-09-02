@@ -40,9 +40,10 @@ public class StrategyTemplateController {
     public Result<PageResult<StrategyTemplate>> page(
             @RequestParam(required = false) String customerGroup,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(templateService.page(customerGroup, keyword, page, size));
+        return Result.ok(templateService.page(customerGroup, keyword, status, page, size));
     }
 
     /**

@@ -26,12 +26,12 @@ import { requestGet, requestPost } from './request';
 export function searchClient(keyword) {
   const kw = (keyword || '').trim();
   if (kw.length < 2) return Promise.resolve(null);
-  return requestGet('/api/mini/client/search', { keyword: kw }, { showError: false })
-    .catch(() => null); // 查重失败不打断输入体验，降级为"未命中"
+  // 查重失败必须由页面进入错误态，绝不能降级成“未命中”，否则会误建重复客户。
+  return requestGet('/api/mini/client/search', { keyword: kw }, { showError: false });
 }
 
 /**
- * 录入新客户并归属当前用户（C2 情形 A：系统中无该企业数据）。
+ * 录入新客户。归属结果由后端按当前员工角色返回，前端不得假定自动归属。
  *
  * @param {Object} payload
  * @param {string} payload.entName    企业名称（必填）
@@ -39,7 +39,7 @@ export function searchClient(keyword) {
  * @param {string} [payload.contactPhone] 手机号
  * @param {string} [payload.creditCode]   统一社会信用代码（18 位）
  * @param {string} [payload.customerGroup] 客群：ENTERPRISE / PERSONAL
- * @returns {Promise<{clientCode:string, ownerStaffCode:string}>}
+ * @returns {Promise<{clientCode:string, ownerStaffCode?:string, action:string, result?:string, approvalNo?:string}>}
  */
 export function createClient(payload) {
   return requestPost('/api/mini/client', payload);
@@ -48,9 +48,9 @@ export function createClient(payload) {
 /**
  * 申请把已有客户分配给当前用户（C2 情形 B）。
  *
- * 后端按 hasOwner 分流：
- * - 有归属人 → 自动归属，返回 { result:'AUTO_CLAIMED' }
- * - 无归宿（公海 / 无主）→ 需上级或运营审批，返回 { result:'PENDING_APPROVAL', approvalNo }
+ * 后端按当前归属分流：
+ * - 已归属本人 → 幂等返回 { result:'AUTO_CLAIMED' }
+ * - 已归属他人或无归属 → 提交审批，返回 { result:'PENDING_APPROVAL', approvalNo }
  *
  * @param {string} clientCode 客户编号
  * @param {string} [reason]   申请理由

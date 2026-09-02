@@ -55,6 +55,12 @@ public class ProductStrategyController {
         return Result.ok(strategyService.channelSummary());
     }
 
+    /** 按执行计划业务编码判断是否已被策略引用。 */
+    @GetMapping("/exists-by-plan/{planCode}")
+    public Result<Boolean> existsByPlan(@PathVariable String planCode) {
+        return Result.ok(strategyService.existsByExecutionPlanCode(planCode));
+    }
+
     /**
      * 新建策略（草稿态）。
      */

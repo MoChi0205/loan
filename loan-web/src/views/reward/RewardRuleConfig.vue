@@ -60,9 +60,7 @@
     <AppDialog v-model:visible="dialogVisible" :title="editingId ? '编辑奖励规则' : '新增奖励规则'" :loading="saving" @confirm="onSave">
       <el-form ref="formRef" :model="form" :rules="rules_valid" label-width="110px" label-position="right">
         <el-form-item label="产品" prop="productCode">
-          <el-select v-model="form.productCode" filterable placeholder="选择产品" style="width: 100%">
-            <el-option v-for="p in productOptions" :key="p.productCode" :label="`${p.productName}（${p.productCode}）`" :value="p.productCode" />
-          </el-select>
+          <RemoteProductSelect v-model="form.productCode" :customer-group="form.customerGroup" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
           <el-radio-group v-model="form.customerGroup">
@@ -99,8 +97,8 @@ import { ElMessage } from 'element-plus';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
+import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
 import { listRewardRules, saveRewardRule, disableRewardRule } from '@/api/reward';
-import { pageProducts } from '@/api/product';
 
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -111,19 +109,18 @@ function fmtPercent(v) {
 
 const loading = ref(false);
 const rules = ref([]);
-const productOptions = ref([]);
+const productNames = reactive({});
 
 const productName = (code) => {
-  const p = productOptions.value.find((x) => x.productCode === code);
-  return p ? `${p.productName}（${p.productCode}）` : (code || '—');
+  return productNames[code] || '产品信息待补充';
 };
 
 async function load() {
   loading.value = true;
   try {
-    const [r, p] = await Promise.all([listRewardRules(), pageProducts({ page: 1, size: 200 })]);
+    const [r] = await Promise.all([listRewardRules()]);
     rules.value = r.data || [];
-    productOptions.value = p.data?.records || [];
+    rules.value.forEach((row) => { if (row.productName) productNames[row.productCode] = row.productName; });
   } catch (e) { /* 拦截器已提示 */ } finally {
     loading.value = false;
   }

@@ -1,9 +1,7 @@
 <template>
   <view class="detail-page">
     <!-- 加载中 -->
-    <view class="loading-box" v-if="loading">
-      <text class="loading-text">加载中…</text>
-    </view>
+    <AppSkeleton v-if="loading" :rows="4" />
 
     <template v-else-if="order">
       <!-- 状态头卡 -->
@@ -34,7 +32,7 @@
         <text class="card-title">服务信息</text>
         <view class="info-row">
           <text class="info-label">服务顾问</text>
-          <text class="info-value">{{ order.ownerStaffCode ? '顾问 ' + order.ownerStaffCode : '待分配' }}</text>
+          <text class="info-value">{{ order.ownerStaffName || '待分配' }}</text>
         </view>
         <view class="info-row" v-if="order.dealAmount != null && order.dealAmount !== ''">
           <text class="info-label">授信额度</text>
@@ -74,7 +72,7 @@ import { orderDetail } from '../../api/order';
 
 /**
  * 服务单详情（P0-6）：状态 / 顾问 / 跟进摘要。
- * 按合规决策不展示产品名/银行名/额度/利率明细（✅评审决策 08-28）。
+ * 按合规决策不展示产品名/银行名/额度/利率明细（评审决策 08-28）。
  */
 const loading = ref(true);
 const order = ref(null);
@@ -96,15 +94,15 @@ onLoad(async (query) => {
 
 const tone = computed(() => {
   const s = (order.value && order.value.status) || '';
-  if (['COMPLETED', 'DONE', 'SUCCESS'].includes(s)) return 'pass';
-  if (['CANCELLED', 'REJECTED'].includes(s)) return 'reject';
+  if (s === 'DEAL') return 'pass';
+  if (['CANCEL', 'REFUND'].includes(s)) return 'reject';
   return 'condition';
 });
 
 function statusLabel(s) {
   const map = {
-    PENDING: '待处理', PROCESSING: '跟进中', COMPLETED: '已完成',
-    DONE: '已完成', SUCCESS: '已完成', CANCELLED: '已取消', REJECTED: '已驳回',
+    NEW: '新建', IN_SERVICE: '服务中', DEAL: '已成交',
+    CANCEL: '已取消', REFUND: '已退款',
   };
   return map[s] || (s || '未知');
 }

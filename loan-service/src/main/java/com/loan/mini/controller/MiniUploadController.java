@@ -2,6 +2,7 @@ package com.loan.mini.controller;
 
 import com.loan.attachment.entity.ServiceAttachment;
 import com.loan.attachment.mapper.ServiceAttachmentMapper;
+import com.loan.client.service.ClientAllocationService;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
 import com.loan.context.CurrentUser;
@@ -54,6 +55,7 @@ public class MiniUploadController {
 
     private final ServiceAttachmentMapper attachmentMapper;
     private final MiniMaterialService materialService;
+    private final ClientAllocationService clientAllocationService;
 
     /**
      * 上传材料。
@@ -77,6 +79,7 @@ public class MiniUploadController {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "上传文件为空");
         }
+        String scopedClientCode = clientAllocationService.requireOperationClientCode(user, clientCode);
         try {
             // 绝对路径化（与 OcrController 同款修复，D28：避免 Servlet 容器下解析到 Tomcat work 临时目录）
             Path dir = Paths.get(baseDir).toAbsolutePath().normalize();
@@ -98,7 +101,7 @@ public class MiniUploadController {
                 att.setFileName(original);
                 att.setFileSize(file.getSize());
                 att.setAttachmentType(bizType == null ? "OTHER" : bizType);
-                att.setClientProfileCode(clientCode != null ? clientCode : user.getUserNo());
+                att.setClientProfileCode(scopedClientCode);
                 att.setReportNo(reportNo);
                 att.setUploadTime(LocalDateTime.now());
                 attachmentMapper.insert(att);
@@ -117,7 +120,7 @@ public class MiniUploadController {
             if (StringUtils.hasText(reportNo)) {
                 try {
                     Map<String, Object> ocr = materialService.ingest(
-                            fileKey, bizType, clientCode, reportNo, user);
+                            fileKey, bizType, scopedClientCode, reportNo, user);
                     data.put("ocrApplied", ocr.get("ocrApplied"));
                     data.put("extractedFields", ocr.get("extractedFields"));
                     data.put("mergedCount", ocr.get("mergedCount"));

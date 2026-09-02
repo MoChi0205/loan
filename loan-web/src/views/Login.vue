@@ -5,11 +5,7 @@
       <div class="brand-overlay" />
       <header class="brand-top">
         <div class="brand-mark">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" />
-            <path d="M12 12v10" />
-            <path d="M3 7l9 5 9-5" />
-          </svg>
+          <AppIcon name="product" :size="22" />
         </div>
         <span class="brand-name">企业贷款咨询平台</span>
       </header>
@@ -23,15 +19,15 @@
 
       <ul class="brand-points">
         <li>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7" /></svg>
+          <AppIcon name="success" :size="16" />
           <span>多银行产品库统一匹配</span>
         </li>
         <li>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7" /></svg>
+          <AppIcon name="success" :size="16" />
           <span>经营数据驱动准入分析</span>
         </li>
         <li>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7" /></svg>
+          <AppIcon name="success" :size="16" />
           <span>专业顾问一对一咨询</span>
         </li>
       </ul>
@@ -76,7 +72,7 @@
               autocomplete="username"
             >
               <template #prefix>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                <AppIcon name="user" :size="16" />
               </template>
             </el-input>
           </el-form-item>
@@ -90,7 +86,7 @@
               autocomplete="current-password"
             >
               <template #prefix>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+                <AppIcon name="lock" :size="16" />
               </template>
             </el-input>
           </el-form-item>
@@ -126,6 +122,7 @@ import { sceneries } from '@/assets/login-bg';
 import { useUserStore } from '@/store/user';
 import { channelLogin as channelLoginApi } from '@/api/auth';
 import { KEYS, getStorage, setStorage, removeStorage } from '@/utils/storage';
+import AppIcon from '@/components/AppIcon.vue';
 
 const router = useRouter();
 const userStore = useUserStore();

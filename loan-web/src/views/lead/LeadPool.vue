@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">线索公海</h2>
-        <p class="loan-page-subtitle">谁录入归谁 · 超期未跟进自动回收 · 公海认领 / 手动指派</p>
+        <p class="loan-page-subtitle">线索认领与客户顾问分配统一管理</p>
       </div>
       <el-button type="primary" @click="openCreate">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
@@ -15,20 +15,21 @@
       <el-tabs v-model="activeTab" @tab-change="onTabChange">
         <el-tab-pane label="我的线索" name="mine" />
         <el-tab-pane label="公海" name="pool" />
+        <el-tab-pane v-if="canViewClientPool" label="未分配客户" name="clients" />
       </el-tabs>
 
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
-        <el-select v-model="query.leadType" placeholder="客群" clearable style="width: 130px">
+        <el-select v-if="activeTab !== 'clients'" v-model="query.leadType" placeholder="客群" clearable style="width: 130px">
           <el-option label="企业" value="ENTERPRISE" />
           <el-option label="个人" value="PERSONAL" />
         </el-select>
-        <el-select v-model="query.source" placeholder="来源" clearable style="width: 150px">
+        <el-select v-if="activeTab !== 'clients'" v-model="query.source" placeholder="来源" clearable style="width: 150px">
           <el-option v-for="(v, k) in sourceMap" :key="k" :label="v" :value="k" />
         </el-select>
-        <el-select v-model="query.followStatus" placeholder="跟进状态" clearable style="width: 140px">
+        <el-select v-if="activeTab !== 'clients'" v-model="query.followStatus" placeholder="跟进状态" clearable style="width: 140px">
           <el-option v-for="(v, k) in followStatusMap" :key="k" :label="v.label" :value="k" />
         </el-select>
-        <el-input v-model="query.keyword" placeholder="联系人 / 手机号 / 线索编号" clearable style="width: 200px" @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" :placeholder="activeTab === 'clients' ? '客户姓名 / 企业名称' : '联系人 / 手机号 / 线索编号'" clearable style="width: 220px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
       <template v-if="loading && !data.length">
@@ -43,10 +44,10 @@
             <el-button v-if="activeTab === 'pool'" type="primary" size="small" @click="onBatchClaim">
               批量认领
             </el-button>
-            <el-button v-else type="primary" size="small" @click="openBatchAssign">
+            <el-button v-else-if="activeTab === 'mine'" type="primary" size="small" @click="openBatchAssign">
               批量指派
             </el-button>
-            <el-button v-if="activeTab !== 'pool'" type="danger" plain size="small" @click="onBatchDelete">
+            <el-button v-if="activeTab === 'mine'" type="danger" plain size="small" @click="onBatchDelete">
               批量删除
             </el-button>
             <el-button size="small" @click="clearSelection">清空选择</el-button>
@@ -58,25 +59,34 @@
           :data="data"
           v-loading="loading"
           stripe
-          row-key="id"
+          :row-key="rowKey"
           @sort-change="handleSortChange"
           @selection-change="onSelectionChange"
         >
           <template #empty>
-            <AppEmpty title="暂无线索" desc="点击右上角「新增线索」录入第一条客户线索" />
+            <AppEmpty
+              :title="activeTab === 'clients' ? '暂无未分配客户' : '暂无线索'"
+              :desc="activeTab === 'clients' ? '新注册且尚未分配服务顾问的客户会显示在这里' : '点击右上角「新增线索」录入第一条客户线索'"
+            />
           </template>
-          <el-table-column type="selection" width="44" fixed="left" reserve-selection />
-          <el-table-column prop="leadNo" label="线索编号" width="120"  show-overflow-tooltip />
-        <el-table-column prop="contactName" label="联系人" width="110" />
+          <el-table-column v-if="activeTab !== 'clients'" type="selection" width="44" fixed="left" reserve-selection />
+          <el-table-column v-if="activeTab !== 'clients'" prop="leadNo" label="线索编号" width="120" show-overflow-tooltip />
+        <el-table-column v-if="activeTab === 'clients'" label="客户" min-width="180">
+          <template #default="{ row }">
+            <div class="cell-main">{{ row.enterpriseName || row.customerName || '微信客户' }}</div>
+            <div v-if="row.enterpriseName && row.customerName" class="cell-sub">{{ row.customerName }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="activeTab !== 'clients'" prop="contactName" label="联系人" width="110" />
         <el-table-column label="手机号" width="130">
-          <template #default="{ row }">{{ desensitizePhone(row.phone) }}</template>
+          <template #default="{ row }">{{ desensitizePhone(row.phone) || '未绑定' }}</template>
         </el-table-column>
         <el-table-column label="客群" width="90">
           <template #default="{ row }">
-            <DictTag type="customerGroup" :value="row.leadType" />
+            <DictTag type="customerGroup" :value="row.leadType || row.customerGroup" />
           </template>
         </el-table-column>
-        <el-table-column label="来源" width="120">
+        <el-table-column v-if="activeTab !== 'clients'" label="来源" width="120">
           <template #default="{ row }">
             <span class="loan-tag" :class="sourceTag(row.source)">{{ sourceText(row.source) }}</span>
           </template>
@@ -91,13 +101,13 @@
             <span class="loan-tag" :class="authStatusTag(row.authStatus)">{{ authStatusText(row.authStatus) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="跟进状态" width="110">
+        <el-table-column v-if="activeTab !== 'clients'" label="跟进状态" width="110">
           <template #default="{ row }">
             <span class="loan-tag" :class="followStatusTag(row.followStatus)">{{ followStatusText(row.followStatus) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="录入时间" width="170" sortable>
-          <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+        <el-table-column :prop="activeTab === 'clients' ? 'registeredAt' : 'createdAt'" :label="activeTab === 'clients' ? '注册时间' : '录入时间'" width="170" sortable>
+          <template #default="{ row }">{{ formatDateTime(row.registeredAt || row.createdAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
@@ -146,13 +156,28 @@
       <p class="assign-hint">
         {{ assignBatchMode ? `将选中的 ${selectedRows.length} 条线索` : `将「${currentLead?.contactName}」` }}指派给员工（仅顾问/主管可被指派）
       </p>
-      <el-select v-model="targetStaffCode" filterable placeholder="选择员工" style="width: 100%">
+      <el-select v-model="targetStaffCode" filterable remote :remote-method="searchAssignableStaff" :loading="staffLoading" placeholder="输入员工姓名搜索" style="width: 100%" @visible-change="(v) => { if (v) searchAssignableStaff('') }">
         <el-option
           v-for="s in staffOptions"
           :key="s.value"
           :label="`${s.label}（${s.role}）`"
           :value="s.value"
         />
+      </el-select>
+    </AppDialog>
+
+    <AppDialog v-model:visible="clientAssignVisible" title="为客户分配顾问" width="480px" :loading="assigningClient" @confirm="onAssignClient">
+      <p class="assign-hint">为「{{ currentClient?.enterpriseName || currentClient?.customerName || '微信客户' }}」选择服务顾问，提交后立即生效。</p>
+      <el-select
+        v-model="targetAdviserCode"
+        filterable
+        remote
+        :remote-method="searchAdvisers"
+        :loading="adviserLoading"
+        placeholder="输入顾问姓名搜索"
+        style="width: 100%"
+      >
+        <el-option v-for="s in adviserOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
     </AppDialog>
   </div>
@@ -173,9 +198,17 @@ import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { copyText } from '@/utils/clipboard';
 import { pageLead, createLead, claimLead, assignLead, batchClaimLead, batchAssignLead, batchDeleteLead } from '@/api/lead';
 import { staffPage } from '@/api/org';
+import { pageUnassignedClients, claimUnassignedClient, assignClient } from '@/api/client';
+import { useUserStore } from '@/store/user';
 
 const activeTab = ref('mine');
 const router = useRouter();
+const userStore = useUserStore();
+const roleCode = computed(() => (userStore.roleCode || '').toUpperCase());
+const canViewClientPool = computed(() => ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value));
+const canClaimClient = computed(() => roleCode.value === 'ADVISER');
+const canAssignClient = computed(() => ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value));
+const rowKey = (row) => row.leadNo || row.clientCode;
 
 // ============================================================
 // 批量选择
@@ -241,11 +274,15 @@ function openBatchAssign() {
 
 /** useTable 接管列表（loader 闭包动态拼 pool 参数） */
 const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(
-  (q) => pageLead({ ...q, pool: activeTab.value === 'pool' }),
+  (q) => activeTab.value === 'clients'
+    ? pageUnassignedClients({ keyword: q.keyword, page: q.page, size: q.size })
+    : pageLead({ ...q, pool: activeTab.value === 'pool' }),
   { leadType: '', source: '', followStatus: '', keyword: '' },
 );
 
 function onTabChange() {
+  clearSelection();
+  selectedRows.value = [];
   query.page = 1;
   load();
 }
@@ -253,6 +290,22 @@ function onTabChange() {
 /** 操作列 */
 function rowActions(row) {
   const actions = [];
+  if (activeTab.value === 'clients') {
+    actions.push({ key: 'profile', label: '查看档案', onClick: () => goProfile(row.clientCode) });
+    if (canAssignClient.value) {
+      actions.push({
+        key: 'assign-client',
+        label: row.allocationPending ? '直接分配' : '分配顾问',
+        type: 'primary',
+        onClick: () => openClientAssign(row),
+      });
+    } else if (row.allocationPending) {
+      actions.push({ key: 'pending', label: `待审批${row.applicantName ? `：${row.applicantName}` : ''}`, disabled: true });
+    } else if (canClaimClient.value) {
+      actions.push({ key: 'claim-client', label: '申请认领', type: 'success', confirm: '确认申请认领该客户？审批通过后将成为其服务顾问。', onClick: () => onClaimClient(row) });
+    }
+    return actions;
+  }
   // 邀请绑定生成的小程序客户：可从线索直接进入客户档案
   if (row.clientCode) {
     actions.push({ key: 'profile', label: '档案', onClick: () => goProfile(row.clientCode) });
@@ -264,6 +317,72 @@ function rowActions(row) {
     actions.push({ key: 'assign', label: '指派', onClick: () => openAssign(row) });
   }
   return actions;
+}
+
+async function onClaimClient(row) {
+  try {
+    await claimUnassignedClient(row.clientCode);
+    ElMessage.success('认领申请已提交，等待审批');
+    load();
+  } catch (e) { /* 拦截器已提示 */ }
+}
+
+const clientAssignVisible = ref(false);
+const assigningClient = ref(false);
+const currentClient = ref(null);
+const targetAdviserCode = ref('');
+const adviserOptions = ref([]);
+const adviserLoading = ref(false);
+let adviserSearchSequence = 0;
+let adviserSearchTimer;
+
+async function loadAdvisers(keyword = '') {
+  const sequence = ++adviserSearchSequence;
+  adviserLoading.value = true;
+  try {
+    const res = await staffPage({ roleCode: 'ADVISER', keyword: keyword.trim() || undefined, page: 1, size: 50 });
+    if (sequence !== adviserSearchSequence) return;
+    adviserOptions.value = (res.data?.records || []).map((s) => ({ value: s.staffCode, label: s.staffName }));
+  } catch (e) {
+    if (sequence === adviserSearchSequence) adviserOptions.value = [];
+  } finally {
+    if (sequence === adviserSearchSequence) adviserLoading.value = false;
+  }
+}
+
+function searchAdvisers(keyword) {
+  clearTimeout(adviserSearchTimer);
+  adviserSearchTimer = setTimeout(() => loadAdvisers(keyword), 250);
+}
+
+function openClientAssign(row) {
+  currentClient.value = row;
+  targetAdviserCode.value = '';
+  clientAssignVisible.value = true;
+  loadAdvisers('');
+}
+
+async function onAssignClient() {
+  if (!targetAdviserCode.value) {
+    ElMessage.warning('请选择目标顾问');
+    return;
+  }
+  const target = adviserOptions.value.find((item) => item.value === targetAdviserCode.value);
+  try {
+    await ElMessageBox.confirm(
+      `确认将客户「${currentClient.value?.enterpriseName || currentClient.value?.customerName || '微信客户'}」直接分配给「${target?.label || '所选顾问'}」？分配后立即生效，无需审批。`,
+      '客户归属确认',
+      { type: 'warning', confirmButtonText: '确认分配' },
+    );
+  } catch { return; }
+  assigningClient.value = true;
+  try {
+    await assignClient(currentClient.value.clientCode, targetAdviserCode.value);
+    ElMessage.success('归属已直接分配');
+    clientAssignVisible.value = false;
+    load();
+  } catch (e) { /* 拦截器已提示 */ }
+  finally { assigningClient.value = false; }
 }
 
 /** 跳客户档案独立页（P0-6） */
@@ -321,15 +440,21 @@ const assigning = ref(false);
 const currentLead = ref(null);
 const targetStaffCode = ref(null);
 const staffOptions = ref([]);
+const staffLoading = ref(false);
 const assignBatchMode = ref(false);
+let staffSearchSequence = 0;
+let staffSearchTimer;
 
 /** 拉可指派员工（顾问 ADVISER + 主管 DEPT_MANAGER），值为工号（业务编码） */
-async function loadStaffOptions() {
+async function loadStaffOptions(keyword = '') {
+  const sequence = ++staffSearchSequence;
+  staffLoading.value = true;
   try {
     const [advisers, managers] = await Promise.all([
-      staffPage({ roleCode: 'ADVISER', page: 1, size: 100 }),
-      staffPage({ roleCode: 'DEPT_MANAGER', page: 1, size: 100 }),
+      staffPage({ roleCode: 'ADVISER', keyword: keyword.trim() || undefined, page: 1, size: 20 }),
+      staffPage({ roleCode: 'DEPT_MANAGER', keyword: keyword.trim() || undefined, page: 1, size: 20 }),
     ]);
+    if (sequence !== staffSearchSequence) return;
     const merged = new Map();
     [...(advisers.data?.records || []), ...(managers.data?.records || [])].forEach((s) => merged.set(s.staffCode, s));
     staffOptions.value = [...merged.values()].map((s) => ({
@@ -338,8 +463,15 @@ async function loadStaffOptions() {
       role: s.roleName || s.roleCode,
     }));
   } catch (e) {
-    staffOptions.value = [];
+    if (sequence === staffSearchSequence) staffOptions.value = [];
+  } finally {
+    if (sequence === staffSearchSequence) staffLoading.value = false;
   }
+}
+
+function searchAssignableStaff(keyword) {
+  clearTimeout(staffSearchTimer);
+  staffSearchTimer = setTimeout(() => loadStaffOptions(keyword), 250);
 }
 
 function openAssign(row) {

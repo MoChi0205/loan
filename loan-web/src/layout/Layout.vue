@@ -364,7 +364,7 @@ const BASE_MENU_GROUPS = [
 
 /**
  * 角色可见菜单（按后端 org/menu/tree 动态过滤）。
- * - allowedCodes 为 null：树尚未加载/加载失败 → 展示全集（网络容错，不闪烁、不误伤）
+ * - allowedCodes 为 null：树尚未加载 → 仅展示工作台，权限未知时禁止 fail-open
  * - allowedCodes 为空 Set：成功加载但角色无任何菜单 → 仅工作台 + 提示（T12 收口，防异常角色泄露全量）
  * - allowedCodes 为非空集合：仅保留 path 命中集合的菜单项（按角色动态菜单）
  */
@@ -381,13 +381,13 @@ const SAFE_MENU_GROUPS = DEBUG_CENTER_VISIBLE
       .filter((g) => g.items.length);
 const menuGroups = computed(() => {
   const raw = SAFE_MENU_GROUPS;
-  if (allowedCodes.value == null) return raw;
+  if (allowedCodes.value == null) return [SAFE_MENU_GROUPS[0]];
   if (allowedCodes.value.size === 0) return [SAFE_MENU_GROUPS[0]]; // 仅工作台
   const set = allowedCodes.value;
   const filtered = raw
     .map((g) => ({ ...g, items: g.items.filter((it) => !it.path || set.has(it.path.split('?')[0])) }))
     .filter((g) => g.items.length);
-  return filtered.length ? filtered : raw;
+  return filtered.length ? filtered : [SAFE_MENU_GROUPS[0]];
 });
 /** 扁平菜单（标题查找用；跳过分区标题） */
 const menus = computed(() => menuGroups.value.flatMap((g) => g.items.filter((i) => i.path)));
@@ -426,8 +426,8 @@ async function loadRoleMenu() {
       }
     }
   } catch (e) {
-    // 菜单树不可用时回退全集，保证侧栏不空白
-    allowedCodes.value = null;
+    // 权限数据不可用时 fail-closed：仅保留工作台，禁止展示未经授权的业务入口。
+    allowedCodes.value = new Set();
   }
 }
 
@@ -554,27 +554,17 @@ function onRefresh() {
 }
 /** 右键 tab 标签：弹出全局下拉菜单（刷新 / 关闭当前 / 关闭其他 / 全部关闭） */
 function onTabContextMenu(ev, t) {
-  const ICONS = {
-    refresh:
-      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M20.49 15A9 9 0 1 1 19 6.5L23 10"/></svg>',
-    close:
-      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>',
-    closeOthers:
-      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M9 9h12v12H9z"/></svg>',
-    closeAll:
-      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
-  };
   openContextMenu(ev, [
-    { label: '刷新页面', icon: ICONS.refresh, onClick: () => {
+    { label: '刷新页面', icon: 'refresh', onClick: () => {
       if (t.path === route.fullPath) onRefresh();
       else router.push(t.path).then(() => onRefresh());
     } },
-    { label: '关闭当前', icon: ICONS.close, disabled: t.path === '/workbench', onClick: () => onTabClose(t.path) },
-    { label: '关闭其他', icon: ICONS.closeOthers, disabled: openTabs.value.length <= 1, onClick: () => {
+    { label: '关闭当前', icon: 'close', disabled: t.path === '/workbench', onClick: () => onTabClose(t.path) },
+    { label: '关闭其他', icon: 'layers', disabled: openTabs.value.length <= 1, onClick: () => {
       openTabs.value = openTabs.value.filter((x) => x.path === t.path || x.path === '/workbench');
       saveTabs();
     } },
-    { label: '全部关闭', icon: ICONS.closeAll, danger: true, disabled: openTabs.value.length <= 1, onClick: () => {
+    { label: '全部关闭', icon: 'delete', danger: true, disabled: openTabs.value.length <= 1, onClick: () => {
       openTabs.value = openTabs.value.filter((x) => x.path === '/workbench');
       if (route.path !== '/workbench') router.push('/workbench');
       saveTabs();

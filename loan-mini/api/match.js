@@ -1,5 +1,5 @@
 /**
- * 小程序匹配与报告接口（P0-4 / P0-5）。
+ * 小程序匹配与报告接口（P0-4 /ji xP0-5）。
  *
  * 契约对齐 design-three-terminal.md §3.3：
  * - POST /api/mini/match/run           发起匹配（facts + clientSubmitId 幂等）
@@ -18,16 +18,17 @@ import { requestGet, requestPost } from './request';
  *
  * @param {Object} payload
  * @param {Object} payload.facts         经营事实，key 即 t_rule.field_code
- * @param {string} [payload.applyCity]   申请城市（可选）
+ * @param {string} payload.applyCity     申请城市（必填，由省市区选择器确定）
  * @param {string} payload.clientSubmitId 客户端幂等键（同键不重复落库）
  * @returns {Promise<Object>}
  */
-export function runMatch({ facts, applyCity, clientSubmitId } = {}) {
+export function runMatch({ facts, applyCity, clientSubmitId, clientCode, showError = true } = {}) {
   return requestPost('/api/mini/match/run', {
     facts,
     ...(applyCity ? { applyCity } : {}),
     ...(clientSubmitId ? { clientSubmitId } : {}),
-  });
+    ...(clientCode ? { clientCode } : {}),
+  }, { showError });
 }
 
 /**

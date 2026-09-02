@@ -8,6 +8,7 @@ import com.loan.invitation.entity.Invitation;
 import com.loan.invitation.mapper.InvitationMapper;
 import com.loan.order.entity.ServiceOrder;
 import com.loan.order.mapper.ServiceOrderMapper;
+import com.loan.product.mapper.BankProductMapper;
 import com.loan.reward.entity.RewardRecord;
 import com.loan.reward.entity.RewardRule;
 import com.loan.reward.mapper.RewardRecordMapper;
@@ -53,13 +54,15 @@ class RewardServiceTest {
     private ClientProfileMapper clientProfileMapper;
     @Mock
     private InvitationMapper invitationMapper;
+    @Mock
+    private BankProductMapper bankProductMapper;
 
     private RewardService service;
 
     @BeforeEach
     void setUp() {
         service = new RewardService(rewardRecordMapper, rewardRuleMapper, orderMapper,
-                clientProfileMapper, invitationMapper);
+                clientProfileMapper, invitationMapper, bankProductMapper);
     }
 
     // ---------- settleForOrder 前置校验（返回 0 不结算） ----------

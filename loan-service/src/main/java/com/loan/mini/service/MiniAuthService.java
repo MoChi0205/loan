@@ -15,6 +15,8 @@ import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.infrastructure.security.JwtService;
 import com.loan.infrastructure.wechat.WxCode2SessionService;
+import com.loan.staff.entity.Staff;
+import com.loan.staff.mapper.StaffMapper;
 import com.loan.utils.DesensitizeUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +55,7 @@ public class MiniAuthService {
     private final ObjectMapper objectMapper;
     private final com.loan.invitation.service.InvitationService invitationService;
     private final com.loan.personal.service.PersonalProfileService personalProfileService;
+    private final StaffMapper staffMapper;
 
     /**
      * 微信登录（Q3 方案 A 主通道）：wx.login code → openid → 按 hash 找/建档案 → 签发 JWT。
@@ -86,7 +89,7 @@ public class MiniAuthService {
             client.setCreatedAt(LocalDateTime.now());
             clientProfileMapper.insert(client);
         }
-        // 绑定邀请码（可选）：P0-2 起 bind() 内部会回写归属顾问并生成归属线索
+        // 绑定邀请码只记录分享引荐关系，服务顾问由独立分配审批流程产生。
         String referrerNo = null;
         if (StringUtils.hasText(inviteCode)) {
             Map<String, Object> bind = invitationService.bind(inviteCode, client.getClientCode(), client.getId());
@@ -201,9 +204,20 @@ public class MiniAuthService {
         m.put("vipExpireAt", client.getVipExpireAt());
         m.put("creditCode", DesensitizeUtils.creditCode(client.getCreditCode()));
         m.put("ownerStaffCode", client.getOwnerStaffCode());
+        m.put("ownerStaffName", ownerStaffName(client.getOwnerStaffCode()));
+        m.put("referrerName", invitationService.boundAttribution(clientCode).get("referrerName"));
         m.put("wxBound", client.getWxOpenidHash() != null ? 1 : 0);
         m.put("authenticated", isAuthenticated(client));
         return m;
+    }
+
+    private String ownerStaffName(String staffCode) {
+        if (!StringUtils.hasText(staffCode)) {
+            return null;
+        }
+        Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                .eq(Staff::getStaffCode, staffCode).last("limit 1"));
+        return staff == null ? null : staff.getStaffName();
     }
 
     /**

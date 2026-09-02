@@ -22,6 +22,7 @@
         <el-input v-model="queryP.keyword" placeholder="审核单号 / 产品编码" style="width: 220px" clearable @keyup.enter="searchP" />
       </AppSearchBar>
 
+      <AppTableState :error="errorP" @retry="loadP">
       <el-table :data="dataP" v-loading="loadingP" stripe row-key="approvalNo" @sort-change="handleSortChange">
         <template #empty>
           <AppEmpty title="暂无产品审核" desc="新产品申请入全量库后将在此等待审核" />
@@ -49,8 +50,8 @@
             <span class="loan-tag" :class="statusTag(row.approveStatus)">{{ statusText[row.approveStatus] || row.approveStatus }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="approverStaffCode" label="审核人" width="100">
-          <template #default="{ row }">{{ row.approverStaffCode || '—' }}</template>
+        <el-table-column prop="approverStaffName" label="审核人" width="120">
+          <template #default="{ row }">{{ row.approverStaffName || (row.approveStatus === 'PENDING' ? '待审核' : '姓名待补充') }}</template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="160" sortable>
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
@@ -61,7 +62,8 @@
           </template>
         </el-table-column>
       </el-table>
-      <AppPagination v-model:page="queryP.page" v-model:size="queryP.size" :total="totalP" @change="loadP" />
+      </AppTableState>
+      <AppPagination v-if="!errorP" v-model:page="queryP.page" v-model:size="queryP.size" :total="totalP" @change="loadP" />
     </div>
 
     <!-- ============ 附件下载审批 ============ -->
@@ -70,23 +72,28 @@
         <el-select v-model="queryD.status" placeholder="审批状态" clearable style="width: 140px">
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
-        <el-input v-model="queryD.keyword" placeholder="申请单号 / 申请人工号" style="width: 220px" clearable @keyup.enter="searchD" />
+        <el-input v-model="queryD.keyword" placeholder="申请单号 / 申请人姓名" style="width: 220px" clearable @keyup.enter="searchD" />
         <template #append>
           <el-button type="primary" plain @click="openApply">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
+            <AppIcon name="add" :size="14" />
             发起申请
           </el-button>
         </template>
       </AppSearchBar>
 
+      <AppTableState :error="errorD" @retry="loadD">
       <el-table :data="dataD" v-loading="loadingD" stripe row-key="approvalNo" @sort-change="handleSortChangeD">
         <template #empty>
           <AppEmpty title="暂无下载审批" desc="员工发起无水印下载申请后将在此审批" />
         </template>
         <el-table-column prop="approvalNo" label="申请单号" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="applicantStaffCode" label="申请人" width="110"  show-overflow-tooltip />
+        <el-table-column prop="applicantStaffName" label="申请人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.applicantStaffName || '姓名待补充' }}</template>
+        </el-table-column>
         <el-table-column prop="purpose" label="用途说明" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="attachmentIds" label="资料清单" min-width="140" show-overflow-tooltip />
+        <el-table-column label="资料清单" min-width="120">
+          <template #default="{ row }">{{ attachmentCount(row.attachmentIds) }} 份资料</template>
+        </el-table-column>
         <el-table-column label="期望期限" width="90">
           <template #default="{ row }">{{ row.expectDays ? row.expectDays + ' 天' : '—' }}</template>
         </el-table-column>
@@ -110,7 +117,8 @@
           </template>
         </el-table-column>
       </el-table>
-      <AppPagination v-model:page="queryD.page" v-model:size="queryD.size" :total="totalD" @change="loadD" />
+      </AppTableState>
+      <AppPagination v-if="!errorD" v-model:page="queryD.page" v-model:size="queryD.size" :total="totalD" @change="loadD" />
     </div>
 
     <!-- ============ 客户分配审批（无归宿客户归属流转，仅审批分配管理员可见） ============ -->
@@ -119,6 +127,7 @@
         <el-input v-model="queryA.keyword" placeholder="审批单号 / 企业名称 / 申请人" style="width: 240px" clearable @keyup.enter="searchA" />
       </AppSearchBar>
 
+      <AppTableState :error="errorA" @retry="loadA">
       <el-table :data="dataA" v-loading="loadingA" stripe row-key="approvalNo">
         <template #empty>
           <AppEmpty title="暂无分配审批" desc="客户申请归属流转、无归宿客户分配将在此等待审批" />
@@ -126,14 +135,13 @@
         <el-table-column prop="approvalNo" label="审批单号" min-width="180" show-overflow-tooltip />
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
-            <div class="cell-main">{{ row.entName || '—' }}</div>
-            <div class="cell-sub mono">{{ row.clientCode }}</div>
+            <div class="cell-main">{{ row.entName || row.contactName || '未命名客户' }}</div>
+            <div class="cell-sub">{{ row.customerGroup === 'PERSONAL' ? '个人客户' : '企业客户' }}</div>
           </template>
         </el-table-column>
         <el-table-column label="申请人" min-width="140">
           <template #default="{ row }">
-            <div class="cell-main">{{ row.applicantName || '—' }}</div>
-            <div class="cell-sub mono">{{ row.applicantStaffCode }}</div>
+            <div class="cell-main">{{ row.applicantName || '姓名待补充' }}</div>
           </template>
         </el-table-column>
         <el-table-column prop="contactName" label="联系人" width="120" show-overflow-tooltip />
@@ -147,7 +155,8 @@
           </template>
         </el-table-column>
       </el-table>
-      <AppPagination v-model:page="queryA.page" v-model:size="queryA.size" :total="totalA" @change="loadA" />
+      </AppTableState>
+      <AppPagination v-if="!errorA" v-model:page="queryA.page" v-model:size="queryA.size" :total="totalA" @change="loadA" />
     </div>
 
     <!-- 通用审核弹窗（产品 / 下载 / 分配共用） -->
@@ -172,7 +181,10 @@
     <AppDialog v-model:visible="applyVisible" title="发起无水印下载申请" :loading="applying" @confirm="onApply">
       <el-form ref="applyFormRef" :model="applyForm" :rules="applyRules" label-width="110px" label-position="right">
         <el-form-item label="资料清单" prop="attachmentIds">
-          <el-input v-model="applyForm.attachmentIds" type="textarea" :rows="2" placeholder='JSON 数组附件 ID，如 [1,2,3]' />
+          <el-select v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或工单号搜索" style="width: 100%" @visible-change="(v) => { if (v) searchAttachments('') }">
+            <el-option v-for="item in attachmentOptions" :key="item.value" :label="item.label" :value="item.value" />
+            <div v-if="!attachmentFinished && attachmentOptions.length" class="remote-more" @mousedown.prevent @click="loadMoreAttachments">{{ attachmentLoading ? '加载中…' : '加载更多' }}</div>
+          </el-select>
         </el-form-item>
         <el-form-item label="用途说明" prop="purpose">
           <el-input v-model="applyForm.purpose" type="textarea" :rows="2" placeholder="如 报送银行 / 纸质留存" />
@@ -187,14 +199,17 @@
 
 <script setup>
 defineOptions({ name: '_approval' });
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
+import AppIcon from '@/components/AppIcon.vue';
+import AppTableState from '@/components/AppTableState.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
+import { useRemoteOptions } from '@/composables/useRemoteOptions';
 import { formatDateTime } from '@/utils/format';
 import { copyText } from '@/utils/clipboard';
 import { useUserStore } from '@/store/user';
@@ -203,17 +218,22 @@ import {
   pageDownloadApprovals, auditDownloadApproval, voidDownloadApproval, applyDownload,
   pageAllocationApprovals, auditAllocationApproval,
 } from '@/api/approval';
+import { pageAttachments } from '@/api/attachment';
 
-/** D0-4：分配审批仅运营管理员 / 超级管理员 / 老板可见可审（不含部门经理） */
-const ALLOC_APPROVER = ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'];
+/** D39/C24：分配审批对运营管理员 / 超级管理员 / 老板 / 团队管理者可见；后端按团队过滤列表（DM 仅本团队） */
+const ALLOC_APPROVER = ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER', 'DEPT_MANAGER'];
 const userStore = useUserStore();
 const canAllocate = computed(() =>
   ALLOC_APPROVER.includes((userStore.roleCode || '').toUpperCase()),
 );
 
 const activeTab = ref('product');
+const loadedTabs = reactive({ product: false, download: false, allocation: false });
 const statusText = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' };
 const statusTag = (s) => ({ PENDING: 'loan-tag-warning', APPROVED: 'loan-tag-success', REJECTED: 'loan-tag-danger' }[s] || 'loan-tag-muted');
+function attachmentCount(value) {
+  try { return Array.isArray(value) ? value.length : JSON.parse(value || '[]').length; } catch { return 0; }
+}
 
 async function onCopy(val) {
   try {
@@ -225,15 +245,15 @@ async function onCopy(val) {
 }
 
 /** 产品审核表 */
-const { loading: loadingP, data: dataP, total: totalP, query: queryP, load: loadP, onSearch: searchP, onReset: resetP, handleSortChange } =
+const { loading: loadingP, error: errorP, data: dataP, total: totalP, query: queryP, load: loadP, onSearch: searchP, onReset: resetP, handleSortChange } =
   useTable(pageProductApprovals, { status: '', keyword: '' });
 
 /** 下载审批表 */
-const { loading: loadingD, data: dataD, total: totalD, query: queryD, load: loadD, onSearch: searchD, onReset: resetD, handleSortChange: handleSortChangeD } =
+const { loading: loadingD, error: errorD, data: dataD, total: totalD, query: queryD, load: loadD, onSearch: searchD, onReset: resetD, handleSortChange: handleSortChangeD } =
   useTable(pageDownloadApprovals, { status: '', keyword: '' });
 
 /** 客户分配审批表 */
-const { loading: loadingA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA } =
+const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA } =
   useTable(pageAllocationApprovals, { keyword: '' });
 
 function productActions(row) {
@@ -343,25 +363,20 @@ async function onVoid(row) {
 // ============================================================
 const applyVisible = ref(false);
 const applying = ref(false);
-const applyForm = reactive({ attachmentIds: '', purpose: '', expectDays: null });
+const applyForm = reactive({ attachmentIds: [], purpose: '', expectDays: null });
+const {
+  items: attachmentOptions, loading: attachmentLoading, finished: attachmentFinished,
+  search: searchAttachments, loadMore: loadMoreAttachments,
+} = useRemoteOptions(pageAttachments, {
+  normalize: (a) => ({ value: a.id, label: `${a.fileName || '未命名资料'} · ${a.attachmentType || '其他资料'}${a.orderNo ? ` · 工单 ${a.orderNo}` : ''}` }),
+});
 const applyFormRef = ref();
 const applyRules = {
   attachmentIds: [
     { required: true, message: '资料清单必填', trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
-        const v = (value || '').trim();
-        if (!v) return callback();
-        let arr;
-        try {
-          arr = JSON.parse(v);
-        } catch {
-          callback(new Error('JSON 格式不合法，如 [1,2,3]'));
-          return;
-        }
-        if (!Array.isArray(arr)) {
-          callback(new Error('需为 JSON 数组，如 [1,2,3]'));
-        } else if (arr.length === 0) {
+        if (!Array.isArray(value) || value.length === 0) {
           callback(new Error('附件列表不能为空'));
         } else {
           callback();
@@ -389,7 +404,7 @@ const applyRules = {
 };
 
 function openApply() {
-  applyForm.attachmentIds = '';
+  applyForm.attachmentIds = [];
   applyForm.purpose = '';
   applyForm.expectDays = null;
   applyFormRef.value?.clearValidate();
@@ -404,7 +419,7 @@ async function onApply() {
   }
   applying.value = true;
   try {
-    await applyDownload({ ...applyForm, attachmentIds: applyForm.attachmentIds.trim() });
+    await applyDownload({ ...applyForm, attachmentIds: JSON.stringify(applyForm.attachmentIds) });
     ElMessage.success('申请已提交');
     applyVisible.value = false;
     loadD();
@@ -413,7 +428,19 @@ async function onApply() {
   }
 }
 
-onMounted(() => { loadP(); loadD(); loadA(); });
+/** 页签首次激活时再取数，避免审批中心首屏并发三套分页。 */
+watch(activeTab, async (tab) => {
+  if (loadedTabs[tab]) return;
+  if (tab === 'allocation' && !canAllocate.value) return;
+  loadedTabs[tab] = true;
+  try {
+    if (tab === 'product') await loadP();
+    else if (tab === 'download') await loadD();
+    else await loadA();
+  } catch {
+    loadedTabs[tab] = false;
+  }
+}, { immediate: true });
 </script>
 
 <style scoped>
@@ -422,4 +449,5 @@ onMounted(() => { loadP(); loadD(); loadA(); });
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 .link-token { font-size: 12px; color: var(--loan-primary, #4f7cff); }
 .muted { color: var(--loan-text-secondary, #8a94a6); }
+.remote-more { min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--loan-primary); cursor: pointer; font-size: 13px; }
 </style>

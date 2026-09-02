@@ -22,8 +22,8 @@
     <view class="content">
       <!-- 档案摘要（C8 角色化账户）
            客户：实名状态 / 绑定手机号 / 性别 / 注册时间 / 邀请人（已移除客户编号——系统内部 ID 对用户无意义）
-           渠道：所属银行 / 合作开始 / 银行联系人 / 银行编码
-           员工：按角色差异化，老板与超管不展示「工号 / 部门」 -->
+           渠道：所属银行 / 合作开始 / 银行联系人
+           员工：部门名称 / 角色 / 入职时间，不展示内部编码 -->
       <view class="card">
         <text class="sec-title">{{ accountTitle }}</text>
         <view class="info-list">
@@ -130,7 +130,7 @@
       </view>
 
       <!-- 奖励汇总 -->
-      <view class="card reward-card" v-if="summary">
+      <view class="card reward-card" v-if="role === 'customer' && summary">
         <view class="reward-grid">
           <view class="reward-item">
             <text class="reward-num">¥{{ summary.totalAmount || 0 }}</text>
@@ -195,9 +195,9 @@ const isChannelRole = computed(() => role.value === 'channel');
 const isStaffRole = computed(
   () => ['adviser', 'deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
-/** 审批中心可操作角色：运营 / 超管 / 老板（C19） */
+/** 审批中心可操作角色：D39 纳入部门经理；后端限制其仅审批本团队。 */
 const isApproverRole = computed(
-  () => ['boss', 'operator', 'super'].indexOf(role.value) >= 0,
+  () => ['deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
 
 /** 审批中心待审总数（角标，来自 approvalCounts 的 TOTAL） */
@@ -214,8 +214,8 @@ const accountTitle = computed(() => {
  * 档案行（按角色差异化）。
  *
  * - 客户：实名状态 / 绑定手机号 / 性别 / 注册时间 / 邀请人（无客户编号）
- * - 渠道：所属银行 / 合作开始 / 银行联系人 / 银行编码
- * - 员工：老板与超管不展示「工号 / 部门」，其余展示工号 / 部门 / 角色 / 入职时间
+ * - 渠道：所属银行 / 合作开始 / 银行联系人
+ * - 员工：部门名称 / 角色 / 入职时间，业务编码只留在接口内部
  */
 const accountRows = computed(() => {
   const p = store.profile || {};
@@ -226,7 +226,6 @@ const accountRows = computed(() => {
       { label: '所属银行', value: p.bankName || (u.deptName) || '—' },
       { label: '合作开始', value: p.cooperateStartAt || '—' },
       { label: '银行联系人', value: p.bankContact || u.name || '—' },
-      { label: '银行编码', value: p.bankChannelCode || u.deptCode || '—' },
     ];
   }
 
@@ -236,10 +235,9 @@ const accountRows = computed(() => {
       operator: '运营管理员', super: '超级管理员',
     }[role.value] || '员工';
     const rows = [];
-    // 老板与超管不展示工号 / 部门（层级最高，无归属部门概念）
+    // 老板与超管无归属部门概念；其他员工只展示部门名称，不用编码兜底。
     if (role.value !== 'boss' && role.value !== 'super') {
-      rows.push({ label: '工号', value: u.userNo || '—' });
-      rows.push({ label: '部门', value: u.deptName || u.deptCode || '—' });
+      rows.push({ label: '部门', value: u.deptName || '—' });
     }
     rows.push({ label: '角色', value: roleLabel });
     rows.push({ label: '入职时间', value: u.hiredAt || '—' });
@@ -256,7 +254,7 @@ const accountRows = computed(() => {
   ];
 });
 
-const hasAdvisor = computed(() => !!(store.profile && store.profile.ownerStaffCode));
+const hasAdvisor = computed(() => !!(store.profile && store.profile.ownerStaffName));
 const advisorName = computed(() => (store.profile && store.profile.ownerStaffName) || '平台顾问');
 
 onShow(() => {

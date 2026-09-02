@@ -26,10 +26,19 @@ vite.config.*.timestamp-*.mjs
 # ============================================================
 # 日志
 # ============================================================
-logs/
-error/
+/logs/
+/error/
+/log/
+/loan-api/logs/
+/loan-api/error/
+/loan-api/log/
+/loan-gateway/logs/
+/loan-gateway/error/
+/loan-gateway/log/
+/loan-service/logs/
+/loan-service/error/
+/loan-service/log/
 *.log
-log/
 
 # ============================================================
 # IDE 与系统

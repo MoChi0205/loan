@@ -2,7 +2,7 @@
   <view class="product-page" :class="{ 'u-shell': store.isTablet }">
     <!-- 状态说明：让渠道理解每个状态的含义与可做操作（C9） -->
     <view class="card legend-card">
-      <text class="card-title">状态说明</text>
+      <text class="card-title">{{ isChannel ? '合作产品状态' : '银行产品状态' }}</text>
       <view v-for="(l, i) in legend" :key="i" class="legend-row">
         <AppTag :type="l.tone" size="sm">{{ l.label }}</AppTag>
         <text class="legend-desc">{{ l.desc }}</text>
@@ -19,8 +19,8 @@
       <AppButton variant="primary" size="md" @click="load()">重试</AppButton>
     </AppEmpty>
 
-    <AppEmpty v-else-if="!products.length" title="暂无产品" desc="录入第一笔银行产品，提交后由我司运营 / 超级管理员审批">
-      <AppButton variant="primary" size="md" @click="goEdit()">录入产品</AppButton>
+    <AppEmpty v-else-if="!products.length" title="暂无产品" :desc="isChannel ? '录入第一笔合作产品，提交后由平台运营审批' : '当前暂无可管理的银行产品'">
+      <AppButton variant="primary" size="md" @click="goEdit()">{{ isChannel ? '录入合作产品' : '录入银行产品' }}</AppButton>
     </AppEmpty>
 
     <!-- 产品列表 -->
@@ -68,12 +68,12 @@
 
     <!-- 底部录入入口 -->
     <view class="footer">
-      <AppButton variant="primary" size="lg" block @click="goEdit()">录入产品</AppButton>
+      <AppButton variant="primary" size="lg" block @click="goEdit()">{{ isChannel ? '录入合作产品' : '录入银行产品' }}</AppButton>
     </view>
   </view>
 
   <!-- 角色化底部导航（自绘 tabBar，渠道：首页 / 我的产品 / 我的） -->
-  <TabBar current="product" />
+  <TabBar v-if="isChannel" current="product" />
 </template>
 
 <script setup>
@@ -103,6 +103,7 @@ const hasError = ref(false);
 const acting = ref('');
 /** 用户状态（T3 · C 类：平板限宽标记 isTablet 驱动 u-shell） */
 const store = useUserStore();
+const isChannel = computed(() => store.isChannel);
 
 /** 状态说明图例 */
 const legend = [
@@ -198,17 +199,22 @@ function goEdit(p) {
 
 async function load() {
   loading.value = true;
+  hasError.value = false;
   try {
     const data = await myProducts();
     products.value = Array.isArray(data) ? data : [];
   } catch (e) {
     products.value = [];
+    hasError.value = true;
   } finally {
     loading.value = false;
   }
 }
 
-onShow(() => { load(); });
+onShow(() => {
+  uni.setNavigationBarTitle({ title: isChannel.value ? '我的产品' : '产品中心' });
+  load();
+});
 </script>
 
 <style scoped>

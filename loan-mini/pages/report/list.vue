@@ -99,11 +99,7 @@
       </AppListItem>
 
       <!-- 加载状态 -->
-      <view class="load-more">
-        <text class="load-text" v-if="loading">{{ loadingMore ? '加载中…' : '下拉刷新' }}</text>
-        <text class="load-text" v-else-if="finished">已加载全部</text>
-        <text class="load-text load-click" v-else @click="loadMore">点击加载更多</text>
-      </view>
+      <AppLoadMore :loading="loadingMore" :finished="finished" :error="hasError" @load="loadMore" />
     </view>
   </view>
 
@@ -301,6 +297,7 @@ function formatTime(t) {
 }
 
 onShow(() => {
+  uni.setNavigationBarTitle({ title: isStaff.value ? '报告中心' : '我的报告' });
   page.value = 1;
   finished.value = false;
   fetchList(false);
@@ -449,92 +446,4 @@ onPullDownRefresh(async () => {
 /* ====== 空态 ====== */
 .report-list { display: flex; flex-direction: column; }
 
-.report-item {
-  background: var(--text-invert);
-  border-radius: 24rpx;
-  padding: 32rpx;
-  /* 20rpx 小于阴影扩散半径（20rpx），列表项阴影会连成一片，提到 32rpx */
-  margin-top: 32rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
-}
-
-.item-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.item-no {
-  flex: 1;
-  font-size: 26rpx;
-  font-weight: 700;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.item-tag {
-  padding: 6rpx 20rpx;
-  border-radius: 24rpx;
-  font-size: 22rpx;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.tag-pass { background: var(--success-bg); color: var(--success-text); }
-.tag-condition { background: var(--warning-bg); color: var(--warning-text); }
-.tag-reject { background: var(--bg-input); color: var(--text-secondary); }
-
-/* ====== 指标分栏 ====== */
-.item-metrics {
-  display: flex;
-  align-items: center;
-  margin-top: 28rpx;
-  padding: 24rpx 0;
-  background: var(--bg-page);
-  border-radius: 16rpx;
-}
-
-.im {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.im-num {
-  font-size: 34rpx;
-  font-weight: 800;
-  color: var(--brand-deep);
-}
-
-.im-name {
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: var(--text-placeholder);
-}
-
-.im-divider {
-  width: 2rpx;
-  height: 48rpx;
-  background: var(--line);
-}
-
-.item-time {
-  display: block;
-  margin-top: 20rpx;
-  font-size: 22rpx;
-  color: var(--text-placeholder);
-}
-
-/* ====== 加载更多 ====== */
-.load-more {
-  padding: 36rpx 0;
-  text-align: center;
-}
-
-.load-text { font-size: 24rpx; color: var(--text-placeholder); }
-.load-click { color: var(--brand-deep); font-weight: 500; }
 </style>

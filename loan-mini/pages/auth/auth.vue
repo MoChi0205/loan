@@ -14,7 +14,7 @@
         @click="authType = 'enterprise'"
       >
         <view class="type-icon-wrap" :class="{ 'icon-active': authType === 'enterprise' }">
-          <text class="type-emoji">🏢</text>
+          <AppIcon name="enterprise" size="lg" />
         </view>
         <text class="type-label">企业认证</text>
         <text class="type-desc">营业执照 · 对公经营</text>
@@ -26,7 +26,7 @@
         @click="authType = 'personal'"
       >
         <view class="type-icon-wrap" :class="{ 'icon-active': authType === 'personal' }">
-          <text class="type-emoji">👤</text>
+          <AppIcon name="person" size="lg" />
         </view>
         <text class="type-label">个人认证</text>
         <text class="type-desc">实名 · 工薪 / 自由职业</text>
@@ -93,7 +93,7 @@
         <view class="switch-list">
           <view class="switch-row" v-for="opt in assetOptions" :key="opt.key">
             <text class="switch-label">{{ opt.label }}</text>
-            <switch :checked="personalForm[opt.key] === 1" color="var(--brand-deep)" @change="onSwitch(opt.key, $event)" />
+            <switch :checked="personalForm[opt.key] === 1" color="#0B1D3A" @change="onSwitch(opt.key, $event)" />
           </view>
         </view>
       </view>
@@ -119,6 +119,7 @@
 import { ref, reactive } from 'vue';
 import { enterpriseAuth, personalAuth } from '../../api/auth';
 import { useUserStore } from '../../store/user';
+import { isUnifiedSocialCreditCode, isIdCardNo } from '../../utils/validation';
 
 /**
  * 认证页（P0-3）：企业 / 个人认证表单 + 合规声明。
@@ -158,12 +159,16 @@ async function onSubmit() {
       uni.showToast({ title: '请填写信用代码与企业名称', icon: 'none' });
       return;
     }
+    if (!isUnifiedSocialCreditCode(enterpriseForm.creditCode)) {
+      uni.showToast({ title: '统一社会信用代码格式不正确', icon: 'none' });
+      return;
+    }
   } else {
     if (!personalForm.realName || !personalForm.idCardNo || !personalForm.city || !personalForm.age) {
       uni.showToast({ title: '请完整填写个人认证信息', icon: 'none' });
       return;
     }
-    if (!/^\d{17}[\dXx]$/.test(personalForm.idCardNo)) {
+    if (!isIdCardNo(personalForm.idCardNo)) {
       uni.showToast({ title: '身份证号格式不正确', icon: 'none' });
       return;
     }

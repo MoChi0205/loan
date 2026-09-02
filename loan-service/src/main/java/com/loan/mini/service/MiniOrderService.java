@@ -301,6 +301,12 @@ public class MiniOrderService {
         if (StringUtils.hasText(clientCode) && !clientCode.equals(order.getClientProfileCode())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "无权查看该工单");
         }
-        return orderService.detail(orderNo);
+        Map<String, Object> detail = orderService.detail(orderNo);
+        if (StringUtils.hasText(order.getOwnerStaffCode())) {
+            detail.put("ownerStaffName", loadStaffNames(
+                    java.util.Collections.singletonList(order.getOwnerStaffCode()))
+                    .get(order.getOwnerStaffCode()));
+        }
+        return detail;
     }
 }

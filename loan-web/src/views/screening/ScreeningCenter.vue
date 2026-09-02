@@ -88,7 +88,7 @@
 
           <el-form-item label-width="0" class="btn-row">
             <el-button type="primary" :loading="running" @click="onRun">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M5 3l14 9-14 9V3z"/></svg>
+              <AppIcon name="screening" :size="14" />
               执行初筛
             </el-button>
           </el-form-item>
@@ -98,7 +98,7 @@
       <!-- 右：结果区 -->
       <div class="result-panel">
         <div v-if="!result" class="loan-card result-placeholder">
-          <svg viewBox="0 0 80 80" width="56" height="56" fill="none" stroke="var(--loan-border, #e5e8f0)" stroke-width="1.5"><circle cx="40" cy="40" r="36"/><path d="M40 24v20l12 8"/><path d="M28 52h24"/></svg>
+          <AppIcon name="clock" :size="56" color="var(--loan-border, #e5e8f0)" />
           <p class="placeholder-text">选择客户并填写经营事实后<br/>点击「执行初筛」查看匹配结果</p>
         </div>
 
@@ -199,11 +199,13 @@ import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime } from '@/utils/format';
 import { pageClientLite } from '@/api/order';
 import { runScreening } from '@/api/dashboard';
 import { pageScreenings, screeningDetail } from '@/api/report';
+import { clientDisplayLabel } from '@/utils/display';
 
 const route = useRoute();
 const router = useRouter();
@@ -235,8 +237,7 @@ const gradeText = { HIGH: '高', MIDDLE: '中', LOW: '低' };
 const gradeTag = (g) => ({ HIGH: 'loan-tag-success', MIDDLE: 'loan-tag-warning', LOW: 'loan-tag-muted' }[g] || 'loan-tag-muted');
 
 function clientLabel(c) {
-  const name = c.enterpriseName || c.contactName || '—';
-  return `${name}（${c.clientCode}）${c.customerGroup === 'ENTERPRISE' ? '企业' : '个人'}`;
+  return clientDisplayLabel(c);
 }
 
 async function searchClients(keyword) {

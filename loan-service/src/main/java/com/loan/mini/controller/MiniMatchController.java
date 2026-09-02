@@ -1,6 +1,7 @@
 package com.loan.mini.controller;
 
 import com.loan.api.dto.PageResult;
+import com.loan.client.service.ClientAllocationService;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
 import com.loan.context.CurrentUser;
@@ -9,7 +10,6 @@ import com.loan.exception.BusinessException;
 import com.loan.mini.dto.MiniMatchResult;
 import com.loan.mini.service.MiniMatchService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,11 +36,12 @@ import java.util.Map;
 public class MiniMatchController {
 
     private final MiniMatchService miniMatchService;
+    private final ClientAllocationService clientAllocationService;
 
     /**
      * 发起匹配（客户提交经营事实 → 引擎匹配 → 生成报告）。
      *
-     * <p>入参 {facts:{...}, applyCity?, clientSubmitId?, clientCode?}；返回对客脱敏结果
+     * <p>入参 {facts:{...}, applyCity, clientSubmitId?, clientCode?}；申请城市必填，返回对客脱敏结果
      * （仅报告号/档位/三档总结果/产品数量/评级/规则说明，不含产品明细）。
      *
      * <p><b>归属对象（C2 替客匹配）：</b>
@@ -64,20 +65,14 @@ public class MiniMatchController {
         @SuppressWarnings("unchecked")
         Map<String, Object> facts = (Map<String, Object>) body.get("facts");
         String applyCity = body.get("applyCity") == null ? null : String.valueOf(body.get("applyCity"));
-        String clientSubmitId = body.get("clientSubmitId") == null ? null : String.valueOf(body.get("clientSubmitId"));
-        String clientCode;
-        if (LoanUser.TYPE_CUSTOMER.equals(user.getUserType())) {
-            // 客户只能匹配自己：强制登录态，忽略前端传入 clientCode
-            clientCode = user.getUserNo();
-        } else {
-            // 企业员工替客匹配：body 必传目标客户编码
-            clientCode = body.get("clientCode") == null ? null : String.valueOf(body.get("clientCode"));
-            if (!StringUtils.hasText(clientCode)) {
-                throw new BusinessException(ResultCode.PARAM_ERROR, "请先选择目标客户");
-            }
+        if (!org.springframework.util.StringUtils.hasText(applyCity)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择申请城市");
         }
+        String clientSubmitId = body.get("clientSubmitId") == null ? null : String.valueOf(body.get("clientSubmitId"));
+        String requestedClientCode = body.get("clientCode") == null ? null : String.valueOf(body.get("clientCode"));
+        String clientCode = clientAllocationService.requireOperationClientCode(user, requestedClientCode);
         return Result.ok(miniMatchService.runForMini(clientCode, facts,
-                user == null ? "客户" : user.getName(), applyCity, clientSubmitId));
+                user, applyCity, clientSubmitId));
     }
 
     /**

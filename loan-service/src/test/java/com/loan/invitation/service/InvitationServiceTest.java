@@ -6,9 +6,6 @@ import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
 import com.loan.invitation.entity.Invitation;
 import com.loan.invitation.mapper.InvitationMapper;
-import com.loan.lead.entity.Lead;
-import com.loan.lead.mapper.LeadMapper;
-import com.loan.lead.service.LeadService;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +29,7 @@ import static org.mockito.Mockito.*;
  * 邀请归因单测（M3 L2）：不启动 Spring 上下文，mock 全部 Mapper / LeadService。
  *
  * <p>覆盖：bind 校验链（存在/ACTIVE/未使用/未过期/非自己）→ 置 used_flag=1；
- * P0-2 员工引荐（ADVISER/BOSS）回写 client_profile.owner_staff_code（仅当原为空）+ 生成归属线索（去重）；
+ * 分享引荐与服务顾问归属分离，任何邀请类型都不回写 owner_staff_code、不生成线索；
  * generateForClient 幂等复用未使用 CUSTOMER 码 / 新建 7 天有效码。
  */
 @ExtendWith(MockitoExtension.class)
@@ -45,16 +42,11 @@ class InvitationServiceTest {
     private ClientProfileMapper clientProfileMapper;
     @Mock
     private StaffMapper staffMapper;
-    @Mock
-    private LeadMapper leadMapper;
-    @Mock
-    private LeadService leadService;
-
     private InvitationService service;
 
     @BeforeEach
     void setUp() {
-        service = new InvitationService(invitationMapper, clientProfileMapper, staffMapper, leadMapper, leadService);
+        service = new InvitationService(invitationMapper, clientProfileMapper, staffMapper);
     }
 
     // ---------- bind 校验链 ----------
@@ -108,7 +100,7 @@ class InvitationServiceTest {
     @DisplayName("bind：使用自己的邀请码 → 参数异常")
     void bind_selfUse() {
         Invitation inv = activeInvitation("INV1", "CUSTOMER", null);
-        inv.setUsedByClientCode("clientA");
+        inv.setReferrerClientCode("clientA");
         when(invitationMapper.selectOne(any())).thenReturn(inv);
         BusinessException ex = assertThrows(BusinessException.class, () -> service.bind("INV1", "clientA", 7L));
         assertEquals(ResultCode.PARAM_ERROR.getCode(), ex.getCode());
@@ -123,132 +115,49 @@ class InvitationServiceTest {
         inv.setReferrerClientCode("refC");
         ClientProfile client = client(null, null, "ENTERPRISE");
         when(invitationMapper.selectOne(any())).thenReturn(inv);
-        when(invitationMapper.updateById(any())).thenReturn(1);
-        when(clientProfileMapper.selectOne(any())).thenReturn(client); // 总是先查客户档案
+        when(invitationMapper.consume(anyString(), anyLong(), anyString(), any())).thenReturn(1);
+        when(clientProfileMapper.selectOne(any())).thenReturn(client);
 
         Map<String, Object> result = service.bind("INV1", "clientA", 7L);
 
         assertEquals(1, inv.getUsedFlag());
         assertEquals(7L, inv.getUsedByClientId());
         assertEquals("clientA", inv.getUsedByClientCode());
-        verify(invitationMapper).updateById(any());
+        verify(invitationMapper).consume(anyString(), anyLong(), anyString(), any());
         verify(clientProfileMapper).selectOne(any());
-        verify(clientProfileMapper, never()).updateById(any()); // ownerStaffCode 为空 → 不回写
+        verify(clientProfileMapper, never()).updateById(any());
         assertEquals("CUSTOMER", result.get("referrerType"));
         assertEquals("refC", result.get("referrerClientCode"));
-        assertEquals("refC", result.get("referrerName")); // ownerStaffCode 为空 → 取 referrerClientCode
-        verify(leadService, never()).create(any(), any(), any());
+        assertEquals("李四", result.get("referrerName"));
     }
 
-    // ---------- bind 成功：员工引荐（回写归属 + 建线索） ----------
+    // ---------- bind 成功：员工引荐只记分享关系 ----------
 
     @Test
-    @DisplayName("bind：ADVISER 引荐 → 回写 owner_staff_code 并生成归属线索")
+    @DisplayName("bind：ADVISER 引荐 → 返回分享人姓名，不改客户归属")
     void bind_adviserReferrer() {
         Invitation inv = activeInvitation("INV9", "ADVISER", 5L);
         Staff staff = staff("S001", "张三");
-        ClientProfile client = client(null, "hash_x", "ENTERPRISE");
 
         when(invitationMapper.selectOne(any())).thenReturn(inv);
-        when(invitationMapper.updateById(any())).thenReturn(1);
+        when(invitationMapper.consume(anyString(), anyLong(), anyString(), any())).thenReturn(1);
         when(staffMapper.selectById(5L)).thenReturn(staff);
-        when(staffMapper.selectOne(any())).thenReturn(staff);
-        when(clientProfileMapper.selectOne(any())).thenReturn(client);
-        when(clientProfileMapper.updateById(any())).thenReturn(1);
-        when(leadMapper.selectCount(any())).thenReturn(0L);
-        when(leadService.create(any(), any(), any())).thenReturn("LEAD1");
 
         Map<String, Object> result = service.bind("INV9", "clientA", 7L);
 
-        assertEquals("S001", client.getOwnerStaffCode()); // 回写归属顾问
-        verify(clientProfileMapper).updateById(any());
-        ArgumentCaptor<Lead> leadCap = ArgumentCaptor.forClass(Lead.class);
-        verify(leadService).create(leadCap.capture(), eq("S001"), eq("张三"));
-        Lead lead = leadCap.getValue();
-        assertEquals("INVITE", lead.getSource());
-        assertEquals("clientA", lead.getClientProfileCode());
-        assertEquals("NEW", lead.getFollowStatus());
         assertEquals("张三", result.get("referrerName"));
+        verify(clientProfileMapper, never()).updateById(any());
     }
 
     @Test
-    @DisplayName("bind：BOSS 引荐同样回写归属（resolveStaffCode BOSS 分支）")
-    void bind_bossReferrer() {
-        Invitation inv = activeInvitation("INV8", "BOSS", 6L);
-        Staff staff = staff("S002", "老板");
-        ClientProfile client = client(null, "hash_y", "ENTERPRISE");
-
-        when(invitationMapper.selectOne(any())).thenReturn(inv);
-        when(invitationMapper.updateById(any())).thenReturn(1);
-        when(staffMapper.selectById(6L)).thenReturn(staff);
-        when(staffMapper.selectOne(any())).thenReturn(staff);
-        when(clientProfileMapper.selectOne(any())).thenReturn(client);
-        when(clientProfileMapper.updateById(any())).thenReturn(1);
-        when(leadMapper.selectCount(any())).thenReturn(0L);
-        when(leadService.create(any(), any(), any())).thenReturn("LEAD2");
-
-        Map<String, Object> result = service.bind("INV8", "clientA", 7L);
-        assertEquals("S002", client.getOwnerStaffCode());
-        assertEquals("老板", result.get("referrerName"));
-    }
-
-    @Test
-    @DisplayName("bind：客户已有归属 → 不覆盖，但仍建线索")
-    void bind_existingOwnerNotOverwritten() {
+    @DisplayName("bind：同一客户重复提交已消费邀请码 → 幂等返回，不重复更新")
+    void bind_sameClientIdempotent() {
         Invitation inv = activeInvitation("INV9", "ADVISER", 5L);
-        Staff staff = staff("S001", "张三");
-        ClientProfile client = client("EXISTING", "hash_x", "ENTERPRISE");
-
+        inv.setUsedFlag(1);
+        inv.setUsedByClientCode("clientA");
         when(invitationMapper.selectOne(any())).thenReturn(inv);
-        when(invitationMapper.updateById(any())).thenReturn(1);
-        when(staffMapper.selectById(5L)).thenReturn(staff);
-        when(staffMapper.selectOne(any())).thenReturn(staff);
-        when(clientProfileMapper.selectOne(any())).thenReturn(client);
-        when(leadMapper.selectCount(any())).thenReturn(0L);
-        when(leadService.create(any(), any(), any())).thenReturn("LEAD1");
-
         service.bind("INV9", "clientA", 7L);
-        assertEquals("EXISTING", client.getOwnerStaffCode()); // 未被覆盖
-        verify(clientProfileMapper, never()).updateById(any()); // 不回写
-        verify(leadService).create(any(), any(), any()); // 仍建线索
-    }
-
-    @Test
-    @DisplayName("bind：手机号哈希为空 → 跳过建线索（防空手机号）")
-    void bind_phoneHashNullSkipsLead() {
-        Invitation inv = activeInvitation("INV9", "ADVISER", 5L);
-        Staff staff = staff("S001", "张三");
-        ClientProfile client = client(null, null, "ENTERPRISE"); // phoneHash 空
-
-        when(invitationMapper.selectOne(any())).thenReturn(inv);
-        when(invitationMapper.updateById(any())).thenReturn(1);
-        when(staffMapper.selectById(5L)).thenReturn(staff);
-        when(staffMapper.selectOne(any())).thenReturn(staff);
-        when(clientProfileMapper.selectOne(any())).thenReturn(client);
-        when(clientProfileMapper.updateById(any())).thenReturn(1);
-
-        service.bind("INV9", "clientA", 7L);
-        assertEquals("S001", client.getOwnerStaffCode());
-        verify(leadService, never()).create(any(), any(), any());
-    }
-
-    @Test
-    @DisplayName("bind：同客户已存在 INVITE 线索 → 去重不重复建")
-    void bind_dedupLead() {
-        Invitation inv = activeInvitation("INV9", "ADVISER", 5L);
-        Staff staff = staff("S001", "张三");
-        ClientProfile client = client(null, "hash_x", "ENTERPRISE");
-
-        when(invitationMapper.selectOne(any())).thenReturn(inv);
-        when(invitationMapper.updateById(any())).thenReturn(1);
-        when(staffMapper.selectById(5L)).thenReturn(staff);
-        when(staffMapper.selectOne(any())).thenReturn(staff);
-        when(clientProfileMapper.selectOne(any())).thenReturn(client);
-        when(clientProfileMapper.updateById(any())).thenReturn(1);
-        when(leadMapper.selectCount(any())).thenReturn(1L); // 已存在
-
-        service.bind("INV9", "clientA", 7L);
-        verify(leadService, never()).create(any(), any(), any());
+        verify(invitationMapper, never()).consume(anyString(), anyLong(), anyString(), any());
     }
 
     // ---------- generateForClient 幂等 / 新建 ----------

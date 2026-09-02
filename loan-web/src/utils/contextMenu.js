@@ -6,7 +6,7 @@
  *
  *   function onRowContextMenu(ev, row) {
  *     openContextMenu(ev, [
- *       { label: '查看详情', icon: '<svg ...>', onClick: () => openDetail(row) },
+ *       { label: '查看详情', icon: 'view', onClick: () => openDetail(row) },
  *       { divider: true },
  *       { label: '删除', danger: true, disabled: row.locked, onClick: () => del(row) },
  *     ]);
@@ -14,7 +14,7 @@
  *
  * 菜单项字段：
  *   label   显示文案
- *   icon    SVG 字符串（14x14，stroke 风格），可选
+ *   icon    AppIcon registry 名称，可选
  *   danger  红色危险样式
  *   disabled 禁用态（不可点击）
  *   divider true 渲染分隔线

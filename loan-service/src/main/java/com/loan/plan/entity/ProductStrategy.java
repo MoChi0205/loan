@@ -2,6 +2,7 @@ package com.loan.plan.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -34,6 +35,10 @@ public class ProductStrategy implements Serializable {
 
     /** 银行产品编码（业务 key，t_bank_product.product_code；产品挂策略） */
     private String bankProductCode;
+
+    /** 产品名称（查询视图字段，不落库）。 */
+    @TableField(exist = false)
+    private String bankProductName;
 
     /** 客群（ENTERPRISE/PERSONAL/COMMON） */
     private String customerGroup;

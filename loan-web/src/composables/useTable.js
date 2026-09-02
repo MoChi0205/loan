@@ -21,6 +21,7 @@ import { reactive, ref } from 'vue';
 export function useTable(loader, initialQuery = {}, options = {}) {
   const { pageSize = 10 } = options;
   const loading = ref(false);
+  const error = ref(null);
   const data = ref([]);
   const total = ref(0);
   const query = reactive({
@@ -34,6 +35,7 @@ export function useTable(loader, initialQuery = {}, options = {}) {
   async function load() {
     if (typeof loader !== 'function') return;
     loading.value = true;
+    error.value = null;
     try {
       const res = await loader(query);
       // 兼容两种返回：1) 直接 PageResult  2) 包裹在 { data: PageResult }
@@ -43,6 +45,7 @@ export function useTable(loader, initialQuery = {}, options = {}) {
     } catch (e) {
       data.value = [];
       total.value = 0;
+      error.value = e || new Error('列表加载失败');
     } finally {
       loading.value = false;
     }
@@ -87,6 +90,7 @@ export function useTable(loader, initialQuery = {}, options = {}) {
 
   return {
     loading,
+    error,
     data,
     total,
     query,

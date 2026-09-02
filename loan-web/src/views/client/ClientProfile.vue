@@ -2,18 +2,20 @@
   <div class="client-profile-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">客户档案</h2>
-        <p class="loan-page-subtitle">客户编码 {{ clientCode || '—' }} · 三端联动（小程序认证 / 顾问跟进 / 管理端留痕）</p>
+        <h2 class="loan-page-title">{{ detail.enterpriseName || detail.realName || detail.name || '客户档案' }}</h2>
+        <p class="loan-page-subtitle">客户资料 · 认证信息 · 服务归属 · 操作留痕</p>
       </div>
       <div class="header-actions">
         <el-button type="primary" @click="goScreening">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M5 3l14 9-14 9V3z"/></svg>
+          <AppIcon name="screening" :size="14" />
           发起初筛
         </el-button>
         <el-button :loading="saving" @click="openEdit">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M17 3a2.8 2.8 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          <AppIcon name="edit" :size="14" />
           编辑档案
         </el-button>
+        <el-button v-if="canManage" type="warning" plain @click="openAssign">分配归属</el-button>
+        <el-button v-if="canManage" type="danger" plain :disabled="!detail.ownerStaffCode" @click="onRecycle">回收进公海</el-button>
       </div>
     </div>
 
@@ -22,13 +24,12 @@
       <div class="loan-card section-card">
         <h3 class="panel-title">基础信息</h3>
         <el-descriptions :column="3" border>
-          <el-descriptions-item label="客户编码">{{ detail.clientCode || '—' }}</el-descriptions-item>
           <el-descriptions-item label="客户姓名">{{ detail.name || '—' }}</el-descriptions-item>
           <el-descriptions-item label="手机号">{{ desensitizePhone(detail.phone) }}</el-descriptions-item>
           <el-descriptions-item label="来源">
             <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="归属顾问">{{ detail.ownerStaffCode || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="归属顾问">{{ detail.ownerStaffName || (detail.ownerStaffCode ? '姓名待补充' : '待分配') }}</el-descriptions-item>
           <el-descriptions-item label="认证状态">
             <span class="loan-tag" :class="authStatusTag(detail.authStatus)">{{ authStatusText(detail.authStatus) }}</span>
           </el-descriptions-item>
@@ -67,6 +68,7 @@
       <div class="loan-card section-card">
         <h3 class="panel-title">审计信息</h3>
         <el-descriptions :column="4" border>
+          <el-descriptions-item label="客户业务编码">{{ detail.clientCode || '—' }}</el-descriptions-item>
           <el-descriptions-item label="创建人">{{ detail.createdBy || '—' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ formatDateTime(detail.createdAt) }}</el-descriptions-item>
           <el-descriptions-item label="最近更新人">{{ detail.updatedBy || '—' }}</el-descriptions-item>
@@ -86,9 +88,6 @@
           <el-select v-model="editForm.source" clearable placeholder="来源" style="width: 100%">
             <el-option v-for="(v, k) in sourceMap" :key="k" :label="v" :value="k" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="归属顾问" prop="ownerStaffCode">
-          <el-input v-model="editForm.ownerStaffCode" placeholder="员工工号（业务编码）" />
         </el-form-item>
         <el-divider content-position="left">个人档案</el-divider>
         <el-form-item label="姓名" prop="realName">
@@ -113,6 +112,38 @@
         </div>
       </el-form>
     </AppDialog>
+
+    <!-- 分配归属弹窗：角色门控（DEPT_MANAGER/BOSS/OPERATOR/SUPER_ADMIN/SUPER） -->
+    <AppDialog v-model:visible="assignVisible" title="分配归属" width="560px" :loading="assigning" @confirm="onAssignConfirm">
+      <el-form label-width="84px" label-position="right">
+        <el-form-item label="目标角色">
+          <el-radio-group v-model="assignRole" @change="onAssignRoleChange">
+            <el-radio value="ADVISER">顾问</el-radio>
+            <el-radio value="DEPT_MANAGER">团队管理者</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="归属人">
+          <el-select
+            v-model="assignTarget"
+            filterable
+            remote
+            :remote-method="searchAssignStaff"
+            :loading="assignLoading"
+            placeholder="输入姓名搜索"
+            style="width: 100%"
+            @visible-change="(v) => { if (v) searchAssignStaff('') }"
+          >
+            <el-option
+              v-for="o in assignOptions"
+              :key="o.staffCode"
+              :label="staffDisplayLabel(o)"
+              :value="o.staffCode"
+              :disabled="o.status && o.status !== 'ACTIVE'"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+    </AppDialog>
   </div>
 </template>
 
@@ -120,13 +151,22 @@
 defineOptions({ name: '_client_profile' });
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import AppDialog from '@/components/AppDialog.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { getClientDetail, updateClientDetail } from '@/api/client';
+import { getClientDetail, updateClientDetail, assignClient, recycleClient } from '@/api/client';
+import { staffPage } from '@/api/org';
+import { useUserStore } from '@/store/user';
+import { staffDisplayLabel } from '@/utils/display';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
+const MANAGE_ROLES = ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'];
+const canManage = computed(() =>
+  MANAGE_ROLES.includes((userStore.roleCode || '').toUpperCase()),
+);
 
 const clientCode = ref('');
 const loading = ref(false);
@@ -139,6 +179,7 @@ const detail = reactive({
   phone: '',
   source: '',
   ownerStaffCode: '',
+  ownerStaffName: '',
   authStatus: '',
   enterpriseName: '',
   creditCode: '',
@@ -172,6 +213,7 @@ async function loadDetail(code) {
       phone: d.phone,
       source: d.source,
       ownerStaffCode: d.ownerStaffCode,
+      ownerStaffName: d.ownerStaffName,
       authStatus: d.authStatus ?? d.certStatus ?? d.verificationStatus,
       enterpriseName: ent.enterpriseName ?? d.enterpriseName,
       creditCode: ent.creditCode ?? d.creditCode,
@@ -270,7 +312,6 @@ const editFormRef = ref();
 const editForm = reactive({
   name: '',
   source: '',
-  ownerStaffCode: '',
   realName: '',
   idCardNo: '',
   city: '',
@@ -292,7 +333,6 @@ function openEdit() {
   Object.assign(editForm, {
     name: detail.name,
     source: detail.source,
-    ownerStaffCode: detail.ownerStaffCode,
     realName: detail.realName,
     idCardNo: detail.idCardNo,
     city: detail.city,
@@ -323,6 +363,90 @@ async function onSave() {
 /** 发起初筛：跳初筛中心并预填客户 */
 function goScreening() {
   router.push({ path: '/screening', query: { clientCode: clientCode.value } });
+}
+
+// ============================================================
+// 分配归属 / 回收（C23 / C26，角色门控：DEPT_MANAGER/BOSS/OPERATOR/SUPER_ADMIN/SUPER）
+// ============================================================
+const assignVisible = ref(false);
+const assigning = ref(false);
+const assignRole = ref('ADVISER');
+const assignTarget = ref('');
+const assignOptions = ref([]);
+const assignLoading = ref(false);
+let assignSeq = 0;
+let assignTimer;
+
+function openAssign() {
+  assignRole.value = 'ADVISER';
+  assignTarget.value = '';
+  assignOptions.value = [];
+  assignVisible.value = true;
+  searchAssignStaff('');
+}
+function onAssignRoleChange() {
+  assignTarget.value = '';
+  searchAssignStaff('');
+}
+function searchAssignStaff(keyword) {
+  clearTimeout(assignTimer);
+  assignTimer = setTimeout(async () => {
+    const seq = ++assignSeq;
+    assignLoading.value = true;
+    try {
+      const res = await staffPage({ roleCode: assignRole.value, keyword: keyword.trim() || undefined, page: 1, size: 50 });
+      if (seq !== assignSeq) return;
+      assignOptions.value = (res.data?.records || []).map((s) => ({
+        staffCode: s.staffCode,
+        staffName: s.staffName,
+        deptName: s.deptName,
+        status: s.status,
+      }));
+    } catch (e) {
+      if (seq === assignSeq) assignOptions.value = [];
+    } finally {
+      if (seq === assignSeq) assignLoading.value = false;
+    }
+  }, 250);
+}
+async function onAssignConfirm() {
+  const picked = assignOptions.value.find((o) => o.staffCode === assignTarget.value);
+  if (!assignTarget.value) {
+    ElMessage.warning('请选择目标归属人');
+    return;
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确认将客户【${detail.enterpriseName || detail.name || clientCode.value}】的归属调整为「${picked ? picked.staffName : assignTarget.value}」？此操作立即生效，无需审批。`,
+      '分配归属确认',
+      { type: 'warning' },
+    );
+  } catch {
+    return;
+  }
+  assigning.value = true;
+  try {
+    await assignClient(clientCode.value, assignTarget.value);
+    ElMessage.success('归属已更新');
+    assignVisible.value = false;
+    loadDetail(clientCode.value);
+  } catch (e) { /* 拦截器已提示 */ } finally { assigning.value = false; }
+}
+async function onRecycle() {
+  try {
+    await ElMessageBox.confirm(
+      '确认回收该客户进公海？原归属将清空，冷却期内不可认领。',
+      '回收确认',
+      { type: 'warning' },
+    );
+  } catch {
+    return;
+  }
+  try {
+    await recycleClient(clientCode.value);
+    ElMessage.success('已回收进公海');
+    loadDetail(clientCode.value);
+  } catch (e) { /* 拦截器已提示 */ }
 }
 
 // 路由参数 clientCode（query 或 path 参数均可）变化时重载

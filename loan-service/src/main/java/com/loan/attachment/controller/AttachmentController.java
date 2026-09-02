@@ -35,8 +35,9 @@ public class AttachmentController {
     public Result<PageResult<ServiceAttachment>> page(
             @RequestParam(required = false) String clientProfileCode,
             @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(attachmentService.page(clientProfileCode, orderNo, page, size));
+        return Result.ok(attachmentService.page(clientProfileCode, orderNo, keyword, page, size));
     }
 }

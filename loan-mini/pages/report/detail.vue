@@ -125,7 +125,7 @@
           <view v-if="diagnosis.kpi && diagnosis.kpi.length" class="kpi-row">
             <view v-for="(k, i) in diagnosis.kpi" :key="i" class="kpi-item">
               <text class="kpi-label">{{ k.label }}</text>
-              <text class="kpi-value" :style="{ color: k.color || 'var(--text-primary)' }">{{ k.value }}</text>
+              <text class="kpi-value" :class="`kpi-${k.tone || 'neutral'}`">{{ k.value }}</text>
               <text v-if="k.desc" class="kpi-desc">{{ k.desc }}</text>
             </view>
           </view>
@@ -553,6 +553,10 @@ function goBack() { uni.navigateBack(); }
 .kpi-label { display: block; font-size: var(--fs-xs); color: var(--text-secondary); margin-bottom: var(--space-1); }
 .kpi-value { display: block; font-size: var(--fs-xl); font-weight: 700; line-height: 1.1; }
 .kpi-desc { display: block; font-size: var(--fs-xs); color: var(--text-secondary); margin-top: var(--space-1); }
+.kpi-success { color: var(--success-text); }
+.kpi-warning { color: var(--warning-text); }
+.kpi-danger { color: var(--danger-text); }
+.kpi-neutral { color: var(--text-primary); }
 
 .sugg-item, .risk-item {
   display: flex; align-items: flex-start; gap: var(--space-2);

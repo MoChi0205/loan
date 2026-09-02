@@ -69,9 +69,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="产品" prop="bankProductCode">
-          <el-select v-model="form.bankProductCode" placeholder="选择产品" filterable style="width: 100%">
-            <el-option v-for="p in products" :key="p.productCode" :label="p.productName" :value="p.productCode" />
-          </el-select>
+          <RemoteProductSelect v-model="form.bankProductCode" :customer-group="form.customerGroup" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
           <el-select v-model="form.customerGroup" placeholder="选择客群" style="width: 100%">
@@ -105,16 +103,15 @@ import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
 import { useTable } from '@/composables/useTable';
 import { listChannels } from '@/api/channel';
 import { listPlans } from '@/api/plan';
-import { pageProducts } from '@/api/product';
 import {
   pageStrategy, createStrategy, updateStrategy, deleteStrategy, enableStrategy, disableStrategy,
 } from '@/api/channelStrategy';
 
 const channels = ref([]);
-const products = ref([]);
 const plans = ref([]);
 
 const { loading, data, total, query, load, onSearch, onReset } = useTable(pageStrategy, {
@@ -127,7 +124,7 @@ function channelName(code) {
   return channels.value.find((c) => c.channelCode === code)?.bankName || code || '-';
 }
 function productName(code) {
-  return products.value.find((p) => p.productCode === code)?.productName || code || '-';
+  return data.value.find((p) => p.bankProductCode === code)?.bankProductName || '产品信息待补充';
 }
 function planName(code) {
   return plans.value.find((p) => p.planCode === code)?.planName || code || '-';
@@ -233,10 +230,9 @@ async function onSave() {
 
 onMounted(async () => {
   try {
-    const [ch, pl, pr] = await Promise.all([listChannels(), listPlans(), pageProducts({ page: 1, size: 100 })]);
+    const [ch, pl] = await Promise.all([listChannels(), listPlans()]);
     channels.value = ch.data || [];
     plans.value = pl.data || [];
-    products.value = pr.data?.records || [];
   } catch (e) { /* 忽略 */ }
   load();
 });

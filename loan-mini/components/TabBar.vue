@@ -1,11 +1,17 @@
 <template>
-  <view class="tab-bar" :class="{ 'is-tablet': store.isTablet }">
+  <view class="tab-bar" :class="{ 'is-tablet': store.isTablet }" role="tablist" aria-label="主要导航">
     <view
       v-for="item in tabList"
       :key="item.key"
       class="tab-item"
       :class="{ 'tab-active': item.key === current }"
+      role="tab"
+      :aria-selected="item.key === current"
+      :aria-label="item.label"
+      :tabindex="item.key === current ? 0 : -1"
       @click="onTap(item)"
+      @keydown.enter="onTap(item)"
+      @keydown.space.prevent="onTap(item)"
     >
       <view class="tab-icon">
         <AppIcon :name="item.icon" size="md" :color="item.key === current ? 'var(--brand-deep)' : 'var(--text-placeholder)'" />
@@ -52,11 +58,12 @@ const tabList = computed(() => {
       { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine' },
     ];
   }
+  const isManager = ['deptmgr', 'boss', 'operator', 'super'].includes(store.role);
   return [
     { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home' },
     { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match' },
-    { key: 'report', label: '我的报告', icon: 'chart', url: '/pages/report/list' },
-    { key: 'order', label: '服务单', icon: 'order', url: '/pages/order/list' },
+    { key: 'report', label: isManager ? '报告中心' : store.role === 'adviser' ? '客户报告' : '我的报告', icon: 'chart', url: '/pages/report/list' },
+    { key: 'order', label: isManager ? '工单中心' : store.role === 'adviser' ? '客户工单' : '服务单', icon: 'order', url: '/pages/order/list' },
     { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine' },
   ];
 });

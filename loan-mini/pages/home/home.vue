@@ -190,6 +190,7 @@ function onMine() {
 <style scoped>
 .home-page{
   min-height:100vh;
+  padding-bottom:calc(128rpx + env(safe-area-inset-bottom));
   background:var(--bg-page);
   box-sizing:border-box
 }

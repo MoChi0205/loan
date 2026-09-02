@@ -24,7 +24,7 @@ const UPLOAD_URL = `${BASE_URL}/api/mini/upload`;
  * @param {Object} [opts]
  * @param {string} [opts.bizType] 资料类型：
  *        ID_CARD / BUSINESS_LICENSE / FINANCIAL_STATEMENT / CONTRACT / DUE_DILIGENCE / OTHER
- * @param {string} [opts.clientCode] 客户编码（不传则用登录态）
+ * @param {string} [opts.clientCode] 目标客户编码；后端按登录身份和实时归属再次校验
  * @param {string} [opts.reportNo] 关联报告编号（诊断材料回灌用，T2）
  * @returns {Promise<{fileKey:string, fileName:string, fileSize:number, url:string,
  *          ocrApplied:boolean, extractedFields:Array, mergedCount:number, ocrRecordId:number}>}

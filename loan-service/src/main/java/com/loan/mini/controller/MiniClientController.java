@@ -25,8 +25,8 @@ import java.util.Map;
  * 渠道合作方按沙箱隔离，不可查看或分配客户。
  *
  * <p><b>流程（C10）：</b>输入关键词 → 自动查重 →
- * 命中走 {@code claim}（有归属人自动归属 / 无归宿待审批），
- * 未命中走 {@code create}（录入并自动归属）。
+ * 命中走 {@code claim}（本人幂等 / 他人或无归属走审批），
+ * 未命中走 {@code create}（先进入未分配客户池，再按角色分配或认领）。
  *
  * @author loan-platform
  */
@@ -55,11 +55,11 @@ public class MiniClientController {
     }
 
     /**
-     * 录入新客户并归属当前用户（C2 情形 A）。
+     * 录入新客户进入未分配客户池（D39）。
      *
      * @param body 客户信息（entName 必填）
      * @param user 当前员工
-     * @return { clientCode, ownerStaffCode, action: CREATED | EXISTED }
+     * @return { clientCode, ownerStaffCode, action: CREATED_UNASSIGNED | EXISTED }
      */
     @PostMapping
     public Result<Map<String, Object>> create(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {

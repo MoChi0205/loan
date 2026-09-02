@@ -22,10 +22,10 @@ import { computed } from 'vue';
  * 按钮组件（瑞幸风）：主按钮深海军蓝、次按钮描边、文字按钮。
  *
  * props:
- *   variant primary(主) / ghost(次) / text(文字) / gold(暖金) —— 设计系统规范命名
+ *   variant primary(主) / secondary(次) / ghost(透明描边) / text(文字) / gold(暖金)
  *   type    兼容旧用法别名（type 有值时优先于 variant）
  *   size    sm / md / lg
- *   block   是否通栏（默认 true）
+ *   block   是否通栏（默认 false，需要通栏的页面显式传入）
  *   loading 加载态（显示 loading 且禁用）
  *   disabled 禁用
  *
@@ -37,7 +37,7 @@ const props = defineProps({
   type: { type: String, default: '' },
   variant: { type: String, default: 'primary' },
   size: { type: String, default: 'md' },
-  block: { type: Boolean, default: true },
+  block: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   text: { type: String, default: '' },
@@ -89,11 +89,14 @@ function onClick(e) {
 }
 
 /* 次按钮：描边 */
+.btn-secondary,
 .btn-ghost {
-  background: transparent;
+  background: var(--bg-card, #fff);
   color: var(--color-primary, #0b1d3a);
   border: 2rpx solid var(--color-primary, #0b1d3a);
+  box-shadow: none;
 }
+.btn-ghost { background: transparent; }
 
 /* 文字按钮 */
 .btn-text {

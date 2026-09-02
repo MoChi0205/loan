@@ -18,7 +18,7 @@
         <el-input v-model="query.keyword" placeholder="计划编码 / 名称" clearable style="width: 260px" @keyup.enter="onSearch" />
         <template #append>
           <el-button type="primary" @click="openPlanDialog()">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
+            <AppIcon name="add" :size="14" />
             新建计划
           </el-button>
           <el-button v-if="planId" @click="openPlanDialog(currentPlan)">编辑计划</el-button>
@@ -52,7 +52,7 @@
     <div v-if="planId" class="orchestration-wrapper">
       <!-- 空状态引导 -->
       <div v-if="!modules.length" class="orch-empty">
-        <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="var(--loan-border)" stroke-width="1.5"><rect x="8" y="12" width="48" height="40" rx="4"/><path d="M8 24h48M20 12v12M44 12v12"/><circle cx="24" cy="36" r="6"/><path d="M30 36h20M36 30l6 6-6 6"/></svg>
+        <AppIcon name="empty" :size="48" color="var(--loan-border)" />
         <p class="orch-empty-title">暂无编排内容</p>
         <p class="orch-empty-desc">点击下方按钮添加模块和步骤，构建执行计划</p>
       </div>
@@ -122,7 +122,7 @@
         <!-- 添加步骤（内联按钮） -->
         <div class="add-step-bar">
           <el-button size="small" @click="openStepDialog(m)">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            <AppIcon name="add" :size="12" />
             添加步骤
           </el-button>
         </div>
@@ -131,7 +131,7 @@
       <!-- 底部添加模块 -->
       <div class="add-module-bar">
         <el-button size="small" @click="openModuleDialog()">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          <AppIcon name="add" :size="12" />
           添加模块
         </el-button>
       </div>
@@ -252,6 +252,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import AppDialog from '@/components/AppDialog.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { appConfirm } from '@/utils/confirm';
 import {
   listPlans, planDetail, createPlan, updatePlan, deletePlan,
@@ -259,7 +260,7 @@ import {
   applyTemplate, saveAsTemplate, copyPlan,
 } from '@/api/plan';
 import { listRules } from '@/api/rule';
-import { pageStrategy } from '@/api/channelStrategy';
+import { strategyExistsByPlan } from '@/api/channelStrategy';
 
 const route = useRoute();
 
@@ -419,8 +420,8 @@ async function onSavePlan() {
 /** 检查计划是否已被渠道准入策略引用（executionPlanCode 关联） */
 async function checkPlanReferenced(planCode) {
   try {
-    const res = await pageStrategy({ page: 1, size: 200 });
-    return (res.data?.records || []).some((s) => s.executionPlanCode === planCode);
+    const res = await strategyExistsByPlan(planCode);
+    return res.data === true;
   } catch (e) {
     return false;
   }
@@ -497,15 +498,91 @@ function openModuleDialog(m) {
   moduleFormRef.value?.clearValidate();
   moduleDialog.visible = true;
 }
+
+/** 前端 FR-03 校验：模块 joinWithNextModule 聚合合法性（与后端 validatePlanStructure 对齐）。
+ *  校验：sort 唯一 / 末位模块不可 OR / 模块级禁止连续 OR（OR 仅相邻二元组）。
+ *  违规时抛 Error（message 即提示语）。 */
+function validateModuleJoin(form, editingId) {
+  const list = (modules.value || []).map((m) => ({
+    id: m.id,
+    sort: m.id === editingId ? form.sort : m.sort,
+    moduleName: m.moduleName,
+    joinWithNextModule: m.id === editingId ? form.joinWithNextModule : m.joinWithNextModule,
+  }));
+  if (!editingId) {
+    list.push({ id: '__new__', sort: form.sort, moduleName: form.moduleName, joinWithNextModule: form.joinWithNextModule });
+  }
+  const sorted = [...list].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+  const seen = new Set();
+  for (const m of sorted) {
+    if (m.sort != null && seen.has(m.sort)) {
+      throw new Error('模块顺序 sort 重复：' + m.sort);
+    }
+    seen.add(m.sort);
+  }
+  for (let i = 0; i < sorted.length; i++) {
+    const m = sorted[i];
+    const isLast = i === sorted.length - 1;
+    const join = (m.joinWithNextModule || 'AND').toUpperCase();
+    if (isLast && join === 'OR') {
+      throw new Error('末位模块「' + (m.moduleName || '') + '」joinWithNextModule 不可为 OR（悬空连接符）');
+    }
+    if (!isLast && join === 'OR') {
+      const next = sorted[i + 1];
+      if ((next.joinWithNextModule || 'AND').toUpperCase() === 'OR') {
+        throw new Error('模块「' + (m.moduleName || '') + '」与「' + (next.moduleName || '') + '」连续 OR：OR 仅支持相邻二元组，禁止 ≥3 模块 OR 组');
+      }
+    }
+  }
+}
+
+/** 前端 FR-03 校验：步骤 joinWithNext 聚合合法性（与后端对齐）。
+ *  校验：stepSort 唯一 / 末位步骤不可 OR。步骤级连续 OR 允许（如 A OR B OR C 合法）。 */
+function validateStepJoin(form, moduleId, editingId) {
+  const module = (modules.value || []).find((m) => m.id === moduleId);
+  const steps = (module?.steps || []).map((s) => ({
+    id: s.id,
+    stepSort: s.id === editingId ? form.stepSort : s.stepSort,
+    joinWithNext: s.id === editingId ? form.joinWithNext : s.joinWithNext,
+  }));
+  if (!editingId) {
+    steps.push({ id: '__new__', stepSort: form.stepSort, joinWithNext: form.joinWithNext });
+  }
+  const sorted = [...steps].sort((a, b) => (a.stepSort ?? 0) - (b.stepSort ?? 0));
+  const seen = new Set();
+  for (const s of sorted) {
+    if (s.stepSort != null && seen.has(s.stepSort)) {
+      throw new Error('步骤顺序 stepSort 重复：' + s.stepSort);
+    }
+    seen.add(s.stepSort);
+  }
+  for (let j = 0; j < sorted.length; j++) {
+    const isLast = j === sorted.length - 1;
+    if (isLast && (sorted[j].joinWithNext || 'AND').toUpperCase() === 'OR') {
+      throw new Error('末位步骤 joinWithNext 不可为 OR（悬空连接符）');
+    }
+  }
+}
+
 async function onSaveModule() {
   try {
     await moduleFormRef.value.validate();
   } catch (e) {
     return;
   }
+  try {
+    validateModuleJoin(moduleDialog.form, moduleDialog.editingId);
+  } catch (err) {
+    ElMessage.warning(err.message);
+    return;
+  }
   moduleDialog.saving = true;
   try {
-    const payload = { planId: planId.value, ...moduleDialog.form };
+    const payload = {
+      planId: planId.value,
+      ...moduleDialog.form,
+      joinWithNextModule: (moduleDialog.form.joinWithNextModule || 'AND').toUpperCase(),
+    };
     if (moduleDialog.editingId) {
       await updateModule(moduleDialog.editingId, payload);
     } else {
@@ -549,9 +626,16 @@ async function onSaveStep() {
   } catch (e) {
     return;
   }
+  try {
+    validateStepJoin(stepDialog.form, stepDialog.moduleId, stepDialog.editingId);
+  } catch (err) {
+    ElMessage.warning(err.message);
+    return;
+  }
   stepDialog.saving = true;
   try {
     const form = { ...stepDialog.form };
+    form.joinWithNext = (form.joinWithNext || 'AND').toUpperCase();
     // 运算符为空时清空条件字段/值，避免脏数据
     if (!form.conditionOperator) {
       form.conditionField = '';

@@ -49,6 +49,12 @@ public class ClientProfile implements Serializable {
     /** 归属顾问工号（业务编码） */
     private String ownerStaffCode;
 
+    /** 最后跟进时间（超期回收判定基准；归属/转移/跟进时刷新） */
+    private LocalDateTime lastFollowedAt;
+
+    /** 回收冷却到期时间（回收后进公海，冷却期内原归属人不可认领/不可被直接分配） */
+    private LocalDateTime assignBlockedUntil;
+
     /** 来源（线索转正 / 渠道等） */
     private String source;
 

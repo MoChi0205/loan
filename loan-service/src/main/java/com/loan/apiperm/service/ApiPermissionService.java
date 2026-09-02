@@ -13,6 +13,7 @@ import com.loan.context.UserContext;
 import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +59,14 @@ public class ApiPermissionService {
 
     private final ApiPermissionMapper apiPermissionMapper;
     private final RoleApiMapper roleApiMapper;
+
+    /**
+     * 严格模式开关（D39/aapiperm 需求 #198）：默认关闭=保守放行（无授权不误伤）；
+     * 置 true=严格模式：STAFF 角色命中已登记接口但 t_role_api 无授权时拒绝访问。
+     * 开启前需确保 DM/ADVISER 的 t_role_api 已补齐（{@code ApiPermissionSyncService} 启动时幂等回填）。
+     */
+    @Value("${loan.apiperm.strict:false}")
+    private boolean strict;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -160,7 +169,10 @@ public class ApiPermissionService {
         if (granted != null && granted > 0) {
             return CheckResult.ok("已配置授权（命中 " + granted + " 条）");
         }
-        // 保守放行：D30 方案"无配置不误伤"；若要严格拦截此处改 deny 即可
+        // 严格模式（#198）：未配置授权即拒绝；保守模式保持放行不误伤
+        if (strict) {
+            return CheckResult.deny("未配置授权（严格模式拦截，待业务方补 t_role_api）");
+        }
         return CheckResult.ok("未配置授权（保守放行，待业务方补 t_role_api）");
     }
 

@@ -15,6 +15,8 @@ import com.loan.exception.BusinessException;
 import com.loan.mini.service.MiniClientService;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
+import com.loan.staff.entity.Staff;
+import com.loan.staff.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -90,6 +93,7 @@ public class ApprovalService {
     private final AttachmentDownloadApprovalMapper downloadApprovalMapper;
     private final BankProductMapper bankProductMapper;
     private final MiniClientService miniClientService;
+    private final StaffMapper staffMapper;
 
     /**
      * 已开放的审批类型白名单（配置 {@code loan.mini.approval.types}，逗号分隔）。
@@ -132,6 +136,8 @@ public class ApprovalService {
                 : bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
                         .in(BankProduct::getProductCode, productCodes)).stream()
                         .collect(Collectors.toMap(BankProduct::getProductCode, BankProduct::getProductName));
+        Map<String, String> staffNameMap = staffNames(result.getRecords().stream()
+                .map(ProductApproval::getApproverStaffCode).collect(Collectors.toSet()));
 
         List<Map<String, Object>> records = result.getRecords().stream().map(a -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -142,6 +148,7 @@ public class ApprovalService {
             m.put("duplicateFlag", a.getDuplicateFlag());
             m.put("approveStatus", a.getApproveStatus());
             m.put("approverStaffCode", a.getApproverStaffCode());
+            m.put("approverStaffName", staffNameMap.get(a.getApproverStaffCode()));
             m.put("approveOpinion", a.getApproveOpinion());
             m.put("timeoutAt", a.getTimeoutAt());
             m.put("approvedAt", a.getApprovedAt());
@@ -168,6 +175,8 @@ public class ApprovalService {
         m.put("duplicateFlag", a.getDuplicateFlag());
         m.put("approveStatus", a.getApproveStatus());
         m.put("approverStaffCode", a.getApproverStaffCode());
+        m.put("approverStaffName", staffNames(Collections.singleton(a.getApproverStaffCode()))
+                .get(a.getApproverStaffCode()));
         m.put("approveOpinion", a.getApproveOpinion());
         m.put("timeoutAt", a.getTimeoutAt());
         m.put("approvedAt", a.getApprovedAt());
@@ -270,20 +279,35 @@ public class ApprovalService {
         }
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
+            List<String> applicantCodes = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                            .like(Staff::getStaffName, kw))
+                    .stream().map(Staff::getStaffCode).filter(StringUtils::hasText)
+                    .collect(Collectors.toList());
             wrapper.and(w -> w.like(AttachmentDownloadApproval::getApprovalNo, kw)
-                    .or().like(AttachmentDownloadApproval::getApplicantStaffCode, kw));
+                    .or().like(AttachmentDownloadApproval::getApplicantStaffCode, kw)
+                    .func(x -> {
+                        if (!applicantCodes.isEmpty()) {
+                            x.or().in(AttachmentDownloadApproval::getApplicantStaffCode, applicantCodes);
+                        }
+                    }));
         }
         PageOrder.apply(wrapper, orderBy, orderDir, DOWNLOAD_ORDER_FIELDS, AttachmentDownloadApproval::getApproveStatus);
         Page<AttachmentDownloadApproval> result = downloadApprovalMapper.selectPage(new Page<>(page, size), wrapper);
+        Set<String> staffCodes = result.getRecords().stream()
+                .flatMap(a -> java.util.stream.Stream.of(a.getApplicantStaffCode(), a.getApproverStaffCode()))
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, String> staffNameMap = staffNames(staffCodes);
         List<Map<String, Object>> records = result.getRecords().stream().map(a -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("approvalNo", a.getApprovalNo());
             m.put("applicantStaffCode", a.getApplicantStaffCode());
+            m.put("applicantStaffName", staffNameMap.get(a.getApplicantStaffCode()));
             m.put("attachmentIds", a.getAttachmentIds());
             m.put("purpose", a.getPurpose());
             m.put("expectDays", a.getExpectDays());
             m.put("approveStatus", a.getApproveStatus());
             m.put("approverStaffCode", a.getApproverStaffCode());
+            m.put("approverStaffName", staffNameMap.get(a.getApproverStaffCode()));
             m.put("approveOpinion", a.getApproveOpinion());
             m.put("linkToken", a.getLinkToken());
             m.put("linkExpireAt", a.getLinkExpireAt());
@@ -352,6 +376,17 @@ public class ApprovalService {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "审批单不存在");
         }
         return a;
+    }
+
+    /** 批量加载人员姓名；列表转换严禁逐行查询。 */
+    private Map<String, String> staffNames(Set<String> staffCodes) {
+        Set<String> codes = staffCodes == null ? Collections.emptySet() : staffCodes.stream()
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        if (codes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return staffMapper.selectList(new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, codes)).stream()
+                .collect(Collectors.toMap(Staff::getStaffCode, Staff::getStaffName, (left, right) -> left));
     }
 
     /** 生成限时下载 token。 */

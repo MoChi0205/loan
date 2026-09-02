@@ -11,6 +11,11 @@ export function pageProducts(params) {
   });
 }
 
+/** 按产品业务编码查询详情，用于异步选择器回显。 */
+export function getProduct(productCode) {
+  return request({ url: `/api/admin/product/${productCode}`, method: 'get' });
+}
+
 /** 新增产品 */
 export function createProduct(data) {
   return request({

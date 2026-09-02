@@ -496,7 +496,9 @@ CREATE TABLE `t_client_profile` (
   `phone_hash` varchar(64) NOT NULL COMMENT '手机号SHA-256哈希(查重与等值查询)',
   `credit_code` varchar(256) DEFAULT NULL COMMENT '统一社会信用代码(AES加密,企业客群)',
   `credit_code_hash` varchar(64) DEFAULT NULL COMMENT '信用代码SHA-256哈希',
-  `owner_staff_id` bigint DEFAULT NULL COMMENT '归属顾问员工ID(CRM工单分配回写;为空走兜底顾问池)',
+  `owner_staff_code` varchar(64) DEFAULT NULL COMMENT '归属顾问工号(业务编码;为空表示公海未分配)',
+  `last_followed_at` datetime DEFAULT NULL COMMENT '最后跟进时间(超期回收判定基准;归属/转移/跟进刷新)',
+  `assign_blocked_until` datetime DEFAULT NULL COMMENT '回收冷却到期时间(回收进公海后原归属人不可认领/不可被直接分配)',
   `vip_level` varchar(16) DEFAULT NULL COMMENT 'VIP等级(NULL非会员/VIP)',
   `vip_expire_at` datetime DEFAULT NULL COMMENT 'VIP到期时间(T-7提醒续费,到期自动降级)',
   `invited_flag` tinyint NOT NULL DEFAULT '0' COMMENT '受邀标记(受邀用户免费自动VIP+独享分享推荐奖励)',
@@ -513,10 +515,25 @@ CREATE TABLE `t_client_profile` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_client_code` (`client_code`),
   UNIQUE KEY `uk_phone_hash_group` (`phone_hash`,`customer_group`),
-  KEY `idx_owner` (`owner_staff_id`),
+  KEY `idx_owner` (`owner_staff_code`),
   KEY `idx_credit_code_hash` (`credit_code_hash`),
   KEY `idx_group_status` (`customer_group`,`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户档案(线索认证通过后转正;数据权限按部门+角色隔离)';
+
+DROP TABLE IF EXISTS `t_client_recycle_config`;
+CREATE TABLE `t_client_recycle_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `config_key` varchar(16) NOT NULL DEFAULT 'GLOBAL' COMMENT '配置键(当前仅 GLOBAL 单行)',
+  `recycle_enabled` tinyint NOT NULL DEFAULT '1' COMMENT '回收开关(1开/0关)',
+  `recycle_days` int NOT NULL DEFAULT '30' COMMENT '回收天数(超过该天数无跟进自动回收进公海)',
+  `warn_days` int NOT NULL DEFAULT '3' COMMENT '预警天数(距回收剩余时站内预警归属人)',
+  `cooldown_days` int NOT NULL DEFAULT '7' COMMENT '冷却天数(回收后原归属人不可认领)',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人姓名',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_config_key` (`config_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户回收规则参数(全参数化不写死;参考 t_lead_recycle_config 与 tse 资源池回收)';
 
 DROP TABLE IF EXISTS `t_personal_profile`;
 CREATE TABLE `t_personal_profile` (
@@ -762,10 +779,12 @@ CREATE TABLE `t_invitation` (
   `invite_type` varchar(32) NOT NULL COMMENT '邀请类型(CHANNEL渠道/ENTERPRISE服务邀请-企业/PERSONAL服务邀请-个人)',
   `referrer_type` varchar(32) NOT NULL COMMENT '引荐人类型(BOSS老板/ADVISER员工顾问/CHANNEL渠道/VIP客户/CUSTOMER受邀用户推荐)',
   `referrer_id` bigint DEFAULT NULL COMMENT '引荐人ID(员工ID/渠道账号ID/客户档案ID)',
+  `referrer_client_code` varchar(64) DEFAULT NULL COMMENT '引荐人客户编码(仅CUSTOMER类型,业务ID)',
   `scene_param` varchar(255) DEFAULT NULL COMMENT '场景参数(企微活码参数同入此表溯源)',
   `expire_at` datetime NOT NULL COMMENT '有效期(短码7天单次;顾问长期固定码expire_at设很远)',
   `used_flag` tinyint NOT NULL DEFAULT '0' COMMENT '使用状态(注册成功即作废)',
   `used_by_client_id` bigint DEFAULT NULL COMMENT '使用者客户档案ID',
+  `used_by_client_code` varchar(64) DEFAULT NULL COMMENT '使用者客户编码(业务ID)',
   `used_at` datetime DEFAULT NULL COMMENT '使用时间',
   `status` varchar(16) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态(ACTIVE/VOID作废,我司可随时作废重发)',
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人姓名',
@@ -773,6 +792,8 @@ CREATE TABLE `t_invitation` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_invitation_code` (`invitation_code`),
   KEY `idx_referrer` (`referrer_type`,`referrer_id`),
+  KEY `idx_referrer_client` (`referrer_client_code`),
+  KEY `idx_used_client` (`used_by_client_code`,`used_at`),
   KEY `idx_expire` (`expire_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='邀请凭证(仅referrer_type=CUSTOMER受邀用户推荐进入奖励结算;员工/渠道引荐只记归属不产生奖励)';
 
@@ -1170,15 +1191,15 @@ CREATE TABLE `t_lead_recycle_config` (
 DROP TABLE IF EXISTS `t_lead_allocation_record`;
 CREATE TABLE `t_lead_allocation_record` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `lead_id` bigint NOT NULL COMMENT '线索ID',
+  `lead_no` varchar(64) NOT NULL COMMENT '线索或客户业务编码',
   `action_type` varchar(16) NOT NULL COMMENT '流转类型(MANUAL手动指派/AUTO自动/CLAIM认领/RECYCLE回收/TRANSFER离职转移/CONVERT转正客户)',
-  `from_staff_id` bigint DEFAULT NULL COMMENT '原归属人',
-  `to_staff_id` bigint DEFAULT NULL COMMENT '新归属人',
+  `from_staff_code` varchar(32) DEFAULT NULL COMMENT '原归属人员工工号',
+  `to_staff_code` varchar(32) DEFAULT NULL COMMENT '新归属人员工工号',
   `operator` varchar(64) NOT NULL COMMENT '操作人姓名',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
-  KEY `idx_lead` (`lead_id`),
+  KEY `idx_lead_no` (`lead_no`),
   KEY `idx_action_time` (`action_type`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='线索流转记录(谁录入/谁认领/谁回收全程可追溯)';
 
@@ -1188,6 +1209,10 @@ CREATE TABLE `t_client_allocation_approval` (
   `approval_no` varchar(64) NOT NULL COMMENT '审批单号(业务ID:alloc+32位随机)',
   `client_code` varchar(64) NOT NULL COMMENT '客户编码(业务ID:client+32位随机)',
   `applicant_staff_code` varchar(32) NOT NULL COMMENT '申请人(员工工号)',
+  `from_owner_staff_code` varchar(32) DEFAULT NULL COMMENT '申请时原归属顾问工号(转移审批并发校验)',
+  `pending_key` varchar(64) DEFAULT NULL COMMENT '待审唯一键(PENDING时=client_code,完成后NULL)',
+  `apply_source` varchar(32) NOT NULL DEFAULT 'ADVISER_CLAIM' COMMENT '申请来源(ADVISER_CLAIM顾问认领/MANAGER_ASSIGN管理分配)',
+  `apply_operator_code` varchar(32) DEFAULT NULL COMMENT '发起操作人员工工号',
   `approve_status` varchar(16) NOT NULL DEFAULT 'PENDING' COMMENT '状态(PENDING待审/APPROVED通过/REJECTED驳回)',
   `approver_staff_code` varchar(32) DEFAULT NULL COMMENT '审批人(运营/超管)',
   `approve_opinion` varchar(500) DEFAULT NULL COMMENT '审批意见(驳回必填)',
@@ -1195,6 +1220,7 @@ CREATE TABLE `t_client_allocation_approval` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_approval_no` (`approval_no`),
+  UNIQUE KEY `uk_pending_key` (`pending_key`),
   KEY `idx_client_status` (`client_code`,`approve_status`),
   KEY `idx_status` (`approve_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户归属分配审批单(无归宿客户申请分配,运营/超管审批后归属流转)';

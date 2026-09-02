@@ -86,6 +86,21 @@ class MiniMatchControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/mini/match/run 缺少申请城市时返回参数错误")
+    void post_api_mini_match_run_requires_apply_city() throws Exception {
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(post("/api/mini/match/run")
+                    .content("{\"facts\":{\"annualTaxAmount\":1},\"clientCode\":\"cu_test\"}")
+                    .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("请选择申请城市"));
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
     @DisplayName("GET /api/mini/match/history [auth]")
     void get_api_mini_match_history() throws Exception {
         try {

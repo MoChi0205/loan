@@ -6,7 +6,7 @@
         <p class="loan-page-subtitle">企业 / 个人准入规则，四分类管理；规则表达式后台可配</p>
       </div>
       <el-button type="primary" @click="onAdd">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
+        <AppIcon name="add" :size="14" />
         新增规则
       </el-button>
     </div>
@@ -187,6 +187,7 @@ import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { listRules, createRule, updateRule, deleteRule, batchUpdateRuleStatus } from '@/api/rule';
 import { appConfirm } from '@/utils/confirm';
 import { copyText } from '@/utils/clipboard';

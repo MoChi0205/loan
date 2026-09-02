@@ -59,7 +59,7 @@ public class StrategyTemplateService {
     /**
      * 分页查询模版。
      */
-    public PageResult<StrategyTemplate> page(String customerGroup, String keyword, int page, int size) {
+    public PageResult<StrategyTemplate> page(String customerGroup, String keyword, String status, int page, int size) {
         LambdaQueryWrapper<StrategyTemplate> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(customerGroup)) {
             wrapper.eq(StrategyTemplate::getCustomerGroup, customerGroup);
@@ -67,6 +67,9 @@ public class StrategyTemplateService {
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(StrategyTemplate::getTemplateCode, keyword)
                     .or().like(StrategyTemplate::getTemplateName, keyword));
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(StrategyTemplate::getStatus, status);
         }
         wrapper.orderByDesc(StrategyTemplate::getId);
         Page<StrategyTemplate> result = templateMapper.selectPage(new Page<>(page, size), wrapper);

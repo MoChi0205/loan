@@ -6,12 +6,8 @@ import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
 import com.loan.invitation.entity.Invitation;
 import com.loan.invitation.mapper.InvitationMapper;
-import com.loan.lead.entity.Lead;
-import com.loan.lead.mapper.LeadMapper;
-import com.loan.lead.service.LeadService;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
-import com.loan.infrastructure.security.AesUtils;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,9 +27,8 @@ import java.util.stream.Collectors;
  * <p>客户推荐（referrer_type=CUSTOMER）的邀请码进入奖励结算链路；
  * 员工/渠道引荐只记归属不产生奖励。
  *
- * <p>P0-2 增强：绑定成功后回写 {@code t_client_profile.owner_staff_code}
- * （按引荐人类型取顾问工号，仅员工引荐 ADVISER/BOSS 生效），并生成归属线索
- * （source=INVITE，去重：同 phone_hash + 客户编码）。
+ * <p>分享引荐关系与服务顾问归属严格分离：绑定只消耗邀请凭证并记录引荐关系，
+ * 不回写 {@code owner_staff_code}，也不伪造线索；客户归属统一由公海认领或管理者分配审批产生。
  *
  * @author loan-platform
  */
@@ -44,14 +39,12 @@ public class InvitationService {
     private final InvitationMapper invitationMapper;
     private final ClientProfileMapper clientProfileMapper;
     private final StaffMapper staffMapper;
-    private final LeadMapper leadMapper;
-    private final LeadService leadService;
 
     /**
      * 客户绑定邀请码（注册/登录时使用）。
      *
      * <p>校验：邀请码存在 / ACTIVE / 未使用 / 未过期；绑定后置 used_flag=1。
-     * 绑定成功后：员工引荐回写客户档案归属顾问 + 生成归属线索（source=INVITE，去重）。
+     * 同一客户重复提交同一邀请码时幂等返回原绑定结果；已被其他客户使用则拒绝。
      *
      * @param inviteCode 邀请码
      * @param clientCode 使用者客户编码
@@ -72,105 +65,90 @@ public class InvitationService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "邀请码已作废");
         }
         if (inv.getUsedFlag() != null && inv.getUsedFlag() == 1) {
+            if (StringUtils.hasText(clientCode) && clientCode.equals(inv.getUsedByClientCode())) {
+                return bindResult(inv);
+            }
             throw new BusinessException(ResultCode.PARAM_ERROR, "邀请码已被使用");
         }
         if (inv.getExpireAt() != null && inv.getExpireAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "邀请码已过期");
         }
-        if (inv.getUsedByClientCode() != null && inv.getUsedByClientCode().equals(clientCode)) {
+        if ("CUSTOMER".equals(inv.getReferrerType())
+                && clientCode.equals(inv.getReferrerClientCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "不能使用自己的邀请码");
+        }
+        LocalDateTime usedAt = LocalDateTime.now();
+        int changed = invitationMapper.consume(inviteCode.trim(), clientId, clientCode, usedAt);
+        if (changed != 1) {
+            Invitation concurrent = findByCode(inviteCode.trim());
+            if (concurrent != null && clientCode.equals(concurrent.getUsedByClientCode())) {
+                return bindResult(concurrent);
+            }
+            throw new BusinessException(ResultCode.PARAM_ERROR, "邀请码已被使用");
         }
         inv.setUsedFlag(1);
         inv.setUsedByClientId(clientId);
         inv.setUsedByClientCode(clientCode);
-        inv.setUsedAt(LocalDateTime.now());
-        invitationMapper.updateById(inv);
+        inv.setUsedAt(usedAt);
 
-        // P0-2：员工引荐 → 回写归属顾问 + 生成归属线索（去重）
-        String ownerStaffCode = resolveStaffCode(inv);
-        String referrerName = resolveReferrerName(inv, ownerStaffCode);
-        ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
-                .eq(ClientProfile::getClientCode, clientCode));
-        if (ownerStaffCode != null && client != null) {
-            if (!StringUtils.hasText(client.getOwnerStaffCode())) {
-                client.setOwnerStaffCode(ownerStaffCode);
-                client.setUpdatedBy(referrerName == null ? "mini" : referrerName);
-                clientProfileMapper.updateById(client);
-            }
-            createInviteLead(inv, client, ownerStaffCode, referrerName);
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("referrerType", inv.getReferrerType());
-        result.put("referrerId", inv.getReferrerId());
-        result.put("referrerClientCode", inv.getReferrerClientCode());
-        result.put("referrerName", referrerName);
-        result.put("inviteType", inv.getInviteType());
-        return result;
+        return bindResult(inv);
     }
 
     /**
-     * 按引荐人类型解析顾问工号（仅员工引荐 ADVISER/BOSS 生效，其余返回 null）。
+     * 查询客户已建立的分享引荐关系，供档案与小程序统一展示姓名。
      *
-     * @param inv 邀请凭证
-     * @return 顾问工号或 null
+     * @param clientCode 被引荐客户业务编码
+     * @return 引荐关系；未绑定时返回空 Map
      */
-    private String resolveStaffCode(Invitation inv) {
-        if (inv.getReferrerId() == null) {
-            return null;
+    public Map<String, Object> boundAttribution(String clientCode) {
+        if (!StringUtils.hasText(clientCode)) {
+            return new LinkedHashMap<>();
         }
-        if ("ADVISER".equals(inv.getReferrerType()) || "BOSS".equals(inv.getReferrerType())) {
-            Staff staff = staffMapper.selectById(inv.getReferrerId());
-            return staff == null ? null : staff.getStaffCode();
+        Invitation inv = invitationMapper.selectOne(new LambdaQueryWrapper<Invitation>()
+                .eq(Invitation::getUsedByClientCode, clientCode)
+                .orderByDesc(Invitation::getUsedAt)
+                .last("limit 1"));
+        if (inv == null) {
+            return new LinkedHashMap<>();
         }
-        return null;
+        Map<String, Object> result = bindResult(inv);
+        result.put("usedAt", inv.getUsedAt());
+        return result;
+    }
+
+    private Invitation findByCode(String inviteCode) {
+        return invitationMapper.selectOne(new LambdaQueryWrapper<Invitation>()
+                .eq(Invitation::getInvitationCode, inviteCode).last("limit 1"));
     }
 
     /**
      * 引荐人展示名（员工引荐返回顾问姓名，其余取引荐人客户编码）。
      *
-     * @param inv            邀请凭证
-     * @param ownerStaffCode 已解析的顾问工号
+     * @param inv 邀请凭证
      * @return 展示名
      */
-    private String resolveReferrerName(Invitation inv, String ownerStaffCode) {
-        if (ownerStaffCode != null) {
-            Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
-                    .eq(Staff::getStaffCode, ownerStaffCode).last("limit 1"));
-            return staff == null ? ownerStaffCode : staff.getStaffName();
+    private String resolveReferrerName(Invitation inv) {
+        if (StringUtils.hasText(inv.getReferrerClientCode())) {
+            ClientProfile referrer = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                    .eq(ClientProfile::getClientCode, inv.getReferrerClientCode()).last("limit 1"));
+            return referrer == null ? null : referrer.getContactName();
         }
-        return inv.getReferrerClientCode();
+        if (("ADVISER".equals(inv.getReferrerType()) || "BOSS".equals(inv.getReferrerType()))
+                && inv.getReferrerId() != null) {
+            Staff staff = staffMapper.selectById(inv.getReferrerId());
+            return staff == null ? null : staff.getStaffName();
+        }
+        return null;
     }
 
-    /**
-     * 生成归属线索（source=INVITE，归属顾问），去重：同客户编码 + source=INVITE 只建一次。
-     *
-     * @param inv            邀请凭证
-     * @param client         客户档案
-     * @param ownerStaffCode 归属顾问工号
-     * @param referrerName   引荐人展示名
-     */
-    private void createInviteLead(Invitation inv, ClientProfile client, String ownerStaffCode, String referrerName) {
-        if (client.getPhoneHash() == null) {
-            return; // 尚未绑定手机号的微信档案，先不建线索（防空手机号）
-        }
-        Long dup = leadMapper.selectCount(new LambdaQueryWrapper<Lead>()
-                .eq(Lead::getSource, "INVITE")
-                .eq(Lead::getPhoneHash, client.getPhoneHash())
-                .eq(Lead::getClientProfileCode, client.getClientCode()));
-        if (dup != null && dup > 0) {
-            return;
-        }
-        Lead lead = new Lead();
-        lead.setContactName(client.getContactName());
-        lead.setPhone(AesUtils.decrypt(client.getPhone()));
-        lead.setLeadType(StringUtils.hasText(client.getCustomerGroup()) ? client.getCustomerGroup() : "ENTERPRISE");
-        lead.setSource("INVITE");
-        lead.setFollowStatus("NEW");
-        lead.setClientProfileCode(client.getClientCode());
-        lead.setExtJson("{\"inviteCode\":\"" + inv.getInvitationCode()
-                + "\",\"referrerType\":\"" + (inv.getReferrerType() == null ? "" : inv.getReferrerType()) + "\"}");
-        leadService.create(lead, ownerStaffCode, referrerName);
+    private Map<String, Object> bindResult(Invitation inv) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("referrerType", inv.getReferrerType());
+        result.put("referrerId", inv.getReferrerId());
+        result.put("referrerClientCode", inv.getReferrerClientCode());
+        result.put("referrerName", resolveReferrerName(inv));
+        result.put("inviteType", inv.getInviteType());
+        return result;
     }
 
     /**

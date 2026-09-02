@@ -6,11 +6,11 @@
         <p class="loan-page-subtitle">模版 → 模块 → 步骤；上线后可被渠道策略导入复用</p>
       </div>
       <el-button @click="openSnapshot">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M4 7V5a1 1 0 0 1 1-1h2M15 4h2a1 1 0 0 1 1 1v2M20 15v2a1 1 0 0 1-1 1h-2M9 20H7a1 1 0 0 1-1-1v-2"/></svg>
+        <AppIcon name="download" :size="14" />
         从渠道快照
       </el-button>
       <el-button type="primary" @click="openCreate">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
+        <AppIcon name="add" :size="14" />
         新建模版
       </el-button>
     </div>
@@ -181,9 +181,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="产品" prop="bankProductCode">
-          <el-select v-model="importDialog.form.bankProductCode" placeholder="选择产品" filterable clearable style="width: 100%">
-            <el-option v-for="p in products" :key="p.productCode" :label="p.productName" :value="p.productCode" />
-          </el-select>
+          <RemoteProductSelect v-model="importDialog.form.bankProductCode" :customer-group="importDialog.form.customerGroup" />
         </el-form-item>
         <el-form-item label="策略编码" prop="strategyCode"><el-input v-model="importDialog.form.strategyCode" placeholder="渠道内唯一" /></el-form-item>
         <el-form-item label="策略名称"><el-input v-model="importDialog.form.strategyName" placeholder="缺省用模版名" /></el-form-item>
@@ -205,9 +203,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="源策略" v-loading="snapshotDialog.loadingStrategies">
-          <el-select v-model="snapshotDialog.strategyCode" placeholder="选择渠道内策略" filterable style="width: 100%">
-            <el-option v-for="s in snapshotDialog.strategies" :key="s.strategyCode" :label="`${s.strategyName}（${s.strategyCode}）`" :value="s.strategyCode" />
-          </el-select>
+          <RemoteStrategySelect v-model="snapshotDialog.strategyCode" :channel-code="snapshotDialog.channelCode" @selected="snapshotSource = $event" />
         </el-form-item>
         <el-form-item label="模版编码" required>
           <el-input v-model="snapshotDialog.templateCode" placeholder="需唯一" />
@@ -232,11 +228,13 @@ import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
+import RemoteStrategySelect from '@/components/RemoteStrategySelect.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { useTable } from '@/composables/useTable';
 import { appConfirm } from '@/utils/confirm';
 import { listRules } from '@/api/rule';
 import { listChannels } from '@/api/channel';
-import { pageProducts } from '@/api/product';
 import { importFromTemplate, pageStrategy } from '@/api/channelStrategy';
 import {
   pageTemplate, createTemplate, updateTemplate, deleteTemplate, publishTemplate, offlineTemplate, templateDetail,
@@ -257,7 +255,6 @@ const route = useRoute();
 const router = useRouter();
 const rules = ref([]);
 const channels = ref([]);
-const products = ref([]);
 const { loading, data, total, query, load, onSearch, onReset } = useTable(pageTemplate, { customerGroup: route.query.cg || '', keyword: '' });
 
 /** 客群页内切换（6合3 · T10：企业/个贷单入口，URL ?cg= 同步） */
@@ -471,18 +468,19 @@ async function onImport() {
 
 // 从渠道策略快照为模版（对齐 mds v2 snapshot-from-channel）
 const snapshotDialog = reactive({ visible: false, saving: false, loadingStrategies: false, channelCode: '', strategyCode: '', templateCode: '', templateName: '', strategies: [] });
+const snapshotSource = ref(null);
 function openSnapshot() {
   Object.assign(snapshotDialog, { channelCode: '', strategyCode: '', templateCode: '', templateName: '', strategies: [] });
   snapshotDialog.visible = true;
 }
 async function onSnapshotChannelChange() {
   snapshotDialog.strategyCode = '';
+  snapshotSource.value = null;
   snapshotDialog.strategies = [];
   if (!snapshotDialog.channelCode) return;
   snapshotDialog.loadingStrategies = true;
   try {
-    const res = await pageStrategy({ channelCode: snapshotDialog.channelCode, page: 1, size: 100 });
-    snapshotDialog.strategies = res.data?.records || [];
+    snapshotDialog.strategies = [];
   } catch (e) { /* 拦截器已提示 */ } finally {
     snapshotDialog.loadingStrategies = false;
   }
@@ -491,7 +489,7 @@ async function onSnapshot() {
   if (!snapshotDialog.channelCode) { ElMessage.warning('请选择源渠道'); return; }
   if (!snapshotDialog.strategyCode) { ElMessage.warning('请选择源策略'); return; }
   if (!snapshotDialog.templateCode?.trim()) { ElMessage.warning('请输入模版编码'); return; }
-  const source = snapshotDialog.strategies.find((s) => s.strategyCode === snapshotDialog.strategyCode);
+  const source = snapshotSource.value;
   if (source && !source.executionPlanCode) { ElMessage.warning('该策略尚未绑定执行计划，无法快照'); return; }
   snapshotDialog.saving = true;
   try {
@@ -512,9 +510,8 @@ async function onSnapshot() {
 onMounted(async () => {
   await loadRules('ENTERPRISE');
   try {
-    const [ch, pr] = await Promise.all([listChannels(), pageProducts({ page: 1, size: 100 })]);
+    const [ch] = await Promise.all([listChannels()]);
     channels.value = ch.data || [];
-    products.value = pr.data?.records || [];
   } catch { /* 忽略 */ }
   load();
 });

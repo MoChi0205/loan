@@ -29,7 +29,7 @@ export function voidDownloadApproval(approvalNo) {
   return request({ url: `/api/admin/approval/download/${approvalNo}/void`, method: 'post' });
 }
 
-/** 客户分配审批（无归宿客户归属流转，仅 OPERATOR/SUPER_ADMIN/SUPER/BOSS 可见，见 D0-4） */
+/** 客户分配审批（D39/C24：OPERATOR/SUPER_ADMIN/SUPER/BOSS 及团队管理者 DM 可见，DM 仅本团队） */
 export function pageAllocationApprovals(params) {
   return request({ url: '/api/admin/approval/allocation/pending', method: 'get', params });
 }

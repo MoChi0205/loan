@@ -116,7 +116,7 @@
             <text class="dup-d">{{ dupClient.entName }} · {{ dupClient.contactPhone }}</text>
             <text class="dup-d">
               {{ dupClient.hasOwner
-                ? `归属人：${dupClient.ownerStaffName || '其他员工'}。申请后自动归属给你（无需审批）`
+                ? `归属人：${dupClient.ownerStaffName || '其他员工'}。申请归属需审批，通过后你才能获得该客户的匹配权限`
                 : '归属人：无（公海 / 无主）。申请后需上级 / 运营审批，通过后通知你' }}
             </text>
 
@@ -124,9 +124,10 @@
               <text class="pending-text">分配申请已提交，等待上级 / 运营审批（未获归属前不可发起匹配）</text>
               <AppButton variant="ghost" size="sm" :loading="checkingStatus" @click="onRefreshStatus">刷新审批状态</AppButton>
             </view>
-            <AppButton v-else variant="primary" size="lg" block :loading="claiming" @click="onClaim">
+            <AppButton v-else-if="isAdviser" variant="primary" size="lg" block :loading="claiming" @click="onClaim">
               申请分配给当前用户
             </AppButton>
+            <text v-else class="step-tip">管理角色请在 Web 管理端直接分配客户给指定顾问，无需发起认领审批。</text>
           </view>
         </view>
 
@@ -153,9 +154,9 @@
             <input class="field-input" v-model="newClient.customerGroup" placeholder="如：制造业" placeholder-class="ph" />
           </view>
           <AppButton variant="primary" size="lg" block :loading="creating" @click="onCreateClient">
-            创建客户并归属给我
+            创建客户并申请认领
           </AppButton>
-          <text class="step-tip">系统无该企业数据，录入后将自动新增并把归属（owner）分配给你</text>
+          <text class="step-tip">系统无该企业数据，将先创建未分配客户；顾问认领审批通过后方可替客匹配</text>
         </template>
 
         <!-- 未输入 -->
@@ -176,6 +177,13 @@
           <AppIcon name="bank" />
           <text class="target-name u-ellipsis">{{ targetName }}</text>
           <AppTag type="success" size="sm">已归属</AppTag>
+        </view>
+
+        <view class="field">
+          <text class="field-label">申请城市</text><text class="req"> *</text>
+          <picker mode="region" :value="cityRegion" @change="onCityChange">
+            <view class="picker-view">{{ applyCity || '请选择申请城市' }}</view>
+          </picker>
         </view>
 
         <view class="type-toggle">
@@ -233,11 +241,11 @@
           </view>
           <view class="switch-row">
             <text class="field-label">名下有房产</text>
-            <switch :checked="!!personalFacts.houseFlag" color="var(--brand-deep)" @change="e => onSwitch('houseFlag', e)" />
+            <switch :checked="!!personalFacts.houseFlag" color="#0B1D3A" @change="e => onSwitch('houseFlag', e)" />
           </view>
           <view class="switch-row">
             <text class="field-label">名下有车辆</text>
-            <switch :checked="!!personalFacts.carFlag" color="var(--brand-deep)" @change="e => onSwitch('carFlag', e)" />
+            <switch :checked="!!personalFacts.carFlag" color="#0B1D3A" @change="e => onSwitch('carFlag', e)" />
           </view>
         </template>
       </view>
@@ -268,7 +276,7 @@
           <AppTag type="muted" size="sm">匹配前最后一步</AppTag>
         </view>
         <view v-for="(v, i) in verifyList" :key="i" class="verify-row">
-          <view class="verify-ic" :class="v.status"><AppIcon :name="v.status === 'ok' ? 'check' : 'alert'" /></view>
+          <view class="verify-ic" :class="v.status"><AppIcon :name="v.status === 'ok' ? 'check' : 'refresh'" /></view>
           <view class="verify-body">
             <text class="verify-title">{{ v.title }}</text>
             <text class="verify-desc">{{ v.desc }}</text>
@@ -312,6 +320,8 @@ import TabBar from '../../components/TabBar.vue';
 import { runMatch } from '../../api/match';
 import { searchClient, createClient, claimClient, claimStatus } from '../../api/client';
 import { uploadMaterial } from '../../api/upload';
+import { chooseMaterialFile } from '../../utils/filePicker';
+import { isUnifiedSocialCreditCode, isMobile } from '../../utils/validation';
 
 const store = useUserStore();
 
@@ -319,6 +329,7 @@ const store = useUserStore();
 const STAFF_ROLES = ['adviser', 'deptmgr', 'boss', 'operator', 'super'];
 const isChannel = computed(() => store.role === 'channel');
 const isStaff = computed(() => STAFF_ROLES.indexOf(store.role) >= 0);
+const isAdviser = computed(() => store.role === 'adviser');
 
 /** 步骤定义：客户跳过"目标企业" */
 const steps = ['目标企业', '经营事实', '上传材料', '核验匹配'];
@@ -328,6 +339,7 @@ const factType = ref('enterprise');
 const submitting = ref(false);
 const result = ref(null);
 const applyCity = ref('');
+const cityRegion = ref([]);
 
 /* ===== 步骤 0：目标企业 + 自动查重（C10） ===== */
 const targetQuery = ref('');
@@ -344,6 +356,7 @@ const newClient = reactive({
 });
 
 let dupTimer = null;
+let dupRequestSeq = 0;
 function onTargetInput() {
   const v = targetQuery.value.trim();
   dupClient.value = null;
@@ -353,18 +366,34 @@ function onTargetInput() {
   clearTimeout(dupTimer);
   // 防抖 300ms，避免每输入一个字符就请求
   dupTimer = setTimeout(async () => {
-    const hit = await searchClient(v);
-    dupClient.value = hit;
-    dupState.value = hit ? 'hit' : 'miss';
-    if (!hit) newClient.entName = v;   // 未命中：预填企业名，减少重复输入
+    const seq = ++dupRequestSeq;
+    try {
+      const hit = await searchClient(v);
+      if (seq !== dupRequestSeq || targetQuery.value.trim() !== v) return;
+      dupClient.value = hit;
+      dupState.value = hit ? 'hit' : 'miss';
+      if (!hit) newClient.entName = v;
+    } catch (e) {
+      if (seq !== dupRequestSeq) return;
+      dupState.value = '';
+      uni.showToast({ title: (e && e.message) || '查重失败，请稍后重试', icon: 'none' });
+    }
   }, 300);
 }
 
-/** C2 情形 A：录入新客户，自动归属当前用户 → 进入步骤 1 */
+/** D39：录入新客户后按真实归属结果申请认领，不假定录入即归属。 */
 async function onCreateClient() {
   if (creating.value) return;
   if (!newClient.entName.trim()) {
     uni.showToast({ title: '请填写企业名称', icon: 'none' });
+    return;
+  }
+  if (newClient.contactPhone && !isMobile(newClient.contactPhone)) {
+    uni.showToast({ title: '手机号格式不正确', icon: 'none' });
+    return;
+  }
+  if (newClient.creditCode && !isUnifiedSocialCreditCode(newClient.creditCode)) {
+    uni.showToast({ title: '统一社会信用代码格式不正确', icon: 'none' });
     return;
   }
   creating.value = true;
@@ -376,15 +405,31 @@ async function onCreateClient() {
       creditCode: newClient.creditCode.trim(),
       customerGroup: newClient.customerGroup.trim(),
     });
-    targetClientCode.value = (data && data.clientCode) || '';
-    targetName.value = newClient.entName.trim();
-    uni.showToast({ title: '已创建并归属给你', icon: 'none' });
-    currentStep.value = 1;
+    const clientCode = (data && data.clientCode) || '';
+    if (!clientCode) throw new Error('创建结果缺少客户编码');
+    // 后端若幂等返回已有客户，仍按真实归属规则申请；新客户也只进入未分配池。
+    dupClient.value = {
+      clientCode,
+      entName: newClient.entName.trim(),
+      ownerStaffCode: data && data.ownerStaffCode,
+      hasOwner: !!(data && data.ownerStaffCode),
+    };
+    dupState.value = 'hit';
+    if (isAdviser.value) {
+      await onClaim();
+    } else {
+      claimPending.value = false;
+      uni.showModal({
+        title: '客户已进入未分配池',
+        content: '请由管理角色在 Web 管理端直接指定服务顾问。完成归属后再发起替客匹配。',
+        showCancel: false,
+      });
+    }
   } catch (e) { /* toast 已弹出 */ }
   finally { creating.value = false; }
 }
 
-/** C2 情形 B：申请分配。有归属人 → 自动归属并前进；无归宿 → 提交审批并停留 */
+/** D39：本人归属幂等通过；他人归属或无归属均提交审批并停留。 */
 async function onClaim() {
   if (claiming.value || !dupClient.value) return;
   claiming.value = true;
@@ -393,7 +438,7 @@ async function onClaim() {
     if (data && data.result === 'AUTO_CLAIMED') {
       targetClientCode.value = dupClient.value.clientCode;
       targetName.value = dupClient.value.entName;
-      uni.showToast({ title: '已自动归属给你', icon: 'none' });
+      uni.showToast({ title: '该客户已归属本人', icon: 'success' });
       currentStep.value = 1;
     } else {
       claimPending.value = true;
@@ -450,6 +495,11 @@ const employLabel = computed(() => personalFacts.employType || '');
 function onOperateChange(e) { enterpriseFacts.operateStatus = operateOptions[Number(e.detail.value)]; }
 function onEmployChange(e) { personalFacts.employType = employOptions[Number(e.detail.value)]; }
 function onSwitch(key, e) { personalFacts[key] = e.detail.value ? 1 : 0; }
+function onCityChange(e) {
+  const region = Array.isArray(e.detail.value) ? e.detail.value : [];
+  cityRegion.value = region;
+  applyCity.value = region[1] || region[0] || '';
+}
 
 /* ===== 步骤 2：上传材料 =====
  * 注意：status / statusText 仅反映「用户本会话是否真实上传过该分类材料」，
@@ -465,54 +515,44 @@ const materials = reactive([
 const uploadedMaterialCount = computed(
   () => materials.filter(m => m.status === 'ok').length,
 );
-function onUpload(m) {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    success: async (res) => {
-      const filePath = res.tempFilePaths && res.tempFilePaths[0];
-      if (!filePath) return;
-      m.statusText = '上传中…';
-      try {
-        const data = await uploadMaterial(filePath, { bizType: m.key, clientCode: store.clientCode });
-        m.status = 'ok';
-        m.statusText = '已上传';
-        m.fileKey = data.fileKey;
-        m.fileName = data.fileName;
-        uni.showToast({ title: '上传成功', icon: 'success' });
-      } catch (e) {
-        m.status = 'fail';
-        m.statusText = '上传失败';
-        uni.showToast({ title: (e && e.message) || '上传失败', icon: 'none' });
-      }
-    },
-    fail: () => {},
-  });
+const activeClientCode = computed(() => (isStaff.value ? targetClientCode.value : store.clientCode));
+
+async function onUpload(m) {
+  try {
+    const file = await chooseMaterialFile();
+    if (!activeClientCode.value) throw new Error('请先确定目标客户');
+    m.statusText = '上传中…';
+    const data = await uploadMaterial(file.path, { bizType: m.key, clientCode: activeClientCode.value });
+    m.status = 'ok';
+    m.statusText = '已上传';
+    m.fileKey = data.fileKey;
+    m.fileName = data.fileName;
+    uni.showToast({ title: '上传成功', icon: 'success' });
+  } catch (e) {
+    if (e && /cancel/i.test(e.message || '')) return;
+    m.status = 'fail';
+    m.statusText = '上传失败';
+    uni.showToast({ title: (e && e.message) || '上传失败', icon: 'none' });
+  }
 }
-function onSupplement() {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    success: async (res) => {
-      const filePath = res.tempFilePaths && res.tempFilePaths[0];
-      if (!filePath) return;
-      try {
-        await uploadMaterial(filePath, { bizType: 'OTHER', clientCode: store.clientCode });
-        uni.showToast({ title: '补充材料已上传', icon: 'success' });
-      } catch (e) {
-        uni.showToast({ title: (e && e.message) || '上传失败', icon: 'none' });
-      }
-    },
-    fail: () => {},
-  });
+async function onSupplement() {
+  try {
+    const file = await chooseMaterialFile();
+    if (!activeClientCode.value) throw new Error('请先确定目标客户');
+    await uploadMaterial(file.path, { bizType: 'OTHER', clientCode: activeClientCode.value });
+    uni.showToast({ title: '补充材料已上传', icon: 'success' });
+  } catch (e) {
+    if (e && /cancel/i.test(e.message || '')) return;
+    uni.showToast({ title: (e && e.message) || '上传失败', icon: 'none' });
+  }
 }
 
 /* ===== 步骤 3：核验 & 匹配 ===== */
-const verifyList = [
-  { status: 'ok',   title: '企业编码核验通过', desc: '与认证企业编码一致' },
-  { status: 'ok',   title: '经营数据核验通过', desc: '流水 / 发票 / 申报表完整' },
-  { status: 'fail', title: '企业年报核验未通过', desc: '年报中企业编码与认证不一致，请补充材料后再发起匹配' },
-];
+const verifyList = computed(() => materials.map((m) => ({
+  status: m.status === 'ok' ? 'ok' : 'pending',
+  title: `${m.name}${m.status === 'ok' ? '已上传' : '待核验'}`,
+  desc: m.status === 'ok' ? (m.fileName || '材料已接收，最终核验结果以服务端为准') : '尚无真实核验结果',
+})));
 
 /* ===== 步骤导航 ===== */
 const firstStep = computed(() => (isStaff.value ? 0 : 1));
@@ -521,6 +561,7 @@ const lastStep = 3;
 const showFooterNav = computed(() => currentStep.value > 0 && currentStep.value < lastStep);
 
 function nextStep() {
+  if (currentStep.value === 1 && !validateFacts()) return;
   if (currentStep.value < lastStep) currentStep.value += 1;
 }
 function prevStep() {
@@ -553,16 +594,46 @@ function genClientSubmitId() {
   return `mini-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function onSubmit() {
-  if (submitting.value) return;
-  let facts;
+/** 步骤 1 与最终提交复用同一校验，避免只在最后一步才发现输入错误。 */
+function validateFacts() {
+  if (!applyCity.value.trim()) {
+    uni.showToast({ title: '请选择申请城市', icon: 'none' });
+    return false;
+  }
   if (factType.value === 'enterprise') {
     if (!enterpriseFacts.annualTaxAmount || !enterpriseFacts.annualInvoiceAmount ||
         !enterpriseFacts.foundYears || !enterpriseFacts.industry || !enterpriseFacts.operateStatus) {
       uni.showToast({ title: '请完整填写企业事实（*必填）', icon: 'none' });
-      currentStep.value = 1;
-      return;
+      return false;
     }
+    const numbers = [enterpriseFacts.annualTaxAmount, enterpriseFacts.annualInvoiceAmount, enterpriseFacts.foundYears];
+    if (numbers.some((value) => !Number.isFinite(Number(value)) || Number(value) < 0)) {
+      uni.showToast({ title: '金额和年限需填写有效数字', icon: 'none' });
+      return false;
+    }
+    return true;
+  }
+  if (!personalFacts.annualIncome || !personalFacts.creditScore ||
+      !personalFacts.employType || !personalFacts.workYears) {
+    uni.showToast({ title: '请完整填写个人资质（*必填）', icon: 'none' });
+    return false;
+  }
+  const score = Number(personalFacts.creditScore);
+  if (!Number.isFinite(score) || score < 350 || score > 950) {
+    uni.showToast({ title: '信用分需在 350-950 之间', icon: 'none' });
+    return false;
+  }
+  return true;
+}
+
+async function onSubmit() {
+  if (submitting.value) return;
+  if (!validateFacts()) {
+    currentStep.value = 1;
+    return;
+  }
+  let facts;
+  if (factType.value === 'enterprise') {
     facts = {
       annualTaxAmount: Number(enterpriseFacts.annualTaxAmount),
       annualInvoiceAmount: Number(enterpriseFacts.annualInvoiceAmount),
@@ -573,17 +644,7 @@ async function onSubmit() {
       operateStatus: enterpriseFacts.operateStatus,
     };
   } else {
-    if (!personalFacts.annualIncome || !personalFacts.creditScore ||
-        !personalFacts.employType || !personalFacts.workYears) {
-      uni.showToast({ title: '请完整填写个人资质（*必填）', icon: 'none' });
-      currentStep.value = 1;
-      return;
-    }
     const score = Number(personalFacts.creditScore);
-    if (score < 350 || score > 950) {
-      uni.showToast({ title: '信用分需在 350-950 之间', icon: 'none' });
-      return;
-    }
     facts = {
       annualIncome: Number(personalFacts.annualIncome),
       creditScore: score,
@@ -596,16 +657,31 @@ async function onSubmit() {
 
   submitting.value = true;
   try {
-    const data = await runMatch({
-      facts,
-      applyCity: applyCity.value.trim() || undefined,
-      clientSubmitId: genClientSubmitId(),
-      // 员工替客匹配：带上已归属的客户编号，后端据此落 owner
-      ...(targetClientCode.value ? { clientCode: targetClientCode.value } : {}),
-    });
+    const data = await runMatch(
+      {
+        facts,
+        applyCity: applyCity.value.trim(),
+        clientSubmitId: genClientSubmitId(),
+        // 员工替客匹配：带上已归属的客户编号（P0-3 守卫依赖此字段）
+        clientCode: targetClientCode.value || undefined,
+        showError: false,
+      },
+    );
     result.value = data || {};
-  } catch (e) { /* toast 已弹出 */ }
-  finally { submitting.value = false; }
+  } catch (e) {
+    // P0-3（C25）：替客匹配他人已归属客户且无归属审批 → 引导先发起归属审批
+    const msg = (e && e.message) || '';
+    if (msg.indexOf('归属审批') !== -1) {
+      uni.showModal({
+        title: '需要先发起归属审批',
+        content: '该客户已归属他人，请先在步骤 0「目标企业」中申请分配给当前用户，审批通过后再发起匹配。',
+        confirmText: '返回选择客户',
+        success: (r) => { if (r.confirm) resetResult(); },
+      });
+      return;
+    }
+    uni.showToast({ title: msg || '匹配失败，请重试', icon: 'none' });
+  } finally { submitting.value = false; }
 }
 
 function resetResult() {

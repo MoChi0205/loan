@@ -2,6 +2,7 @@ package com.loan.reward.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -41,6 +42,10 @@ public class RewardRule implements Serializable {
 
     /** 适用产品编码（精确匹配；NULL 视为全局默认） */
     private String productCode;
+
+    /** 产品名称（查询视图字段，不落库）。 */
+    @TableField(exist = false)
+    private String productName;
 
     /** 适用客群（ENTERPRISE/PERSONAL；与 productCode 组合精确匹配；NULL 视为全局默认） */
     private String customerGroup;

@@ -6,7 +6,7 @@
         <p class="loan-page-subtitle">业务订单主表 · 谁建单归谁 · DEAL 计入营收并触发奖励结算</p>
       </div>
       <el-button type="primary" @click="onAdd">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
+        <AppIcon name="add" :size="14" />
         新建工单
       </el-button>
     </div>
@@ -20,6 +20,7 @@
         <el-checkbox v-model="query.mineOnly" style="margin-right: 8px">仅我的工单</el-checkbox>
       </AppSearchBar>
 
+      <AppTableState :error="error" @retry="load">
       <el-table :data="data" v-loading="loading" stripe row-key="orderNo" @sort-change="handleSortChange">
         <template #empty>
           <AppEmpty title="暂无工单" desc="为客户发起服务工单后在此跟踪进度" />
@@ -41,7 +42,9 @@
         <el-table-column prop="bankProductName" label="关联产品" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ row.bankProductName || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="ownerStaffCode" label="归属顾问" width="100"  show-overflow-tooltip />
+        <el-table-column prop="ownerStaffName" label="归属顾问" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.ownerStaffName || (row.ownerStaffCode ? '姓名待补充' : '待分配') }}</template>
+        </el-table-column>
         <el-table-column label="成交金额" width="130" align="right">
           <template #default="{ row }">
             <span class="mono">{{ row.dealAmount ? '¥' + fmtAmount(row.dealAmount) : '—' }}</span>
@@ -64,8 +67,9 @@
           </template>
         </el-table-column>
       </el-table>
+      </AppTableState>
 
-      <AppPagination v-model:page="query.page" v-model:size="query.size" :total="total" @change="load" />
+      <AppPagination v-if="!error" v-model:page="query.page" v-model:size="query.size" :total="total" @change="load" />
     </div>
 
     <!-- 新建工单弹窗 -->
@@ -91,9 +95,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="关联产品">
-          <el-select v-model="createForm.bankProductCode" filterable clearable placeholder="可选，按产品编码搜索" style="width: 100%">
-            <el-option v-for="p in productOptions" :key="p.productCode" :label="`${p.productName}（${p.productCode}）`" :value="p.productCode" />
-          </el-select>
+          <RemoteProductSelect v-model="createForm.bankProductCode" :customer-group="createForm.customerGroup" placeholder="可选，输入产品名称搜索" />
         </el-form-item>
         <el-form-item label="来源">
           <el-select v-model="createForm.source" style="width: 100%">
@@ -143,7 +145,7 @@
           <el-descriptions-item label="客户">{{ detail.clientName || detail.enterpriseName || detail.contactName || '—' }}<template v-if="detail.phone"><br><span class="cell-sub">{{ desensitizePhone(detail.phone) }}</span></template></el-descriptions-item>
           <el-descriptions-item label="客群">{{ detail.customerGroup === 'ENTERPRISE' ? '企业' : '个人' }}</el-descriptions-item>
           <el-descriptions-item label="关联产品">{{ detail.bankProductName || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="归属顾问">{{ detail.ownerStaffCode || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="归属顾问">{{ detail.ownerStaffName || (detail.ownerStaffCode ? '姓名待补充' : '待分配') }}</el-descriptions-item>
           <el-descriptions-item label="状态">{{ statusText[detail.status] || detail.status }}</el-descriptions-item>
           <el-descriptions-item label="来源">{{ sourceText(detail.source) }}</el-descriptions-item>
           <el-descriptions-item label="来源单号">{{ detail.sourceOrderNo || '—' }}</el-descriptions-item>
@@ -167,13 +169,16 @@ import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
+import AppIcon from '@/components/AppIcon.vue';
+import AppTableState from '@/components/AppTableState.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
 import { useTable } from '@/composables/useTable';
 import { appConfirm } from '@/utils/confirm';
 import { copyText } from '@/utils/clipboard';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
+import { clientDisplayLabel } from '@/utils/display';
 import { pageOrders, createOrder, orderDetail, updateOrderStatus, pageClientLite } from '@/api/order';
-import { pageProducts } from '@/api/product';
 
 const statusText = {
   NEW: '新建',
@@ -199,7 +204,7 @@ function fmtAmount(v) {
 }
 
 /** useTable 接管列表 */
-const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageOrders, {
+const { loading, error, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageOrders, {
   status: '',
   keyword: '',
   mineOnly: false,
@@ -264,7 +269,6 @@ const creating = ref(false);
 const createFormRef = ref();
 const clientLoading = ref(false);
 const clientOptions = ref([]);
-const productOptions = ref([]);
 const createForm = reactive({
   clientCode: '',
   customerGroup: 'ENTERPRISE',
@@ -281,9 +285,9 @@ const createRules = {
 };
 
 function clientLabel(c) {
-  const name = c.enterpriseName || c.contactName || '—';
-  return `${name}（${c.clientCode}）${c.customerGroup === 'ENTERPRISE' ? '企业' : '个人'}`;
+  return clientDisplayLabel(c);
 }
+
 
 async function searchClients(keyword) {
   clientLoading.value = true;
@@ -310,13 +314,6 @@ async function onAdd() {
   });
   clientOptions.value = [];
   createVisible.value = true;
-  // 预拉产品（可选）
-  try {
-    const res = await pageProducts({ page: 1, size: 100 });
-    productOptions.value = res.data?.records || [];
-  } catch (e) {
-    productOptions.value = [];
-  }
   searchClients('');
 }
 

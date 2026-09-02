@@ -7,7 +7,7 @@
   },
   "roles": [
     { "id": "R1", "name": "客户", "userType": "CUSTOMER", "roleCode": "", "tabCount": 5, "canMatch": "仅自己", "reportVisible": "仅自己+仅日期", "productVisible": false },
-    { "id": "R2", "name": "渠道", "userType": "CHANNEL", "roleCode": "", "tabCount": 3, "canMatch": false, "reportVisible": "隐藏", "productVisible": false },
+    { "id": "R2", "name": "渠道", "userType": "CHANNEL", "roleCode": "", "tabCount": 4, "canMatch": false, "reportVisible": "隐藏", "productVisible": false },
     { "id": "R3", "name": "顾问", "userType": "STAFF", "roleCode": "ADVISER", "tabCount": 5, "canMatch": true, "reportVisible": "全量四维", "productVisible": true },
     { "id": "R4", "name": "部门经理", "userType": "STAFF", "roleCode": "DEPT_MANAGER", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": true },
     { "id": "R5", "name": "老板", "userType": "STAFF", "roleCode": "BOSS", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": true, "canApproveAlloc": true },
@@ -26,11 +26,11 @@
     { "id": "M_CHANPROD", "name": "渠道产品管理(C9状态机)", "doc": "§9" },
     { "id": "M_INVITE", "name": "邀请绑定/推荐奖励", "doc": "§10" },
     { "id": "M_LEAD", "name": "线索录入", "doc": "§11" },
-    { "id": "M_ALLOC", "name": "审批中心(统一,C22)", "doc": "§4.3/§13", "desc": "视图层统一、不建表；建表迁移列阶段四。ALLOCATION 仅 OPERATOR/SUPER_ADMIN/SUPER/BOSS 可审（不含 DEPT_MGR）；PRODUCT/DOWNLOAD 含 DEPT_MGR（白名单 loan.mini.approval.types=ALLOCATION 当前仅开 ALLOCATION）。" }
+    { "id": "M_ALLOC", "name": "未分配客户与审批中心", "doc": "§4.3/§13", "desc": "owner_staff_code为空即进入未分配客户池。顾问认领与管理指定共用t_client_allocation_approval；ALLOCATION仅OPERATOR/SUPER_ADMIN/SUPER/BOSS可审，DEPT_MANAGER可发起MANAGER_ASSIGN但不可审批。" }
   ],
   "interfaces": [
-    { "id": "A1", "method": "POST", "path": "/api/mini/auth/login", "module": "M_AUTH", "perm": "PUBLIC", "note": "微信code主通道；兼容开关开时{phone,code}短信登录；inviteCode绑定" },
-    { "id": "A2", "method": "GET", "path": "/api/mini/me", "module": "M_AUTH", "perm": "LOGIN", "note": "返回profile+roleInfo{userType,roleCode,role}" },
+    { "id": "A1", "method": "POST", "path": "/api/mini/auth/login", "module": "M_AUTH", "perm": "PUBLIC", "note": "微信code主通道；分享链接/二维码自动携带inviteCode并绑定引荐链，不写服务顾问归属" },
+    { "id": "A2", "method": "GET", "path": "/api/mini/me", "module": "M_AUTH", "perm": "LOGIN", "note": "返回profile+roleInfo以及ownerStaffName/referrerName，两类关系分开" },
     { "id": "A3", "method": "POST", "path": "/api/mini/auth/enterprise", "module": "M_AUTH", "perm": "CUSTOMER", "note": "企业/个人认证" },
     { "id": "A4", "method": "GET", "path": "/api/mini/wecom/qrcode", "module": "M_AUTH", "perm": "PUBLIC", "note": "企微客服活码" },
     { "id": "M1", "method": "POST", "path": "/api/mini/match/run", "module": "M_MATCH", "perm": "CUSTOMER/STAFF;CHANNEL禁", "note": "发起匹配；员工必传clientCode" },
@@ -58,7 +58,7 @@
     { "id": "P8", "method": "POST", "path": "/api/mini/product/{code}/delete-cancel", "module": "M_CHANPROD", "perm": "CHANNEL", "note": "撤销删除" },
     { "id": "P9", "method": "GET", "path": "/api/mini/partner-product/delete/pending", "module": "M_CHANPROD", "perm": "OPERATOR/SUPER/BOSS", "note": "待删列表" },
     { "id": "P10", "method": "POST", "path": "/api/mini/partner-product/delete/{approvalNo}/audit", "module": "M_CHANPROD", "perm": "OPERATOR/SUPER/BOSS", "note": "终审删除" },
-    { "id": "I1", "method": "POST", "path": "/api/mini/invitation/bind", "module": "M_INVITE", "perm": "CUSTOMER", "note": "补绑邀请码" },
+    { "id": "I1", "method": "POST", "path": "/api/mini/invitation/bind", "module": "M_INVITE", "perm": "CUSTOMER", "note": "自动绑定后的补绑兼容入口；只建立引荐关系" },
     { "id": "I2", "method": "GET", "path": "/api/mini/invitation/mine", "module": "M_INVITE", "perm": "CUSTOMER", "note": "我的邀请码" },
     { "id": "I3", "method": "GET", "path": "/api/mini/invitation/records", "module": "M_INVITE", "perm": "CUSTOMER", "note": "邀请记录" },
     { "id": "W1", "method": "GET", "path": "/api/mini/reward/mine/summary", "module": "M_INVITE", "perm": "CUSTOMER", "note": "奖励汇总" },
@@ -68,19 +68,24 @@
     { "id": "UA1", "method": "GET", "path": "/api/mini/approval/counts", "module": "M_ALLOC", "perm": "OPERATOR/SUPER_ADMIN/SUPER/BOSS", "note": "统一审批计数 PRODUCT/DOWNLOAD/ALLOCATION/TOTAL（白名单仅开 ALLOCATION）" },
     { "id": "UA2", "method": "GET", "path": "/api/mini/approval/pending", "module": "M_ALLOC", "perm": "OPERATOR/SUPER_ADMIN/SUPER/BOSS", "note": "统一待审列表(type=ALL 按 createdAt 归并分段；白名单仅开 ALLOCATION)" },
     { "id": "UA3", "method": "POST", "path": "/api/mini/approval/{type}/{approvalNo}/audit", "module": "M_ALLOC", "perm": "OPERATOR/SUPER_ADMIN/SUPER/BOSS(ALLOCATION 不含 DEPT_MGR)", "note": "统一审批 通过/驳回 body{approve,opinion}" },
-    { "id": "AA1", "method": "GET", "path": "/api/admin/approval/allocation/pending", "module": "M_ALLOC", "perm": "OPERATOR/SUPER/BOSS/DEPT_MANAGER", "note": "管理端 allocation 待审" },
-    { "id": "AA2", "method": "POST", "path": "/api/admin/approval/allocation/{approvalNo}/audit", "module": "M_ALLOC", "perm": "OPERATOR/SUPER/BOSS/DEPT_MANAGER", "note": "管理端 allocation 终审" },
-    { "id": "AA3", "method": "GET", "path": "/api/admin/approval/counts", "module": "M_ALLOC", "perm": "OPERATOR/SUPER/BOSS", "note": "管理端统一计数" },
-    { "id": "AA4", "method": "GET", "path": "/api/admin/approval/pending", "module": "M_ALLOC", "perm": "OPERATOR/SUPER/BOSS", "note": "管理端统一待审?type=..." }
+    { "id": "AA1", "method": "GET", "path": "/api/admin/approval/allocation/pending", "module": "M_ALLOC", "perm": "OPERATOR/SUPER_ADMIN/SUPER/BOSS", "note": "管理端allocation待审" },
+    { "id": "AA2", "method": "POST", "path": "/api/admin/approval/allocation/{approvalNo}/approve", "module": "M_ALLOC", "perm": "OPERATOR/SUPER_ADMIN/SUPER/BOSS", "note": "管理端allocation通过" },
+    { "id": "AA3", "method": "POST", "path": "/api/admin/approval/allocation/{approvalNo}/reject", "module": "M_ALLOC", "perm": "OPERATOR/SUPER_ADMIN/SUPER/BOSS", "note": "管理端allocation驳回" },
+    { "id": "AA4", "method": "GET", "path": "/api/admin/approval/unified/counts", "module": "M_ALLOC", "perm": "OPERATOR/SUPER_ADMIN/SUPER/BOSS", "note": "管理端统一计数" },
+    { "id": "AA5", "method": "GET", "path": "/api/admin/approval/unified/pending", "module": "M_ALLOC", "perm": "OPERATOR/SUPER_ADMIN/SUPER/BOSS", "note": "管理端统一待审?type=..." },
+    { "id": "AA6", "method": "POST", "path": "/api/admin/approval/unified/{type}/{approvalNo}/audit", "module": "M_ALLOC", "perm": "按type校验", "note": "管理端统一审批" },
+    { "id": "AC1", "method": "GET", "path": "/api/admin/client/unassigned/page", "module": "M_ALLOC", "perm": "STAFF", "note": "未分配客户分页，批量补姓名" },
+    { "id": "AC2", "method": "POST", "path": "/api/admin/client/{clientCode}/claim", "module": "M_ALLOC", "perm": "ADVISER", "note": "顾问申请认领" },
+    { "id": "AC3", "method": "POST", "path": "/api/admin/client/{clientCode}/assign", "module": "M_ALLOC", "perm": "DEPT_MANAGER/BOSS/OPERATOR/SUPER_ADMIN/SUPER", "note": "管理者选择顾问并发起审批" }
   ],
   "tables": [
-    { "id": "T_CLIENT", "name": "t_client", "module": "M_MATCH", "fields": "client_code(PK), owner_staff_code, contact_name, ent_name" },
+    { "id": "T_CLIENT", "name": "t_client_profile", "module": "M_MATCH", "fields": "client_code, owner_staff_code(NULL=未分配客户池), contact_name, enterprise_name" },
     { "id": "T_SUB", "name": "t_client_submission", "module": "M_MATCH", "fields": "data_json(经营事实), client_submit_id(幂等)" },
     { "id": "T_SCREEN", "name": "t_client_screening", "module": "M_MATCH", "fields": "report_no, total_result, grade" },
     { "id": "T_SP", "name": "t_screening_product", "module": "M_PRODUCTS", "fields": "report_no, product_code, hit_result, match_score(B1落地)" },
-    { "id": "T_ALLOC", "name": "t_client_allocation_approval", "module": "M_ALLOC", "fields": "approval_no, client_code, status PENDING/APPROVED/REJECTED(B3落地)" },
+    { "id": "T_ALLOC", "name": "t_client_allocation_approval", "module": "M_ALLOC", "fields": "approval_no, client_code, applicant_staff_code, approve_status, pending_key, apply_source" },
     { "id": "T_PA", "name": "t_product_approval", "module": "M_CHANPROD", "fields": "apply_type CREATE/DELETE, approve_status DRAFT/PENDING/OK/REJECTED/PENDING_DELETE(C9复用不新增表)" },
-    { "id": "T_LEAD", "name": "t_lead", "module": "M_LEAD", "fields": "owner_staff_id(NULL=公海/渠道进公海), recorder_staff_id; source 字典含 CHANNEL(旧MINI废弃)" },
+    { "id": "T_LEAD", "name": "t_lead", "module": "M_LEAD", "fields": "owner_staff_code(NULL=公海/渠道进公海), recorder_staff_code; source 字典含 CHANNEL(旧MINI废弃)" },
     { "id": "T_STAFF", "name": "t_staff", "module": "M_REPORT", "fields": "staff_code, staff_name(B4 staffName来源)" },
     { "id": "T_BP", "name": "t_bank_product", "module": "M_PRODUCTS", "fields": "product_code, product_name, bank_name" },
     { "id": "T_BC", "name": "t_bank_channel", "module": "M_PRODUCTS", "fields": "channel银行渠道关联" },
@@ -88,7 +93,8 @@
     { "id": "T_LEAD_EXT", "name": "t_lead_ent_ext", "module": "M_LEAD", "fields": "ent_name/credit_code/industry/found_years/annual_tax_amount/annual_invoice_amount(T4)" },
     { "id": "T_OCR", "name": "t_ocr_record", "module": "M_DIAG", "fields": "ocr_record_id/biz_code/extracted_fields/confidence; _ocrMeta.version 派生 materialVersion(T2)" },
     { "id": "T_CBF", "name": "t_client_business_fact", "module": "M_MATCH", "fields": "客户经营事实(诊断/匹配经营指标落库)" },
-    { "id": "T_SA", "name": "t_service_attachment", "module": "M_DIAG", "fields": "id, order_no, client_profile_code, report_no(诊断补充材料场景), attachment_type, file_key, file_name, upload_staff_id, upload_time" }
+    { "id": "T_SA", "name": "t_service_attachment", "module": "M_DIAG", "fields": "id, order_no, client_profile_code, report_no(诊断补充材料场景), attachment_type, file_key, file_name, upload_staff_id, upload_time" },
+    { "id": "T_INVITE", "name": "t_invitation", "module": "M_INVITE", "fields": "referrer_client_code, used_by_client_code; 只记录引荐归因，不写owner_staff_code" }
   ],
   "statemachines": [
     { "id": "SM_MATCH", "name": "匹配结果态(totalResult)", "states": ["PASS", "CONDITION", "REJECT", "SKIP_SEGMENT_MISMATCH", "ERROR"] },
@@ -101,8 +107,8 @@
         { "from": "PENDING_DELETE", "to": "DELETED", "action": "audit(approve)物理删除+审计" }
     ] },
     { "id": "SM_ALLOC", "name": "客户归属流转(C2/C19)", "transitions": [
-        { "from": "NONE", "to": "AUTO_CLAIMED", "action": "情形A:录入即归属/情形B有归属人自动归属" },
-        { "from": "NONE", "to": "PENDING_APPROVAL", "action": "情形B无归宿申请分配" },
+        { "from": "NONE", "to": "UNASSIGNED_POOL", "action": "微信客户注册且owner_staff_code为空" },
+        { "from": "UNASSIGNED_POOL", "to": "PENDING_APPROVAL", "action": "顾问认领或管理者指定顾问" },
         { "from": "PENDING_APPROVAL", "to": "APPROVED", "action": "UA3审批通过→归属流转" },
         { "from": "PENDING_APPROVAL", "to": "REJECTED", "action": "UA3驳回(opinion必填)" }
     ] }
@@ -167,7 +173,7 @@
     { "type": "CAN_ACCESS", "from": "R2", "to": "M_REPORT", "label": "FORBIDDEN" },
     { "type": "CAN_ACCESS", "from": "R2", "to": "M_ORDER", "label": "FORBIDDEN" },
     { "type": "CAN_ACCESS", "from": "R2", "to": "M_LEAD", "label": "ALLOWED(渠道走Lead进公海)" },
-    { "type": "CAN_ACCESS", "from": "R4", "to": "M_ALLOC", "label": "ALLOCATION可审批;PRODUCT/DOWNLOAD仅OPERATOR/SUPER/BOSS" },
+    { "type": "CAN_ACCESS", "from": "R4", "to": "M_ALLOC", "label": "可发起MANAGER_ASSIGN；不可审批ALLOCATION" },
     { "type": "HAS_API", "from": "M_LEAD", "to": "L2", "label": "" },
     { "type": "HAS_API", "from": "M_ALLOC", "to": "UA1", "label": "" },
     { "type": "HAS_API", "from": "M_ALLOC", "to": "UA2", "label": "" },
@@ -176,6 +182,11 @@
     { "type": "HAS_API", "from": "M_ALLOC", "to": "AA2", "label": "admin" },
     { "type": "HAS_API", "from": "M_ALLOC", "to": "AA3", "label": "admin" },
     { "type": "HAS_API", "from": "M_ALLOC", "to": "AA4", "label": "admin" },
+    { "type": "HAS_API", "from": "M_ALLOC", "to": "AA5", "label": "admin" },
+    { "type": "HAS_API", "from": "M_ALLOC", "to": "AA6", "label": "admin" },
+    { "type": "HAS_API", "from": "M_ALLOC", "to": "AC1", "label": "未分配客户池" },
+    { "type": "HAS_API", "from": "M_ALLOC", "to": "AC2", "label": "顾问认领" },
+    { "type": "HAS_API", "from": "M_ALLOC", "to": "AC3", "label": "管理者指定" },
     { "type": "READS", "from": "R4i", "to": "T_OCR", "label": "materialVersion" },
     { "type": "FLOW_SEQ", "from": "M_MATCH", "to": "M_DIAG", "label": "OCR回灌(仅补空,不覆盖)" }
   ]

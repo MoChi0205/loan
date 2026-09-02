@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.api.dto.PageResult;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.client.service.ClientAllocationService;
 import com.loan.common.ResultCode;
+import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.mini.dto.MiniMatchResult;
 import com.loan.mini.dto.RuleHit;
@@ -59,6 +61,7 @@ public class MiniMatchService {
     private final BankChannelMapper bankChannelMapper;
     private final ClientSubmissionMapper clientSubmissionMapper;
     private final IndustryBenchmarkService industryBenchmarkService;
+    private final ClientAllocationService clientAllocationService;
 
     /**
      * 客户发起匹配（兼容入口，返回报告编号；同样执行未认证拦截）。
@@ -82,17 +85,32 @@ public class MiniMatchService {
      * @param clientCode     客户编码
      * @param facts          经营事实（key 即 t_rule.field_code）
      * @param operator       操作人（客户姓名）
-     * @param applyCity      申请城市（可选）
+     * @param applyCity      申请城市（必填，市一级名称）
      * @param clientSubmitId 客户端幂等键（可选，同键不重复落库）
      * @return 脱敏匹配结果（不含产品名/银行名/额度/利率明细）
      */
     @Transactional(rollbackFor = Exception.class)
-    public MiniMatchResult runForMini(String clientCode, Map<String, Object> facts, String operator,
+    public MiniMatchResult runForMini(String clientCode, Map<String, Object> facts, LoanUser user,
                                       String applyCity, String clientSubmitId) {
         requireAuthenticated(clientCode);
         if (facts == null || facts.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "请填写经营事实");
         }
+        if (!StringUtils.hasText(applyCity)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择申请城市");
+        }
+        // P0-3：员工替客匹配——目标客户已归属他人且当前员工非归属人时，必须已通过归属审批
+        if (user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())) {
+            ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                    .eq(ClientProfile::getClientCode, clientCode).last("limit 1"));
+            if (client != null && StringUtils.hasText(client.getOwnerStaffCode())
+                    && !client.getOwnerStaffCode().equals(user.getUserNo())
+                    && !clientAllocationService.hasApprovedOwnership(clientCode, user.getUserNo())) {
+                throw new BusinessException(ResultCode.FORBIDDEN,
+                        "该客户已归属他人，请先在「客户分配」中发起归属审批后再匹配");
+            }
+        }
+        String operator = user == null ? "客户" : user.getName();
         String reportNo = screeningService.run(clientCode, facts, operator, applyCity, clientSubmitId);
         Map<String, Object> detail = reportQueryService.miniDetail(reportNo, clientCode);
         MiniMatchResult result = new MiniMatchResult();
@@ -464,29 +482,29 @@ public class MiniMatchService {
         double invoice = num(facts.get("annualInvoiceAmount"));
         double years = num(facts.get("foundYears"));
         List<Map<String, Object>> list = new ArrayList<>();
-        list.add(kpi("年纳税额", wan(tax) + " 万元", taxColor(tax), "近一年纳税总额（申报口径）"));
-        list.add(kpi("年开票额", wan(invoice) + " 万元", taxColor(invoice), "近一年增值税开票总额"));
-        list.add(kpi("成立年限", ((int) years) + " 年", years >= 3 ? "var(--success-text)" : "var(--warning-text)",
+        list.add(kpi("年纳税额", wan(tax) + " 万元", amountTone(tax), "近一年纳税总额（申报口径）"));
+        list.add(kpi("年开票额", wan(invoice) + " 万元", amountTone(invoice), "近一年增值税开票总额"));
+        list.add(kpi("成立年限", ((int) years) + " 年", years >= 3 ? "success" : "warning",
                 "企业注册经营时长"));
         list.add(kpi("命中产品数", (screening.getProductCount() == null ? 0 : screening.getProductCount()) + " 款",
-                screening.getProductCount() != null && screening.getProductCount() >= 3 ? "var(--success-text)" : "var(--text-primary)",
+                screening.getProductCount() != null && screening.getProductCount() >= 3 ? "success" : "neutral",
                 "当前可进件匹配数量"));
         return list;
     }
 
-    private Map<String, Object> kpi(String label, String value, String color, String desc) {
+    private Map<String, Object> kpi(String label, String value, String tone, String desc) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("label", label);
         m.put("value", value);
-        m.put("color", color);
+        m.put("tone", tone);
         m.put("desc", desc);
         return m;
     }
 
-    private String taxColor(double amount) {
-        if (amount >= 100000) return "var(--success-text)";
-        if (amount >= 10000) return "var(--warning-text)";
-        return "var(--danger-text)";
+    private String amountTone(double amount) {
+        if (amount >= 100000) return "success";
+        if (amount >= 10000) return "warning";
+        return "danger";
     }
 
     /** 经营建议：条件触发模板文案（规避承诺性表述） */

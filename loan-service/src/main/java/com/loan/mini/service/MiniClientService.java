@@ -2,9 +2,9 @@ package com.loan.mini.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.approval.entity.ClientAllocationApproval;
-import com.loan.approval.mapper.ClientAllocationApprovalMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.client.service.ClientAllocationService;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.context.LoanUser;
@@ -34,10 +34,9 @@ import java.util.Map;
  *
  * <p><b>C2 归属流转：</b>
  * <ul>
- *   <li>情形 A（未命中）：录入新客户，自动归属当前用户（owner_staff_code = 当前员工）。</li>
- *   <li>情形 B（命中且有归属人）：申请后<b>自动归属</b>，无需审批。</li>
- *   <li>情形 B（命中但无归宿 / 公海）：申请需<b>上级或运营审批</b>，
- *       审批通过后归属流转；未获归属前不可发起匹配。</li>
+ *   <li>情形 A（未命中）：只创建未分配客户，顾问随后提交认领审批；禁止“录入即归属”。</li>
+ *   <li>情形 B（已归属本人）：幂等通过。</li>
+ *   <li>情形 B（已归属他人或无归属）：提交分配/转移审批，审批通过后才获得匹配权限。</li>
  * </ul>
  *
  * <p><b>敏感字段：</b>手机号与统一社会信用代码在库内以 SHA-256 摘要存储
@@ -49,7 +48,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MiniClientService {
 
-    /** 分配动作：自动归属（有归属人流转） */
+    /** 历史分配动作常量（兼容存量流水读取，新流程不再录入即归属）。 */
     public static final String ACTION_AUTO_CLAIM = "AUTO_CLAIM";
     /** 分配动作：申请分配（无归宿，需审批） */
     public static final String ACTION_CLAIM_APPLY = "CLAIM_APPLY";
@@ -64,7 +63,7 @@ public class MiniClientService {
     private final ClientProfileMapper clientProfileMapper;
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final StaffMapper staffMapper;
-    private final ClientAllocationApprovalMapper allocationApprovalMapper;
+    private final ClientAllocationService clientAllocationService;
 
     /**
      * 客户查重（C10）：按企业名称（模糊）/ 手机号（精确）/ 统一社会信用代码（精确）任一命中。
@@ -102,11 +101,11 @@ public class MiniClientService {
     }
 
     /**
-     * 录入新客户（C2 情形 A）：自动归属当前用户。
+     * 录入新客户（D39）：只建档为未分配客户，不因录入人身份自动建立服务归属。
      *
      * @param payload   客户信息（entName 必填）
      * @param user      当前员工
-     * @return 新建客户编码与归属人
+     * @return 新建/已存在客户编码与当前归属状态
      */
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> create(Map<String, Object> payload, LoanUser user) {
@@ -116,6 +115,13 @@ public class MiniClientService {
         }
         String creditCode = payload.get("creditCode") == null ? null : String.valueOf(payload.get("creditCode")).trim();
         String phone = payload.get("contactPhone") == null ? null : String.valueOf(payload.get("contactPhone")).trim();
+        if (StringUtils.hasText(creditCode)
+                && !creditCode.toUpperCase().matches("[0-9A-HJ-NPQRTUWXY]{18}")) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "统一社会信用代码格式不正确");
+        }
+        if (StringUtils.hasText(phone) && !phone.matches("1\\d{10}")) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "手机号格式不正确");
+        }
 
         // 幂等保护：信用代码或手机号已存在则直接返回，不重复建档
         if (StringUtils.hasText(creditCode)) {
@@ -141,7 +147,9 @@ public class MiniClientService {
         client.setCustomerGroup(strValue(payload.get("customerGroup"), "ENTERPRISE"));
         client.setStatus("NORMAL");
         client.setSource("MINI_STAFF_CREATE");
-        client.setOwnerStaffCode(staffCode);
+        // 引荐人、录入人与服务顾问是三类关系。新档案先进入未分配客户池，
+        // 顾问认领走审批；管理角色通过管理端选择目标归属人后直接分配。
+        client.setOwnerStaffCode(null);
         client.setCreatedBy(staffCode);
         if (StringUtils.hasText(phone)) {
             client.setPhoneHash(sha256(phone));
@@ -153,16 +161,14 @@ public class MiniClientService {
         client.setUpdatedAt(LocalDateTime.now());
         clientProfileMapper.insert(client);
 
-        // 记录归属流转（录入即分配）
-        recordAllocation(client.getClientCode(), null, staffCode, ACTION_AUTO_CLAIM, "员工录入新客户，自动归属");
-        return result(client.getClientCode(), staffCode, "CREATED");
+        return result(client.getClientCode(), null, "CREATED_UNASSIGNED");
     }
 
     /**
      * 申请分配已有客户（C2 情形 B）。
      *
-     * <p>有归属人 → 自动归属并返回 AUTO_CLAIMED；
-     * 无归宿（公海 / 无主）→ 记录申请并返回 PENDING_APPROVAL，等待上级或运营审批。
+     * <p>已归属本人 → 幂等返回 AUTO_CLAIMED；
+     * 已归属他人或无归宿 → 记录申请并返回 PENDING_APPROVAL，等待上级或运营审批。
      *
      * @param clientCode 客户编码
      * @param user       当前员工
@@ -181,34 +187,12 @@ public class MiniClientService {
             return claimResult("AUTO_CLAIMED", null);
         }
 
-        String fromStaff = client.getOwnerStaffCode();
-        if (StringUtils.hasText(fromStaff)) {
-            // 有归属人：自动归属流转，无需审批
-            client.setOwnerStaffCode(staffCode);
-            client.setUpdatedAt(LocalDateTime.now());
-            clientProfileMapper.updateById(client);
-            recordAllocation(clientCode, fromStaff, staffCode, ACTION_AUTO_CLAIM, "已有归属人，自动流转");
+        Map<String, Object> apply = clientAllocationService.applyTransfer(clientCode, staffCode, user);
+        if (apply.get("approvalNo") == null && client.getOwnerStaffCode() != null
+                && client.getOwnerStaffCode().equals(staffCode)) {
             return claimResult("AUTO_CLAIMED", null);
         }
-
-        // 无归宿（公海 / 无主）：需上级或运营审批，落真实审批单（幂等：同客户仅一条 PENDING）
-        ClientAllocationApproval existing = allocationApprovalMapper.selectOne(
-                new LambdaQueryWrapper<ClientAllocationApproval>()
-                        .eq(ClientAllocationApproval::getClientCode, clientCode)
-                        .eq(ClientAllocationApproval::getApproveStatus, ALLOC_PENDING)
-                        .last("limit 1"));
-        if (existing != null) {
-            return claimResult("PENDING_APPROVAL", existing.getApprovalNo());
-        }
-        ClientAllocationApproval approval = new ClientAllocationApproval();
-        approval.setApprovalNo(BizIdGenerator.generate("alloc"));
-        approval.setClientCode(clientCode);
-        approval.setApplicantStaffCode(staffCode);
-        approval.setApproveStatus(ALLOC_PENDING);
-        approval.setCreatedAt(LocalDateTime.now());
-        allocationApprovalMapper.insert(approval);
-        recordAllocation(clientCode, null, staffCode, ACTION_CLAIM_APPLY, "无归宿客户，待运营/超管审批");
-        return claimResult("PENDING_APPROVAL", approval.getApprovalNo());
+        return claimResult("PENDING_APPROVAL", String.valueOf(apply.get("approvalNo")));
     }
 
     /**
@@ -219,30 +203,7 @@ public class MiniClientService {
      * @return { status: PENDING | APPROVED | REJECTED, approvalNo?, rejectReason? }
      */
     public Map<String, Object> claimStatus(String clientCode, LoanUser user) {
-        ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
-                .eq(ClientProfile::getClientCode, clientCode));
-        if (client == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "客户不存在");
-        }
-        String staffCode = user == null ? null : user.getUserNo();
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("clientCode", clientCode);
-        // 有审批单则以审批单状态为准；无审批单按归属是否已流转判定
-        ClientAllocationApproval approval = allocationApprovalMapper.selectOne(
-                new LambdaQueryWrapper<ClientAllocationApproval>()
-                        .eq(ClientAllocationApproval::getClientCode, clientCode)
-                        .orderByDesc(ClientAllocationApproval::getCreatedAt).last("limit 1"));
-        if (approval != null) {
-            m.put("status", approval.getApproveStatus());
-            m.put("approvalNo", approval.getApprovalNo());
-            if (ALLOC_REJECTED.equals(approval.getApproveStatus())) {
-                m.put("rejectReason", approval.getApproveOpinion());
-            }
-            return m;
-        }
-        m.put("status", staffCode != null && staffCode.equals(client.getOwnerStaffCode())
-                ? ALLOC_APPROVED : ALLOC_PENDING);
-        return m;
+        return clientAllocationService.status(clientCode, user == null ? null : user.getUserNo());
     }
 
     /* ==================== B3：无归宿分配审批（运营/超管） ==================== */
@@ -255,30 +216,7 @@ public class MiniClientService {
      * @return 待审单分页（含客户企业名/联系人/手机掩码/申请人姓名）
      */
     public com.loan.api.dto.PageResult<Map<String, Object>> pendingAllocations(int page, int size) {
-        com.baomidou.mybatisplus.extension.plugins.pagination.Page<ClientAllocationApproval> result =
-                allocationApprovalMapper.selectPage(
-                        new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, size),
-                        new LambdaQueryWrapper<ClientAllocationApproval>()
-                                .eq(ClientAllocationApproval::getApproveStatus, ALLOC_PENDING)
-                                .orderByAsc(ClientAllocationApproval::getCreatedAt));
-        List<Map<String, Object>> rows = new java.util.ArrayList<>();
-        for (ClientAllocationApproval a : result.getRecords()) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("approvalNo", a.getApprovalNo());
-            row.put("clientCode", a.getClientCode());
-            row.put("applicantStaffCode", a.getApplicantStaffCode());
-            row.put("applicantName", staffName(a.getApplicantStaffCode()));
-            row.put("createdAt", a.getCreatedAt());
-            ClientProfile p = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
-                    .eq(ClientProfile::getClientCode, a.getClientCode()).last("limit 1"));
-            if (p != null) {
-                row.put("entName", p.getEnterpriseName());
-                row.put("contactName", p.getContactName());
-                row.put("contactPhone", maskPhone(p.getPhone()));
-            }
-            rows.add(row);
-        }
-        return com.loan.api.dto.PageResult.build(page, size, result.getTotal(), rows);
+        return clientAllocationService.pendingPage(page, size);
     }
 
     /**
@@ -289,27 +227,7 @@ public class MiniClientService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> approveAllocation(String approvalNo, LoanUser user) {
-        ClientAllocationApproval approval = requirePending(approvalNo);
-        ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
-                .eq(ClientProfile::getClientCode, approval.getClientCode()));
-        if (client == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "客户不存在");
-        }
-        String fromStaff = client.getOwnerStaffCode();
-        client.setOwnerStaffCode(approval.getApplicantStaffCode());
-        client.setUpdatedAt(LocalDateTime.now());
-        clientProfileMapper.updateById(client);
-        recordAllocation(approval.getClientCode(), fromStaff, approval.getApplicantStaffCode(),
-                ACTION_CLAIM_APPROVED, "分配审批通过，归属流转");
-        approval.setApproveStatus(ALLOC_APPROVED);
-        approval.setApproverStaffCode(user == null ? null : user.getUserNo());
-        approval.setApprovedAt(LocalDateTime.now());
-        allocationApprovalMapper.updateById(approval);
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("approvalNo", approvalNo);
-        m.put("status", ALLOC_APPROVED);
-        m.put("clientCode", approval.getClientCode());
-        return m;
+        return clientAllocationService.approve(approvalNo, user);
     }
 
     /**
@@ -321,33 +239,7 @@ public class MiniClientService {
      */
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> rejectAllocation(String approvalNo, String opinion, LoanUser user) {
-        if (!StringUtils.hasText(opinion)) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "驳回意见不能为空");
-        }
-        ClientAllocationApproval approval = requirePending(approvalNo);
-        approval.setApproveStatus(ALLOC_REJECTED);
-        approval.setApproveOpinion(opinion.trim());
-        approval.setApproverStaffCode(user == null ? null : user.getUserNo());
-        approval.setApprovedAt(LocalDateTime.now());
-        allocationApprovalMapper.updateById(approval);
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("approvalNo", approvalNo);
-        m.put("status", ALLOC_REJECTED);
-        return m;
-    }
-
-    /** 取待审单（非 PENDING 或不存在 → 抛错） */
-    private ClientAllocationApproval requirePending(String approvalNo) {
-        ClientAllocationApproval approval = allocationApprovalMapper.selectOne(
-                new LambdaQueryWrapper<ClientAllocationApproval>()
-                        .eq(ClientAllocationApproval::getApprovalNo, approvalNo).last("limit 1"));
-        if (approval == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "审批单不存在");
-        }
-        if (!ALLOC_PENDING.equals(approval.getApproveStatus())) {
-            throw new BusinessException(ResultCode.COMMON_ERROR, "该审批单已处理");
-        }
-        return approval;
+        return clientAllocationService.reject(approvalNo, opinion, user);
     }
 
     /* ==================== 私有方法 ==================== */

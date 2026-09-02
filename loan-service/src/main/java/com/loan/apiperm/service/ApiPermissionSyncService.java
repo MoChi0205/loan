@@ -115,6 +115,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
         try {
             int n = syncApis();
             seedRoleApis();
+            backfillRoleApis();
             apiPermissionService.refreshRules("system");
             log.info("[ApiPerm] 接口清单同步完成，共 {} 个接口", n);
         } catch (Exception e) {
@@ -242,6 +243,50 @@ public class ApiPermissionSyncService implements ApplicationRunner {
         map.put("DEPT_MANAGER", managerKeys);
         apiPermissionService.saveRoleApis(map, "system");
         log.info("[ApiPerm] 首次默认授权完成 ADVISER={} DEPT_MANAGER={}", adviserKeys.size(), managerKeys.size());
+    }
+
+    /**
+     * 幂等补齐 DM/ADVISER 默认授权（#198）：不删除既有授权，仅追加缺失的默认接口键。
+     * 解决 seedRoleApis 仅在 t_role_api 为空时播种、存量数据无法补齐的问题。
+     */
+    public void backfillRoleApis() {
+        List<String> adviserKeys = new ArrayList<>();
+        List<String> managerKeys = new ArrayList<>();
+        seedByPrefix(adviserKeys, new String[]{"order:", "lead:", "client:", "attachment:", "screening:",
+                "notification:", "dashboard:", "audit:", "report:", "auth:", "dict:", "sms:", "config:"});
+        seedByPrefix(managerKeys, new String[]{"org:", "approval:", "reward:", "blacklist:", "ocr:"});
+        managerKeys.addAll(adviserKeys);
+
+        backfillRole("ADVISER", adviserKeys);
+        backfillRole("DEPT_MANAGER", managerKeys);
+        log.info("[ApiPerm] DM/ADVISER 默认授权补齐完成");
+    }
+
+    /**
+     * 对单一角色幂等追加默认接口授权（仅补缺失，不删既有）。
+     *
+     * @param roleCode    角色编码
+     * @param defaultKeys 该角色应拥有的默认接口键
+     */
+    private void backfillRole(String roleCode, List<String> defaultKeys) {
+        Set<String> existing = roleApiMapper.selectList(
+                        new LambdaQueryWrapper<RoleApi>().eq(RoleApi::getRoleCode, roleCode))
+                .stream().map(RoleApi::getApiKey).collect(Collectors.toSet());
+        List<RoleApi> toAdd = new ArrayList<>();
+        for (String key : defaultKeys) {
+            if (!existing.contains(key)) {
+                RoleApi ra = new RoleApi();
+                ra.setRoleCode(roleCode);
+                ra.setApiKey(key);
+                ra.setCreatedBy("system");
+                ra.setCreatedAt(LocalDateTime.now());
+                toAdd.add(ra);
+            }
+        }
+        if (!toAdd.isEmpty()) {
+            toAdd.forEach(roleApiMapper::insert);
+            log.info("[ApiPerm] 角色 {} 补齐 {} 条接口授权", roleCode, toAdd.size());
+        }
     }
 
     /**

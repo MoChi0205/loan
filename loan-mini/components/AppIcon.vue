@@ -122,6 +122,19 @@
       </view>
     </view>
 
+    <!-- 企业：办公楼 -->
+    <view v-if="name === 'enterprise'" class="ico ico-enterprise">
+      <view class="enterprise-building">
+        <view class="enterprise-window" v-for="i in 6" :key="i" />
+      </view>
+    </view>
+
+    <!-- 个人：单人轮廓 -->
+    <view v-if="name === 'person'" class="ico ico-person">
+      <view class="person-head" />
+      <view class="person-body" />
+    </view>
+
     <!-- 趋势：经营数据（折线） -->
     <view v-if="name === 'trend'" class="ico ico-trend">
       <view class="trend-axis" />
@@ -152,12 +165,30 @@
       </view>
     </view>
 
+    <!-- 顾问服务：耳麦 -->
+    <view v-if="name === 'support'" class="ico ico-support">
+      <view class="support-band" />
+      <view class="support-ear support-ear-left" />
+      <view class="support-ear support-ear-right" />
+      <view class="support-mic" />
+    </view>
+
+    <!-- 分享：三点连线 -->
+    <view v-if="name === 'share'" class="ico ico-share">
+      <view class="share-line share-line-top" />
+      <view class="share-line share-line-bottom" />
+      <view class="share-node share-node-left" />
+      <view class="share-node share-node-top" />
+      <view class="share-node share-node-bottom" />
+    </view>
+
     <!-- 兜底：圆点 -->
     <view v-if="name !== 'match' && name !== 'chart' && name !== 'bolt' && name !== 'lock'
               && name !== 'list' && name !== 'check' && name !== 'alert' && name !== 'arrow'
               && name !== 'wechat' && name !== 'home' && name !== 'mine' && name !== 'bank'
               && name !== 'order' && name !== 'refresh' && name !== 'workbench' && name !== 'users'
-              && name !== 'trend' && name !== 'doc' && name !== 'file' && name !== 'photo'"
+              && name !== 'trend' && name !== 'doc' && name !== 'file' && name !== 'photo'
+              && name !== 'support' && name !== 'share' && name !== 'enterprise' && name !== 'person'"
          class="ico ico-default" />
   </view>
 </template>
@@ -173,6 +204,7 @@
  *           check(对勾) / alert(警告) / arrow(箭头) / wechat(微信双气泡)
  *           home(房子) / mine(人形) / bank(柱廊·银行/产品) / order(单据·服务单)
  *           refresh(环形箭头) / workbench(田字格) / users(双人·线索)
+ *           support(顾问耳麦) / share(分享) / enterprise(企业) / person(个人)
  *
  * 用法：
  *   <AppIcon name="match" size="lg" color="#C8A96E" />
@@ -613,6 +645,19 @@ defineProps({
   margin-top: -2rpx;
 }
 
+/* ====== 企业 enterprise（办公楼） ====== */
+.ico-enterprise { align-items: flex-end; }
+.enterprise-building {
+  width: 72%; height: 84%; border: 4rpx solid currentColor; border-radius: 6rpx 6rpx 2rpx 2rpx;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10%; padding: 12%; box-sizing: border-box;
+}
+.enterprise-window { background: currentColor; border-radius: 2rpx; opacity: .72; }
+
+/* ====== 个人 person（单人轮廓） ====== */
+.ico-person { flex-direction: column; justify-content: flex-end; }
+.person-head { width: 34%; height: 34%; border: 4rpx solid currentColor; border-radius: 50%; box-sizing: border-box; }
+.person-body { width: 76%; height: 42%; margin-top: 6%; border: 4rpx solid currentColor; border-bottom: 0; border-radius: 999rpx 999rpx 0 0; box-sizing: border-box; }
+
 /* ====== 趋势 trend（折线） ====== */
 .ico-trend {
   align-items: flex-end;
@@ -727,6 +772,66 @@ defineProps({
   transform: rotate(45deg);
   opacity: 0.85;
 }
+
+/* ====== 顾问服务 support（耳麦） ====== */
+.ico-support { position: relative; }
+.support-band {
+  position: absolute;
+  width: 64%;
+  height: 58%;
+  top: 12%;
+  border: 5rpx solid currentColor;
+  border-bottom: 0;
+  border-radius: 999rpx 999rpx 0 0;
+  box-sizing: border-box;
+}
+.support-ear {
+  position: absolute;
+  top: 48%;
+  width: 16%;
+  height: 28%;
+  border-radius: 6rpx;
+  background: currentColor;
+}
+.support-ear-left { left: 10%; }
+.support-ear-right { right: 10%; }
+.support-mic {
+  position: absolute;
+  right: 18%;
+  bottom: 8%;
+  width: 30%;
+  height: 5rpx;
+  border-radius: 4rpx;
+  background: currentColor;
+  transform: rotate(-18deg);
+  transform-origin: right center;
+}
+
+/* ====== 分享 share（三点连线） ====== */
+.ico-share { position: relative; }
+.share-line {
+  position: absolute;
+  left: 30%;
+  width: 44%;
+  height: 4rpx;
+  border-radius: 3rpx;
+  background: currentColor;
+  transform-origin: left center;
+}
+.share-line-top { top: 45%; transform: rotate(-28deg); }
+.share-line-bottom { bottom: 44%; transform: rotate(28deg); }
+.share-node {
+  position: absolute;
+  width: 24%;
+  height: 24%;
+  border: 4rpx solid currentColor;
+  border-radius: 50%;
+  background: var(--bg-card, #fff);
+  box-sizing: border-box;
+}
+.share-node-left { left: 4%; top: 38%; }
+.share-node-top { right: 4%; top: 4%; }
+.share-node-bottom { right: 4%; bottom: 4%; }
 
 /* ====== 兜底圆点 ====== */
 .ico-default {

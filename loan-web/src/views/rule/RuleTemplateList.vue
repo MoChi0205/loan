@@ -6,7 +6,7 @@
         <p class="loan-page-subtitle">一条可复用规则的骨架（字段定义 + 版本快照），上线后可「导入为规则」实例化</p>
       </div>
       <el-button type="primary" @click="openCreate">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
+        <AppIcon name="add" :size="14" />
         新建模版
       </el-button>
     </div>
@@ -146,6 +146,7 @@ import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { useTable } from '@/composables/useTable';
 import { appConfirm } from '@/utils/confirm';
 import {

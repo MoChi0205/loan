@@ -19,6 +19,7 @@ import com.loan.plan.mapper.ProductStrategyMapper;
 import com.loan.plan.mapper.StrategyTemplateMapper;
 import com.loan.plan.mapper.StrategyTemplateModuleMapper;
 import com.loan.plan.mapper.StrategyTemplateStepMapper;
+import com.loan.plan.service.PlanOrchestrationService;
 import com.loan.product.entity.BankChannel;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankChannelMapper;
@@ -66,6 +67,7 @@ public class ProductStrategyService {
     private final StrategyTemplateStepMapper templateStepMapper;
     private final BankChannelMapper channelMapper;
     private final BankProductMapper bankProductMapper;
+    private final PlanOrchestrationService planOrchestrationService;
 
     /**
      * 分页查询策略。
@@ -91,7 +93,27 @@ public class ProductStrategyService {
         }
         wrapper.orderByDesc(ProductStrategy::getId);
         Page<ProductStrategy> result = strategyMapper.selectPage(new Page<>(page, size), wrapper);
+        enrichProductNames(result.getRecords());
         return PageResult.build(page, size, result.getTotal(), result.getRecords());
+    }
+
+    /** 当前分页批量补齐产品名称，避免前端拉取伪全量字典及逐行查询。 */
+    private void enrichProductNames(List<ProductStrategy> strategies) {
+        List<String> codes = strategies.stream().map(ProductStrategy::getBankProductCode)
+                .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
+        if (codes.isEmpty()) return;
+        Map<String, String> names = bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
+                        .in(BankProduct::getProductCode, codes)).stream()
+                .collect(Collectors.toMap(BankProduct::getProductCode, BankProduct::getProductName, (a, b) -> a));
+        strategies.forEach(strategy -> strategy.setBankProductName(names.get(strategy.getBankProductCode())));
+    }
+
+    /** 判断执行计划是否被任一渠道策略引用，供删除保护精确校验。 */
+    public boolean existsByExecutionPlanCode(String planCode) {
+        if (!StringUtils.hasText(planCode)) return false;
+        Long count = strategyMapper.selectCount(new LambdaQueryWrapper<ProductStrategy>()
+                .eq(ProductStrategy::getExecutionPlanCode, planCode));
+        return count != null && count > 0;
     }
 
     /**
@@ -278,6 +300,8 @@ public class ProductStrategyService {
                 issues.add("模块「" + module.getModuleName() + "」无步骤");
             }
         }
+        // FR-03 连接符结构校验（AND/OR 聚合配置合法性，执行激活前拦截）
+        issues.addAll(planOrchestrationService.validatePlanStructure(plan.getId()));
         return issues;
     }
 

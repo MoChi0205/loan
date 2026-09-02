@@ -215,16 +215,16 @@
     <!-- 底部固定导航 -->
     <div class="wiz-nav">
       <el-button plain :disabled="step === 0" @click="previousStep">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:-2px"><path d="M15 18l-6-6 6-6"/></svg>
+        <AppIcon name="arrowLeft" :size="14" />
         上一步
       </el-button>
       <el-button v-if="step === 1 || step === 2" @click="saveCurrentStep">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:-2px"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/></svg>
+        <AppIcon name="save" :size="14" />
         保存草稿
       </el-button>
       <el-button v-if="step < 3" type="primary" @click="nextStep">
         下一步
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px;vertical-align:-2px"><path d="M9 18l6-6-6-6"/></svg>
+        <AppIcon name="arrowRight" :size="14" />
       </el-button>
     </div>
 
@@ -235,9 +235,7 @@
           <el-input :model-value="channelCode" disabled />
         </el-form-item>
         <el-form-item label="产品" prop="bankProductCode">
-          <el-select v-model="strategyDialog.form.bankProductCode" placeholder="选择产品" filterable style="width: 100%">
-            <el-option v-for="p in products" :key="p.productCode" :label="p.productName" :value="p.productCode" />
-          </el-select>
+          <RemoteProductSelect v-model="strategyDialog.form.bankProductCode" :customer-group="strategyDialog.form.customerGroup" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
           <el-select v-model="strategyDialog.form.customerGroup" style="width: 100%">
@@ -352,10 +350,8 @@
             <el-option v-for="c in sourceChannels" :key="c.channelCode" :label="`${c.bankName}（${c.channelCode}）`" :value="c.channelCode" />
           </el-select>
         </el-form-item>
-        <el-form-item label="源策略" v-loading="importDialog.loadingSource">
-          <el-select v-model="importDialog.sourceStrategyCode" placeholder="选择要复制的策略" filterable style="width: 100%">
-            <el-option v-for="s in importDialog.sourceStrategies" :key="s.strategyCode" :label="`${s.strategyName}（${s.strategyCode}）`" :value="s.strategyCode" />
-          </el-select>
+        <el-form-item label="源策略">
+          <RemoteStrategySelect v-model="importDialog.sourceStrategyCode" :channel-code="importDialog.sourceChannel" />
         </el-form-item>
         <el-form-item label="目标策略编码" required>
           <el-input v-model="importDialog.targetStrategyCode" placeholder="当前渠道内唯一" />
@@ -368,14 +364,10 @@
     <AppDialog v-model:visible="tplImportDialog.visible" title="从策略模版导入" :loading="tplImportDialog.saving" @confirm="onTplImport">
       <el-form ref="tplImportFormRef" :model="tplImportDialog.form" :rules="tplImportRules" label-width="90px">
         <el-form-item label="模版" prop="templateCode">
-          <el-select v-model="tplImportDialog.form.templateCode" placeholder="选择已上线的策略模版" filterable style="width: 100%">
-            <el-option v-for="t in templates" :key="t.templateCode" :label="`${t.templateName}（${t.templateCode}）`" :value="t.templateCode" />
-          </el-select>
+          <RemoteTemplateSelect v-model="tplImportDialog.form.templateCode" :customer-group="tplImportDialog.form.customerGroup" @selected="selectedTemplate = $event" />
         </el-form-item>
         <el-form-item label="产品" prop="bankProductCode">
-          <el-select v-model="tplImportDialog.form.bankProductCode" placeholder="选择产品" filterable style="width: 100%">
-            <el-option v-for="p in products" :key="p.productCode" :label="p.productName" :value="p.productCode" />
-          </el-select>
+          <RemoteProductSelect v-model="tplImportDialog.form.bankProductCode" :customer-group="tplImportDialog.form.customerGroup" />
         </el-form-item>
         <el-form-item label="策略编码" prop="strategyCode">
           <el-input v-model="tplImportDialog.form.strategyCode" placeholder="当前渠道内唯一" />
@@ -403,13 +395,15 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
+import RemoteStrategySelect from '@/components/RemoteStrategySelect.vue';
+import RemoteTemplateSelect from '@/components/RemoteTemplateSelect.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { appConfirm } from '@/utils/confirm';
 import { listChannels } from '@/api/channel';
-import { pageProducts } from '@/api/product';
 import { listPlans, planDetail, createPlan, updatePlan, deletePlan, createModule, updateModule, deleteModule, createStep, updateStep, deleteStep, saveAsTemplate } from '@/api/plan';
 import { listRules } from '@/api/rule';
 import { pageStrategy, createStrategy, updateStrategy, deleteStrategy, enableStrategy, disableStrategy, validateStrategy, importFromChannel, importFromTemplate } from '@/api/channelStrategy';
-import { pageTemplate } from '@/api/strategyTemplate';
 
 const route = useRoute();
 const router = useRouter();
@@ -418,11 +412,10 @@ const step = ref(0);
 const maxCompletedStep = ref(0);
 const channelCode = ref(route.query.channelCode || '');
 const channels = ref([]);
-const products = ref([]);
 const plans = ref([]);
 const rules = ref([]);
 const strategies = ref([]);
-const templates = ref([]);
+const selectedTemplate = ref(null);
 const loading = ref(false);
 const validateMap = ref({});
 
@@ -437,7 +430,7 @@ const OPERATORS = [
 
 const currentChannelName = computed(() => channels.value.find((c) => c.channelCode === channelCode.value)?.bankName || '');
 
-function productName(code) { return products.value.find((p) => p.productCode === code)?.productName || code || '-'; }
+function productName(code) { return strategies.value.find((p) => p.bankProductCode === code)?.bankProductName || '产品信息待补充'; }
 function planName(code) { return plans.value.find((p) => p.planCode === code)?.planName || code || '-'; }
 /** 计划编码 → 计划内部 id（编排接口按 id 操作计划树） */
 function planIdOf(code) { return plans.value.find((p) => p.planCode === code)?.id || null; }
@@ -531,13 +524,24 @@ function changeChannel() {
 async function loadStrategies() {
   loading.value = true;
   try {
-    const res = await pageStrategy({ channelCode: channelCode.value, page: 1, size: 100 });
-    strategies.value = res.data?.records || [];
+    strategies.value = await loadAllStrategies(channelCode.value);
   } finally {
     loading.value = false;
   }
   // 根据实际策略状态推算步骤完成度
   recalcMaxCompletedStep();
+}
+
+async function loadAllStrategies(selectedChannelCode) {
+  const records = [];
+  let page = 1;
+  while (true) {
+    const res = await pageStrategy({ channelCode: selectedChannelCode, page, size: 100 });
+    const payload = res.data || {};
+    records.push(...(payload.records || []));
+    if (records.length >= Number(payload.total || 0) || !(payload.records || []).length) return records;
+    page += 1;
+  }
 }
 
 function pickChannel(row) {
@@ -581,26 +585,17 @@ async function onDisable(row) { await disableStrategy(row.strategyCode); ElMessa
 async function onDelete(row) { await deleteStrategy(row.strategyCode); ElMessage.success('已删除'); loadStrategies(); }
 
 // 从其他渠道复制
-const importDialog = reactive({ visible: false, saving: false, loadingSource: false, sourceChannel: '', sourceStrategyCode: '', targetStrategyCode: '', sourceStrategies: [] });
+const importDialog = reactive({ visible: false, saving: false, sourceChannel: '', sourceStrategyCode: '', targetStrategyCode: '' });
 const sourceChannels = computed(() => channels.value.filter((c) => c.channelCode !== channelCode.value));
 function openImportDialog() {
   importDialog.sourceChannel = '';
   importDialog.sourceStrategyCode = '';
   importDialog.targetStrategyCode = '';
-  importDialog.sourceStrategies = [];
   importDialog.visible = true;
 }
 async function onSourceChannelChange() {
   importDialog.sourceStrategyCode = '';
-  importDialog.sourceStrategies = [];
   if (!importDialog.sourceChannel) return;
-  importDialog.loadingSource = true;
-  try {
-    const res = await pageStrategy({ channelCode: importDialog.sourceChannel, page: 1, size: 100 });
-    importDialog.sourceStrategies = res.data?.records || [];
-  } catch (e) { /* 拦截器已提示 */ } finally {
-    importDialog.loadingSource = false;
-  }
 }
 async function onImportFromChannel() {
   if (!importDialog.sourceChannel) { ElMessage.warning('请选择源渠道'); return; }
@@ -630,12 +625,8 @@ const tplImportRules = {
   strategyCode: [{ required: true, message: '请输入策略编码', trigger: 'blur' }],
 };
 async function openTemplateImportDialog() {
-  // 每次打开拉取最新模版列表；后端分页不支持 status 过滤，前端过滤出已上线的可导入模版
-  try {
-    const res = await pageTemplate({ page: 1, size: 100 });
-    templates.value = (res.data?.records || []).filter((t) => t.status === 'ACTIVE');
-  } catch { templates.value = []; }
   Object.assign(tplImportDialog.form, { templateCode: '', bankProductCode: '', strategyCode: '', strategyName: '', customerGroup: 'ENTERPRISE' });
+  selectedTemplate.value = null;
   tplImportFormRef.value?.clearValidate();
   tplImportDialog.visible = true;
 }
@@ -649,7 +640,7 @@ async function onTplImport() {
   try {
     const form = { ...tplImportDialog.form };
     if (!form.strategyName?.trim()) {
-      const tpl = templates.value.find((t) => t.templateCode === form.templateCode);
+      const tpl = selectedTemplate.value;
       form.strategyName = tpl?.templateName || form.strategyCode;
     }
     await importFromTemplate({
@@ -956,11 +947,10 @@ async function loadPlans() {
 
 onMounted(async () => {
   try {
-    const [ch, pr, pl, rl] = await Promise.all([
-      listChannels(), pageProducts({ page: 1, size: 100 }), listPlans(), listRules({ customerGroup: 'ENTERPRISE' }),
+    const [ch, pl, rl] = await Promise.all([
+      listChannels(), listPlans(), listRules({ customerGroup: 'ENTERPRISE' }),
     ]);
     channels.value = ch.data || [];
-    products.value = pr.data?.records || [];
     plans.value = pl.data || [];
     rules.value = rl.data || [];
   } catch { /* 忽略 */ }

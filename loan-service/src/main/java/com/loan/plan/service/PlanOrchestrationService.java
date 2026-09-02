@@ -25,10 +25,13 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -50,6 +53,30 @@ public class PlanOrchestrationService {
     private final StrategyTemplateMapper templateMapper;
     private final StrategyTemplateModuleMapper templateModuleMapper;
     private final StrategyTemplateStepMapper templateStepMapper;
+
+    /** FR-03 连接符合法值：仅 AND / OR（大小写不敏感，入库归一为大写）。 */
+    private static final Set<String> VALID_JOIN =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList("AND", "OR")));
+
+    /**
+     * 归一化连接符：trim + 大写；非法值（非 AND / OR）拒绝；null 视为 AND（默认）。
+     * 用于模块 / 步骤保存时保证存储值仅含 AND / OR，规避执行器误读。
+     *
+     * @param raw       原始连接符
+     * @param fieldName 字段名（用于错误提示）
+     * @return 归一后的 AND / OR
+     */
+    private String normalizeJoin(String raw, String fieldName) {
+        if (raw == null) {
+            return "AND";
+        }
+        String v = raw.trim().toUpperCase();
+        if (!VALID_JOIN.contains(v)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR,
+                    fieldName + " 非法连接符: " + raw + "，仅支持 AND / OR");
+        }
+        return v;
+    }
 
     /**
      * 计划详情：计划 + 模块 + 步骤（含规则编码/名称），按 sort/stepSort 升序。
@@ -181,6 +208,7 @@ public class PlanOrchestrationService {
         if (module.getJoinWithNextModule() == null) {
             module.setJoinWithNextModule("AND");
         }
+        module.setJoinWithNextModule(normalizeJoin(module.getJoinWithNextModule(), "joinWithNextModule"));
         module.setCreatedBy(operator);
         module.setCreatedAt(LocalDateTime.now());
         moduleMapper.insert(module);
@@ -192,6 +220,9 @@ public class PlanOrchestrationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void updateModule(AdmissionPlanModule module, String operator) {
+        if (module.getJoinWithNextModule() != null) {
+            module.setJoinWithNextModule(normalizeJoin(module.getJoinWithNextModule(), "joinWithNextModule"));
+        }
         moduleMapper.updateById(module);
     }
 
@@ -220,6 +251,7 @@ public class PlanOrchestrationService {
         if (step.getIsDryRun() == null) {
             step.setIsDryRun(0);
         }
+        step.setJoinWithNext(normalizeJoin(step.getJoinWithNext(), "joinWithNext"));
         // 步骤无显式版本时按规则当前版本解析（t_admission_plan_step.rule_version_id 非空无默认值）
         if (step.getRuleVersionId() == null) {
             step.setRuleVersionId(resolveRuleVersionId(step.getRuleId()));
@@ -236,6 +268,9 @@ public class PlanOrchestrationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void updateStep(AdmissionPlanStep step, String operator) {
+        if (step.getJoinWithNext() != null) {
+            step.setJoinWithNext(normalizeJoin(step.getJoinWithNext(), "joinWithNext"));
+        }
         validateStepCondition(step);
         stepMapper.updateById(step);
     }
@@ -263,6 +298,69 @@ public class PlanOrchestrationService {
                     "运算符 " + step.getConditionOperator() + " 必须配置条件值 conditionValue");
         }
         step.setConditionOperator(operator);
+    }
+
+    /**
+     * FR-03 连接符结构校验（需求 §3.1 / §3.2）：在「执行激活」前拦截非法聚合配置。
+     *
+     * <p>校验项：
+     * <ul>
+     *   <li>模块 sort 唯一；步骤 stepSort 唯一（同模块内）；</li>
+     *   <li>末位模块 {@code joinWithNextModule} 不可为 OR（悬空连接符无意义）；</li>
+     *   <li>模块级禁止连续 OR（OR 仅相邻二元组，禁止 ≥3 模块 OR 组）；</li>
+     *   <li>末位步骤 {@code joinWithNext} 不可为 OR（悬空，禁止）；</li>
+     *   <li>步骤级连续 OR 允许（如 A OR B OR C 合法，等价于单 OR 组）。</li>
+     * </ul>
+     *
+     * @param planId 计划 ID
+     * @return 问题列表（空 = 通过）
+     */
+    public List<String> validatePlanStructure(Long planId) {
+        List<String> issues = new ArrayList<>();
+        List<AdmissionPlanModule> modules = moduleMapper.selectList(
+                new LambdaQueryWrapper<AdmissionPlanModule>()
+                        .eq(AdmissionPlanModule::getPlanId, planId)
+                        .orderByAsc(AdmissionPlanModule::getSort));
+        Set<Integer> seenSort = new HashSet<>();
+        for (int i = 0; i < modules.size(); i++) {
+            AdmissionPlanModule m = modules.get(i);
+            if (m.getSort() != null && !seenSort.add(m.getSort())) {
+                issues.add("模块 sort 重复: " + m.getSort());
+            }
+            boolean isLastModule = (i == modules.size() - 1);
+            // 末位模块悬空 OR
+            if (isLastModule && "OR".equalsIgnoreCase(m.getJoinWithNextModule())) {
+                issues.add("末位模块「" + m.getModuleName() + "」joinWithNextModule 不可为 OR（悬空连接符）");
+            }
+            // 模块级连续 OR（≥3 模块 OR 组，违反 FR-02 二元组约束）
+            if (!isLastModule && "OR".equalsIgnoreCase(m.getJoinWithNextModule())) {
+                AdmissionPlanModule next = modules.get(i + 1);
+                if ("OR".equalsIgnoreCase(next.getJoinWithNextModule())) {
+                    issues.add("模块「" + m.getModuleName() + "」与「" + next.getModuleName()
+                            + "」连续 OR：OR 仅支持相邻二元组，禁止 ≥3 模块 OR 组");
+                }
+            }
+            // 步骤级校验
+            List<AdmissionPlanStep> steps = stepMapper.selectList(
+                    new LambdaQueryWrapper<AdmissionPlanStep>()
+                            .eq(AdmissionPlanStep::getModuleId, m.getId())
+                            .orderByAsc(AdmissionPlanStep::getStepSort));
+            Set<Integer> seenStepSort = new HashSet<>();
+            for (AdmissionPlanStep s : steps) {
+                if (s.getStepSort() != null && !seenStepSort.add(s.getStepSort())) {
+                    issues.add("模块「" + m.getModuleName() + "」步骤 stepSort 重复: " + s.getStepSort());
+                }
+            }
+            for (int j = 0; j < steps.size(); j++) {
+                AdmissionPlanStep s = steps.get(j);
+                boolean isLastStep = (j == steps.size() - 1);
+                // 末位步骤悬空 OR（步骤级连续 OR 允许，但末位悬空禁止）
+                if (isLastStep && "OR".equalsIgnoreCase(s.getJoinWithNext())) {
+                    issues.add("模块「" + m.getModuleName() + "」末位步骤 joinWithNext 不可为 OR（悬空连接符）");
+                }
+            }
+        }
+        return issues;
     }
 
     /**

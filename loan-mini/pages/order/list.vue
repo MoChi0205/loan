@@ -105,11 +105,7 @@
         </template>
       </AppListItem>
 
-      <view class="load-more">
-        <text class="load-text" v-if="loadingMore">加载中…</text>
-        <text class="load-text" v-else-if="finished">已加载全部</text>
-        <text class="load-text load-click" v-else @click="loadMore">点击加载更多</text>
-      </view>
+      <AppLoadMore :loading="loadingMore" :finished="finished" :error="hasError" @load="loadMore" />
     </view>
   </view>
 
@@ -141,14 +137,14 @@ const STAFF_ROLES = ['adviser', 'deptmgr', 'boss', 'operator', 'super'];
 const store = useUserStore();
 const isStaff = computed(() => STAFF_ROLES.indexOf(store.role) >= 0);
 
-/** 工单状态：与后端 OrderStatus 枚举对齐 */
+/** 工单状态：与后端 ServiceOrder 状态真值一致。 */
 const statusOptions = [
   { key: 'all', label: '全部' },
-  { key: 'PENDING', label: '待处理' },
-  { key: 'PROCESSING', label: '进行中' },
-  { key: 'SUPPLEMENT', label: '待补充' },
-  { key: 'DONE', label: '已完成' },
-  { key: 'CANCELED', label: '已取消' },
+  { key: 'NEW', label: '新建' },
+  { key: 'IN_SERVICE', label: '服务中' },
+  { key: 'DEAL', label: '已成交' },
+  { key: 'CANCEL', label: '已取消' },
+  { key: 'REFUND', label: '已退款' },
 ];
 
 /** 日期区间 */
@@ -187,6 +183,7 @@ async function fetchList(loadMore = false) {
   } else {
     loading.value = true;
   }
+  hasError.value = false;
   try {
     // 客户只传 status/dateRange；员工传全部维度（后端按角色做权限过滤）
     const params = {
@@ -278,26 +275,25 @@ function itemTitle(item) {
 
 function statusLabel(s) {
   return {
-    PENDING: '待处理', PROCESSING: '进行中', SUPPLEMENT: '待补充',
-    DONE: '已完成', CANCELED: '已取消',
+    NEW: '新建', IN_SERVICE: '服务中', DEAL: '已成交', CANCEL: '已取消', REFUND: '已退款',
   }[s] || (s || '未知');
 }
 
 /** AppTag 语义色映射 */
 function tagType(s) {
-  if (s === 'DONE') return 'success';
-  if (s === 'PENDING' || s === 'SUPPLEMENT') return 'warning';
-  if (s === 'PROCESSING') return 'info';
-  if (s === 'CANCELED') return 'danger';
+  if (s === 'DEAL') return 'success';
+  if (s === 'NEW') return 'warning';
+  if (s === 'IN_SERVICE') return 'info';
+  if (s === 'CANCEL' || s === 'REFUND') return 'danger';
   return 'muted';
 }
 
 /** 状态图标底色（沿用 tag 语义，用浅底 + 深字保证对比度） */
 function statusTone(s) {
-  if (s === 'DONE') return 'success';
-  if (s === 'PENDING' || s === 'SUPPLEMENT') return 'warning';
-  if (s === 'PROCESSING') return 'info';
-  if (s === 'CANCELED') return 'danger';
+  if (s === 'DEAL') return 'success';
+  if (s === 'NEW') return 'warning';
+  if (s === 'IN_SERVICE') return 'info';
+  if (s === 'CANCEL' || s === 'REFUND') return 'danger';
   return 'muted';
 }
 
@@ -408,7 +404,4 @@ onPullDownRefresh(async () => {
 .meta-text { font-size: var(--fs-sm); color: var(--text-secondary); }
 .meta-strong { color: var(--brand-deep); font-weight: 600; }
 
-.load-more { padding: var(--space-6) 0; text-align: center; }
-.load-text { font-size: var(--fs-sm); color: var(--text-secondary); }
-.load-click { color: var(--brand-deep); font-weight: 600; }
 </style>

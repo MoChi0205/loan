@@ -6,7 +6,7 @@
         <p class="loan-page-subtitle">全量库（内部代号化） / 合作库（对客可见，有效期到期自动下架）</p>
       </div>
       <el-button type="primary" @click="onHeaderAction">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
+        <AppIcon name="add" :size="14" />
         {{ activeTab === 'cooperate' ? '录入合作库' : '新增产品' }}
       </el-button>
     </div>
@@ -26,12 +26,13 @@
           <DictSelect v-model="queryAll.status" type="productStatus" placeholder="状态" style="width: 120px" />
           <template #append>
             <el-button :loading="exporting" @click="onExport">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right: 4px; vertical-align: -2px"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+              <AppIcon name="download" :size="14" />
               导出
             </el-button>
           </template>
         </AppSearchBar>
 
+        <AppTableState :error="errorAll" @retry="loadAll">
         <el-table :data="dataAll" v-loading="loadingAll" stripe @sort-change="handleSortChangeAll">
           <template #empty>
             <AppEmpty title="暂无产品" desc="点击右上角「新增产品」录入银行产品" />
@@ -71,8 +72,10 @@
             </template>
           </el-table-column>
         </el-table>
+        </AppTableState>
 
         <AppPagination
+          v-if="!errorAll"
           v-model:page="queryAll.page"
           v-model:size="queryAll.size"
           :total="totalAll"
@@ -89,6 +92,7 @@
           <el-input v-model="queryCo.keyword" placeholder="产品编码 / 产品名" style="width: 220px" clearable @keyup.enter="searchCo" />
         </AppSearchBar>
 
+        <AppTableState :error="errorCo" @retry="loadCo">
         <el-table :data="dataCo" v-loading="loadingCo" stripe row-key="bankProductCode">
           <template #empty>
             <AppEmpty title="合作库暂无产品" desc="点击右上角「录入合作库」添加对客展示的银行产品，并设置合作到期日" />
@@ -125,8 +129,10 @@
             </template>
           </el-table-column>
         </el-table>
+        </AppTableState>
 
         <AppPagination
+          v-if="!errorCo"
           v-model:page="queryCo.page"
           v-model:size="queryCo.size"
           :total="totalCo"
@@ -183,19 +189,7 @@
     <AppDialog v-model:visible="partnerDialog.visible" title="录入合作库" width="520px" :loading="partnerDialog.saving" @confirm="onPartnerSave">
       <el-form ref="partnerFormRef" :model="partnerDialog.form" :rules="partnerRules" label-width="110px" label-position="right">
         <el-form-item label="银行产品" prop="bankProductCode">
-          <el-select
-            v-model="partnerDialog.form.bankProductCode"
-            filterable
-            placeholder="搜索并选择全量库产品"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="p in productOptions"
-              :key="p.productCode"
-              :label="`${p.bankName || ''} ${p.productName || ''}（${p.productCode}）`"
-              :value="p.productCode"
-            />
-          </el-select>
+          <RemoteProductSelect v-model="partnerDialog.form.bankProductCode" scope="all" placeholder="输入产品名称搜索" />
         </el-form-item>
         <el-form-item label="合作到期日" prop="cooperateUntil">
           <el-date-picker
@@ -262,6 +256,9 @@ import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
+import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
+import AppIcon from '@/components/AppIcon.vue';
+import AppTableState from '@/components/AppTableState.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime } from '@/utils/format';
 import { appConfirm } from '@/utils/confirm';
@@ -282,7 +279,7 @@ const activeTab = ref('all');
 // 全量库（原有逻辑，scope=all 保持不变）
 // ============================================================
 const {
-  loading: loadingAll, data: dataAll, total: totalAll,
+  loading: loadingAll, error: errorAll, data: dataAll, total: totalAll,
   query: queryAll, load: loadAll, onSearch: searchAll, onReset: resetAll, handleSortChange: handleSortChangeAll,
 } = useTable(
   (q) => pageProducts({ ...q, scope: 'all' }),
@@ -293,7 +290,7 @@ const {
 // 合作库（t_partner_product，P0-5）
 // ============================================================
 const {
-  loading: loadingCo, data: dataCo, total: totalCo,
+  loading: loadingCo, error: errorCo, data: dataCo, total: totalCo,
   query: queryCo, load: loadCo, onSearch: searchCo, onReset: resetCo,
 } = useTable(
   (q) => pagePartnerProducts(q),
@@ -532,7 +529,6 @@ async function onToggleStatus(row, toActive) {
 // ============================================================
 // 录入合作库弹窗
 // ============================================================
-const productOptions = ref([]);
 const partnerFormRef = ref();
 const partnerDialog = reactive({ visible: false, saving: false, form: { bankProductCode: '', cooperateUntil: null, status: 'ACTIVE' } });
 const partnerRules = {
@@ -543,15 +539,6 @@ const partnerRules = {
 async function openPartnerAdd() {
   Object.assign(partnerDialog.form, { bankProductCode: '', cooperateUntil: null, status: 'ACTIVE' });
   partnerDialog.visible = true;
-  // 拉取全量库产品作为候选（选择器可搜索）
-  if (!productOptions.value.length) {
-    try {
-      const res = await pageProducts({ scope: 'all', page: 1, size: 200 });
-      productOptions.value = res.data?.records || [];
-    } catch (e) {
-      productOptions.value = [];
-    }
-  }
 }
 
 async function onPartnerSave() {

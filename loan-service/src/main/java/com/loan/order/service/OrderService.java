@@ -17,6 +17,8 @@ import com.loan.order.mapper.ServiceOrderMapper;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
 import com.loan.reward.service.RewardService;
+import com.loan.staff.entity.Staff;
+import com.loan.staff.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,7 @@ public class OrderService {
     private final ClientProfileMapper clientProfileMapper;
     private final BankProductMapper bankProductMapper;
     private final RewardService rewardService;
+    private final StaffMapper staffMapper;
 
     /** 合法状态集合 */
     private static final List<String> VALID_STATUS = Arrays.asList(
@@ -284,6 +287,13 @@ public class OrderService {
                         .in(BankProduct::getProductCode, productCodes)).stream()
                         .collect(Collectors.toMap(BankProduct::getProductCode, BankProduct::getProductName));
 
+        List<String> staffCodes = orders.stream().map(ServiceOrder::getOwnerStaffCode)
+                .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
+        Map<String, String> staffNameMap = staffCodes.isEmpty() ? java.util.Collections.emptyMap()
+                : staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                        .in(Staff::getStaffCode, staffCodes)).stream()
+                        .collect(Collectors.toMap(Staff::getStaffCode, Staff::getStaffName, (left, right) -> left));
+
         return orders.stream().map(o -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("orderNo", o.getOrderNo());
@@ -293,6 +303,7 @@ public class OrderService {
             m.put("bankProductCode", o.getBankProductCode());
             m.put("bankProductName", productNameMap.get(o.getBankProductCode()));
             m.put("ownerStaffCode", o.getOwnerStaffCode());
+            m.put("ownerStaffName", staffNameMap.get(o.getOwnerStaffCode()));
             m.put("dealAmount", o.getDealAmount());
             m.put("dealTime", o.getDealTime());
             m.put("customerRemark", o.getCustomerRemark());

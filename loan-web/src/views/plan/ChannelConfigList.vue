@@ -23,7 +23,7 @@
                   <el-table-column prop="strategyCode" label="策略编码" min-width="150" show-overflow-tooltip />
                   <el-table-column prop="strategyName" label="策略名称" min-width="150" show-overflow-tooltip />
                   <el-table-column label="产品" min-width="160">
-                    <template #default="{ row: s }">{{ productName(s.bankProductCode) }}</template>
+                    <template #default="{ row: s }">{{ s.bankProductName || '产品信息待补充' }}</template>
                   </el-table-column>
                   <el-table-column label="客群" width="90">
                     <template #default="{ row: s }"><DictTag type="customerGroup" :value="s.customerGroup" /></template>
@@ -83,7 +83,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import { formatDateTime } from '@/utils/format';
 import { channelSummary, pageStrategy, enableStrategy, disableStrategy, validateStrategy } from '@/api/channelStrategy';
-import { pageProducts } from '@/api/product';
 import { listPlans } from '@/api/plan';
 
 const router = useRouter();
@@ -91,10 +90,8 @@ const rows = ref([]);
 const loading = ref(false);
 const strategyMap = ref({});
 const strategyLoading = ref({});
-const products = ref([]);
 const plans = ref([]);
 
-function productName(code) { return products.value.find((p) => p.productCode === code)?.productName || code || '-'; }
 function planName(code) { return plans.value.find((p) => p.planCode === code)?.planName || code || '-'; }
 
 async function onExpandChange(row, expandedRows) {
@@ -103,8 +100,7 @@ async function onExpandChange(row, expandedRows) {
   if (strategyMap.value[row.channelCode]) return;
   strategyLoading.value[row.channelCode] = true;
   try {
-    const res = await pageStrategy({ channelCode: row.channelCode, page: 1, size: 100 });
-    strategyMap.value[row.channelCode] = res.data?.records || [];
+    strategyMap.value[row.channelCode] = await loadAllStrategies(row.channelCode);
   } finally {
     strategyLoading.value[row.channelCode] = false;
   }
@@ -123,8 +119,7 @@ function gotoOrch(row, s) {
 /** 强制重拉某渠道策略（绕过展开缓存，用于上线/下线后刷新状态） */
 async function reloadStrategies(channelCode) {
   try {
-    const res = await pageStrategy({ channelCode, page: 1, size: 100 });
-    strategyMap.value[channelCode] = res.data?.records || [];
+    strategyMap.value[channelCode] = await loadAllStrategies(channelCode);
   } catch { /* 忽略 */ }
 }
 
@@ -178,12 +173,24 @@ async function refreshSummary() {
   } catch { /* 忽略 */ }
 }
 
+async function loadAllStrategies(channelCode) {
+  const records = [];
+  let page = 1;
+  const size = 100;
+  while (true) {
+    const res = await pageStrategy({ channelCode, page, size });
+    const payload = res.data || {};
+    records.push(...(payload.records || []));
+    if (records.length >= Number(payload.total || 0) || !(payload.records || []).length) return records;
+    page += 1;
+  }
+}
+
 onMounted(async () => {
   loading.value = true;
   try {
-    const [s, p, pl] = await Promise.all([channelSummary(), pageProducts({ page: 1, size: 100 }), listPlans()]);
+    const [s, pl] = await Promise.all([channelSummary(), listPlans()]);
     rows.value = s.data || [];
-    products.value = p.data?.records || [];
     plans.value = pl.data || [];
   } finally {
     loading.value = false;

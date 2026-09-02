@@ -989,18 +989,7 @@ body {
   box-shadow: -2px 0 4px rgba(0, 0, 0, 0.06);
 }
 
-/* ============================================================
- * .loan-card 全局防溢出兜底（防止任何子元素撑出 card 边界）
- * 之前初筛页（/screening）"报告卡片"因 .result-foot 内的 reportNo 长字符串
- * 把"查看报告"按钮挤出视口右——根因是 .loan-card 没有 overflow 兜底。
- * 修法：
- * 1) .loan-card overflow: hidden（任何子元素不能撑出 card）
- * 2) 全局 flex 容器 + 长文本组合要 min-width: 0 + ellipsis
- * ============================================================ */
-[class$="-page"] > .loan-card {
-  overflow: hidden;
-}
-/* 全局兜底：所有 el-form / el-card / 报告类卡片不撑出 .loan-card */
+/* 子内容宽度受卡片约束；裁剪策略仅在下方 sticky 契约中定义为 overflow: clip。 */
 [class$="-page"] .el-card,
 [class$="-page"] .el-form {
   max-width: 100%;

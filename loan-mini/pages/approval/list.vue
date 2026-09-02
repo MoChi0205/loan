@@ -29,14 +29,14 @@
     <view v-else class="list">
       <view v-for="it in items" :key="it.approvalNo" class="card item">
         <view class="item-head">
-          <text class="item-ent">{{ it.entName || it.clientCode }}</text>
+          <text class="item-ent">{{ it.entName || it.contactName || '未命名客户' }}</text>
           <view class="head-tags">
             <AppTag type="muted" size="sm">{{ it.type }}</AppTag>
             <AppTag type="warning" size="sm">待审批</AppTag>
           </view>
         </view>
         <view class="item-meta">
-          <text class="meta-line">申请人：{{ it.applicantName || it.applicantStaffCode }}</text>
+          <text class="meta-line">申请人：{{ it.applicantName || '待补充姓名' }}</text>
           <text v-if="it.contactName" class="meta-line">联系人：{{ it.contactName }} {{ it.contactPhone || '' }}</text>
           <text class="meta-line">申请时间：{{ formatTime(it.createdAt) }}</text>
         </view>
@@ -200,7 +200,7 @@ onLoad(async () => {
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  min-height: 80rpx;
+  min-height: 88rpx;
   padding: 16rpx 6rpx;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);

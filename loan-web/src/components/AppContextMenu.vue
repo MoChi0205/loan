@@ -19,7 +19,7 @@
             role="menuitem"
             @click="onClick(item)"
           >
-            <span v-if="item.icon" class="ctx-icon" v-html="safeIcon(item.icon)"></span>
+            <AppIcon v-if="item.icon" class="ctx-icon" :name="item.icon" :size="16" />
             <span>{{ item.label }}</span>
           </button>
         </template>
@@ -31,6 +31,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from 'vue';
 import { contextMenuState, closeContextMenu } from '@/utils/contextMenu';
+import AppIcon from '@/components/AppIcon.vue';
 
 /** 模板别名：state = contextMenuState */
 const state = contextMenuState;
@@ -41,14 +42,6 @@ function onClick(item) {
   if (item.onClick) item.onClick();
 }
 
-/**
- * 图标安全白名单：仅允许以 <svg 开头的内联图标字符串，
- * 其余内容一律不渲染，消除公共组件的脚本注入面。
- */
-function safeIcon(html) {
-  if (typeof html !== 'string') return '';
-  return /^\s*<svg[\s>]/i.test(html) ? html : '';
-}
 /** 点击外部关闭 */
 function onDocClick(ev) {
   if (!contextMenuState.open) return;

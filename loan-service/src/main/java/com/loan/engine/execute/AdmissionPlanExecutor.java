@@ -95,52 +95,57 @@ public class AdmissionPlanExecutor {
         int failCount = 0;
         List<StepExecutionRecord> stepRecords = new ArrayList<>();
 
-        // 模块间 OR 组短路状态（需求 §3.2：join_with_next_module）
-        boolean shortCircuit = false;
-        PlanModule prevModule = null;
-        boolean prevFailed = false;
-        boolean prevPassed = true;
+        // 模块级分段：相邻 joinWithNextModule=OR 合并为模块 OR 组（段），段间以 AND 组合。
+        // 例：M1(OR) M2(AND) M3(OR) M4  →  (M1‖M2) && (M3‖M4)（需求 §3.2 FR-02）
+        List<PlanModule> allModules = plan.getModules();
+        List<List<PlanModule>> moduleSegments = buildModuleSegments(allModules);
 
-        // 2. 遍历模块（按 sort 升序）
-        for (PlanModule module : plan.getModules()) {
-            // 短路判定：前序失败且 AND 连接 → 链断裂；前序通过且 OR 连接 → 链已满足
-            if (prevModule != null && !shortCircuit) {
-                if ((prevFailed && !prevModule.isOrJoinNextModule())
-                        || (prevPassed && prevModule.isOrJoinNextModule())) {
-                    shortCircuit = true;
+        int flatIdx = 0;
+        outer:
+        for (int si = 0; si < moduleSegments.size(); si++) {
+            List<PlanModule> moduleSegment = moduleSegments.get(si);
+            boolean segmentPassed = false;
+            for (PlanModule module : moduleSegment) {
+                int currentFlatIdx = flatIdx;
+                flatIdx++;
+                ModuleExecution moduleExecution = executeModule(context, module);
+                for (StepExecutionRecord record : moduleExecution.records) {
+                    stepRecords.add(record);
+                    if (record.getStepResult() == StepResult.PASS) {
+                        passCount++;
+                    } else if (record.getStepResult() == StepResult.FAIL) {
+                        failCount++;
+                    }
                 }
-            }
-            if (shortCircuit) {
-                // 模块被短路：全部步骤写 SKIP_SHORT_CIRCUIT，不再执行
-                for (RuleStepConfig step : module.getSteps()) {
-                    stepRecords.add(buildSkipRecord(step));
-                }
-                continue;
-            }
-
-            ModuleExecution moduleExecution = executeModule(context, module);
-            for (StepExecutionRecord record : moduleExecution.records) {
-                stepRecords.add(record);
-                if (record.getStepResult() == StepResult.PASS) {
-                    passCount++;
-                } else if (record.getStepResult() == StepResult.FAIL) {
-                    failCount++;
-                }
-            }
-            if (moduleExecution.failed) {
-                if (module.isGlobalPre()) {
-                    // 全局前置风控命中：直接 REJECT，不可改善，终止后续模块
+                // 全局前置风控模块命中：直接 REJECT，不可补料改善，终止后续全部模块
+                if (module.isGlobalPre() && moduleExecution.failed) {
                     riskReject = true;
-                    break;
+                    for (int k = currentFlatIdx + 1; k < allModules.size(); k++) {
+                        for (RuleStepConfig step : allModules.get(k).getSteps()) {
+                            stepRecords.add(buildSkipRecord(step));
+                        }
+                    }
+                    break outer;
                 }
-                anyFail = true;
-                prevFailed = true;
-                prevPassed = false;
-            } else {
-                prevPassed = true;
-                prevFailed = false;
+                if (!moduleExecution.failed) {
+                    segmentPassed = true; // OR 组内任一模块通过即段通过
+                }
             }
-            prevModule = module;
+            if (riskReject) {
+                break;
+            }
+            if (!segmentPassed) {
+                // 模块 AND 段失败 → 后续段全部短路 SKIP（FR-02-1）
+                anyFail = true;
+                for (int r = si + 1; r < moduleSegments.size(); r++) {
+                    for (PlanModule m : moduleSegments.get(r)) {
+                        for (RuleStepConfig step : m.getSteps()) {
+                            stepRecords.add(buildSkipRecord(step));
+                        }
+                    }
+                }
+                break;
+            }
         }
 
         // 3. 汇总产品总结果
@@ -164,11 +169,39 @@ public class AdmissionPlanExecutor {
     }
 
     /**
-     * 执行单个模块（步骤级 AND/OR 链 + 空跑）。
+     * 模块级分段：相邻 {@code joinWithNextModule=OR} 合并为一个 OR 组段；段间以 AND 组合。
      *
-     * <p>步骤间默认 AND 链：FAIL 且与下一步 OR 连接则等待下一步补救；FAIL 且 AND 连接则
-     * 链断裂，后续短路 SKIP。PASS 且与下一步 OR 连接则 OR 组满足，后续短路 SKIP。
-     * 模块 `logic_type=OR` 时任一步 PASS 即模块通过并短路后续。
+     * <p>例：{@code M1(OR) M2(AND) M3(OR) M4} → {@code (M1‖M2) && (M3‖M4)}。
+     * 满足需求 §3.2 FR-02（默认 AND 链短路；OR 仅相邻二元组；支持非连续多组 OR）。
+     *
+     * @param modules 已按 sort 升序的模块列表
+     * @return 模块段列表（每段的模块以 OR 组合，段间 AND）
+     */
+    private List<List<PlanModule>> buildModuleSegments(List<PlanModule> modules) {
+        List<List<PlanModule>> segments = new ArrayList<>();
+        List<PlanModule> current = new ArrayList<>();
+        for (int i = 0; i < modules.size(); i++) {
+            PlanModule m = modules.get(i);
+            current.add(m);
+            boolean isLast = (i == modules.size() - 1);
+            if (!isLast && m.isOrJoinNextModule()) {
+                continue; // 累计进同一模块 OR 组段
+            }
+            segments.add(current);
+            current = new ArrayList<>();
+        }
+        if (!current.isEmpty()) {
+            segments.add(current);
+        }
+        return segments;
+    }
+
+    /**
+     * 执行单个模块（步骤级 AND 段 + OR 组 分段解析 + 空跑）。
+     *
+     * <p>步骤级分段（需求 §3.1 FR-01）：连续 {@code joinWithNext=OR} 合并为 OR 组段，其余每步
+     * 为单步段；段间以 AND 组合并短路。OR 组内全执行（不短路），任一 PASS 即组 PASS；段 REJECT
+     * 则后续段 SKIP（禁止跨段救场）。OR 逻辑模块整模块视为单一 OR 组。
      *
      * @param context 执行上下文
      * @param module  模块
@@ -177,44 +210,75 @@ public class AdmissionPlanExecutor {
     private ModuleExecution executeModule(AdmissionContext context, PlanModule module) {
         ModuleExecution execution = new ModuleExecution();
         boolean moduleOr = module.isOrLogic();
-        boolean anyFail = false;      // 未补救 FAIL 标记
-        boolean shortCircuit = false; // 步骤短路（AND 断裂 / OR 组满足）
-        boolean passed = false;       // OR 模块出现过 PASS
+        // 步骤级分段：连续 joinWithNext=OR 合并为 OR 组段，其余为单步段，段间 AND。
+        // 例：region_phone && exclude && (secondary ‖ min_count)
+        List<List<RuleStepConfig>> segments = buildStepSegments(module, moduleOr);
 
-        for (RuleStepConfig step : module.getSteps()) {
-            if (shortCircuit || (moduleOr && passed)) {
-                execution.records.add(buildSkipRecord(step));
-                continue;
+        for (int s = 0; s < segments.size(); s++) {
+            List<RuleStepConfig> segment = segments.get(s);
+            if (segment.isEmpty()) {
+                continue; // 空段视为通过（空模块不影响结果）
             }
-            StepExecutionRecord record = executeStep(context, step);
-            execution.records.add(record);
-
-            StepResult sr = record.getStepResult();
-            if (moduleOr) {
-                // OR 模块：遇 PASS 短路（任一步 PASS 即模块通过）
-                if (sr == StepResult.PASS) {
-                    passed = true;
-                } else if (sr == StepResult.FAIL) {
-                    anyFail = true;
+            boolean segmentPassed = false;
+            for (RuleStepConfig step : segment) {
+                StepExecutionRecord record = executeStep(context, step);
+                execution.records.add(record);
+                if (record.getStepResult() == StepResult.PASS) {
+                    segmentPassed = true;
                 }
-            } else if (sr == StepResult.FAIL) {
-                anyFail = true;
-                if (step.isOrJoinNext()) {
-                    // OR 组内：等待下一步骤补救
-                    continue;
+            }
+            if (!segmentPassed) {
+                // AND 段失败 → 模块失败，后续段短路 SKIP（FR-01-2/FR-01-4：禁止跨段救场）
+                execution.failed = true;
+                for (int r = s + 1; r < segments.size(); r++) {
+                    for (RuleStepConfig step : segments.get(r)) {
+                        execution.records.add(buildSkipRecord(step));
+                    }
                 }
-                // AND 链断裂：短路后续
-                shortCircuit = true;
-            } else if (sr == StepResult.PASS) {
-                anyFail = false; // 补救前面 OR 组内的 FAIL
-                if (step.isOrJoinNext()) {
-                    // OR 组已满足：短路后续
-                    shortCircuit = true;
-                }
+                break;
             }
         }
-        execution.failed = moduleOr ? !passed : anyFail;
         return execution;
+    }
+
+    /**
+     * 步骤级分段：连续 {@code joinWithNext=OR} 合并为一个 OR 组段；其余每步为单步段；段间 AND。
+     * OR 逻辑模块整模块视为单一 OR 组段。
+     *
+     * <p>语义对照（需求 §3.1）：
+     * <pre>
+     *   A AND B AND C OR D     → {A},{B},{C,D}        → A && B && (C ‖ D)
+     *   A OR B AND C           → {A,B},{C}            → (A ‖ B) && C
+     *   A OR B OR C            → {A,B,C}              → A ‖ B ‖ C
+     * </pre>
+     *
+     * @param module   模块
+     * @param moduleOr 模块是否 OR 逻辑（任一通过即模块通过）
+     * @return 步骤段列表（每段的步骤以 OR 组合，段间 AND）
+     */
+    private List<List<RuleStepConfig>> buildStepSegments(PlanModule module, boolean moduleOr) {
+        List<RuleStepConfig> steps = module.getSteps();
+        List<List<RuleStepConfig>> segments = new ArrayList<>();
+        if (moduleOr) {
+            // OR 逻辑模块：整模块为单一 OR 组段
+            segments.add(new ArrayList<>(steps));
+            return segments;
+        }
+        List<RuleStepConfig> current = new ArrayList<>();
+        for (int i = 0; i < steps.size(); i++) {
+            RuleStepConfig step = steps.get(i);
+            current.add(step);
+            boolean isLast = (i == steps.size() - 1);
+            if (!isLast && step.isOrJoinNext()) {
+                continue; // 累计进同一 OR 组段
+            }
+            segments.add(current);
+            current = new ArrayList<>();
+        }
+        if (!current.isEmpty()) {
+            segments.add(current);
+        }
+        return segments;
     }
 
     /**

@@ -14,6 +14,8 @@ import com.loan.invitation.entity.Invitation;
 import com.loan.invitation.mapper.InvitationMapper;
 import com.loan.order.entity.ServiceOrder;
 import com.loan.order.mapper.ServiceOrderMapper;
+import com.loan.product.entity.BankProduct;
+import com.loan.product.mapper.BankProductMapper;
 import com.loan.reward.entity.RewardRecord;
 import com.loan.reward.entity.RewardRule;
 import com.loan.reward.mapper.RewardRecordMapper;
@@ -60,6 +62,7 @@ public class RewardService {
     private final ServiceOrderMapper orderMapper;
     private final ClientProfileMapper clientProfileMapper;
     private final InvitationMapper invitationMapper;
+    private final BankProductMapper bankProductMapper;
 
     /**
      * 工单成交自动结算奖励（OrderService DEAL 时调用，幂等）。
@@ -321,8 +324,17 @@ public class RewardService {
      * 奖励规则列表（全部，含停用；前端按产品/客群分组展示）。
      */
     public List<RewardRule> listRules() {
-        return rewardRuleMapper.selectList(new LambdaQueryWrapper<RewardRule>()
+        List<RewardRule> rules = rewardRuleMapper.selectList(new LambdaQueryWrapper<RewardRule>()
                 .orderByDesc(RewardRule::getValidFrom));
+        List<String> productCodes = rules.stream().map(RewardRule::getProductCode)
+                .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
+        if (!productCodes.isEmpty()) {
+            Map<String, String> names = bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
+                            .in(BankProduct::getProductCode, productCodes)).stream()
+                    .collect(Collectors.toMap(BankProduct::getProductCode, BankProduct::getProductName, (a, b) -> a));
+            rules.forEach(rule -> rule.setProductName(names.get(rule.getProductCode())));
+        }
+        return rules;
     }
 
     /**

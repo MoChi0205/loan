@@ -114,6 +114,23 @@ const ICONS = {
   ],
   /** 调试：扳手 */
   debug: [{ k: 'path', d: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2 2.5-2.5z' }],
+  refresh: [{ k: 'path', d: 'M20 6v5h-5' }, { k: 'path', d: 'M18.5 16a8 8 0 1 1 .5-9l1 4' }],
+  close: [{ k: 'path', d: 'M18 6L6 18' }, { k: 'path', d: 'M6 6l12 12' }],
+  layers: [{ k: 'rect', x: 3, y: 3, w: 13, h: 13, rx: 2 }, { k: 'path', d: 'M9 9h12v12H9z' }],
+  delete: [{ k: 'path', d: 'M3 6h18' }, { k: 'path', d: 'M8 6V4h8v2' }, { k: 'path', d: 'M19 6l-1 15H6L5 6' }],
+  add: [{ k: 'path', d: 'M12 5v14' }, { k: 'path', d: 'M5 12h14' }],
+  edit: [{ k: 'path', d: 'M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z' }],
+  download: [{ k: 'path', d: 'M12 3v12' }, { k: 'path', d: 'M7 10l5 5 5-5' }, { k: 'path', d: 'M5 21h14' }],
+  user: [{ k: 'circle', cx: 12, cy: 8, r: 4 }, { k: 'path', d: 'M4 20c0-4 4-6 8-6s8 2 8 6' }],
+  lock: [{ k: 'rect', x: 4, y: 10, w: 16, h: 10, rx: 2 }, { k: 'path', d: 'M8 10V7a4 4 0 0 1 8 0v3' }],
+  clock: [{ k: 'circle', cx: 12, cy: 12, r: 9 }, { k: 'path', d: 'M12 7v5l3 2' }],
+  arrowLeft: [{ k: 'path', d: 'M15 18l-6-6 6-6' }],
+  arrowRight: [{ k: 'path', d: 'M9 18l6-6-6-6' }],
+  arrowUp: [{ k: 'path', d: 'M5 15l7-7 7 7' }],
+  arrowDown: [{ k: 'path', d: 'M5 9l7 7 7-7' }],
+  save: [{ k: 'path', d: 'M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z' }, { k: 'path', d: 'M17 21v-8H7v8' }],
+  empty: [{ k: 'rect', x: 3, y: 5, w: 18, h: 14, rx: 2 }, { k: 'path', d: 'M3 9h18' }, { k: 'circle', cx: 9, cy: 14, r: 2 }, { k: 'path', d: 'M13 14h6' }],
+  money: [{ k: 'path', d: 'M12 2v20' }, { k: 'path', d: 'M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' }],
   /** OCR：扫描/照片（T16 Web OCR 页） */
   ocr: [{ k: 'path', d: 'M3 7V5a2 2 0 0 1 2-2h2' }, { k: 'path', d: 'M17 3h2a2 2 0 0 1 2 2v2' }, { k: 'path', d: 'M21 17v2a2 2 0 0 1-2 2h-2' }, { k: 'path', d: 'M7 21H5a2 2 0 0 1-2-2v-2' }, { k: 'path', d: 'M8 12h8' }, { k: 'path', d: 'M12 8v8' }],
 };

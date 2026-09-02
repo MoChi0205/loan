@@ -12,14 +12,14 @@
     <div class="stat-grid" v-loading="loadingOv">
       <div v-for="card in statCards" :key="card.key" class="stat-card" :style="{ '--accent': card.color }">
         <div class="stat-icon">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path :d="card.icon" /></svg>
+          <AppIcon :name="card.icon" :size="20" />
         </div>
         <div class="stat-body">
           <div class="stat-label">{{ card.label }}</div>
           <div class="stat-value mono">{{ card.value }}</div>
         </div>
         <div v-if="card.delta !== null && card.delta !== undefined" class="stat-delta" :class="card.delta >= 0 ? 'up' : 'down'">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path :d="card.delta >= 0 ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'" /></svg>
+          <AppIcon :name="card.delta >= 0 ? 'arrowUp' : 'arrowDown'" :size="12" />
           {{ Math.abs(card.delta) }}%
           <span class="delta-cap">环比</span>
         </div>
@@ -118,18 +118,8 @@ defineOptions({ name: '_report_overview' });
 import { ref, computed, onMounted } from 'vue';
 import AppTrendChart from '@/components/AppTrendChart.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { reportOverview, orderTrend, rewardTrend } from '@/api/report';
-
-const ICONS = {
-  client: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5Z',
-  lead: 'M13 2 4 14h6l-1 8 9-12h-6l1-8Z',
-  order: 'M6 2h9l5 5v15H6V2Zm9 1.5V8h4.5',
-  deal: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1 14-4-4 1.4-1.4L11 13.2l5.6-5.6L18 9l-7 7Z',
-  amount: 'M7 4l5 7 5-7h2l-6 8.5V20h-2v-7.5L5 4h2Z',
-  reward: 'M20 12v8H4v-8h16ZM4 8h16v4H4V8Zm8 0a3 3 0 0 0 0-6 3 3 0 0 0 0 6Z',
-  screening: 'M10 2a8 8 0 1 0 5.3 14l5.3 5.3-1.4 1.4L13.9 17A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z',
-  trend: 'M3 17l6-6 4 4 8-8M21 7h-5M21 7v5',
-};
 
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -145,14 +135,14 @@ const loadingT = ref(false);
 const overview = ref({});
 
 const statCards = computed(() => [
-  { key: 'client', label: '客户数', value: fmtInt(overview.value.clientCount), delta: overview.value.clientCountDelta, icon: ICONS.client, color: '#3b82f6' },
-  { key: 'lead', label: '线索数', value: fmtInt(overview.value.leadCount), delta: overview.value.leadCountDelta, icon: ICONS.lead, color: '#6366f1' },
-  { key: 'order', label: '工单数', value: fmtInt(overview.value.orderCount), delta: overview.value.orderCountDelta, icon: ICONS.order, color: '#14b8a6' },
-  { key: 'deal', label: '成交单数', value: fmtInt(overview.value.dealOrderCount), delta: overview.value.dealOrderCountDelta, icon: ICONS.deal, color: '#22c55e' },
-  { key: 'dealAmount', label: '成交金额', value: '¥' + fmtAmount(overview.value.dealAmountSum), delta: overview.value.dealAmountSumDelta, icon: ICONS.amount, color: '#10b981' },
-  { key: 'reward', label: '奖励单数', value: fmtInt(overview.value.rewardCount), delta: overview.value.rewardCountDelta, icon: ICONS.reward, color: '#f59e0b' },
-  { key: 'rewardAmount', label: '奖励金额', value: '¥' + fmtAmount(overview.value.rewardAmountSum), delta: overview.value.rewardAmountSumDelta, icon: ICONS.trend, color: '#f97316' },
-  { key: 'screening', label: '初筛报告', value: fmtInt(overview.value.screeningCount), delta: overview.value.screeningCountDelta, icon: ICONS.screening, color: '#a855f7' },
+  { key: 'client', label: '客户数', value: fmtInt(overview.value.clientCount), delta: overview.value.clientCountDelta, icon: 'client', color: '#3b82f6' },
+  { key: 'lead', label: '线索数', value: fmtInt(overview.value.leadCount), delta: overview.value.leadCountDelta, icon: 'lead', color: '#6366f1' },
+  { key: 'order', label: '工单数', value: fmtInt(overview.value.orderCount), delta: overview.value.orderCountDelta, icon: 'order', color: '#14b8a6' },
+  { key: 'deal', label: '成交单数', value: fmtInt(overview.value.dealOrderCount), delta: overview.value.dealOrderCountDelta, icon: 'success', color: '#22c55e' },
+  { key: 'dealAmount', label: '成交金额', value: '¥' + fmtAmount(overview.value.dealAmountSum), delta: overview.value.dealAmountSumDelta, icon: 'money', color: '#10b981' },
+  { key: 'reward', label: '奖励单数', value: fmtInt(overview.value.rewardCount), delta: overview.value.rewardCountDelta, icon: 'reward', color: '#f59e0b' },
+  { key: 'rewardAmount', label: '奖励金额', value: '¥' + fmtAmount(overview.value.rewardAmountSum), delta: overview.value.rewardAmountSumDelta, icon: 'trend', color: '#f97316' },
+  { key: 'screening', label: '初筛报告', value: fmtInt(overview.value.screeningCount), delta: overview.value.screeningCountDelta, icon: 'screening', color: '#a855f7' },
 ]);
 
 /* 漏斗 */

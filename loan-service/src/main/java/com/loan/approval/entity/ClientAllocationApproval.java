@@ -35,6 +35,18 @@ public class ClientAllocationApproval implements Serializable {
     /** 申请人员工工号 */
     private String applicantStaffCode;
 
+    /** 申请时客户原归属顾问工号；转移审批时用于乐观并发校验。 */
+    private String fromOwnerStaffCode;
+
+    /** 待审唯一键（PENDING 时=clientCode，完成后置空，防并发重复申请） */
+    private String pendingKey;
+
+    /** 申请来源（ADVISER_CLAIM / MANAGER_ASSIGN） */
+    private String applySource;
+
+    /** 发起操作人员工工号（管理者指定时与目标顾问不同） */
+    private String applyOperatorCode;
+
     /** 状态（PENDING/APPROVED/REJECTED） */
     private String approveStatus;
 

@@ -21,9 +21,15 @@ import java.util.List;
 @Service
 public class MiniRoleGuard {
 
-    /** ALLOCATION 审批分配管理员角色白名单。 */
+    /**
+     * ALLOCATION 审批分配管理员角色白名单。
+     *
+     * <p>D39 业务变更：团队管理者（DEPT_MANAGER）纳入分配审批人，但仅可审批<b>本人团队</b>
+     * （申请人部门 == 本人部门）的客户；跨团队待审单由 BOSS 等上级审批（见
+     * {@code ClientAllocationService} 的团队范围校验）。</p>
+     */
     private static final List<String> APPROVER_ROLES =
-            Arrays.asList("OPERATOR", "SUPER_ADMIN", "SUPER", "BOSS");
+            Arrays.asList("OPERATOR", "SUPER_ADMIN", "SUPER", "BOSS", "DEPT_MANAGER");
 
     /** 普通审批（PRODUCT / DOWNLOAD 等）角色白名单，含部门经理。 */
     private static final List<String> APPROVAL_ROLES =

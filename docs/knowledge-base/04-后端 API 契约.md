@@ -1,6 +1,7 @@
 # 04 · 后端 API 契约（小程序端 /api/mini/*）
 
 > **最新校正（2026-08-31）**：据 `scripts/check-kb-consistency.py` 检查 5 全量复核，修正 3 条管理端审批路径（实际为 `unified/*`，旧文 `allocation/{approvalNo}/audit`、`/approval/counts`、`/approval/pending` 在代码中不存在）；统一 2 处占位符命名（`{code}` → 代码实际 `@PathVariable` 名 `{clientCode}`）；补登记 8 个代码已有而文档遗漏的 `/api/mini/**` 接口（`auth/personal`、`match/history`、`partner-product/active`、`invitation/{bind,mine,records}`、`reward/{mine,mine/summary}`）。**契约以 `loan-service` 源码为准。**
+> **2026-09-02 联调补充**：小程序匹配的 `applyCity` 改为前后端共同必填；新微信客户响应 `CREATED_UNASSIGNED` 并进入未分配池；审批、工单、策略、奖励分页批量补齐姓名/产品名；附件分页支持 `keyword`；策略模版分页支持 `status`；策略提供按执行计划编码精确判断引用接口。
 > **2026-08-30 校正**：据 `loan-service` 全部 `com.loan.mini.controller.*` 源码逐接口复核，修正以下陈旧项——① `match/report/{reportNo}/products|diagnosis` → 实际归属 `MiniMatchController` 的 `report/{reportNo}/products|diagnosis`；② 产品操作路径 `{no}` → `{code}`；③ 分配审批 `{no}` → `{approvalNo}`；④ 工单/报告 `{no}` → `{orderNo}/{reportNo}`；⑤ `auth/login-bind` 已废弃（合并进 `auth/login.inviteCode`）；补 `auth/enterprise`、`wecom/qrcode`、`client`(录入)。以本文 + 源码为准。
 
 ## 通用约定
@@ -19,7 +20,7 @@
 | 接口 | 说明 | 权限 |
 |------|------|------|
 | `POST /api/mini/auth/login` | **实际路径**（微信登录，兼容 phone；历史文档写 wx-login 已过时） | 公开 |
-| `GET /api/mini/me` | 当前用户档案摘要（含 `roleInfo`） | 已登录 |
+| `GET /api/mini/me` | 当前用户档案摘要（含 `roleInfo`、`ownerStaffName`、`referrerName`；顾问归属与分享引荐分开返回） | 已登录 |
 | ~~`POST /api/mini/auth/login-bind`~~ ⚠️ 已废弃 | 合并进 `POST /api/mini/auth/login` 的 `inviteCode` 参数（2026-08-30 校正，旧方案文档仍写 login-bind 不实） | — |
 | `POST /api/mini/auth/enterprise` | 企业/个人认证（CUSTOMER） | 已登录(CUSTOMER) |
 | `POST /api/mini/auth/personal` | **个人实名认证**（Mock 三要素校验 + 落库留痕，`PersonalController`；未登录抛 `UNAUTHORIZED`） | 已登录 |
@@ -28,7 +29,7 @@
 ### 匹配（C15）
 | 接口 | 说明 | 权限 |
 |------|------|------|
-| `POST /api/mini/match/run` | 发起匹配；body 可传 `clientCode`（**C2 替客匹配必传目标客户**；客户不传用登录态） | CUSTOMER / STAFF；CHANNEL **禁入（后端已守卫）** |
+| `POST /api/mini/match/run` | 发起匹配；body 中 `applyCity` **必填**（市一级名称，用于服务城市精确筛选）；可传 `clientCode`（**C2 替客匹配必传目标客户**；客户不传用登录态）。员工替客匹配目标客户已归属他人且非本人且无已通过归属审批（`hasApprovedOwnership`）→ 后端 FORBIDDEN，前端引导至「客户分配」发起归属审批 | CUSTOMER / STAFF；CHANNEL **禁入（后端已守卫）** |
 | `GET /api/mini/match/history?page&size` | 我的匹配历史（`PageResult<Map>`） | 客户本人（后端 `requireClient` 兜底） |
 | `GET /api/mini/report/{reportNo}/products` | 报告命中产品明细（MiniMatchController，非 match/report） | **仅 STAFF**（C4 对客脱敏） |
 | `GET /api/mini/report/{reportNo}/diagnosis` | 报告经营诊断 | 客户校验归属 / 员工全量 |
@@ -45,12 +46,22 @@
 | 接口 | 说明 | 权限 |
 |------|------|------|
 | `GET /api/mini/client/search?keyword=...` | 查重（≥2 字） | 仅 STAFF；CHANNEL **禁止** |
-| `POST /api/mini/client` | 录入新客户（自动归属） | 仅 STAFF |
-| `POST /api/mini/client/{clientCode}/claim` | 申请分配（AUTO_CLAIMED 或 PENDING_APPROVAL） | 仅 STAFF |
+| `POST /api/mini/client` | 录入新客户；新客户不自动归属，响应 `action=CREATED_UNASSIGNED` 并进入未分配池 | 仅 STAFF |
+| `POST /api/mini/client/{clientCode}/claim` | 顾问申请认领：已归属本人幂等通过；未归属或已归属他人提交审批，不直接转移 | 仅 ADVISER |
 | `GET /api/mini/client/{clientCode}/claim-status` | 分配审批状态轮询 | 仅 STAFF |
 | ~~`GET /api/mini/client/allocation-approvals/pending`~~ ⚠️ 已废弃（兼容期） | 待审列表 → 改用 `GET /api/mini/approval/pending?type=ALLOCATION` | STAFF + OPERATOR/SUPER/BOSS |
 | ~~`POST /api/mini/client/allocation-approvals/{approvalNo}/approve`~~ ⚠️ 已废弃（兼容期） | 通过 → 改用 `POST /api/mini/approval/ALLOCATION/{approvalNo}/audit` | 同上 |
 | ~~`POST /api/mini/client/allocation-approvals/{approvalNo}/reject`~~ ⚠️ 已废弃（兼容期） | 驳回 → 改用 `POST /api/mini/approval/ALLOCATION/{approvalNo}/audit` | 同上 |
+
+### 管理端未分配客户池
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `GET /api/admin/client/unassigned/page?keyword&page&size` | 分页查询 `ownerStaffCode` 为空的客户；批量补齐待审顾问姓名，页面不展示业务编码 | STAFF（不含渠道） |
+| `POST /api/admin/client/{clientCode}/claim` | 顾问按客户业务编码申请认领，目标顾问取当前登录人 | ADVISER |
+| `POST /api/admin/client/{clientCode}/assign` | **直接落归属、无需审批**（D39/C23）：覆盖式 `assignOwnerIfUnchanged`，可重分配已归属客户；目标=ADVISER/DEPT_MANAGER（`ASSIGNABLE_ROLES`）；body 兼容 `{targetStaffCode}`（新）与 `{adviserStaffCode}`（旧） | DEPT_MANAGER/BOSS/OPERATOR/SUPER_ADMIN/SUPER（前端操作前弹窗二次确认） |
+| `POST /api/admin/client/{clientCode}/recycle` | 管理端手动回收进公海（C26）：清空归属+置冷却，覆盖冷却期，不删档案；仅 `LambdaUpdateWrapper` 更新非加密字段规避 AES 二次加密 | MiniRoleGuard.requireApprover（DEPT_MANAGER/BOSS/OPERATOR/SUPER_ADMIN/SUPER） |
+
+> 两个写入口语义已分化：`/assign` 走 `ClientAllocationService.directAssign` **立即落归属、不生成审批单**（管理端指定场景）；`/claim`（顾问认领未分配客户）走 `ClientAllocationService.apply` 生成 `ALLOCATION` 待审单，仍由管理角色审批（DM 仅本团队，跨团队 BOSS，见 C24）。两者均用条件更新防并发覆盖。超期自动回收由 XXL-Job `clientRecycleJob`/`clientRecycleWarnJob` 调度（配置 `t_client_recycle_config`）。
 
 ### 线索录入（融资需求，T4 · 渠道走 Lead）
 
@@ -76,10 +87,21 @@
 | `POST /api/mini/partner-product/delete/{approvalNo}/audit` | **实际路径** 终审删除（历史文档写 /product/{code}/audit-delete 有误） | 仅运营/超管 |
 | `GET /api/mini/partner-product/active` | 合作产品只读列表（ACTIVE 且未过期；**无角色守卫，仅校验登录态**） | 已登录 |
 
+### Web 管理端分页扩展（2026-09-02）
+
+| 接口 | 新增/确认契约 |
+|------|------|
+| `GET /api/admin/attachment/page` | 可组合传 `clientProfileCode`、`orderNo`、`keyword`、`page`、`size`；`keyword` 匹配文件名、资料类型或工单号 |
+| `GET /api/admin/strategy-template/page` | 可组合传 `customerGroup`、`keyword`、`status`、`page`、`size`；远程选择器用 `status=ACTIVE` 只取已上线模版 |
+| `GET /api/admin/channel-strategy/exists-by-plan/{planCode}` | 按执行计划业务编码精确判断是否被策略引用，不再依赖固定前 200 条分页扫描 |
+| `GET /api/admin/order/page` | 列表与详情返回 `ownerStaffName`；服务端按当前页员工编码集合批量补齐，无逐行查询 |
+| 产品/下载/分配审批分页 | 返回 `approverStaffName` / `applicantStaffName` / `applicantName` 等姓名字段，编码仅作为接口内部定位字段 |
+| 策略与奖励规则分页 | 返回 `bankProductName` / `productName`，按当前页产品编码集合批量补齐 |
+
 ### 邀请（invitation）
 | 接口 | 说明 | 权限 |
 |------|------|------|
-| `POST /api/mini/invitation/bind` | 绑定邀请码（登录后可补绑）；body `{inviteCode}`，返回 `referrerType`/`referrerName` | 客户本人（`requireClient`） |
+| `POST /api/mini/invitation/bind` | 分享链接/二维码携码后自动绑定，保留登录后补绑能力；body `{inviteCode}`，返回 `referrerType`/`referrerName`；仅建立引荐链，不修改服务顾问归属 | 客户本人（`requireClient`） |
 | `GET /api/mini/invitation/mine` | 我的邀请码（幂等生成，7 天有效） | 客户本人（`requireClient`） |
 | `GET /api/mini/invitation/records?page&size` | 我的邀请记录（经我的邀请码注册的客户），`PageResult<Map>` | 客户本人（`requireClient`） |
 
@@ -159,5 +181,5 @@ DATA_NOT_FOUND("数据不存在")
 
 ## 跳到
 
-- 业务结论：`06-业务结论沉淀索引（C1-C19）.md`（哪些字段怎么用）
+- 业务结论：`06-业务结论沉淀索引（C1-C26）.md`（哪些字段怎么用）
 - 数据库：`03-数据模型（DB schema 索引）.md`
