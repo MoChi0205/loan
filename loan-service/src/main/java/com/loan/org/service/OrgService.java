@@ -1,5 +1,6 @@
 package com.loan.org.service;
 import com.loan.common.util.PageOrder;
+import com.loan.common.cache.UnifiedCacheService;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
  * 组织权限服务：菜单树（按角色）/ 部门树 / 角色列表 / 员工分页。
@@ -50,6 +52,12 @@ public class OrgService {
     private final RoleMapper roleMapper;
     private final RolePermissionMapper rolePermissionMapper;
     private final StaffMapper staffMapper;
+    private final UnifiedCacheService cacheService;
+
+    private static final TypeReference<List<MenuNodeVO>> MENU_LIST_TYPE =
+            new TypeReference<List<MenuNodeVO>>() { };
+    private static final TypeReference<List<Role>> ROLE_LIST_TYPE =
+            new TypeReference<List<Role>>() { };
 
     /**
      * 按角色查询菜单树（所有角色统一走 t_role_permission 数据）。
@@ -61,6 +69,14 @@ public class OrgService {
      * @return 菜单树
      */
     public List<MenuNodeVO> listMenusByRole(String roleCode) {
+        final String cacheKey = "org:menus:" + (roleCode == null ? "" : roleCode.trim().toUpperCase());
+        List<MenuNodeVO> cached = cacheService.getOrLoad(cacheKey, MENU_LIST_TYPE,
+                () -> loadMenusByRole(roleCode));
+        return cached == null ? Collections.<MenuNodeVO>emptyList() : cached;
+    }
+
+    /** 从数据库构建角色菜单树（仅由缓存门面回源调用）。 */
+    private List<MenuNodeVO> loadMenusByRole(String roleCode) {
         List<Menu> all = menuMapper.selectList(
                 new LambdaQueryWrapper<Menu>()
                         .eq(Menu::getStatus, "ACTIVE")
@@ -78,6 +94,14 @@ public class OrgService {
      * @return 部门树（嵌套）
      */
     public List<MenuNodeVO> listDepartmentTree() {
+        final String cacheKey = "org:departments:tree";
+        List<MenuNodeVO> cached = cacheService.getOrLoad(cacheKey, MENU_LIST_TYPE,
+                this::loadDepartmentTree);
+        return cached == null ? Collections.<MenuNodeVO>emptyList() : cached;
+    }
+
+    /** 从数据库构建部门树。 */
+    private List<MenuNodeVO> loadDepartmentTree() {
         List<Department> all = departmentMapper.selectList(
                 new LambdaQueryWrapper<Department>()
                         .eq(Department::getStatus, "ACTIVE")
@@ -111,8 +135,9 @@ public class OrgService {
      * @return 角色列表
      */
     public List<Role> listRoles() {
-        return roleMapper.selectList(
-                new LambdaQueryWrapper<Role>().eq(Role::getStatus, "ACTIVE").orderByAsc(Role::getId));
+        List<Role> cached = cacheService.getOrLoad("org:roles", ROLE_LIST_TYPE, () -> roleMapper.selectList(
+                new LambdaQueryWrapper<Role>().eq(Role::getStatus, "ACTIVE").orderByAsc(Role::getId)));
+        return cached == null ? Collections.<Role>emptyList() : cached;
     }
 
     /**

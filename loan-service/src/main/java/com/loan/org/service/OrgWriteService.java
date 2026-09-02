@@ -2,6 +2,7 @@ package com.loan.org.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.common.ResultCode;
+import com.loan.common.cache.UnifiedCacheService;
 import com.loan.exception.BusinessException;
 import com.loan.infrastructure.security.AesUtils;
 import com.loan.org.entity.Department;
@@ -38,6 +39,7 @@ public class OrgWriteService {
     private final StaffMapper staffMapper;
     private final RoleMapper roleMapper;
     private final RolePermissionMapper rolePermissionMapper;
+    private final UnifiedCacheService cacheService;
 
     // ============================================================
     // 部门管理
@@ -70,6 +72,7 @@ public class OrgWriteService {
             exist.setUpdatedBy(operator);
             departmentMapper.updateById(exist);
         }
+        cacheService.evict("org:departments:tree");
     }
 
     /**
@@ -85,6 +88,7 @@ public class OrgWriteService {
         exist.setStatus("DISABLED");
         exist.setUpdatedBy(operator);
         departmentMapper.updateById(exist);
+        cacheService.evict("org:departments:tree");
     }
 
     // ============================================================
@@ -183,6 +187,7 @@ public class OrgWriteService {
         }
         rolePermissionMapper.delete(new LambdaQueryWrapper<RolePermission>()
                 .eq(RolePermission::getRoleCode, roleCode));
+        cacheService.evict("org:menus:" + roleCode.trim().toUpperCase());
         if (menuIds != null) {
             for (Long menuId : menuIds) {
                 RolePermission rp = new RolePermission();
