@@ -124,8 +124,8 @@ const devRoles = [
 // 角色 → CRM 测试账号（与后端 dev 环境预置账号对应）
 const devCrmUsers = {
   customer: null,              // 客户走微信登录，不适用 CRM 切换
-  staff: 'crm-adviser-001',
-  admin: 'crm-operator-001',
+  staff: 'crm-adv-001',
+  admin: 'crm-op-001',
   boss: 'crm-boss-001',
 };
 

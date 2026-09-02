@@ -80,8 +80,16 @@ class OrgControllerTest {
     @Test
     @DisplayName("GET /api/admin/org/menu/tree")
     void get_api_admin_org_menu_tree() throws Exception {
-        mvc.perform(get("/api/admin/org/menu/tree"))
-            .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+        try {
+            LoanUser adviser = TestUsers.staffUser();
+            adviser.setRoleCode("ADVISER");
+            UserContext.setUser(adviser);
+            mvc.perform(get("/api/admin/org/menu/tree").param("roleCode", "BOSS"))
+                .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").value(0));
+            Mockito.verify(orgService).listMenusByRole("ADVISER");
+        } finally {
+            UserContext.clear();
+        }
     }
 
     @Test

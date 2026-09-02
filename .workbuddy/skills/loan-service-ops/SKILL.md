@@ -62,6 +62,13 @@ bash scripts/service.sh watchdog stop                 # 关闭守护
    网关参数在 `service.sh start_gateway`（8088 + Redis `124.221.116.28:9379`）。
 5. 改后端代码重启：`service.sh restart backend`；改前端代码 Vite HMR 自动生效，若挂载阶段已异常则 `restart web` 后浏览器强制刷新。
 
+### 本项目当前联调配置源（D41，强制）
+
+- 本地只运行当前代码，数据库、Redis 等后端基础设施配置由 Nacos `prd` 下发。
+- 禁止启动或使用本地 Nacos / MySQL / Redis，禁止切换 `dev` namespace，禁止增加本地数据源参数覆盖 Nacos。
+- 连接信息与密钥只检查是否成功加载，不复制到代码、脚本、日志或测试文档。
+- `scripts/run-dev-local.sh` 仅保留历史开发能力，不得用于当前项目联调与回归。
+
 ## 五、验证清单
 
 - [ ] `service.sh status` 四端全部"运行中"
@@ -99,6 +106,7 @@ bash scripts/service.sh watchdog stop                 # 关闭守护
 - [ ] 是否只用 `scripts/service.sh`，未手写 kill / 裸 `mvn spring-boot:run`？
 - [ ] 是否用 `curl localhost:<port>/` 探测（未用 `nc 127.0.0.1` 误判 vite）？
 - [ ] 是否用普通 Bash 执行 `service.sh start`（未被 `run_in_background` 包裹）？
+- [ ] 后端是否使用 JDK 8 + Nacos `prd`，且未配置本地数据库/Redis覆盖？
 - [ ] 四端用户级服务标签与端口是否都存在？
 - [ ] 四端 curl 验证是否通过？8088 返回 `code:2000` 是否被正确识别为"鉴权正常"而非"服务挂了"？
 - [ ] 需要长期保活是否开了 `watchdog start`？

@@ -92,13 +92,23 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         String userNo = asString(claims.get("userNo"));
         String userId = asString(claims.get("userId"));
         String clientType = resolveClientType(exchange.getRequest(), claims);
+        String httpMethod = exchange.getRequest().getMethod() == null
+                ? "ALL" : exchange.getRequest().getMethod().name();
+
+        // 当前用户与自身菜单是“已认证即可访问”的公共能力。若继续依赖每个角色重复维护
+        // t_role_api，新增角色或权限同步短暂缺项时会出现登录成功却无法读取本人/菜单的情况。
+        // 此处仍要求 JWT 有效，并继续向下游透传服务端解析出的身份；具体菜单范围由后端
+        // 按当前身份强制收口，不能由普通用户通过 roleCode 参数扩大权限。
+        if (isAuthenticatedCommonApi(path, httpMethod)) {
+            return forward(exchange, chain, userId, userNo, roleCode, userType, clientType);
+        }
         return ruleService.loadRules()
                 .flatMap(rules -> {
                     if (rules == null) {
                         return reject(exchange, HttpStatus.FORBIDDEN, 2001, "接口权限规则未配置，请联系管理员");
                     }
                     return doAuthorize(exchange, chain, rules, roleCode, clientType, path,
-                            exchange.getRequest().getMethod() == null ? "ALL" : exchange.getRequest().getMethod().name(),
+                            httpMethod,
                             userId, userNo, userType);
                 })
                 .switchIfEmpty(reject(exchange, HttpStatus.FORBIDDEN, 2001, "接口权限规则不可用，请联系管理员"));
@@ -279,6 +289,19 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
             }
         }
         return false;
+    }
+
+    /**
+     * 已登录用户公共接口。只豁免角色授权，不豁免 JWT 认证。
+     */
+    private boolean isAuthenticatedCommonApi(String path, String httpMethod) {
+        if (!"GET".equalsIgnoreCase(httpMethod)) {
+            return false;
+        }
+        return "/loan/api/auth/me".equals(path)
+                || "/api/auth/me".equals(path)
+                || "/loan/api/admin/org/menu/tree".equals(path)
+                || "/api/admin/org/menu/tree".equals(path);
     }
 
     /**

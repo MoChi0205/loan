@@ -2,8 +2,10 @@ package com.loan.org.controller;
 
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
+import com.loan.common.ResultCode;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
+import com.loan.exception.BusinessException;
 import com.loan.log.annotation.OpLog;
 import com.loan.org.entity.Department;
 import com.loan.org.entity.Role;
@@ -38,8 +40,9 @@ public class OrgController {
     /**
      * 菜单树（按角色过滤，供侧栏/权限配置用）。
      *
-     * <p>角色取数优先级：① 渠道用户固定 CHANNEL（沙箱 3 项，D19）；② 前端显式传 roleCode；
-     * ③ 员工登录态带 roleCode 时以其为准；④ 兜底 BOSS。
+     * <p>普通用户只能获取自身角色菜单：渠道固定 CHANNEL，普通员工固定使用登录态角色，
+     * 防止通过 roleCode 参数猜测其他角色菜单。BOSS / SUPER_ADMIN 在组织权限配置页可显式
+     * 指定 roleCode 查看目标角色菜单；无登录态不提供兜底角色。
      *
      * @param roleCode 角色编码（可选）
      * @param user     当前登录用户（服务端兜底取角色，防前端空参/越权猜角色）
@@ -48,15 +51,24 @@ public class OrgController {
     @GetMapping("/menu/tree")
     public Result<List<MenuNodeVO>> menuTree(@RequestParam(required = false) String roleCode,
                                              @CurrentUser LoanUser user) {
-        String effective = roleCode;
-        if (user != null && LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
+        if (user == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "未登录或会话已过期");
+        }
+        String effective;
+        if (LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
             effective = "CHANNEL";
-        } else if ((effective == null || effective.isEmpty()) && user != null
-                && user.getRoleCode() != null && !user.getRoleCode().isEmpty()) {
+        } else if (LoanUser.TYPE_STAFF.equals(user.getUserType())) {
             effective = user.getRoleCode();
+            boolean canInspectOtherRole = "BOSS".equalsIgnoreCase(effective)
+                    || "SUPER_ADMIN".equalsIgnoreCase(effective);
+            if (canInspectOtherRole && roleCode != null && !roleCode.trim().isEmpty()) {
+                effective = roleCode.trim().toUpperCase();
+            }
+        } else {
+            throw new BusinessException(ResultCode.FORBIDDEN, "当前用户类型不支持管理端菜单");
         }
         if (effective == null || effective.isEmpty()) {
-            effective = "BOSS";
+            throw new BusinessException(ResultCode.FORBIDDEN, "当前账号未配置角色");
         }
         return Result.ok(orgService.listMenusByRole(effective));
     }

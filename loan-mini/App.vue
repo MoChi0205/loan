@@ -15,7 +15,11 @@ import { captureInvitation, consumePendingInvitation } from './utils/invitation'
 function bindH5RouteJsSdk() {
   // #ifdef H5
   if (typeof window === 'undefined' || !window.history) return;
-  const reinit = () => initWxJsSdk();
+  // 签名接口要求登录态。未登录落地页不应提前请求，否则会产生无意义的 401 告警；
+  // 登录后页面按需调用 setWxShare/initWxJsSdk，后续路由变化再自动重签。
+  const reinit = () => {
+    if (useUserStore().token) initWxJsSdk();
+  };
   window.addEventListener('popstate', reinit);
   const _push = window.history.pushState;
   window.history.pushState = function (...args) {
@@ -41,7 +45,7 @@ export default {
     // 微信 JS-SDK 全局初始化：按当前页 URL 从后端拉签名并注入 wx.config，
     // 使各页可调用分享 / 支付等 jsApi。具体页面如需自定义分享内容，调用 setWxShare(shareData)。
     // SPA 路由变化后重新签名，保证每页 URL 与签名一致。
-    initWxJsSdk();
+    if (useUserStore().token) initWxJsSdk();
     bindH5RouteJsSdk();
     // #endif
 
