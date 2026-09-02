@@ -50,7 +50,8 @@ public class ClientController {
     }
 
     /**
-     * 顾问从未分配客户池申请认领，审批通过后才建立服务归属。
+     * 顾问申请认领：未归属客户创建分配审批，已归属本人幂等通过，
+     * 已归属他人则创建转移审批，任何场景都不允许顾问直接覆盖归属。
      */
     @PostMapping("/{clientCode}/claim")
     @OpLog(bizType = "客户归属", action = "CLAIM_APPLY")
@@ -62,8 +63,7 @@ public class ClientController {
             throw new com.loan.exception.BusinessException(
                     com.loan.common.ResultCode.FORBIDDEN, "仅顾问可从未分配客户池申请认领");
         }
-        return Result.ok(clientAllocationService.apply(
-                clientCode, user.getUserNo(), user, "ADVISER_CLAIM"));
+        return Result.ok(clientAllocationService.applyTransfer(clientCode, user.getUserNo(), user));
     }
 
     /**

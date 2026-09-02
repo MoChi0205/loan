@@ -111,6 +111,38 @@ class ClientAllocationServiceTest {
     }
 
     @Test
+    void claimAlreadyOwnedBySelfIsIdempotent() {
+        when(clientMapper.selectOne(any())).thenReturn(client("client1", "S001"));
+
+        Map<String, Object> result = service.applyTransfer(
+                "client1", "S001", adviserOperator("S001"));
+
+        assertEquals("APPROVED", result.get("status"));
+        assertEquals(true, result.get("reused"));
+        assertEquals(true, result.get("direct"));
+        verify(approvalMapper, never()).insert(any());
+        verify(clientMapper, never()).assignOwnerIfUnchanged(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void claimOwnedByOtherCreatesTransferApprovalWithoutChangingOwner() {
+        when(clientMapper.selectOne(any())).thenReturn(client("client1", "S002"));
+        when(staffMapper.selectOne(any())).thenReturn(adviser("S001", "张顾问"));
+        when(approvalMapper.selectOne(any())).thenReturn(null);
+        when(approvalMapper.insert(any(ClientAllocationApproval.class))).thenReturn(1);
+        when(recordMapper.insert(any(LeadAllocationRecord.class))).thenReturn(1);
+
+        Map<String, Object> result = service.applyTransfer(
+                "client1", "S001", adviserOperator("S001"));
+
+        assertEquals("PENDING", result.get("status"));
+        assertEquals(false, result.get("reused"));
+        verify(approvalMapper).insert(any(ClientAllocationApproval.class));
+        verify(clientMapper, never()).assignOwnerIfUnchanged(any(), any(), any(), any(), any());
+        verify(clientMapper, never()).transferOwnerIfUnchanged(any(), any(), any(), any(), any());
+    }
+
+    @Test
     void inactiveOrNonAdviserCannotBeAssigned() {
         when(clientMapper.selectOne(any())).thenReturn(client("client1", null));
         Staff manager = adviser("S003", "部门经理");
@@ -207,6 +239,13 @@ class ClientAllocationServiceTest {
         user.setUserNo("OP001");
         user.setName("操作员");
         user.setUserType(LoanUser.TYPE_STAFF);
+        return user;
+    }
+
+    private LoanUser adviserOperator(String staffCode) {
+        LoanUser user = operator();
+        user.setUserNo(staffCode);
+        user.setRoleCode("ADVISER");
         return user;
     }
 }

@@ -126,7 +126,8 @@ public class OrgWriteService {
             s.setDeptCode(str(req.get("deptCode")));
             s.setRoleCode(roleCode);
             s.setWecomQrCode(str(req.get("wecomQrCode")));
-            s.setPhone(StringUtils.hasText(phone) ? AesUtils.encrypt(phone) : null);
+            // Staff.phone 已由 AesTypeHandler 统一加密，业务层只写明文，避免双重 AES。
+            s.setPhone(StringUtils.hasText(phone) ? phone : null);
             s.setPhoneHash(phoneHash);
             s.setStatus("ACTIVE");
             s.setCreatedBy(operator);
@@ -138,7 +139,8 @@ public class OrgWriteService {
             exist.setRoleCode(roleCode);
             exist.setWecomQrCode(str(req.get("wecomQrCode")));
             if (StringUtils.hasText(phone)) {
-                exist.setPhone(AesUtils.encrypt(phone));
+                // Staff.phone 已由 AesTypeHandler 统一加密。
+                exist.setPhone(phone);
                 exist.setPhoneHash(phoneHash);
             }
             exist.setUpdatedBy(operator);

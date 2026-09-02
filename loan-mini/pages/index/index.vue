@@ -110,7 +110,8 @@ const flow = [
 
 /* ---------- 开发模式角色切换 ---------- */
 // 仅非生产构建显示（dev:xxx NODE_ENV=development；build NODE_ENV=production 自动隐藏，防生产泄漏）
-const showDevPanel = ref(typeof process !== 'undefined' && process.env.NODE_ENV !== 'production');
+// 仅开发构建显示角色切换，生产构建不可见。
+const showDevPanel = ref(import.meta.env.DEV);
 const showRolePicker = ref(false);
 const devRole = ref('customer');
 

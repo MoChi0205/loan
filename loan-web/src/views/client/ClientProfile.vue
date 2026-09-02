@@ -6,11 +6,11 @@
         <p class="loan-page-subtitle">客户资料 · 认证信息 · 服务归属 · 操作留痕</p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="goScreening">
+        <el-button type="primary" :disabled="!clientCode" @click="goScreening">
           <AppIcon name="screening" :size="14" />
           发起初筛
         </el-button>
-        <el-button :loading="saving" @click="openEdit">
+        <el-button :loading="saving" :disabled="!clientCode" @click="openEdit">
           <AppIcon name="edit" :size="14" />
           编辑档案
         </el-button>
@@ -19,7 +19,10 @@
       </div>
     </div>
 
-    <div v-loading="loading" class="profile-body">
+    <div v-if="!clientCode && !loading" class="profile-empty loan-card">
+      <AppEmpty title="请选择客户" desc="从客户列表选择一条客户档案后查看详情" />
+    </div>
+    <div v-else v-loading="loading" class="profile-body">
       <!-- ① 基础信息 -->
       <div class="loan-card section-card">
         <h3 class="panel-title">基础信息</h3>
@@ -68,8 +71,7 @@
       <div class="loan-card section-card">
         <h3 class="panel-title">审计信息</h3>
         <el-descriptions :column="4" border>
-          <el-descriptions-item label="客户业务编码">{{ detail.clientCode || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="创建人">{{ detail.createdBy || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="创建人">{{ detail.createdByName || detail.createdBy || '—' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ formatDateTime(detail.createdAt) }}</el-descriptions-item>
           <el-descriptions-item label="最近更新人">{{ detail.updatedBy || '—' }}</el-descriptions-item>
           <el-descriptions-item label="最近更新时间">{{ formatDateTime(detail.updatedAt) }}</el-descriptions-item>
@@ -154,6 +156,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppDialog from '@/components/AppDialog.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import AppEmpty from '@/components/AppEmpty.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { getClientDetail, updateClientDetail, assignClient, recycleClient } from '@/api/client';
 import { staffPage } from '@/api/org';
@@ -194,6 +197,7 @@ const detail = reactive({
   referrer: '',
   referrerType: '',
   createdBy: '',
+  createdByName: '',
   createdAt: '',
   updatedBy: '',
   updatedAt: '',
@@ -228,6 +232,7 @@ async function loadDetail(code) {
       referrer: d.referrer ?? d.invitation?.referrer ?? d.referrerName,
       referrerType: d.referrerType ?? d.invitation?.referrerType,
       createdBy: d.createdBy,
+      createdByName: d.createdByName || d.creatorName,
       createdAt: d.createdAt,
       updatedBy: d.updatedBy,
       updatedAt: d.updatedAt,

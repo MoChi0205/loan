@@ -4,6 +4,7 @@ import com.loan.auth.service.AuthService;
 import com.loan.context.LoanUser;
 import com.loan.context.UserContext;
 import com.loan.infrastructure.security.JwtService;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -76,13 +77,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 解析 token → 校验 → 加载会话（成功则滑动续期 2h，活跃用户不被会话过期踢下线）
             String token = extractToken(request);
             if (StringUtils.hasText(token)) {
-                Long userId = jwtService.getUserId(token);
-                if (userId != null) {
-                    LoanUser user = authService.loadSession(userId);
+                Claims claims = jwtService.parseToken(token);
+                Long userId = claimAsLong(claims, "userId");
+                String userType = claims == null ? null : claims.get("userType", String.class);
+                if (userId != null && StringUtils.hasText(userType)) {
+                    LoanUser user = authService.loadSession(userType, userId);
                     if (user != null) {
                         applyDevRoleOverride(request, user);
                         UserContext.setUser(user);
-                        authService.renewSession(userId);
+                        authService.renewSession(userType, userId);
                     }
                 }
             }
@@ -90,6 +93,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } finally {
             UserContext.clear();
+        }
+    }
+
+    private Long claimAsLong(Claims claims, String name) {
+        if (claims == null || claims.get(name) == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(String.valueOf(claims.get(name)));
+        } catch (NumberFormatException e) {
+            log.debug("JWT 字段格式无效: {}", name);
+            return null;
         }
     }
 

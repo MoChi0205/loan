@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.mockito.Mockito;
+import static org.mockito.Mockito.verify;
 import com.loan.test.CurrentUserArgumentResolver;
 import com.loan.test.SafeDefaultAnswer;
 import com.loan.test.TestUsers;
@@ -112,6 +113,7 @@ class AuthControllerTest {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(post("/api/auth/logout"))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+            verify(authService).logout(TestUsers.staffUser().getUserType(), TestUsers.staffUser().getUserId());
         } finally {
             UserContext.clear();
         }

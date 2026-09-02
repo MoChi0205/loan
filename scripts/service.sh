@@ -19,7 +19,10 @@ BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="${BASE_DIR}/logs"
 mkdir -p "$LOG_DIR"
 
-JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_202.jdk/Contents/Home"
+# JDK 探测由公共工具统一管理：必须是 Java 8，Apple 芯片优先原生 arm64。
+# 可通过 LOAN_JAVA_HOME 显式覆盖，但不接受 JDK 17 等非 Java 8 版本。
+source "$BASE_DIR/scripts/lib/java8.sh"
+JAVA_HOME="$(loan_detect_java8)" || exit 1
 MVN="/Users/admin/Documents/developer/apache-maven-3.8.8/bin/mvn"
 NODE="/Users/admin/.workbuddy/binaries/node/versions/22.22.2/bin/node"
 NPM="/Users/admin/.workbuddy/binaries/node/versions/22.22.2/bin/npm"
@@ -66,7 +69,7 @@ start_backend() {
   # Java 仅携带约定的 5 个 -D 参数；Log4j2 通过环境变量使用绝对日志目录。
   launch_job "$LABEL_PREFIX.backend" "$BACKEND_RUN_LOG" \
     /usr/bin/env "JAVA_HOME=$JAVA_HOME" "LOAN_LOG_DIR=$BACKEND_LOG_DIR" /bin/bash -lc \
-    "cd '$RUNTIME_DIR' && exec /usr/bin/java \
+    "cd '$RUNTIME_DIR' && exec '$JAVA_HOME/bin/java' \
       -Dnacos.server-addr=124.221.150.239:9848 \
       -Dnacos.namespace=prd \
       -Dspring.cloud.nacos.discovery.register-enabled=false \
@@ -86,7 +89,7 @@ start_gateway() {
   # macOS 用户级后台进程不能直接读取 Downloads 下的大型 JAR，复制到临时运行目录。
   cp "$BASE_DIR/loan-gateway/target/loan-gateway-1.0.0.jar" "$GATEWAY_RUN_JAR"
   launch_job "$LABEL_PREFIX.gateway" "$GATEWAY_RUN_LOG" \
-    /usr/bin/env "JAVA_HOME=$JAVA_HOME" /usr/bin/java \
+    /usr/bin/env "JAVA_HOME=$JAVA_HOME" "$JAVA_HOME/bin/java" \
     -jar "$GATEWAY_RUN_JAR" \
     --server.port=8088 \
     --spring.redis.host=124.221.116.28 \
@@ -124,6 +127,7 @@ stop_web()      { remove_job "$LABEL_PREFIX.web"; stop_port 5173; echo "[web] �
 stop_mini()     { remove_job "$LABEL_PREFIX.mini"; stop_port 5174; echo "[mini] 已停止"; }
 
 status() {
+  loan_print_java8_summary "$JAVA_HOME"
   for item in "8080 backend" "8088 gateway" "5173 web" "5174 mini"; do
     set -- $item
     if port_up "$1"; then echo "[$2] 运行中 ($1)"; else echo "[$2] 已停止 ($1)"; fi

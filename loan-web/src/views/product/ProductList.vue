@@ -37,7 +37,12 @@
           <template #empty>
             <AppEmpty title="暂无产品" desc="点击右上角「新增产品」录入银行产品" />
           </template>
-          <el-table-column prop="productCode" label="产品编码" width="120" show-overflow-tooltip />
+          <el-table-column label="产品" min-width="180" show-overflow-tooltip>
+            <template #default="{ row }">
+              <div>{{ row.productName || '—' }}</div>
+              <div v-if="row.productCode" class="cell-sub">内部编码：{{ row.productCode }}</div>
+            </template>
+          </el-table-column>
           <el-table-column prop="bankName" label="所属银行" width="160" />
           <el-table-column prop="productName" label="产品名称" min-width="180" show-overflow-tooltip />
           <el-table-column label="服务地区" min-width="160" show-overflow-tooltip>
@@ -97,7 +102,12 @@
           <template #empty>
             <AppEmpty title="合作库暂无产品" desc="点击右上角「录入合作库」添加对客展示的银行产品，并设置合作到期日" />
           </template>
-          <el-table-column prop="bankProductCode" label="产品编码" width="150" show-overflow-tooltip />
+          <el-table-column label="产品" min-width="180" show-overflow-tooltip>
+            <template #default="{ row }">
+              <div>{{ row.productName || '—' }}</div>
+              <div v-if="row.bankProductCode" class="cell-sub">内部编码：{{ row.bankProductCode }}</div>
+            </template>
+          </el-table-column>
           <el-table-column label="产品名" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
               {{ row.productName || '—' }}

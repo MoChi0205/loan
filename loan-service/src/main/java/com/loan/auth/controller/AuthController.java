@@ -87,7 +87,7 @@ public class AuthController {
     public Result<String> logout() {
         LoanUser user = UserContext.getUser();
         if (user != null) {
-            authService.logout(user.getUserId());
+            authService.logout(user.getUserType(), user.getUserId());
         }
         return Result.ok("ok");
     }

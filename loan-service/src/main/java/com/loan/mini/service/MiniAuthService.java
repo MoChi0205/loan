@@ -3,6 +3,7 @@ package com.loan.mini.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loan.auth.dto.LoginResponse;
+import com.loan.auth.util.SessionKeyUtils;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.context.LoanUser;
@@ -40,9 +41,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class MiniAuthService {
-
-    /** Redis 会话 key 前缀（与 AuthService 一致，过滤器按此加载完整用户） */
-    private static final String SESSION_KEY_PREFIX = "loan:session:";
 
     /** Redis 会话 TTL（2 小时，与 AuthService 一致） */
     private static final Duration SESSION_TTL = Duration.ofHours(2);
@@ -278,7 +276,9 @@ public class MiniAuthService {
     private void saveSession(Long userId, LoanUser user) {
         try {
             String json = objectMapper.writeValueAsString(user);
-            stringRedisTemplate.opsForValue().set(SESSION_KEY_PREFIX + userId, json, SESSION_TTL);
+            stringRedisTemplate.opsForValue().set(
+                    SessionKeyUtils.key(user.getUserType(), userId), json, SESSION_TTL);
+            stringRedisTemplate.delete(SessionKeyUtils.legacyKey(userId));
         } catch (Exception e) {
             log.error("保存会话失败", e);
         }

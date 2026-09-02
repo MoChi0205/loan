@@ -1,8 +1,5 @@
 package com.loan.config;
 
-import com.alibaba.nacos.api.annotation.NacosProperties;
-import com.alibaba.nacos.spring.context.annotation.EnableNacos;
-import com.alibaba.nacos.spring.context.annotation.config.NacosPropertySource;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -15,10 +12,7 @@ import org.springframework.context.annotation.Configuration;
  * @author loan-platform
  */
 @Configuration
-@EnableNacos(globalProperties = @NacosProperties(
-        serverAddr = "${nacos.server-addr}",
-        namespace = "${nacos.namespace}"
-))
-@NacosPropertySource(dataId = "application.properties", groupId = "loan", autoRefreshed = true)
+// 配置由 NacosEnvironmentPostProcessor 通过 HTTP 预加载一次。
+// 不再叠加 @EnableNacos/@NacosPropertySource，避免重复创建 Nacos 客户端和 Spring 子上下文。
 public class NacosInfrastructureConfig {
 }

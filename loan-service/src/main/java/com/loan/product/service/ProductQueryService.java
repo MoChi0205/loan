@@ -73,8 +73,9 @@ public class ProductQueryService {
                         new LambdaQueryWrapper<BankChannel>().in(BankChannel::getChannelCode, channelCodes)).stream()
                         .collect(Collectors.toMap(BankChannel::getChannelCode, Function.identity()));
 
+        Map<String, String> cityMap = cityMap(result.getRecords());
         List<ProductDTO> records = result.getRecords().stream()
-                .map(p -> toDTO(p, channelMap.get(p.getBankChannelCode())))
+                .map(p -> toDTO(p, channelMap.get(p.getBankChannelCode()), cityMap.get(p.getProductCode())))
                 .collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
     }
@@ -82,7 +83,7 @@ public class ProductQueryService {
     /**
      * 实体 → DTO 转换。
      */
-    private ProductDTO toDTO(BankProduct p, BankChannel channel) {
+    private ProductDTO toDTO(BankProduct p, BankChannel channel, String serviceCities) {
         ProductDTO dto = new ProductDTO();
         dto.setProductCode(p.getProductCode());
         dto.setBankName(channel != null ? channel.getBankName() : null);
@@ -94,7 +95,36 @@ public class ProductQueryService {
                 + (p.getTermMax() == null ? "-" : p.getTermMax() + " 个月"));
         dto.setSource(p.getSource());
         dto.setStatus(p.getStatus());
+        dto.setBankChannelCode(p.getBankChannelCode());
+        dto.setAmountMin(p.getAmountMin());
+        dto.setAmountMax(p.getAmountMax());
+        dto.setRateMin(p.getRateMin());
+        dto.setRateMax(p.getRateMax());
+        dto.setTermMin(p.getTermMin());
+        dto.setTermMax(p.getTermMax());
+        dto.setCreatedBy(p.getCreatedBy());
+        dto.setCreatedAt(p.getCreatedAt());
+        dto.setServiceCities(serviceCities);
         return dto;
+    }
+
+    /** 一页产品的服务城市一次批量查询，避免产品列表 N+1。 */
+    private Map<String, String> cityMap(List<BankProduct> products) {
+        List<String> productCodes = products == null ? Collections.emptyList() : products.stream()
+                .map(BankProduct::getProductCode).filter(StringUtils::hasText)
+                .distinct().collect(Collectors.toList());
+        if (productCodes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<BankProductCity> cities = bankProductCityMapper.selectList(
+                new LambdaQueryWrapper<BankProductCity>().in(BankProductCity::getProductCode, productCodes));
+        if (cities == null || cities.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return cities.stream().filter(c -> StringUtils.hasText(c.getProductCode()) && StringUtils.hasText(c.getCity()))
+                .collect(Collectors.groupingBy(BankProductCity::getProductCode,
+                        Collectors.mapping(BankProductCity::getCity,
+                                Collectors.joining(", "))));
     }
 
     /**
@@ -193,8 +223,9 @@ public class ProductQueryService {
                         new LambdaQueryWrapper<BankChannel>().in(BankChannel::getChannelCode, channelCodes)).stream()
                         .collect(Collectors.toMap(BankChannel::getChannelCode, Function.identity()));
 
+        Map<String, String> cityMap = cityMap(result.getRecords());
         List<ProductDTO> records = result.getRecords().stream()
-                .map(p -> toDTO(p, channelMap.get(p.getBankChannelCode())))
+                .map(p -> toDTO(p, channelMap.get(p.getBankChannelCode()), cityMap.get(p.getProductCode())))
                 .collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
     }

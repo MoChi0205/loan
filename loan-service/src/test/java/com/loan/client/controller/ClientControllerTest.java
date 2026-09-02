@@ -78,7 +78,7 @@ class ClientControllerTest {
     void claim() throws Exception {
         LoanUser adviser = staff("ADVISER", "S001");
         UserContext.setUser(adviser);
-        when(allocationService.apply("client001", "S001", adviser, "ADVISER_CLAIM"))
+        when(allocationService.applyTransfer("client001", "S001", adviser))
                 .thenReturn(approvalResult("alloc001"));
 
         mvc.perform(post("/api/admin/client/client001/claim"))
@@ -87,7 +87,7 @@ class ClientControllerTest {
                 .andExpect(jsonPath("$.data.approvalNo").value("alloc001"));
 
         verify(roleGuard).requireStaff(adviser);
-        verify(allocationService).apply("client001", "S001", adviser, "ADVISER_CLAIM");
+        verify(allocationService).applyTransfer("client001", "S001", adviser);
     }
 
     @Test

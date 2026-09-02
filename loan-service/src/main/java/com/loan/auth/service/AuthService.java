@@ -11,6 +11,7 @@ import com.loan.exception.BusinessException;
 import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.JwtService;
 import com.loan.infrastructure.security.LoginRsaCrypto;
+import com.loan.auth.util.SessionKeyUtils;
 import com.loan.product.entity.BankChannel;
 import com.loan.product.mapper.BankChannelMapper;
 import com.loan.staff.entity.Staff;
@@ -46,9 +47,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-
-    /** Redis 会话 key 前缀 */
-    private static final String SESSION_KEY_PREFIX = "loan:session:";
 
     /** Redis 会话 TTL（2 小，登录/续期共用同一常量） */
     private static final Duration SESSION_TTL = Duration.ofHours(2);
@@ -194,11 +192,12 @@ public class AuthService {
      *
      * @param userId 用户 ID
      */
-    public void logout(Long userId) {
-        if (userId == null) {
+    public void logout(String userType, Long userId) {
+        if (!StringUtils.hasText(userType) || userId == null) {
             return;
         }
-        stringRedisTemplate.delete(SESSION_KEY_PREFIX + userId);
+        stringRedisTemplate.delete(java.util.Arrays.asList(
+                SessionKeyUtils.key(userType, userId), SessionKeyUtils.legacyKey(userId)));
     }
 
     /**
@@ -207,12 +206,12 @@ public class AuthService {
      * @param userId 用户 ID
      * @return LoanUser，不存在返回 null
      */
-    public LoanUser loadSession(Long userId) {
-        if (userId == null) {
+    public LoanUser loadSession(String userType, Long userId) {
+        if (!StringUtils.hasText(userType) || userId == null) {
             return null;
         }
         try {
-            String json = stringRedisTemplate.opsForValue().get(SESSION_KEY_PREFIX + userId);
+            String json = stringRedisTemplate.opsForValue().get(SessionKeyUtils.key(userType, userId));
             if (json == null) {
                 return null;
             }
@@ -231,12 +230,12 @@ public class AuthService {
      *
      * @param userId 用户 ID
      */
-    public void renewSession(Long userId) {
-        if (userId == null) {
+    public void renewSession(String userType, Long userId) {
+        if (!StringUtils.hasText(userType) || userId == null) {
             return;
         }
         try {
-            stringRedisTemplate.expire(SESSION_KEY_PREFIX + userId, SESSION_TTL);
+            stringRedisTemplate.expire(SessionKeyUtils.key(userType, userId), SESSION_TTL);
         } catch (Exception e) {
             log.warn("会话续期失败: {}", e.getMessage());
         }
@@ -354,7 +353,10 @@ public class AuthService {
     private void saveSession(Long userId, LoanUser user) {
         try {
             String json = objectMapper.writeValueAsString(user);
-            stringRedisTemplate.opsForValue().set(SESSION_KEY_PREFIX + userId, json, SESSION_TTL);
+            stringRedisTemplate.opsForValue().set(
+                    SessionKeyUtils.key(user.getUserType(), userId), json, SESSION_TTL);
+            // 新登录完成后移除旧版无类型 key，防止历史串号数据继续被误用。
+            stringRedisTemplate.delete(SessionKeyUtils.legacyKey(userId));
         } catch (Exception e) {
             log.error("保存会话失败", e);
         }

@@ -98,7 +98,7 @@ public class ApprovalService {
     /**
      * 已开放的审批类型白名单（配置 {@code loan.mini.approval.types}，逗号分隔）。
      *
-     * <p>为空视为「全开」；非空时仅白名单内类型会出现在统一待审列表与待审计数中。
+     * <p>为空时采用安全默认，仅开放 {@code ALLOCATION}；非空时仅白名单内类型会出现在统一待审列表与待审计数中。
      * 该字段为非 final，由 {@link Value} 字段注入，不参与 {@code @RequiredArgsConstructor}。</p>
      */
     @Value("${loan.mini.approval.types:}")
@@ -528,11 +528,12 @@ public class ApprovalService {
      * 判断审批类型是否在配置白名单内。
      *
      * @param type 审批类型
-     * @return 白名单为空（全开）或命中白名单则返回 true
+     * @return 命中白名单（空配置时仅 ALLOCATION）则返回 true
      */
     public boolean typeEnabled(String type) {
         if (enabledTypes == null || enabledTypes.isEmpty()) {
-            return true;
+            // 安全默认：小程序审批中心只开放客户分配审批；新增类型必须显式配置。
+            return TYPE_ALLOCATION.equalsIgnoreCase(type);
         }
         for (String t : enabledTypes) {
             if (t != null && type != null && type.equalsIgnoreCase(t.trim())) {

@@ -80,10 +80,10 @@ bash scripts/service.sh watchdog stop                 # 关闭守护
 
 ## 六、易踩坑（2026-08-27 实测）
 
-1. **JAVA_HOME 失效 = mvn 启动必挂**：`~/.bash_profile` 曾写死 `/Users/admin/Documents/developer/jdk1.8`
-   （该目录 java 无执行权限），报错特征
+1. **JAVA_HOME 必须指向 JDK 包内的 Home**：用户指定的 JDK 包根为 `/Users/admin/Documents/developer/jdk1.8`，
+   实际 `JAVA_HOME` 是 `/Users/admin/Documents/developer/jdk1.8/Contents/Home`，不能直接拼成包根下的 `bin/java`。报错特征
    `Could not exec java: Cannot run program ".../jre/bin/java": error=2`。
-   **已修复**：`~/.bash_profile` 改为优先探测 `/Library/Java/JavaVirtualMachines/jdk1.8.0_202.jdk/Contents/Home`；
+   `service.sh` 固定执行该 JDK 的 `bin/java`；`run-dev-prd.sh` 也将其作为第一候选并实际验证版本；
    `run-dev-prd.sh` 内置 `detect_java8()`（**实际执行 `java -version` 验证**，
    不能只查 `-x` 文件位 —— 坏 JDK 文件在但跑不起来）。
 2. **8080 与 8088 别搞混**：8080 = `loan-service`（改代码后验证直连它，**无需 token**）；
