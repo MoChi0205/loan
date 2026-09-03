@@ -77,6 +77,11 @@ public class ClientService {
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, ClientProfile::getCreatedAt);
         Page<ClientProfile> result = clientProfileMapper.selectPage(new Page<>(page, size), wrapper);
 
+        List<String> ownerCodes = result.getRecords().stream().map(ClientProfile::getOwnerStaffCode)
+                .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
+        Map<String, String> ownerNames = ownerCodes.isEmpty() ? java.util.Collections.emptyMap()
+                : staffMapper.selectList(new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, ownerCodes)).stream()
+                .collect(Collectors.toMap(Staff::getStaffCode, Staff::getStaffName, (a, b) -> a));
         List<Map<String, Object>> records = result.getRecords().stream().map(c -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("clientCode", c.getClientCode());
@@ -85,6 +90,7 @@ public class ClientService {
             m.put("enterpriseName", c.getEnterpriseName());
             m.put("phone", DesensitizeUtils.phone(decryptPlain(c.getPhone())));
             m.put("ownerStaffCode", c.getOwnerStaffCode());
+            m.put("ownerStaffName", ownerNames.get(c.getOwnerStaffCode()));
             m.put("status", c.getStatus());
             return m;
         }).collect(Collectors.toList());

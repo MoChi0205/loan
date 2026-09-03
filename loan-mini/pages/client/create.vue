@@ -75,9 +75,12 @@
       <!-- 我录入的线索 -->
       <view class="card list-card">
         <text class="card-title">我录入的线索</text>
-        <view v-if="loading" class="list-hint">加载中…</view>
-        <view v-else-if="records.length === 0" class="list-hint">暂无录入的线索</view>
-        <view
+        <AppSkeleton v-if="loading && !records.length" :rows="3" />
+        <AppEmpty v-else-if="hasError && !records.length" title="加载失败" desc="网络异常，请重试">
+          <AppButton variant="primary" size="md" @click="reload">重试</AppButton>
+        </AppEmpty>
+        <AppEmpty v-else-if="!loading && !records.length" title="暂无录入的线索" desc="录入客户后，线索会显示在这里" />
+        <view v-else
           v-for="(item, index) in records"
           :key="item.leadNo"
           class="lead-item"
@@ -93,6 +96,7 @@
             <text class="lead-date">{{ formatDate(item.createdAt) }}</text>
           </view>
         </view>
+        <AppLoadMore v-if="records.length" :loading="loadingMore" :finished="finished" :error="hasError" @load="loadMore" />
       </view>
     </view>
 
@@ -114,6 +118,9 @@ import { submitLead, myLeads } from '../../api/lead';
 import TabBar from '../../components/TabBar.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import AppButton from '../../components/AppButton.vue';
+import AppEmpty from '../../components/AppEmpty.vue';
+import AppSkeleton from '../../components/AppSkeleton.vue';
+import AppLoadMore from '../../components/AppLoadMore.vue';
 
 const store = useUserStore();
 
@@ -122,6 +129,9 @@ const size = ref(10);
 const total = ref(0);
 const records = ref([]);
 const loading = ref(false);
+const loadingMore = ref(false);
+const finished = ref(false);
+const hasError = ref(false);
 const submitting = ref(false);
 
 const form = reactive({
@@ -202,17 +212,40 @@ function resetForm() {
 
 /** 加载我录入的线索 */
 async function loadLeads() {
+  if (loading.value) return;
   loading.value = true;
+  hasError.value = false;
+  page.value = 1;
   try {
     const res = await myLeads(page.value, size.value);
     records.value = (res && res.records) || [];
     total.value = (res && res.total) || 0;
+    finished.value = records.value.length >= total.value || records.value.length < size.value;
   } catch (e) {
-    // 错误 toast 由 request.js 统一弹出
+    hasError.value = true;
   } finally {
     loading.value = false;
   }
 }
+
+async function loadMore() {
+  if (loadingMore.value || finished.value) return;
+  loadingMore.value = true;
+  hasError.value = false;
+  try {
+    const next = page.value + 1;
+    const res = await myLeads(next, size.value);
+    const rows = (res && res.records) || [];
+    records.value = records.value.concat(rows);
+    page.value = next;
+    total.value = (res && res.total) || total.value;
+    finished.value = records.value.length >= total.value || rows.length < size.value;
+  } catch (e) {
+    hasError.value = true;
+  } finally { loadingMore.value = false; }
+}
+
+function reload() { loadLeads(); }
 
 /** 提交录入 */
 async function onSubmit() {

@@ -10,7 +10,7 @@
     </view>
 
     <!-- 骨架屏（P1-5 Loading 态） -->
-    <AppSkeleton v-if="loading" :rows="3" />
+    <AppSkeleton v-if="loading && !products.length" :rows="3" />
 
     <!-- 空态 -->
     <!-- 加载失败（与空态分离） -->
@@ -19,7 +19,7 @@
       <AppButton variant="primary" size="md" @click="load()">重试</AppButton>
     </AppEmpty>
 
-    <AppEmpty v-else-if="!products.length" title="暂无产品" :desc="isChannel ? '录入第一笔合作产品，提交后由平台运营审批' : '当前暂无可管理的银行产品'">
+    <AppEmpty v-else-if="!loading && !products.length" title="暂无产品" :desc="isChannel ? '录入第一笔合作产品，提交后由平台运营审批' : '当前暂无可管理的银行产品'">
       <AppButton variant="primary" size="md" @click="goEdit()">{{ isChannel ? '录入合作产品' : '录入银行产品' }}</AppButton>
     </AppEmpty>
 
