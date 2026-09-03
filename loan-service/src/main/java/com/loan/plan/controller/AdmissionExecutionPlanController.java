@@ -49,36 +49,35 @@ public class AdmissionExecutionPlanController {
     /**
      * 计划详情（计划 + 模块 + 步骤）。
      */
-    @GetMapping("/{id}/detail")
-    public Result<Map<String, Object>> detail(@PathVariable Long id) {
-        return Result.ok(orchestrationService.detail(id));
+    @GetMapping("/{planCode}/detail")
+    public Result<Map<String, Object>> detail(@PathVariable("planCode") String planCode) {
+        return Result.ok(orchestrationService.detail(planCode));
     }
 
     /**
      * 新建计划。
      */
     @PostMapping
-    public Result<Long> createPlan(@RequestBody AdmissionExecutionPlan plan, @CurrentUser LoanUser user) {
+    public Result<String> createPlan(@RequestBody AdmissionExecutionPlan plan, @CurrentUser LoanUser user) {
         return Result.ok(orchestrationService.createPlan(plan, operatorName(user)));
     }
 
     /**
      * 更新计划。
      */
-    @PutMapping("/{id}")
-    public Result<String> updatePlan(@PathVariable Long id, @RequestBody AdmissionExecutionPlan plan,
+    @PutMapping("/{planCode}")
+    public Result<String> updatePlan(@PathVariable("planCode") String planCode, @RequestBody AdmissionExecutionPlan plan,
                                      @CurrentUser LoanUser user) {
-        plan.setId(id);
-        orchestrationService.updatePlan(plan, operatorName(user));
+        orchestrationService.updatePlan(planCode, plan, operatorName(user));
         return Result.ok("ok");
     }
 
     /**
      * 删除计划（级联模块/步骤）。
      */
-    @DeleteMapping("/{id}")
-    public Result<String> deletePlan(@PathVariable Long id) {
-        orchestrationService.deletePlan(id);
+    @DeleteMapping("/{planCode}")
+    public Result<String> deletePlan(@PathVariable("planCode") String planCode) {
+        orchestrationService.deletePlan(planCode);
         return Result.ok("ok");
     }
 
@@ -140,9 +139,8 @@ public class AdmissionExecutionPlanController {
      * 另存为模版：把执行计划深拷贝为策略模版（草稿态）。
      */
     @PostMapping("/save-as-template")
-    public Result<Long> saveAsTemplate(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
-        Long planId = Long.valueOf(body.get("planId"));
-        return Result.ok(templateService.saveAsTemplateFromPlan(planId, body.get("templateCode"),
+    public Result<String> saveAsTemplate(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
+        return Result.ok(templateService.saveAsTemplateFromPlan(body.get("planCode"), body.get("templateCode"),
                 body.get("templateName"), operatorName(user)));
     }
 
@@ -150,9 +148,8 @@ public class AdmissionExecutionPlanController {
      * 应用模版：把策略模版实例化为执行计划（草稿态）。
      */
     @PostMapping("/apply-template")
-    public Result<Long> applyTemplate(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
-        Long templateId = Long.valueOf(body.get("templateId"));
-        return Result.ok(orchestrationService.applyTemplate(templateId, body.get("planCode"),
+    public Result<String> applyTemplate(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
+        return Result.ok(orchestrationService.applyTemplate(body.get("templateCode"), body.get("planCode"),
                 body.get("planName"), operatorName(user)));
     }
 
@@ -160,9 +157,8 @@ public class AdmissionExecutionPlanController {
      * 复制计划：计划 + 模块 + 步骤 深拷贝为新草稿计划。
      */
     @PostMapping("/copy")
-    public Result<Long> copyPlan(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
-        Long planId = Long.valueOf(body.get("planId"));
-        return Result.ok(orchestrationService.copyPlan(planId, operatorName(user)));
+    public Result<String> copyPlan(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
+        return Result.ok(orchestrationService.copyPlan(body.get("planCode"), operatorName(user)));
     }
 
     private String operatorName(LoanUser user) {

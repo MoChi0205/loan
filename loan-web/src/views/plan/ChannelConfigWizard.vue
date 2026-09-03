@@ -44,7 +44,7 @@
         <el-button size="small" @click="openImportDialog()">从其他渠道复制</el-button>
         <el-button size="small" @click="openTemplateImportDialog()">从模版导入</el-button>
       </div>
-      <el-table :data="strategies" v-loading="loading" stripe row-key="id">
+      <el-table :data="strategies" v-loading="loading" stripe row-key="strategyCode">
         <el-table-column label="产品" min-width="160">
           <template #default="{ row }">{{ productName(row.bankProductCode) }}</template>
         </el-table-column>
@@ -432,7 +432,7 @@ const currentChannelName = computed(() => channels.value.find((c) => c.channelCo
 
 function productName(code) { return strategies.value.find((p) => p.bankProductCode === code)?.bankProductName || '产品信息待补充'; }
 function planName(code) { return plans.value.find((p) => p.planCode === code)?.planName || code || '-'; }
-/** 计划编码 → 计划内部 id（编排接口按 id 操作计划树） */
+/** 计划编码作为计划主资源定位；模块/步骤仍使用后端返回的内部 FK。 */
 function planIdOf(code) { return plans.value.find((p) => p.planCode === code)?.id || null; }
 
 function backToList() { router.push('/channel-config'); }
@@ -709,9 +709,9 @@ function hasNextModule(m) {
 }
 async function loadOrchestration() {
   if (!editStrategy.value?.executionPlanCode) { modules.value = []; activeModuleId.value = null; return; }
-  const planId = planIdOf(editStrategy.value.executionPlanCode);
-  if (!planId) { modules.value = []; activeModuleId.value = null; return; }
-  const res = await planDetail(planId);
+  const planCode = editStrategy.value.executionPlanCode;
+  if (!planCode) { modules.value = []; activeModuleId.value = null; return; }
+  const res = await planDetail(planCode);
   modules.value = res.data?.modules || [];
   activeModuleId.value = modules.value.length ? modules.value[0].id : null;
 }
@@ -719,8 +719,8 @@ async function loadOrchestration() {
 /** 将当前策略绑定的执行计划另存为模版草稿（对齐 mds v2 save-as-template） */
 async function onSaveAsTemplate() {
   if (!editStrategy.value?.executionPlanCode) return;
-  const planId = planIdOf(editStrategy.value.executionPlanCode);
-  if (!planId) { ElMessage.warning('未找到该策略绑定的计划'); return; }
+  const planCode = editStrategy.value.executionPlanCode;
+  if (!planCode) { ElMessage.warning('未找到该策略绑定的计划'); return; }
   try {
     const { value } = await ElMessageBox.prompt(
       '输入模版编码（需唯一）与名称，将当前策略的执行计划保存为策略模版草稿',
@@ -733,7 +733,7 @@ async function onSaveAsTemplate() {
       },
     );
     await saveAsTemplate({
-      planId,
+      planCode,
       templateCode: value.trim(),
       templateName: `${editStrategy.value.strategyName}-模版`,
     });
@@ -762,20 +762,10 @@ async function onSavePlan() {
   planDialog.saving = true;
   try {
     const res = await createPlan({ ...planDialog.form });
-    const planId = res.data;
+    const createdPlanCode = res.data;
     if (planDialog.mode === 'bind' && editStrategy.value) {
-      // 优先使用表单中填写的计划编码（创建接口返回内部 id）；未填时按 id 精确反查兜底，避免依赖列表顺序
-      let planCode = planDialog.form.planCode;
-      if (!planCode) {
-        await loadPlans();
-        const match = plans.value.find((p) => p.id === planId);
-        if (!match) {
-          ElMessage.error('计划已创建，但未能获取计划编码，请到「计划编排」页查看');
-          planDialog.visible = false;
-          return;
-        }
-        planCode = match.planCode;
-      }
+      const planCode = createdPlanCode || planDialog.form.planCode;
+      if (!planCode) { ElMessage.error('计划已创建，但未能获取计划编码，请到「计划编排」页查看'); return; }
       await updateStrategy(editStrategy.value.strategyCode, { executionPlanCode: planCode });
       ElMessage.success('已创建计划并绑定');
       loadStrategies();

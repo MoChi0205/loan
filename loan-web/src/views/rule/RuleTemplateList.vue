@@ -20,7 +20,7 @@
         <el-input v-model="query.keyword" placeholder="模版编码 / 名称" clearable style="width: 200px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
-      <el-table :data="data" v-loading="loading" stripe row-key="id">
+      <el-table :data="data" v-loading="loading" stripe row-key="templateCode">
         <template #empty>
           <AppEmpty title="暂无规则模版" desc="创建规则模版并发布后，可一键导入为规则" />
         </template>

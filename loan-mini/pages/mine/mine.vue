@@ -519,7 +519,6 @@ function onLogout() {
   flex-shrink: 0;
 }
 
-.menu-icon-emoji { font-size: 34rpx; }
 .menu-body { display: flex; flex-direction: column; }
 .menu-title { font-size: 29rpx; font-weight: 600; color: var(--text-primary); }
 .menu-desc { margin-top: 6rpx; font-size: 23rpx; color: var(--text-placeholder); }

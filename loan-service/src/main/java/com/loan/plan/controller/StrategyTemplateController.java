@@ -64,8 +64,8 @@ public class StrategyTemplateController {
     /**
      * 编辑模版。
      */
-    @PutMapping("/{id}")
-    public Result<String> update(@PathVariable String templateCode, @RequestBody StrategyTemplate template,
+    @PutMapping("/{templateCode}")
+    public Result<String> update(@PathVariable("templateCode") String templateCode, @RequestBody StrategyTemplate template,
                                  @CurrentUser LoanUser user) {
         template.setTemplateCode(templateCode);
         templateService.update(template, operatorName(user));
@@ -75,8 +75,8 @@ public class StrategyTemplateController {
     /**
      * 删除模版（级联）。
      */
-    @DeleteMapping("/{id}")
-    public Result<String> delete(@PathVariable String templateCode) {
+    @DeleteMapping("/{templateCode}")
+    public Result<String> delete(@PathVariable("templateCode") String templateCode) {
         templateService.delete(templateCode);
         return Result.ok("ok");
     }
@@ -84,8 +84,8 @@ public class StrategyTemplateController {
     /**
      * 上线（发布）。
      */
-    @PostMapping("/{id}/publish")
-    public Result<String> publish(@PathVariable String templateCode, @CurrentUser LoanUser user) {
+    @PostMapping("/{templateCode}/publish")
+    public Result<String> publish(@PathVariable("templateCode") String templateCode, @CurrentUser LoanUser user) {
         templateService.publish(templateCode, operatorName(user));
         return Result.ok("ok");
     }
@@ -93,8 +93,8 @@ public class StrategyTemplateController {
     /**
      * 下线。
      */
-    @PostMapping("/{id}/offline")
-    public Result<String> offline(@PathVariable String templateCode, @CurrentUser LoanUser user) {
+    @PostMapping("/{templateCode}/offline")
+    public Result<String> offline(@PathVariable("templateCode") String templateCode, @CurrentUser LoanUser user) {
         templateService.offline(templateCode, operatorName(user));
         return Result.ok("ok");
     }
@@ -102,8 +102,8 @@ public class StrategyTemplateController {
     /**
      * 模版详情（模版 + 模块 + 步骤）。
      */
-    @GetMapping("/{id}/detail")
-    public Result<Map<String, Object>> detail(@PathVariable String templateCode) {
+    @GetMapping("/{templateCode}/detail")
+    public Result<Map<String, Object>> detail(@PathVariable("templateCode") String templateCode) {
         return Result.ok(templateService.detail(templateCode));
     }
 

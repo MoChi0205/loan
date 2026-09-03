@@ -29,7 +29,7 @@
         <el-input v-model="query.keyword" placeholder="模版编码 / 名称" clearable style="width: 200px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
-      <el-table :data="data" v-loading="loading" stripe row-key="id">
+      <el-table :data="data" v-loading="loading" stripe row-key="templateCode">
         <template #empty>
           <AppEmpty title="暂无策略模版" desc="创建策略模版后，可通过「导入到策略」一键应用到渠道" />
         </template>

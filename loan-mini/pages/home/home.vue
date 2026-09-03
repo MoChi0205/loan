@@ -387,9 +387,6 @@ function onMine() {
 .entry-top{
   margin-bottom:20rpx
 }
-.entry-emoji{
-  font-size:52rpx
-}
 .entry-name{
   font-size:29rpx;
   font-weight:700;

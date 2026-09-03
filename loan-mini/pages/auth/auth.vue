@@ -263,9 +263,6 @@ async function onSubmit() {
 .type-icon-wrap.icon-active{
   background:linear-gradient(135deg,var(--brand-deep),var(--brand-bright))
 }
-.type-emoji{
-  font-size:42rpx
-}
 .type-label{
   font-size:29rpx;
   font-weight:700;

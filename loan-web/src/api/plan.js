@@ -8,20 +8,20 @@ export function listPlans() {
   return request({ url: '/api/admin/execution-plan/list', method: 'get' });
 }
 
-export function planDetail(id) {
-  return request({ url: `/api/admin/execution-plan/${id}/detail`, method: 'get' });
+export function planDetail(planCode) {
+  return request({ url: `/api/admin/execution-plan/${encodeURIComponent(planCode)}/detail`, method: 'get' });
 }
 
 export function createPlan(data) {
   return request({ url: '/api/admin/execution-plan', method: 'post', data });
 }
 
-export function updatePlan(id, data) {
-  return request({ url: `/api/admin/execution-plan/${id}`, method: 'put', data });
+export function updatePlan(planCode, data) {
+  return request({ url: `/api/admin/execution-plan/${encodeURIComponent(planCode)}`, method: 'put', data });
 }
 
-export function deletePlan(id) {
-  return request({ url: `/api/admin/execution-plan/${id}`, method: 'delete' });
+export function deletePlan(planCode) {
+  return request({ url: `/api/admin/execution-plan/${encodeURIComponent(planCode)}`, method: 'delete' });
 }
 
 // 模块

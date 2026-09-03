@@ -34,7 +34,7 @@
           v-for="p in filteredPlans"
           :key="p.id"
           class="plan-list-item"
-          :class="{ active: planId === p.id }"
+          :class="{ active: planId === p.planCode }"
           @click="selectPlan(p)"
         >
           <span class="plan-list-name">{{ p.planName }}</span>
@@ -327,7 +327,7 @@ async function loadRulesByCG(customerGroup) {
 }
 
 function selectPlan(p) {
-  planId.value = p.id;
+  planId.value = p.planCode;
   loadDetail();
 }
 
@@ -407,7 +407,7 @@ async function onSavePlan() {
   try {
     const payload = { customerGroup: planDialog.form.customerGroup, ...planDialog.form };
     if (planDialog.editing && currentPlan.value) {
-      await updatePlan(currentPlan.value.id, payload);
+      await updatePlan(currentPlan.value.planCode, payload);
     } else {
       await createPlan(payload);
     }
@@ -439,7 +439,7 @@ async function onDeletePlan() {
   try {
     await appConfirm(`确认删除计划「${currentPlan.value?.planName}」？（将级联删除模块/步骤）`);
   } catch { return; }
-  await deletePlan(planId.value);
+  await deletePlan(currentPlan.value.planCode);
   ElMessage.success('已删除');
   planId.value = null;
   modules.value = [];
@@ -453,7 +453,7 @@ async function onCopyPlan() {
     await appConfirm(`确认复制计划「${currentPlan.value.planName}」为新的草稿计划？`);
   } catch { return; }
   try {
-    await copyPlan({ planId: planId.value });
+    await copyPlan({ planCode: planId.value });
     ElMessage.success('已复制为新草稿计划');
     loadPlans();
   } catch { /* 拦截器已提示 */ }
@@ -474,7 +474,7 @@ async function onSaveAsTemplate() {
       },
     );
     await saveAsTemplate({
-      planId: planId.value,
+      planCode: planId.value,
       templateCode: value.trim(),
       templateName: `${currentPlan.value.planName}-模版`,
     });
@@ -579,7 +579,7 @@ async function onSaveModule() {
   moduleDialog.saving = true;
   try {
     const payload = {
-      planId: planId.value,
+      planCode: planId.value,
       ...moduleDialog.form,
       joinWithNextModule: (moduleDialog.form.joinWithNextModule || 'AND').toUpperCase(),
     };

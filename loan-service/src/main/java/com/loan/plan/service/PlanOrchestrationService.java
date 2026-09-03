@@ -84,11 +84,9 @@ public class PlanOrchestrationService {
      * @param planId 计划 ID
      * @return { plan, modules: [{...module, steps: [{...step, ruleCode, ruleName}]}] }
      */
-    public Map<String, Object> detail(Long planId) {
-        AdmissionExecutionPlan plan = planMapper.selectById(planId);
-        if (plan == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "计划不存在");
-        }
+    public Map<String, Object> detail(String planCode) {
+        AdmissionExecutionPlan plan = findByCode(planCode);
+        Long planId = plan.getId();
         List<AdmissionPlanModule> modules = moduleMapper.selectList(
                 new LambdaQueryWrapper<AdmissionPlanModule>()
                         .eq(AdmissionPlanModule::getPlanId, planId)
@@ -147,11 +145,19 @@ public class PlanOrchestrationService {
         return result;
     }
 
+    private AdmissionExecutionPlan findByCode(String planCode) {
+        if (!StringUtils.hasText(planCode)) throw new BusinessException(ResultCode.PARAM_ERROR, "计划编码必填");
+        AdmissionExecutionPlan plan = planMapper.selectOne(new LambdaQueryWrapper<AdmissionExecutionPlan>()
+                .eq(AdmissionExecutionPlan::getPlanCode, planCode));
+        if (plan == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "计划不存在");
+        return plan;
+    }
+
     /**
      * 新建计划。
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long createPlan(AdmissionExecutionPlan plan, String operator) {
+    public String createPlan(AdmissionExecutionPlan plan, String operator) {
         plan.setId(null);
         if (plan.getVersion() == null) {
             plan.setVersion(1);
@@ -159,19 +165,25 @@ public class PlanOrchestrationService {
         if (plan.getStatus() == null) {
             plan.setStatus("0");
         }
+        if (!StringUtils.hasText(plan.getPlanCode())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "计划编码必填");
+        }
         plan.setCreatedBy(operator);
         plan.setUpdatedBy(operator);
         plan.setCreatedAt(LocalDateTime.now());
         plan.setUpdatedAt(LocalDateTime.now());
         planMapper.insert(plan);
-        return plan.getId();
+        return plan.getPlanCode();
     }
 
     /**
      * 更新计划。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void updatePlan(AdmissionExecutionPlan plan, String operator) {
+    public void updatePlan(String planCode, AdmissionExecutionPlan plan, String operator) {
+        AdmissionExecutionPlan existing = findByCode(planCode);
+        plan.setId(existing.getId());
+        plan.setPlanCode(null);
         plan.setUpdatedBy(operator);
         plan.setUpdatedAt(LocalDateTime.now());
         planMapper.updateById(plan);
@@ -181,7 +193,8 @@ public class PlanOrchestrationService {
      * 删除计划（级联删除模块/步骤）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void deletePlan(Long planId) {
+    public void deletePlan(String planCode) {
+        Long planId = findByCode(planCode).getId();
         List<AdmissionPlanModule> modules = moduleMapper.selectList(
                 new LambdaQueryWrapper<AdmissionPlanModule>().eq(AdmissionPlanModule::getPlanId, planId));
         for (AdmissionPlanModule module : modules) {
@@ -383,8 +396,9 @@ public class PlanOrchestrationService {
      * @return 新计划 ID
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long applyTemplate(Long templateId, String planCode, String planName, String operator) {
-        StrategyTemplate template = templateMapper.selectById(templateId);
+    public String applyTemplate(String templateCode, String planCode, String planName, String operator) {
+        StrategyTemplate template = templateMapper.selectOne(new LambdaQueryWrapper<StrategyTemplate>()
+                .eq(StrategyTemplate::getTemplateCode, templateCode));
         if (template == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "策略模版不存在");
         }
@@ -403,7 +417,7 @@ public class PlanOrchestrationService {
 
         List<StrategyTemplateModule> modules = templateModuleMapper.selectList(
                 new LambdaQueryWrapper<StrategyTemplateModule>()
-                        .eq(StrategyTemplateModule::getTemplateId, templateId)
+                        .eq(StrategyTemplateModule::getTemplateId, template.getId())
                         .orderByAsc(StrategyTemplateModule::getSort));
         for (StrategyTemplateModule module : modules) {
             AdmissionPlanModule newModule = new AdmissionPlanModule();
@@ -439,7 +453,7 @@ public class PlanOrchestrationService {
                 stepMapper.insert(newStep);
             }
         }
-        return plan.getId();
+        return plan.getPlanCode();
     }
 
     /**
@@ -470,8 +484,8 @@ public class PlanOrchestrationService {
      * @return 新计划 ID
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long copyPlan(Long planId, String operator) {
-        AdmissionExecutionPlan plan = planMapper.selectById(planId);
+    public String copyPlan(String planCode, String operator) {
+        AdmissionExecutionPlan plan = findByCode(planCode);
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "计划不存在");
         }
@@ -489,7 +503,7 @@ public class PlanOrchestrationService {
 
         List<AdmissionPlanModule> modules = moduleMapper.selectList(
                 new LambdaQueryWrapper<AdmissionPlanModule>()
-                        .eq(AdmissionPlanModule::getPlanId, planId)
+                        .eq(AdmissionPlanModule::getPlanId, plan.getId())
                         .orderByAsc(AdmissionPlanModule::getSort));
         for (AdmissionPlanModule module : modules) {
             AdmissionPlanModule newModule = new AdmissionPlanModule();
@@ -525,6 +539,6 @@ public class PlanOrchestrationService {
                 stepMapper.insert(newStep);
             }
         }
-        return newPlan.getId();
+        return newPlan.getPlanCode();
     }
 }

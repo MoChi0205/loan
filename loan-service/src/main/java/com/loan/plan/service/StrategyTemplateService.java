@@ -306,7 +306,7 @@ public class StrategyTemplateService {
      * @return 新模版 ID
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long saveAsTemplateFromPlan(Long planId, String templateCode, String templateName, String operator) {
+    public String saveAsTemplateFromPlan(String planCode, String templateCode, String templateName, String operator) {
         if (!StringUtils.hasText(templateCode)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码必填");
         }
@@ -314,7 +314,8 @@ public class StrategyTemplateService {
                 .eq(StrategyTemplate::getTemplateCode, templateCode)) > 0) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码已存在: " + templateCode);
         }
-        AdmissionExecutionPlan plan = planMapper.selectById(planId);
+        AdmissionExecutionPlan plan = planMapper.selectOne(new LambdaQueryWrapper<AdmissionExecutionPlan>()
+                .eq(AdmissionExecutionPlan::getPlanCode, planCode));
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "执行计划不存在");
         }
@@ -330,7 +331,7 @@ public class StrategyTemplateService {
         template.setUpdatedAt(LocalDateTime.now());
         templateMapper.insert(template);
         copyPlanTreeToTemplate(plan, template.getId(), operator);
-        return template.getId();
+        return template.getTemplateCode();
     }
 
     /**

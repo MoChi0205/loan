@@ -43,7 +43,7 @@
       <AppButton variant="ghost" size="md" block custom-class="guard-secondary" @click="goHome">稍后再说</AppButton>
 
       <view class="guard-trust">
-        <text class="guard-trust-icon">🔒</text>
+        <AppIcon name="lock" size="sm" color="rgba(255,255,255,.78)" />
         <text class="guard-trust-text">银行级加密 · 信息严格保密 · 仅用于匹配建议</text>
       </view>
     </view>
@@ -954,7 +954,6 @@ onShow(() => {
   display: flex; align-items: center; justify-content: center; gap: var(--space-1);
   margin-top: var(--space-3); font-size: 22rpx;
 }
-.guard-trust-icon { font-size: 24rpx; }
 .guard-trust-text { color: rgba(255, 255, 255, 0.62); }
 
 /* 守护卡内按钮：主按钮加深以在深色 hero 突出，次按钮描边 */
