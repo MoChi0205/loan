@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -45,7 +46,8 @@ public class UnifiedCacheService {
      * @param redisTemplate Redis 模板
      * @param objectMapper  JSON 序列化器
      */
-    public UnifiedCacheService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    public UnifiedCacheService(StringRedisTemplate redisTemplate,
+                               @Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
     }

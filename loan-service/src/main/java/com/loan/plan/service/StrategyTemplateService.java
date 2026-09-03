@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
+import com.loan.common.util.BatchQueryUtils;
 import com.loan.exception.BusinessException;
 import com.loan.plan.entity.AdmissionExecutionPlan;
 import com.loan.plan.entity.AdmissionPlanModule;
@@ -77,10 +78,21 @@ public class StrategyTemplateService {
     }
 
     /**
+     * 按模板业务编码批量查询，去重且按请求顺序返回，未命中的编码不生成空对象。
+     */
+    public List<StrategyTemplate> listByCodes(List<String> templateCodes) {
+        List<String> codes = BatchQueryUtils.normalizeCodes(templateCodes);
+        Map<String, StrategyTemplate> found = templateMapper.selectList(new LambdaQueryWrapper<StrategyTemplate>()
+                .in(StrategyTemplate::getTemplateCode, codes)).stream()
+                .collect(Collectors.toMap(StrategyTemplate::getTemplateCode, Function.identity(), (left, right) -> left));
+        return codes.stream().map(found::get).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+    }
+
+    /**
      * 新建模版（草稿）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long create(StrategyTemplate template, String operator) {
+    public String create(StrategyTemplate template, String operator) {
         if (!StringUtils.hasText(template.getTemplateCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码必填");
         }
@@ -91,7 +103,7 @@ public class StrategyTemplateService {
         template.setCreatedAt(LocalDateTime.now());
         template.setUpdatedAt(LocalDateTime.now());
         templateMapper.insert(template);
-        return template.getId();
+        return template.getTemplateCode();
     }
 
     /**
@@ -99,6 +111,8 @@ public class StrategyTemplateService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(StrategyTemplate template, String operator) {
+        StrategyTemplate current = requireByCode(template.getTemplateCode());
+        template.setId(current.getId());
         template.setUpdatedBy(operator);
         template.setUpdatedAt(LocalDateTime.now());
         templateMapper.updateById(template);
@@ -108,7 +122,8 @@ public class StrategyTemplateService {
      * 删除模版（级联模块/步骤）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void delete(Long id) {
+    public void delete(String templateCode) {
+        Long id = requireByCode(templateCode).getId();
         List<StrategyTemplateModule> modules = moduleMapper.selectList(
                 new LambdaQueryWrapper<StrategyTemplateModule>().eq(StrategyTemplateModule::getTemplateId, id));
         for (StrategyTemplateModule module : modules) {
@@ -124,11 +139,8 @@ public class StrategyTemplateService {
      * 上线（发布供渠道导入）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void publish(Long id, String operator) {
-        StrategyTemplate template = templateMapper.selectById(id);
-        if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模版不存在");
-        }
+    public void publish(String templateCode, String operator) {
+        StrategyTemplate template = requireByCode(templateCode);
         template.setStatus(STATUS_ACTIVE);
         template.setUpdatedBy(operator);
         template.setUpdatedAt(LocalDateTime.now());
@@ -139,11 +151,8 @@ public class StrategyTemplateService {
      * 下线。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void offline(Long id, String operator) {
-        StrategyTemplate template = templateMapper.selectById(id);
-        if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模版不存在");
-        }
+    public void offline(String templateCode, String operator) {
+        StrategyTemplate template = requireByCode(templateCode);
         template.setStatus(STATUS_DISABLED);
         template.setUpdatedBy(operator);
         template.setUpdatedAt(LocalDateTime.now());
@@ -153,11 +162,9 @@ public class StrategyTemplateService {
     /**
      * 模版详情（模版 + 模块 + 步骤，含规则信息）。
      */
-    public Map<String, Object> detail(Long id) {
-        StrategyTemplate template = templateMapper.selectById(id);
-        if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模版不存在");
-        }
+    public Map<String, Object> detail(String templateCode) {
+        StrategyTemplate template = requireByCode(templateCode);
+        Long id = template.getId();
         List<StrategyTemplateModule> modules = moduleMapper.selectList(
                 new LambdaQueryWrapper<StrategyTemplateModule>()
                         .eq(StrategyTemplateModule::getTemplateId, id)
@@ -213,6 +220,19 @@ public class StrategyTemplateService {
         result.put("template", template);
         result.put("modules", moduleVOs);
         return result;
+    }
+
+    /** 按模板业务编码查询模板，物理主键仅在模板聚合内部使用。 */
+    private StrategyTemplate requireByCode(String templateCode) {
+        if (!StringUtils.hasText(templateCode)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码必填");
+        }
+        StrategyTemplate template = templateMapper.selectOne(new LambdaQueryWrapper<StrategyTemplate>()
+                .eq(StrategyTemplate::getTemplateCode, templateCode.trim()));
+        if (template == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模版不存在");
+        }
+        return template;
     }
 
     /** 新建模块 */

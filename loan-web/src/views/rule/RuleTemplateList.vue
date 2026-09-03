@@ -177,9 +177,9 @@ function rowActions(row) {
   ];
 }
 
-async function onPublish(row) { await publishTemplate(row.id); ElMessage.success('已发布上线'); load(); }
-async function onOffline(row) { await offlineTemplate(row.id); ElMessage.success('已下线'); load(); }
-async function onDelete(row) { await deleteTemplate(row.id); ElMessage.success('已删除'); load(); }
+async function onPublish(row) { await publishTemplate(row.templateCode); ElMessage.success('已发布上线'); load(); }
+async function onOffline(row) { await offlineTemplate(row.templateCode); ElMessage.success('已下线'); load(); }
+async function onDelete(row) { await deleteTemplate(row.templateCode); ElMessage.success('已删除'); load(); }
 
 // 模版 CRUD
 const tplDialog = reactive({ visible: false, title: '', saving: false, editingId: null, form: { templateCode: '', templateName: '', categoryId: null, customerGroup: 'ENTERPRISE', description: '' } });
@@ -205,7 +205,7 @@ async function onSaveTpl() {
   await tplFormRef.value.validate();
   tplDialog.saving = true;
   try {
-    if (tplDialog.editingId) await updateTemplate(tplDialog.editingId, { ...tplDialog.form });
+    if (tplDialog.editingId) await updateTemplate(tplDialog.form.templateCode, { ...tplDialog.form });
     else await createTemplate({ ...tplDialog.form });
     ElMessage.success('已保存');
     tplDialog.visible = false;
@@ -220,7 +220,7 @@ const editFields = ref([]);
 async function openEdit(row) {
   currentTpl.value = row;
   editVisible.value = true;
-  const res = await templateDetail(row.id);
+  const res = await templateDetail(row.templateCode);
   editFields.value = res.data?.fields || [];
 }
 
@@ -249,14 +249,14 @@ async function onSaveField() {
     if (fieldDialog.editingId) await updateField(fieldDialog.editingId, payload);
     else await createField(payload);
     fieldDialog.visible = false;
-    const res = await templateDetail(currentTpl.value.id);
+    const res = await templateDetail(currentTpl.value.templateCode);
     editFields.value = res.data?.fields || [];
   } finally { fieldDialog.saving = false; }
 }
 async function onDeleteField(f) {
   try { await appConfirm(`确认删除字段「${f.fieldName}」？`); } catch { return; }
   await deleteField(f.id);
-  const res = await templateDetail(currentTpl.value.id);
+  const res = await templateDetail(currentTpl.value.templateCode);
   editFields.value = res.data?.fields || [];
 }
 
@@ -264,9 +264,9 @@ async function onDeleteField(f) {
 const importDialog = reactive({ visible: false, saving: false, templateId: null, fieldId: null });
 const importFields = ref([]);
 async function openImport(row) {
-  importDialog.templateId = row.id;
+  importDialog.templateId = row.templateCode;
   importDialog.fieldId = null;
-  const res = await templateDetail(row.id);
+  const res = await templateDetail(row.templateCode);
   importFields.value = res.data?.fields || [];
   importDialog.visible = true;
 }

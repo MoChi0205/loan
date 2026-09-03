@@ -16,28 +16,28 @@ export function createTemplate(data) {
   return request({ url: '/api/admin/rule-template', method: 'post', data });
 }
 
-export function updateTemplate(id, data) {
-  return request({ url: `/api/admin/rule-template/${id}`, method: 'put', data });
+export function updateTemplate(templateCode, data) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}`, method: 'put', data });
 }
 
-export function deleteTemplate(id) {
-  return request({ url: `/api/admin/rule-template/${id}`, method: 'delete' });
+export function deleteTemplate(templateCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}`, method: 'delete' });
 }
 
-export function publishTemplate(id) {
-  return request({ url: `/api/admin/rule-template/${id}/publish`, method: 'post' });
+export function publishTemplate(templateCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/publish`, method: 'post' });
 }
 
-export function offlineTemplate(id) {
-  return request({ url: `/api/admin/rule-template/${id}/offline`, method: 'post' });
+export function offlineTemplate(templateCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/offline`, method: 'post' });
 }
 
-export function templateDetail(id) {
-  return request({ url: `/api/admin/rule-template/${id}/detail`, method: 'get' });
+export function templateDetail(templateCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/detail`, method: 'get' });
 }
 
-export function importToRule(id, fieldId) {
-  return request({ url: `/api/admin/rule-template/${id}/import`, method: 'post', params: { fieldId } });
+export function importToRule(templateCode, fieldId) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/import`, method: 'post', params: { fieldId } });
 }
 
 // 字段定义

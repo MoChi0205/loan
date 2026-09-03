@@ -9,6 +9,7 @@ import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.mini.service.MiniRoleGuard;
 import com.loan.log.annotation.OpLog;
+import com.loan.common.util.PageParams;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,8 +46,8 @@ public class ClientController {
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
-        return Result.ok(clientAllocationService.pageUnassigned(keyword, page <= 0 ? 1 : page,
-                size <= 0 ? 10 : Math.min(size, 100)));
+        return Result.ok(clientAllocationService.pageUnassigned(keyword, PageParams.page(page),
+                PageParams.size(size)));
     }
 
     /**
@@ -129,7 +130,7 @@ public class ClientController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir) {
-        return Result.ok(clientService.pageLite(keyword, page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100), orderBy, orderDir));
+        return Result.ok(clientService.pageLite(keyword, PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 
     /**

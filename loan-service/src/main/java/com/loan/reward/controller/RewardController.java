@@ -2,6 +2,7 @@ package com.loan.reward.controller;
 
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.log.annotation.OpLog;
@@ -53,7 +54,7 @@ public class RewardController {
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir) {
         return Result.ok(rewardService.page(status, keyword, startDate, endDate,
-                page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100), orderBy, orderDir));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 
     /**

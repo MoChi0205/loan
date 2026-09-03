@@ -10,6 +10,7 @@ import com.loan.product.dto.ProductSaveReq;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.service.ProductQueryService;
 import com.loan.product.service.ProductService;
+import com.loan.common.util.PageParams;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -61,8 +62,8 @@ public class ProductController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
-        int p = page <= 0 ? 1 : page;
-        int s = size <= 0 ? 10 : Math.min(size, 100);
+        int p = PageParams.page(page);
+        int s = PageParams.size(size);
         // 渠道沙箱：数据范围硬隔离——仅本银行渠道产品；无渠道编码时返回空集（防越权看全量）
         if (user != null && LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
             String channelCode = user.getBankChannelCode();

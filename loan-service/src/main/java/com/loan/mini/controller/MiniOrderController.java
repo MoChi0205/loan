@@ -3,6 +3,7 @@ package com.loan.mini.controller;
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
@@ -58,8 +59,8 @@ public class MiniOrderController {
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
         requireLogin(user);
-        int p = page <= 0 ? 1 : page;
-        int s = size <= 0 ? 10 : size;
+        int p = PageParams.page(page);
+        int s = PageParams.size(size);
 
         // 渠道：沙箱隔离，无服务单场景
         if (LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {

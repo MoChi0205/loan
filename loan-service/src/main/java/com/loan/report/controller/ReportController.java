@@ -2,6 +2,7 @@ package com.loan.report.controller;
 
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.report.service.ReportService;
@@ -71,7 +72,7 @@ public class ReportController {
             @RequestParam(required = false) String orderDir,
             @CurrentUser LoanUser user) {
         return Result.ok(reportService.screeningPage(status, grade, keyword,
-                page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100), orderBy, orderDir, user));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, user));
     }
 
     /**

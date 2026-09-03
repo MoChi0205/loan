@@ -281,9 +281,9 @@ function rowActions(row) {
   ];
 }
 
-async function onPublish(row) { await publishTemplate(row.id); ElMessage.success('已上线'); load(); }
-async function onOffline(row) { await offlineTemplate(row.id); ElMessage.success('已下线'); load(); }
-async function onDelete(row) { await deleteTemplate(row.id); ElMessage.success('已删除'); load(); }
+async function onPublish(row) { await publishTemplate(row.templateCode); ElMessage.success('已上线'); load(); }
+async function onOffline(row) { await offlineTemplate(row.templateCode); ElMessage.success('已下线'); load(); }
+async function onDelete(row) { await deleteTemplate(row.templateCode); ElMessage.success('已删除'); load(); }
 
 // 模版 CRUD
 const tplDialog = reactive({ visible: false, title: '', saving: false, editingId: null, form: { templateCode: '', templateName: '', customerGroup: 'ENTERPRISE', description: '' } });
@@ -309,7 +309,7 @@ async function onSaveTpl() {
   await tplFormRef.value.validate();
   tplDialog.saving = true;
   try {
-    if (tplDialog.editingId) await updateTemplate(tplDialog.editingId, { ...tplDialog.form });
+    if (tplDialog.editingId) await updateTemplate(tplDialog.form.templateCode, { ...tplDialog.form });
     else await createTemplate({ ...tplDialog.form });
     ElMessage.success('已保存');
     tplDialog.visible = false;
@@ -332,7 +332,7 @@ async function openEdit(row) {
   currentTpl.value = row;
   editVisible.value = true;
   await loadRules(row.customerGroup);
-  const res = await templateDetail(row.id);
+  const res = await templateDetail(row.templateCode);
   editModules.value = res.data?.modules || [];
 }
 
@@ -358,14 +358,14 @@ async function onSaveModule() {
     if (modDialog.editingId) await updateTemplateModule(modDialog.editingId, payload);
     else await createTemplateModule(payload);
     modDialog.visible = false;
-    const res = await templateDetail(currentTpl.value.id);
+    const res = await templateDetail(currentTpl.value.templateCode);
     editModules.value = res.data?.modules || [];
   } finally { modDialog.saving = false; }
 }
 async function onDeleteModule(m) {
   try { await appConfirm(`确认删除模块「${m.moduleName}」？`); } catch { return; }
   await deleteTemplateModule(m.id);
-  const res = await templateDetail(currentTpl.value.id);
+  const res = await templateDetail(currentTpl.value.templateCode);
   editModules.value = res.data?.modules || [];
 }
 
@@ -425,19 +425,19 @@ async function onSaveStep() {
       ElMessage.success('已添加');
     }
     stepDialog.visible = false;
-    const res = await templateDetail(currentTpl.value.id);
+    const res = await templateDetail(currentTpl.value.templateCode);
     editModules.value = res.data?.modules || [];
   } finally { stepDialog.saving = false; }
 }
 async function onDeleteStep(m, s) {
   try { await appConfirm(`确认删除步骤「${s.ruleName}」？`); } catch { return; }
   await deleteTemplateStep(s.id);
-  const res = await templateDetail(currentTpl.value.id);
+  const res = await templateDetail(currentTpl.value.templateCode);
   editModules.value = res.data?.modules || [];
 }
 
 // 导入到渠道准入策略
-const importDialog = reactive({ visible: false, saving: false, templateId: null, form: { channelCode: '', bankProductCode: '', strategyCode: '', strategyName: '', customerGroup: 'ENTERPRISE' } });
+const importDialog = reactive({ visible: false, saving: false, templateCode: '', form: { channelCode: '', bankProductCode: '', strategyCode: '', strategyName: '', customerGroup: 'ENTERPRISE' } });
 const importFormRef = ref();
 const importRules = {
   channelCode: [{ required: true, message: '请选择渠道', trigger: 'change' }],
@@ -445,7 +445,7 @@ const importRules = {
   strategyCode: [{ required: true, message: '请输入策略编码', trigger: 'blur' }],
 };
 function openImport(row) {
-  importDialog.templateId = row.id;
+  importDialog.templateCode = row.templateCode;
   Object.assign(importDialog.form, { channelCode: '', bankProductCode: '', strategyCode: '', strategyName: '', customerGroup: row.customerGroup || 'ENTERPRISE' });
   importDialog.visible = true;
 }
@@ -454,7 +454,7 @@ async function onImport() {
   importDialog.saving = true;
   try {
     await importFromTemplate({
-      templateId: importDialog.templateId,
+      templateCode: importDialog.templateCode,
       channelCode: importDialog.form.channelCode,
       strategyCode: importDialog.form.strategyCode,
       strategyName: importDialog.form.strategyName,

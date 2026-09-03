@@ -3,6 +3,7 @@ package com.loan.partner.controller;
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
@@ -55,8 +56,8 @@ public class PartnerProductController {
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
         requireStaff(user);
-        int p = page <= 0 ? 1 : page;
-        int s = size <= 0 ? 10 : Math.min(size, 100);
+        int p = PageParams.page(page);
+        int s = PageParams.size(size);
         return Result.ok(partnerProductService.page(status, p, s));
     }
 

@@ -2,6 +2,7 @@ package com.loan.order.controller;
 
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.log.annotation.OpLog;
@@ -70,7 +71,7 @@ public class OrderController {
         return Result.ok(orderService.page(status, keyword, mineOnly,
                 user == null ? null : user.getRoleCode(),
                 user == null ? null : user.getUserNo(),
-                page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100),
+                PageParams.page(page), PageParams.size(size),
                 orderBy, orderDir));
     }
 

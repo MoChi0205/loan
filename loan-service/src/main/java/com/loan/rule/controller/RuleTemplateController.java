@@ -44,6 +44,12 @@ public class RuleTemplateController {
         return Result.ok(templateService.page(customerGroup, keyword, page, size));
     }
 
+    /** 按模板业务编码批量查询（去重、保序，最多100条）。 */
+    @PostMapping("/batch")
+    public Result<List<RuleTemplate>> batch(@RequestBody List<String> templateCodes) {
+        return Result.ok(templateService.listByCodes(templateCodes));
+    }
+
     /** 分类下拉 */
     @GetMapping("/categories")
     public Result<List<RuleCategory>> categories() {
@@ -52,52 +58,52 @@ public class RuleTemplateController {
 
     /** 新建模板（草稿） */
     @PostMapping
-    public Result<Long> create(@RequestBody RuleTemplate template, @CurrentUser LoanUser user) {
+    public Result<String> create(@RequestBody RuleTemplate template, @CurrentUser LoanUser user) {
         return Result.ok(templateService.create(template, operatorName(user)));
     }
 
     /** 编辑模板 */
     @PutMapping("/{id}")
-    public Result<String> update(@PathVariable Long id, @RequestBody RuleTemplate template,
+    public Result<String> update(@PathVariable String templateCode, @RequestBody RuleTemplate template,
                                  @CurrentUser LoanUser user) {
-        template.setId(id);
+        template.setTemplateCode(templateCode);
         templateService.update(template, operatorName(user));
         return Result.ok("ok");
     }
 
     /** 删除模板（级联字段/版本） */
     @DeleteMapping("/{id}")
-    public Result<String> delete(@PathVariable Long id) {
-        templateService.delete(id);
+    public Result<String> delete(@PathVariable String templateCode) {
+        templateService.delete(templateCode);
         return Result.ok("ok");
     }
 
     /** 发布（生成版本快照 + 上线） */
     @PostMapping("/{id}/publish")
-    public Result<String> publish(@PathVariable Long id, @CurrentUser LoanUser user) {
-        templateService.publish(id, operatorName(user));
+    public Result<String> publish(@PathVariable String templateCode, @CurrentUser LoanUser user) {
+        templateService.publish(templateCode, operatorName(user));
         return Result.ok("ok");
     }
 
     /** 下线 */
     @PostMapping("/{id}/offline")
-    public Result<String> offline(@PathVariable Long id, @CurrentUser LoanUser user) {
-        templateService.offline(id, operatorName(user));
+    public Result<String> offline(@PathVariable String templateCode, @CurrentUser LoanUser user) {
+        templateService.offline(templateCode, operatorName(user));
         return Result.ok("ok");
     }
 
     /** 模板详情（模板 + 字段 + 版本） */
     @GetMapping("/{id}/detail")
-    public Result<Map<String, Object>> detail(@PathVariable Long id) {
-        return Result.ok(templateService.detail(id));
+    public Result<Map<String, Object>> detail(@PathVariable String templateCode) {
+        return Result.ok(templateService.detail(templateCode));
     }
 
     /** 导入为规则（fieldId 可选，缺省取第一个字段） */
     @PostMapping("/{id}/import")
-    public Result<String> importToRule(@PathVariable Long id,
+    public Result<String> importToRule(@PathVariable String templateCode,
                                        @RequestParam(required = false) Long fieldId,
                                        @CurrentUser LoanUser user) {
-        return Result.ok(templateService.importToRule(id, fieldId, operatorName(user)));
+        return Result.ok(templateService.importToRule(templateCode, fieldId, operatorName(user)));
     }
 
     /** 新建字段定义 */

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
+import com.loan.common.util.BatchQueryUtils;
 import com.loan.exception.BusinessException;
 import com.loan.rule.entity.Rule;
 import com.loan.rule.entity.RuleCategory;
@@ -26,6 +27,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 规则模板服务：模板 CRUD + 字段编排 + 发布（版本快照）+ 上线/下线 + 导入为规则。
@@ -68,10 +71,21 @@ public class RuleTemplateService {
     }
 
     /**
+     * 按模板业务编码批量查询，去重且按请求顺序返回，未命中的编码不生成空对象。
+     */
+    public List<RuleTemplate> listByCodes(List<String> templateCodes) {
+        List<String> codes = BatchQueryUtils.normalizeCodes(templateCodes);
+        Map<String, RuleTemplate> found = templateMapper.selectList(new LambdaQueryWrapper<RuleTemplate>()
+                .in(RuleTemplate::getTemplateCode, codes)).stream()
+                .collect(Collectors.toMap(RuleTemplate::getTemplateCode, Function.identity(), (left, right) -> left));
+        return codes.stream().map(found::get).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+    }
+
+    /**
      * 新建模板（草稿）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long create(RuleTemplate template, String operator) {
+    public String create(RuleTemplate template, String operator) {
         if (!StringUtils.hasText(template.getTemplateCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
         }
@@ -86,7 +100,7 @@ public class RuleTemplateService {
         template.setCreatedAt(LocalDateTime.now());
         template.setUpdatedAt(LocalDateTime.now());
         templateMapper.insert(template);
-        return template.getId();
+        return template.getTemplateCode();
     }
 
     /**
@@ -94,6 +108,8 @@ public class RuleTemplateService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(RuleTemplate template, String operator) {
+        RuleTemplate current = requireByCode(template.getTemplateCode());
+        template.setId(current.getId());
         template.setUpdatedBy(operator);
         template.setUpdatedAt(LocalDateTime.now());
         templateMapper.updateById(template);
@@ -103,7 +119,8 @@ public class RuleTemplateService {
      * 删除模板（级联字段定义与版本）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void delete(Long id) {
+    public void delete(String templateCode) {
+        Long id = requireByCode(templateCode).getId();
         fieldMapper.delete(new LambdaQueryWrapper<RuleTemplateField>()
                 .eq(RuleTemplateField::getTemplateId, id));
         versionMapper.delete(new LambdaQueryWrapper<RuleTemplateVersion>()
@@ -115,11 +132,9 @@ public class RuleTemplateService {
      * 发布模板：生成版本快照（version_no 递增）+ 上线。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void publish(Long id, String operator) {
-        RuleTemplate template = templateMapper.selectById(id);
-        if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模板不存在");
-        }
+    public void publish(String templateCode, String operator) {
+        RuleTemplate template = requireByCode(templateCode);
+        Long id = template.getId();
         List<RuleTemplateField> fields = fieldMapper.selectList(
                 new LambdaQueryWrapper<RuleTemplateField>()
                         .eq(RuleTemplateField::getTemplateId, id)
@@ -151,11 +166,8 @@ public class RuleTemplateService {
      * 下线。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void offline(Long id, String operator) {
-        RuleTemplate template = templateMapper.selectById(id);
-        if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模板不存在");
-        }
+    public void offline(String templateCode, String operator) {
+        RuleTemplate template = requireByCode(templateCode);
         template.setStatus(STATUS_DISABLED);
         template.setUpdatedBy(operator);
         template.setUpdatedAt(LocalDateTime.now());
@@ -165,11 +177,9 @@ public class RuleTemplateService {
     /**
      * 模板详情（模板 + 字段定义 + 版本列表）。
      */
-    public Map<String, Object> detail(Long id) {
-        RuleTemplate template = templateMapper.selectById(id);
-        if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模板不存在");
-        }
+    public Map<String, Object> detail(String templateCode) {
+        RuleTemplate template = requireByCode(templateCode);
+        Long id = template.getId();
         List<RuleTemplateField> fields = fieldMapper.selectList(
                 new LambdaQueryWrapper<RuleTemplateField>()
                         .eq(RuleTemplateField::getTemplateId, id)
@@ -225,11 +235,9 @@ public class RuleTemplateService {
      * @return 生成的规则编码
      */
     @Transactional(rollbackFor = Exception.class)
-    public String importToRule(Long id, Long fieldId, String operator) {
-        RuleTemplate template = templateMapper.selectById(id);
-        if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模板不存在");
-        }
+    public String importToRule(String templateCode, Long fieldId, String operator) {
+        RuleTemplate template = requireByCode(templateCode);
+        Long id = template.getId();
         RuleTemplateField field;
         if (fieldId != null) {
             field = fieldMapper.selectById(fieldId);
@@ -273,6 +281,19 @@ public class RuleTemplateService {
         return categoryMapper.selectList(new LambdaQueryWrapper<RuleCategory>()
                 .eq(RuleCategory::getStatus, "ACTIVE")
                 .orderByAsc(RuleCategory::getId));
+    }
+
+    /** 按模板业务编码查询模板，物理主键仅在模板聚合内部使用。 */
+    private RuleTemplate requireByCode(String templateCode) {
+        if (!StringUtils.hasText(templateCode)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
+        }
+        RuleTemplate template = templateMapper.selectOne(new LambdaQueryWrapper<RuleTemplate>()
+                .eq(RuleTemplate::getTemplateCode, templateCode.trim()));
+        if (template == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模板不存在");
+        }
+        return template;
     }
 
     /**

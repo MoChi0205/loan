@@ -8,6 +8,7 @@ import com.loan.context.LoanUser;
 import com.loan.log.annotation.OpLog;
 import com.loan.mini.service.MiniClientService;
 import com.loan.mini.service.MiniRoleGuard;
+import com.loan.common.util.PageParams;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,7 +50,7 @@ public class ApprovalController {
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir) {
         return Result.ok(approvalService.productPage(status, keyword,
-                page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100), orderBy, orderDir));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 
     /**
@@ -113,7 +114,7 @@ public class ApprovalController {
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir) {
         return Result.ok(approvalService.downloadPage(status, keyword,
-                page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100), orderBy, orderDir));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 
     /**
@@ -159,7 +160,7 @@ public class ApprovalController {
         // D0-4：分配审批仅 OPERATOR / SUPER_ADMIN / SUPER / BOSS 可见可审（不含 DEPT_MANAGER）
         miniRoleGuard.requireApprover(user);
         return Result.ok(miniClientService.pendingAllocations(
-                page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100)));
+                PageParams.page(page), PageParams.size(size)));
     }
 
     /**

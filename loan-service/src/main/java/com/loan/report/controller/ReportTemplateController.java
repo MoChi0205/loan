@@ -2,6 +2,7 @@ package com.loan.report.controller;
 
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.log.annotation.OpLog;
@@ -38,7 +39,7 @@ public class ReportTemplateController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return Result.ok(templateService.page(keyword,
-                page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100)));
+                PageParams.page(page), PageParams.size(size)));
     }
 
     /**

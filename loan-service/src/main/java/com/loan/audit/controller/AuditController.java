@@ -4,6 +4,7 @@ import com.loan.api.dto.PageResult;
 import com.loan.audit.entity.MatchTrace;
 import com.loan.audit.service.AuditService;
 import com.loan.common.Result;
+import com.loan.common.util.PageParams;
 import com.loan.common.ResultCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -65,6 +66,6 @@ public class AuditController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return Result.ok(auditService.page(traceUuid, customerGroup, totalResult, mismatchFlag,
-                startTime, endTime, page <= 0 ? 1 : page, size <= 0 ? 10 : Math.min(size, 100)));
+                startTime, endTime, PageParams.page(page), PageParams.size(size)));
     }
 }

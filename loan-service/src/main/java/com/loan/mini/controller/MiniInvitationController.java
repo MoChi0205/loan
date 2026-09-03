@@ -3,6 +3,7 @@ package com.loan.mini.controller;
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
@@ -70,7 +71,7 @@ public class MiniInvitationController {
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
         String clientCode = requireClient(user);
-        return Result.ok(invitationService.myRecords(clientCode, page <= 0 ? 1 : page, size <= 0 ? 10 : size));
+        return Result.ok(invitationService.myRecords(clientCode, PageParams.page(page), PageParams.size(size)));
     }
 
     /**

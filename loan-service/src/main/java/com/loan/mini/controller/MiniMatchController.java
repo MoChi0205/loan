@@ -4,6 +4,7 @@ import com.loan.api.dto.PageResult;
 import com.loan.client.service.ClientAllocationService;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
@@ -89,7 +90,7 @@ public class MiniMatchController {
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
         String clientCode = requireClient(user);
-        return Result.ok(miniMatchService.myMatches(clientCode, page <= 0 ? 1 : page, size <= 0 ? 10 : size));
+        return Result.ok(miniMatchService.myMatches(clientCode, PageParams.page(page), PageParams.size(size)));
     }
 
     /**
@@ -123,8 +124,8 @@ public class MiniMatchController {
             @RequestParam(required = false) String dateRange,
             @CurrentUser LoanUser user) {
         requireLogin(user);
-        int p = page <= 0 ? 1 : page;
-        int s = size <= 0 ? 10 : size;
+        int p = PageParams.page(page);
+        int s = PageParams.size(size);
 
         // 渠道：沙箱隔离，不可见客户匹配报告
         if (LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {

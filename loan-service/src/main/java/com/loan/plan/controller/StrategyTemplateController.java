@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.List;
 
 /**
  * 策略模版 HTTP 接口（Web 管理端）：模版 CRUD + 模块/步骤编排 + 上线/下线。
@@ -46,11 +47,17 @@ public class StrategyTemplateController {
         return Result.ok(templateService.page(customerGroup, keyword, status, page, size));
     }
 
+    /** 按模板业务编码批量查询（去重、保序，最多100条）。 */
+    @PostMapping("/batch")
+    public Result<List<StrategyTemplate>> batch(@RequestBody List<String> templateCodes) {
+        return Result.ok(templateService.listByCodes(templateCodes));
+    }
+
     /**
      * 新建模版（草稿）。
      */
     @PostMapping
-    public Result<Long> create(@RequestBody StrategyTemplate template, @CurrentUser LoanUser user) {
+    public Result<String> create(@RequestBody StrategyTemplate template, @CurrentUser LoanUser user) {
         return Result.ok(templateService.create(template, operatorName(user)));
     }
 
@@ -58,9 +65,9 @@ public class StrategyTemplateController {
      * 编辑模版。
      */
     @PutMapping("/{id}")
-    public Result<String> update(@PathVariable Long id, @RequestBody StrategyTemplate template,
+    public Result<String> update(@PathVariable String templateCode, @RequestBody StrategyTemplate template,
                                  @CurrentUser LoanUser user) {
-        template.setId(id);
+        template.setTemplateCode(templateCode);
         templateService.update(template, operatorName(user));
         return Result.ok("ok");
     }
@@ -69,8 +76,8 @@ public class StrategyTemplateController {
      * 删除模版（级联）。
      */
     @DeleteMapping("/{id}")
-    public Result<String> delete(@PathVariable Long id) {
-        templateService.delete(id);
+    public Result<String> delete(@PathVariable String templateCode) {
+        templateService.delete(templateCode);
         return Result.ok("ok");
     }
 
@@ -78,8 +85,8 @@ public class StrategyTemplateController {
      * 上线（发布）。
      */
     @PostMapping("/{id}/publish")
-    public Result<String> publish(@PathVariable Long id, @CurrentUser LoanUser user) {
-        templateService.publish(id, operatorName(user));
+    public Result<String> publish(@PathVariable String templateCode, @CurrentUser LoanUser user) {
+        templateService.publish(templateCode, operatorName(user));
         return Result.ok("ok");
     }
 
@@ -87,8 +94,8 @@ public class StrategyTemplateController {
      * 下线。
      */
     @PostMapping("/{id}/offline")
-    public Result<String> offline(@PathVariable Long id, @CurrentUser LoanUser user) {
-        templateService.offline(id, operatorName(user));
+    public Result<String> offline(@PathVariable String templateCode, @CurrentUser LoanUser user) {
+        templateService.offline(templateCode, operatorName(user));
         return Result.ok("ok");
     }
 
@@ -96,8 +103,8 @@ public class StrategyTemplateController {
      * 模版详情（模版 + 模块 + 步骤）。
      */
     @GetMapping("/{id}/detail")
-    public Result<Map<String, Object>> detail(@PathVariable Long id) {
-        return Result.ok(templateService.detail(id));
+    public Result<Map<String, Object>> detail(@PathVariable String templateCode) {
+        return Result.ok(templateService.detail(templateCode));
     }
 
     /**
