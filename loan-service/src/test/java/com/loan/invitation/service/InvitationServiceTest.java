@@ -3,6 +3,7 @@ package com.loan.invitation.service;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.ResultCode;
+import com.loan.common.service.BusinessNameService;
 import com.loan.exception.BusinessException;
 import com.loan.invitation.entity.Invitation;
 import com.loan.invitation.mapper.InvitationMapper;
@@ -42,11 +43,13 @@ class InvitationServiceTest {
     private ClientProfileMapper clientProfileMapper;
     @Mock
     private StaffMapper staffMapper;
+    @Mock
+    private BusinessNameService businessNameService;
     private InvitationService service;
 
     @BeforeEach
     void setUp() {
-        service = new InvitationService(invitationMapper, clientProfileMapper, staffMapper);
+        service = new InvitationService(invitationMapper, clientProfileMapper, businessNameService);
     }
 
     // ---------- bind 校验链 ----------
@@ -116,7 +119,7 @@ class InvitationServiceTest {
         ClientProfile client = client(null, null, "ENTERPRISE");
         when(invitationMapper.selectOne(any())).thenReturn(inv);
         when(invitationMapper.consume(anyString(), anyLong(), anyString(), any())).thenReturn(1);
-        when(clientProfileMapper.selectOne(any())).thenReturn(client);
+        when(businessNameService.referrerName(inv)).thenReturn("李四");
 
         Map<String, Object> result = service.bind("INV1", "clientA", 7L);
 
@@ -124,7 +127,7 @@ class InvitationServiceTest {
         assertEquals(7L, inv.getUsedByClientId());
         assertEquals("clientA", inv.getUsedByClientCode());
         verify(invitationMapper).consume(anyString(), anyLong(), anyString(), any());
-        verify(clientProfileMapper).selectOne(any());
+        verify(businessNameService).referrerName(inv);
         verify(clientProfileMapper, never()).updateById(any());
         assertEquals("CUSTOMER", result.get("referrerType"));
         assertEquals("refC", result.get("referrerClientCode"));
@@ -141,7 +144,7 @@ class InvitationServiceTest {
 
         when(invitationMapper.selectOne(any())).thenReturn(inv);
         when(invitationMapper.consume(anyString(), anyLong(), anyString(), any())).thenReturn(1);
-        when(staffMapper.selectById(5L)).thenReturn(staff);
+        when(businessNameService.referrerName(inv)).thenReturn(staff.getStaffName());
 
         Map<String, Object> result = service.bind("INV9", "clientA", 7L);
 

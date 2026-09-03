@@ -84,8 +84,7 @@ src/
 
 - **契约真源**：`db/loan-db-schema.sql`（**表数以 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 为准，不写死数字**，规则 9）→ `loan-service` 代码 → `docs/knowledge-base/`
 - **禁止引用** `前端交互逻辑蓝图.html` / `后端逻辑蓝图.html` / `output/`（均不存在或已删除，见 `loan-knowledge`）
-- **审批入口真值（D0-4）**：`ALLOCATION` 审批按钮仅 `OPERATOR` / `SUPER_ADMIN` / `SUPER` / `BOSS` 可见可点
-  （**不含 DEPT_MANAGER**）；`PRODUCT` / `DOWNLOAD` 才含 `DEPT_MANAGER`
+- **审批入口真值（D39 覆盖 D0-4）**：`ALLOCATION` 审批按钮对 `DEPT_MANAGER` 也可见可点，但后端仅允许本人团队；跨团队由 BOSS 等上级审批。`PRODUCT` / `DOWNLOAD` 同样包含 `DEPT_MANAGER`。
 - **所有请求经网关**：请求头带 `X-Client-Type: WEB`，接口未登记会被 403（见 `loan-gateway-auth`）
 
 ## 自检清单（改完必过）

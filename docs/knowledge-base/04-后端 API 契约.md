@@ -134,8 +134,8 @@
 | 接口 | 说明 | 权限 |
 |------|------|------|
 | `GET /api/mini/approval/counts` | 待审计数 `{PRODUCT, DOWNLOAD, ALLOCATION, TOTAL}` | 运营/超管/老板（OPERATOR/SUPER_ADMIN/SUPER/BOSS） |
-| `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}` | ALLOCATION 仅 OPERATOR/SUPER_ADMIN/SUPER/BOSS；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
-| `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}` | ALLOCATION 仅 OPERATOR/SUPER_ADMIN/SUPER/BOSS；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
+| `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可见本人团队；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
+| `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可审批本人团队；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
 | `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER_ADMIN/SUPER/BOSS |
 | `POST /api/admin/approval/allocation/{approvalNo}/approve` | 管理端 allocation 通过（`ApprovalController`，非 `/audit`） | 同上 |
 | `POST /api/admin/approval/allocation/{approvalNo}/reject` | 管理端 allocation 驳回 | 同上 |

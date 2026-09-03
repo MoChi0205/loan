@@ -12,6 +12,7 @@ import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.client.mapper.ClientRecycleConfigMapper;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
+import com.loan.common.service.BusinessNameService;
 import com.loan.context.LoanUser;
 import com.loan.context.UserContext;
 import com.loan.exception.BusinessException;
@@ -72,6 +73,7 @@ public class ClientAllocationService {
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final ClientRecycleConfigMapper clientRecycleConfigMapper;
     private final NotificationService notificationService;
+    private final BusinessNameService businessNameService;
 
     /**
      * 分页查询未分配客户池。
@@ -98,7 +100,7 @@ public class ClientAllocationService {
         Set<String> pendingStaffCodes = pendingMap.values().stream()
                 .map(ClientAllocationApproval::getApplicantStaffCode)
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
-        Map<String, String> pendingStaffNames = staffNames(pendingStaffCodes);
+        Map<String, String> pendingStaffNames = businessNameService.staffNames(pendingStaffCodes);
         List<Map<String, Object>> records = new ArrayList<>(result.getRecords().size());
         for (ClientProfile client : result.getRecords()) {
             Map<String, Object> row = new LinkedHashMap<>();
@@ -308,7 +310,7 @@ public class ClientAllocationService {
                 : clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
                 .in(ClientProfile::getClientCode, clientCodes)).stream()
                 .collect(Collectors.toMap(ClientProfile::getClientCode, Function.identity(), (a, b) -> a));
-        Map<String, String> names = staffNames(staffCodes);
+        Map<String, String> names = businessNameService.staffNames(staffCodes);
 
         int total = all.size();
         int fromIndex = Math.max(0, (page - 1) * size);
@@ -397,13 +399,6 @@ public class ClientAllocationService {
                 .eq(ClientAllocationApproval::getApproveStatus, PENDING)).stream()
                 .collect(Collectors.toMap(ClientAllocationApproval::getClientCode,
                         Function.identity(), (a, b) -> a));
-    }
-
-    private Map<String, String> staffNames(Set<String> staffCodes) {
-        if (staffCodes == null || staffCodes.isEmpty()) return Collections.emptyMap();
-        return staffMapper.selectList(new LambdaQueryWrapper<Staff>()
-                .in(Staff::getStaffCode, staffCodes)).stream()
-                .collect(Collectors.toMap(Staff::getStaffCode, Staff::getStaffName, (a, b) -> a));
     }
 
     private ClientProfile requireClient(String clientCode) {

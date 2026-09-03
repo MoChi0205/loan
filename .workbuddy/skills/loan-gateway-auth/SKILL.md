@@ -98,8 +98,7 @@ description: >-
 ## 契约红线速查
 
 - **契约真源**：`db/loan-db-schema.sql`（表数以该文件为准）→ `loan-service` 代码 → `docs/knowledge-base/`
-- **审批接口权限真值（D0-4）**：`ALLOCATION` 审批接口仅 `OPERATOR` / `SUPER_ADMIN` / `SUPER` / `BOSS`
-  （**不含 DEPT_MANAGER**）；`PRODUCT` / `DOWNLOAD` 才含 `DEPT_MANAGER`。
+- **审批接口权限真值（D39 覆盖 D0-4）**：`ALLOCATION` 审批接口包含 `DEPT_MANAGER`，但仅本人团队范围；跨团队由 BOSS 等上级审批。`OPERATOR` / `SUPER_ADMIN` / `SUPER` / `BOSS` 可审批全部；`PRODUCT` / `DOWNLOAD` 继续含 `DEPT_MANAGER`。
   依据 `loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java` 的 `APPROVER_ROLES` vs `APPROVAL_ROLES`
 - **禁止引用**已失效的 `output/` 与「逻辑蓝图.html」路径（见 `loan-knowledge`）
 
@@ -109,7 +108,7 @@ description: >-
 - [ ] 新接口是否被 `ApiPermissionSyncService` 自动登记（日志 N 与预期一致）？
 - [ ] `client_types` 是否覆盖所有需要的端（WEB / MINI_APP / ADMIN-WEB）？传参是否用逗号分隔 String？
 - [ ] 角色授权是否符合「一线 vs 管理/敏感」划分？
-- [ ] 审批类接口是否按 D0-4 真值授权（ALLOCATION 不放 DEPT_MANAGER）？
+- [ ] 审批类接口是否按 D39 真值授权（DM 仅本团队 ALLOCATION）？
 - [ ] 前端请求头是否带 `X-Client-Type`？
 - [ ] 本地联调是否 `curl localhost:8080/loan/...`（确认是 8080 直连验证，非 8088）？
 - [ ] traceId 是否由网关接受/生成并全链路透传？高风险/高成本接口是否配置可观测、可调整的限流/限频？

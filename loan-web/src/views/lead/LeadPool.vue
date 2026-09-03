@@ -5,7 +5,7 @@
         <h2 class="loan-page-title">线索公海</h2>
         <p class="loan-page-subtitle">线索认领与客户顾问分配统一管理</p>
       </div>
-      <el-button type="primary" @click="openCreate">
+      <el-button v-permission="ACTION_PERMISSION.LEAD_CREATE" type="primary" @click="openCreate">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
         新增线索
       </el-button>
@@ -15,7 +15,7 @@
       <el-tabs v-model="activeTab" @tab-change="onTabChange">
         <el-tab-pane label="我的线索" name="mine" />
         <el-tab-pane label="公海" name="pool" />
-        <el-tab-pane v-if="canViewClientPool" label="未分配客户" name="clients" />
+        <el-tab-pane v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_POOL_VIEW)" label="未分配客户" name="clients" />
       </el-tabs>
 
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
@@ -41,13 +41,13 @@
         <transition name="el-fade-in">
           <div v-if="selectedRows.length" class="batch-bar">
             <span class="batch-count">已选 <b>{{ selectedRows.length }}</b> 条</span>
-            <el-button v-if="activeTab === 'pool'" type="primary" size="small" @click="onBatchClaim">
+            <el-button v-if="activeTab === 'pool' && userStore.hasPerm(ACTION_PERMISSION.LEAD_CLAIM)" type="primary" size="small" @click="onBatchClaim">
               批量认领
             </el-button>
-            <el-button v-else-if="activeTab === 'mine'" type="primary" size="small" @click="openBatchAssign">
+            <el-button v-else-if="activeTab === 'mine' && userStore.hasPerm(ACTION_PERMISSION.LEAD_ASSIGN)" type="primary" size="small" @click="openBatchAssign">
               批量指派
             </el-button>
-            <el-button v-if="activeTab === 'mine'" type="danger" plain size="small" @click="onBatchDelete">
+            <el-button v-if="activeTab === 'mine' && userStore.hasPerm(ACTION_PERMISSION.LEAD_DELETE)" type="danger" plain size="small" @click="onBatchDelete">
               批量删除
             </el-button>
             <el-button size="small" @click="clearSelection">清空选择</el-button>
@@ -200,14 +200,13 @@ import { pageLead, createLead, claimLead, assignLead, batchClaimLead, batchAssig
 import { staffPage } from '@/api/org';
 import { pageUnassignedClients, claimUnassignedClient, assignClient } from '@/api/client';
 import { useUserStore } from '@/store/user';
+import { ACTION_PERMISSION } from '@/utils/access';
 
 const activeTab = ref('mine');
 const router = useRouter();
 const userStore = useUserStore();
 const roleCode = computed(() => (userStore.roleCode || '').toUpperCase());
-const canViewClientPool = computed(() => ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value));
 const canClaimClient = computed(() => roleCode.value === 'ADVISER');
-const canAssignClient = computed(() => ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value));
 const rowKey = (row) => row.leadNo || row.clientCode;
 
 // ============================================================
@@ -292,7 +291,7 @@ function rowActions(row) {
   const actions = [];
   if (activeTab.value === 'clients') {
     actions.push({ key: 'profile', label: '查看档案', onClick: () => goProfile(row.clientCode) });
-    if (canAssignClient.value) {
+    if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {
       actions.push({
         key: 'assign-client',
         label: row.allocationPending ? '直接分配' : '分配顾问',
@@ -301,7 +300,7 @@ function rowActions(row) {
       });
     } else if (row.allocationPending) {
       actions.push({ key: 'pending', label: `待审批${row.applicantName ? `：${row.applicantName}` : ''}`, disabled: true });
-    } else if (canClaimClient.value) {
+    } else if (canClaimClient.value && userStore.hasPerm(ACTION_PERMISSION.CLIENT_CLAIM)) {
       actions.push({ key: 'claim-client', label: '申请认领', type: 'success', confirm: '确认申请认领该客户？审批通过后将成为其服务顾问。', onClick: () => onClaimClient(row) });
     }
     return actions;
@@ -311,9 +310,9 @@ function rowActions(row) {
     actions.push({ key: 'profile', label: '档案', onClick: () => goProfile(row.clientCode) });
   }
   actions.push({ key: "copy", label: "复制线索编号", onClick: () => onCopy(row.leadNo) });
-  if (activeTab.value === 'pool') {
+  if (activeTab.value === 'pool' && userStore.hasPerm(ACTION_PERMISSION.LEAD_CLAIM)) {
     actions.push({ key: 'claim', label: '认领', type: 'success', confirm: `确认认领「${row.contactName}」？`, onClick: () => onClaim(row) });
-  } else {
+  } else if (activeTab.value === 'mine' && userStore.hasPerm(ACTION_PERMISSION.LEAD_ASSIGN)) {
     actions.push({ key: 'assign', label: '指派', onClick: () => openAssign(row) });
   }
   return actions;

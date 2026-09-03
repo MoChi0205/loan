@@ -10,7 +10,7 @@
     <el-tabs v-model="activeTab">
       <el-tab-pane label="产品审核" name="product" />
       <el-tab-pane label="附件下载审批" name="download" />
-      <el-tab-pane v-if="canAllocate" label="客户分配审批" name="allocation" />
+      <el-tab-pane v-if="canAuditAllocation" label="客户分配审批" name="allocation" />
     </el-tabs>
 
     <!-- ============ 产品审核 ============ -->
@@ -74,7 +74,7 @@
         </el-select>
         <el-input v-model="queryD.keyword" placeholder="申请单号 / 申请人姓名" style="width: 220px" clearable @keyup.enter="searchD" />
         <template #append>
-          <el-button type="primary" plain @click="openApply">
+          <el-button v-permission="ACTION_PERMISSION.DOWNLOAD_APPLY" type="primary" plain @click="openApply">
             <AppIcon name="add" :size="14" />
             发起申请
           </el-button>
@@ -213,6 +213,7 @@ import { useRemoteOptions } from '@/composables/useRemoteOptions';
 import { formatDateTime } from '@/utils/format';
 import { copyText } from '@/utils/clipboard';
 import { useUserStore } from '@/store/user';
+import { ACTION_PERMISSION, approvalActionState } from '@/utils/access';
 import {
   pageProductApprovals, auditProductApproval,
   pageDownloadApprovals, auditDownloadApproval, voidDownloadApproval, applyDownload,
@@ -220,12 +221,9 @@ import {
 } from '@/api/approval';
 import { pageAttachments } from '@/api/attachment';
 
-/** D39/C24：分配审批对运营管理员 / 超级管理员 / 老板 / 团队管理者可见；后端按团队过滤列表（DM 仅本团队） */
-const ALLOC_APPROVER = ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER', 'DEPT_MANAGER'];
 const userStore = useUserStore();
-const canAllocate = computed(() =>
-  ALLOC_APPROVER.includes((userStore.roleCode || '').toUpperCase()),
-);
+/** D39/C24：DM 可审本团队分配，跨团队由后端拒绝并上收 BOSS。 */
+const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.ALLOCATION_AUDIT));
 
 const activeTab = ref('product');
 const loadedTabs = reactive({ product: false, download: false, allocation: false });
@@ -258,8 +256,8 @@ const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: que
 
 function productActions(row) {
   const actions = [];
-    actions.push({ key: "copy", label: "复制单号", onClick: () => onCopy(row.approvalNo) });
-  if (row.approveStatus === 'PENDING') {
+  actions.push({ key: 'copy', label: '复制单号', onClick: () => onCopy(row.approvalNo) });
+  if (approvalActionState('product', row, userStore.permissions).canAudit) {
     actions.push({ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('product', row) });
   }
   return actions;
@@ -268,10 +266,11 @@ function productActions(row) {
 function downloadActions(row) {
   const actions = [];
   actions.push({ key: 'copy', label: '复制单号', onClick: () => onCopy(row.approvalNo) });
-  if (row.approveStatus === 'PENDING' && !row.voidFlag) {
+  const state = approvalActionState('download', row, userStore.permissions);
+  if (state.canAudit) {
     actions.push({ key: 'audit', label: '审批', type: 'success', onClick: () => openAudit('download', row) });
   }
-  if (!row.voidFlag && row.approveStatus !== 'REJECTED') {
+  if (state.canVoid) {
     actions.push({
       key: 'void',
       label: '作废',
@@ -287,7 +286,9 @@ function allocationActions(row) {
   const actions = [];
   actions.push({ key: 'copy', label: '复制单号', onClick: () => onCopy(row.approvalNo) });
   // 待审列表仅返回 PENDING 记录，故统一展示审核入口
-  actions.push({ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('allocation', row) });
+  if (approvalActionState('allocation', row, userStore.permissions).canAudit) {
+    actions.push({ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('allocation', row) });
+  }
   return actions;
 }
 
@@ -431,7 +432,7 @@ async function onApply() {
 /** 页签首次激活时再取数，避免审批中心首屏并发三套分页。 */
 watch(activeTab, async (tab) => {
   if (loadedTabs[tab]) return;
-  if (tab === 'allocation' && !canAllocate.value) return;
+  if (tab === 'allocation' && !canAuditAllocation.value) return;
   loadedTabs[tab] = true;
   try {
     if (tab === 'product') await loadP();

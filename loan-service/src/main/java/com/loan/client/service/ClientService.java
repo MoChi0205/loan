@@ -13,11 +13,10 @@ import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.invitation.entity.Invitation;
 import com.loan.invitation.mapper.InvitationMapper;
+import com.loan.common.service.BusinessNameService;
 import com.loan.personal.entity.PersonalProfile;
 import com.loan.personal.mapper.PersonalProfileMapper;
 import com.loan.personal.service.PersonalProfileService;
-import com.loan.staff.entity.Staff;
-import com.loan.staff.mapper.StaffMapper;
 import com.loan.utils.DesensitizeUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -55,7 +54,7 @@ public class ClientService {
     private final PersonalProfileMapper personalProfileMapper;
     private final PersonalProfileService personalProfileService;
     private final InvitationMapper invitationMapper;
-    private final StaffMapper staffMapper;
+    private final BusinessNameService businessNameService;
 
     /**
      * 客户轻量分页（建单下拉 / 客户选择）。
@@ -79,9 +78,7 @@ public class ClientService {
 
         List<String> ownerCodes = result.getRecords().stream().map(ClientProfile::getOwnerStaffCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
-        Map<String, String> ownerNames = ownerCodes.isEmpty() ? java.util.Collections.emptyMap()
-                : staffMapper.selectList(new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, ownerCodes)).stream()
-                .collect(Collectors.toMap(Staff::getStaffCode, Staff::getStaffName, (a, b) -> a));
+        Map<String, String> ownerNames = businessNameService.staffNames(ownerCodes);
         List<Map<String, Object>> records = result.getRecords().stream().map(c -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("clientCode", c.getClientCode());
@@ -302,34 +299,9 @@ public class ClientService {
         m.put("invitationCode", inv.getInvitationCode());
         m.put("referrerType", inv.getReferrerType());
         m.put("referrerClientCode", inv.getReferrerClientCode());
-        m.put("referrerName", resolveReferrerName(inv));
+        m.put("referrerName", businessNameService.referrerName(inv));
         m.put("usedAt", inv.getUsedAt());
         return m;
-    }
-
-    /**
-     * 引荐人展示名：客户引荐取客户联系人，员工引荐（ADVISER/BOSS）取顾问姓名。
-     *
-     * @param inv 邀请凭证
-     * @return 引荐人展示名，无则 null
-     */
-    private String resolveReferrerName(Invitation inv) {
-        if (StringUtils.hasText(inv.getReferrerClientCode())) {
-            ClientProfile ref = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
-                    .eq(ClientProfile::getClientCode, inv.getReferrerClientCode())
-                    .last("limit 1"));
-            if (ref != null) {
-                return ref.getContactName();
-            }
-        }
-        if (("ADVISER".equals(inv.getReferrerType()) || "BOSS".equals(inv.getReferrerType()))
-                && inv.getReferrerId() != null) {
-            Staff staff = staffMapper.selectById(inv.getReferrerId());
-            if (staff != null) {
-                return staff.getStaffName();
-            }
-        }
-        return null;
     }
 
     /**
@@ -339,13 +311,8 @@ public class ClientService {
      * @return 顾问姓名，无则 null
      */
     private String resolveStaffName(String ownerStaffCode) {
-        if (!StringUtils.hasText(ownerStaffCode)) {
-            return null;
-        }
-        Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
-                .eq(Staff::getStaffCode, ownerStaffCode)
-                .last("limit 1"));
-        return staff == null ? null : staff.getStaffName();
+        return businessNameService.staffNames(java.util.Collections.singleton(ownerStaffCode))
+                .get(ownerStaffCode);
     }
 
     /**

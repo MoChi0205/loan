@@ -42,17 +42,13 @@ description: >-
 
 ## 3. 禁止项（不能做什么）— 3 条
 
-1. ❌ **不能审批 `ALLOCATION`（分配审批）—— 本角色最关键的红线**
-   - 依据：`MiniRoleGuard.APPROVER_ROLES = ["OPERATOR", "SUPER_ADMIN", "SUPER", "BOSS"]` **不含 `DEPT_MANAGER`**
-   - 代码位置：`loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java:25-26`
-   - 调用链：`requireApproverFor("ALLOCATION", user)` → `requireApprover(user)` → `APPROVER_ROLES.contains(code)` 失败 → 抛
-     `BusinessException(FORBIDDEN, "仅运营管理员或超级管理员可审批分配")`
-   - 来源结论：**D0-4**（已推翻《遗留项增量设计-2026-08-30》中的相反描述）
-   - → deptmgr **只能"申请"分配，不能审批**
-   - 🚨 **误判高发原因**：直觉上"经理能审"。代码不允许的理由是：**分配审批涉及跨部门归属变更**
-2. ❌ **无审批中心入口**
-   —— `loan-mini/pages/mine/mine.vue:183-185` `isApproverRole = ['boss','operator','super']` **不含 deptmgr**；
-   08 矩阵对 deptmgr 的审批中心行为 ❌ / —，与 `APPROVER_ROLES` 白名单一致
+1. ✅ **可审批 `ALLOCATION`，但仅本人团队**
+   - 依据：`MiniRoleGuard.APPROVER_ROLES` 已包含 `DEPT_MANAGER`；`ClientAllocationService.assertDeptManagerScope` 按申请人部门过滤
+   - 代码位置：`loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java`、`ClientAllocationService.java`
+   - 跨团队待审单由 BOSS 等上级审批，部门经理调用会收到「非本团队客户，需由 BOSS 审批」
+   - 来源结论：**D39 已覆盖 D0-4**
+2. ❌ **小程序无审批中心入口**
+   —— 当前审批中心仍仅在 Web 管理端承载；部门经理审批入口是 Web「审批中心」分配审批页签。
 3. ❌ **不能改系统配置 / 角色权限菜单**
    —— 属 `operator` / `super` 在 **Web 管理端**（`views/config`、`views/org`）的能力
 
@@ -63,7 +59,7 @@ description: >-
 | 报告 / 工单 | **本部门**（`deptCode` 子树）全量 + 本人全量 |
 | 命中产品明细 | 可见（员工权限） |
 | 客户 | 本部门归属 + 可查重 / 申请流转 |
-| 审批可见 | `PRODUCT` / `DOWNLOAD` 待审列表；**`ALLOCATION` 不可审** |
+| 审批可见 | `PRODUCT` / `DOWNLOAD` 全部待审；`ALLOCATION` 仅本人团队 |
 | 配置域 | 不可见 |
 
 ## 5. tabBar 结构
@@ -83,10 +79,9 @@ description: >-
 |---|---|---|
 | `GET /api/mini/approval/pending?type=...` | 待审列表 | **仅 `type ≠ ALLOCATION`**（type=PRODUCT / DOWNLOAD） |
 | `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批（body `{approve, opinion}`） | **仅 `type ≠ ALLOCATION`** |
-| `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | 文档标注含 DEPT_MANAGER —— ⚠️ **与 `MiniRoleGuard` 冲突，以代码为准（不可审）** |
+| `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | DEPT_MANAGER 可见本人团队；后端按申请人部门过滤 |
 
-> ⚠️ 接口权限说明冲突处置：`04-后端 API 契约.md` 第 90-91 行写「ALLOCATION 含 DEPT_MANAGER」，
-> 与 `MiniRoleGuard.APPROVER_ROLES` 及 D0-4 **直接冲突**。**以代码 + D0-4 为准**（不可审），文档待修正。
+> 权限说明以 D39 与 `MiniRoleGuard.APPROVER_ROLES` 为准：ALLOCATION 含 DEPT_MANAGER，但仅本人团队范围；跨团队必须由 BOSS 等上级处理。
 >
 > 白名单现状：`loan.mini.approval.types=ALLOCATION`（`loan-service/src/main/resources/application.properties:98`）
 > —— 当前**仅开放 ALLOCATION 类型**，PRODUCT / DOWNLOAD 待阶段四。因此 deptmgr 的 `PRODUCT`/`DOWNLOAD`
@@ -94,7 +89,7 @@ description: >-
 
 ## 7. 相关结论编号
 
-`D0-4`（**ALLOCATION 审批不含 DEPT_MANAGER**）· `C19`（B 组数据模型缺口 / 分配审批）· `C22`（审批中心统一，方案 A 视图层统一）· `C1` `C2` `C3` `C4` `C7`
+`D39`（**DM 仅本团队 ALLOCATION 审批**，覆盖 D0-4）· `C19`（B 组数据模型缺口 / 分配审批）· `C22`（审批中心统一，方案 A 视图层统一）· `C1` `C2` `C3` `C4` `C7`
 
 ## 8. 必读文档指针
 
@@ -111,8 +106,8 @@ description: >-
 ## 改动自检清单
 
 - [ ] Step 0 结论核对是否已输出？**是否读过 `MiniRoleGuard.java` 原文**？
-- [ ] 是否把 deptmgr 放进了 ALLOCATION 审批路径？（❌ 禁止）
-- [ ] 是否给 deptmgr 加了审批中心入口？（❌ 禁止，`isApproverRole` 不含）
+- [ ] 是否给 deptmgr 的 ALLOCATION 审批增加了团队范围过滤？（必须）
+- [ ] 是否误把 deptmgr 放宽为跨团队审批？（❌ 禁止）
 - [ ] 涉及审批类型时是否区分了 `APPROVER_ROLES`（ALLOCATION）与 `APPROVAL_ROLES`（PRODUCT/DOWNLOAD）？
 - [ ] 是否注意到当前白名单只开了 ALLOCATION（故 PRODUCT/DOWNLOAD 审批暂不可达）？
 - [ ] tabBar 是否以 `TabBar.vue` 为准（5 tab，无审批入口）？

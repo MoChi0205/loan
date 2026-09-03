@@ -23,6 +23,7 @@ import com.loan.context.LoanUser;
 import com.loan.exception.GlobalExceptionHandler;
 
 import com.loan.approval.service.ApprovalService;
+import com.loan.mini.service.MiniRoleGuard;
 
 /**
  * L1 接口契约测试（自动生成，共 7 端点，其中 4 个需登录）。
@@ -34,11 +35,13 @@ class ApprovalControllerTest {
 
     private MockMvc mvc;
     private ApprovalService approvalService;
+    private MiniRoleGuard miniRoleGuard;
 
     @BeforeEach
     void setUp() {
         // 1) 每个依赖创建深桩 mock（返回安全默认值，避免 NPE）
         approvalService = Mockito.mock(ApprovalService.class, new SafeDefaultAnswer());
+        miniRoleGuard = Mockito.mock(MiniRoleGuard.class, new SafeDefaultAnswer());
         // 2) 构造控制器（优先构造函数，否则无参 + 字段注入兜底）
         ApprovalController controller;
         try {
@@ -66,6 +69,7 @@ class ApprovalControllerTest {
         }
         // 3) 字段注入兜底（@Resource/@Autowired 字段）
         ReflectionTestUtils.setField(controller, "approvalService", approvalService);
+        ReflectionTestUtils.setField(controller, "miniRoleGuard", miniRoleGuard);
         // 4) standalone MockMvc：注册全局异常处理器 + 自定义 @CurrentUser 解析器（镜像生产切面）
         mvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -94,6 +98,7 @@ class ApprovalControllerTest {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(post("/api/admin/approval/product/test/audit").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+            Mockito.verify(miniRoleGuard).requireApproverFor(Mockito.eq("PRODUCT"), Mockito.any(LoanUser.class));
         } finally {
             UserContext.clear();
         }
@@ -125,6 +130,7 @@ class ApprovalControllerTest {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(post("/api/admin/approval/download/test/audit").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+            Mockito.verify(miniRoleGuard).requireApproverFor(Mockito.eq("DOWNLOAD"), Mockito.any(LoanUser.class));
         } finally {
             UserContext.clear();
         }
@@ -137,6 +143,7 @@ class ApprovalControllerTest {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(post("/api/admin/approval/download/test/void"))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+            Mockito.verify(miniRoleGuard).requireApproverFor(Mockito.eq("DOWNLOAD"), Mockito.any(LoanUser.class));
         } finally {
             UserContext.clear();
         }

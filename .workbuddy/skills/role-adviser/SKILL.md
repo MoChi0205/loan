@@ -66,7 +66,7 @@ return 'adviser';
 ## 3. 禁止项（不能做什么）— 3 条
 
 1. ❌ **不能审批任何审批类型**
-   - `ALLOCATION` 白名单 `MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS]` —— **不含 ADVISER**
+   - `ALLOCATION` 白名单 `MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS, DEPT_MANAGER]` —— **不含 ADVISER**
    - `PRODUCT` / `DOWNLOAD` 白名单 `APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]` —— **也不含 ADVISER**
    - → **顾问只能"提交分配申请"（`/claim`），不能审批**
 2. ❌ **无审批中心入口** —— `mine.vue` `isApproverRole = ['boss','operator','super']` 不含 adviser；08 矩阵对顾问为 ❌ / —

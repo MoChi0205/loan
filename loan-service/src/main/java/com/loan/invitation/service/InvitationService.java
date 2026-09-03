@@ -8,8 +8,7 @@ import com.loan.invitation.entity.Invitation;
 import com.loan.invitation.mapper.InvitationMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
-import com.loan.staff.entity.Staff;
-import com.loan.staff.mapper.StaffMapper;
+import com.loan.common.service.BusinessNameService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +37,7 @@ public class InvitationService {
 
     private final InvitationMapper invitationMapper;
     private final ClientProfileMapper clientProfileMapper;
-    private final StaffMapper staffMapper;
+    private final BusinessNameService businessNameService;
 
     /**
      * 客户绑定邀请码（注册/登录时使用）。
@@ -127,26 +126,11 @@ public class InvitationService {
      * @param inv 邀请凭证
      * @return 展示名
      */
-    private String resolveReferrerName(Invitation inv) {
-        if (StringUtils.hasText(inv.getReferrerClientCode())) {
-            ClientProfile referrer = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
-                    .eq(ClientProfile::getClientCode, inv.getReferrerClientCode()).last("limit 1"));
-            return referrer == null ? null : referrer.getContactName();
-        }
-        if (("ADVISER".equals(inv.getReferrerType()) || "BOSS".equals(inv.getReferrerType()))
-                && inv.getReferrerId() != null) {
-            Staff staff = staffMapper.selectById(inv.getReferrerId());
-            return staff == null ? null : staff.getStaffName();
-        }
-        return null;
-    }
-
     private Map<String, Object> bindResult(Invitation inv) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("referrerType", inv.getReferrerType());
-        result.put("referrerId", inv.getReferrerId());
         result.put("referrerClientCode", inv.getReferrerClientCode());
-        result.put("referrerName", resolveReferrerName(inv));
+        result.put("referrerName", businessNameService.referrerName(inv));
         result.put("inviteType", inv.getInviteType());
         return result;
     }

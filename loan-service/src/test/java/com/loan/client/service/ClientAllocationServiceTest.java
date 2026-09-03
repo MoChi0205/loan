@@ -15,6 +15,7 @@ import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import com.loan.client.mapper.ClientRecycleConfigMapper;
 import com.loan.notification.service.NotificationService;
+import com.loan.common.service.BusinessNameService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,7 @@ class ClientAllocationServiceTest {
     @Mock private LeadAllocationRecordMapper recordMapper;
     @Mock private ClientRecycleConfigMapper clientRecycleConfigMapper;
     @Mock private NotificationService notificationService;
+    @Mock private BusinessNameService businessNameService;
 
     private ClientAllocationService service;
 
@@ -59,7 +61,7 @@ class ClientAllocationServiceTest {
     @BeforeEach
     void setUp() {
         service = new ClientAllocationService(clientMapper, approvalMapper, staffMapper,
-                recordMapper, clientRecycleConfigMapper, notificationService);
+                recordMapper, clientRecycleConfigMapper, notificationService, businessNameService);
     }
 
     @Test
@@ -76,14 +78,14 @@ class ClientAllocationServiceTest {
         });
         ClientAllocationApproval pending = pending("alloc1", "client1", "S001");
         when(approvalMapper.selectList(any())).thenReturn(Collections.singletonList(pending));
-        when(staffMapper.selectList(any())).thenReturn(Collections.singletonList(adviser("S001", "张顾问")));
+        when(businessNameService.staffNames(any())).thenReturn(Collections.singletonMap("S001", "张顾问"));
 
         com.loan.api.dto.PageResult<Map<String, Object>> result = service.pageUnassigned(null, 1, 10);
 
         assertEquals(2, result.getTotal());
         assertEquals("张顾问", result.getRecords().get(0).get("applicantName"));
         assertEquals(false, result.getRecords().get(1).get("allocationPending"));
-        verify(staffMapper).selectList(any());
+        verify(businessNameService).staffNames(any());
     }
 
     @Test

@@ -6,16 +6,16 @@
         <p class="loan-page-subtitle">客户资料 · 认证信息 · 服务归属 · 操作留痕</p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" :disabled="!clientCode" @click="goScreening">
+        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_SCREENING)" type="primary" :disabled="!clientCode" @click="goScreening">
           <AppIcon name="screening" :size="14" />
           发起初筛
         </el-button>
-        <el-button :loading="saving" :disabled="!clientCode" @click="openEdit">
+        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_UPDATE)" :loading="saving" :disabled="!clientCode" @click="openEdit">
           <AppIcon name="edit" :size="14" />
           编辑档案
         </el-button>
-        <el-button v-if="canManage" type="warning" plain @click="openAssign">分配归属</el-button>
-        <el-button v-if="canManage" type="danger" plain :disabled="!detail.ownerStaffCode" @click="onRecycle">回收进公海</el-button>
+        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)" type="warning" plain @click="openAssign">分配归属</el-button>
+        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_RECYCLE)" type="danger" plain :disabled="!detail.ownerStaffCode" @click="onRecycle">回收进公海</el-button>
       </div>
     </div>
 
@@ -162,15 +162,11 @@ import { getClientDetail, updateClientDetail, assignClient, recycleClient } from
 import { staffPage } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { staffDisplayLabel } from '@/utils/display';
+import { ACTION_PERMISSION } from '@/utils/access';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
-const MANAGE_ROLES = ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'];
-const canManage = computed(() =>
-  MANAGE_ROLES.includes((userStore.roleCode || '').toUpperCase()),
-);
-
 const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');

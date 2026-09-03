@@ -34,6 +34,11 @@ public class ApprovalController {
     private final MiniClientService miniClientService;
     private final MiniRoleGuard miniRoleGuard;
 
+    /** 产品/下载审批专用守卫，避免仅依赖前端隐藏按钮。 */
+    private void requireApprovalRole(String type, LoanUser user) {
+        miniRoleGuard.requireApproverFor(type, user);
+    }
+
     // ============================================================
     // 产品审核
     // ============================================================
@@ -73,6 +78,7 @@ public class ApprovalController {
     @OpLog(bizType = "产品审核", action = "AUDIT")
     public Result<Void> productAudit(@PathVariable String approvalNo, @RequestBody Map<String, Object> body,
                                      @CurrentUser LoanUser user) {
+        requireApprovalRole("PRODUCT", user);
         approvalService.productAudit(approvalNo,
                 Boolean.TRUE.equals(body.get("approve")),
                 (String) body.get("opinion"),
@@ -124,6 +130,7 @@ public class ApprovalController {
     @OpLog(bizType = "下载审批", action = "AUDIT")
     public Result<Void> downloadAudit(@PathVariable String approvalNo, @RequestBody Map<String, Object> body,
                                       @CurrentUser LoanUser user) {
+        requireApprovalRole("DOWNLOAD", user);
         approvalService.downloadAudit(approvalNo,
                 Boolean.TRUE.equals(body.get("approve")),
                 (String) body.get("opinion"),
@@ -137,6 +144,7 @@ public class ApprovalController {
     @PostMapping("/download/{approvalNo}/void")
     @OpLog(bizType = "下载审批", action = "VOID")
     public Result<Void> downloadVoid(@PathVariable String approvalNo, @CurrentUser LoanUser user) {
+        requireApprovalRole("DOWNLOAD", user);
         approvalService.voidDownload(approvalNo, user == null ? "system" : user.getUserNo());
         return Result.ok();
     }

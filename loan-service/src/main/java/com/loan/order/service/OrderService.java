@@ -8,6 +8,7 @@ import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.common.util.PageOrder;
+import com.loan.common.service.BusinessNameService;
 import com.loan.exception.BusinessException;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.order.dto.OrderCreateReq;
@@ -17,8 +18,6 @@ import com.loan.order.mapper.ServiceOrderMapper;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
 import com.loan.reward.service.RewardService;
-import com.loan.staff.entity.Staff;
-import com.loan.staff.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +48,7 @@ public class OrderService {
     private final ClientProfileMapper clientProfileMapper;
     private final BankProductMapper bankProductMapper;
     private final RewardService rewardService;
-    private final StaffMapper staffMapper;
+    private final BusinessNameService businessNameService;
 
     /** 合法状态集合 */
     private static final List<String> VALID_STATUS = Arrays.asList(
@@ -273,26 +272,15 @@ public class OrderService {
         // 批量查客户名 / 产品名
         List<String> clientCodes = orders.stream().map(ServiceOrder::getClientProfileCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
-        Map<String, String> clientNameMap = clientCodes.isEmpty() ? java.util.Collections.emptyMap()
-                : clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
-                        .in(ClientProfile::getClientCode, clientCodes)).stream()
-                        .collect(Collectors.toMap(ClientProfile::getClientCode,
-                                c -> StringUtils.hasText(c.getEnterpriseName()) ? c.getEnterpriseName()
-                                        : c.getContactName()));
+        Map<String, String> clientNameMap = businessNameService.clientNames(clientCodes);
 
         List<String> productCodes = orders.stream().map(ServiceOrder::getBankProductCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
-        Map<String, String> productNameMap = productCodes.isEmpty() ? java.util.Collections.emptyMap()
-                : bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
-                        .in(BankProduct::getProductCode, productCodes)).stream()
-                        .collect(Collectors.toMap(BankProduct::getProductCode, BankProduct::getProductName));
+        Map<String, String> productNameMap = businessNameService.productNames(productCodes);
 
         List<String> staffCodes = orders.stream().map(ServiceOrder::getOwnerStaffCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
-        Map<String, String> staffNameMap = staffCodes.isEmpty() ? java.util.Collections.emptyMap()
-                : staffMapper.selectList(new LambdaQueryWrapper<Staff>()
-                        .in(Staff::getStaffCode, staffCodes)).stream()
-                        .collect(Collectors.toMap(Staff::getStaffCode, Staff::getStaffName, (left, right) -> left));
+        Map<String, String> staffNameMap = businessNameService.staffNames(staffCodes);
 
         return orders.stream().map(o -> {
             Map<String, Object> m = new LinkedHashMap<>();

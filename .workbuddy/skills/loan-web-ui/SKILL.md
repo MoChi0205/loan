@@ -174,8 +174,7 @@ function onRowContextMenu(ev, row) {
 
 - **契约真源**：`db/loan-db-schema.sql`（表数以该文件为准）→ `loan-service` 代码 → `docs/knowledge-base/`
 - **禁止引用** `前端交互逻辑蓝图.html` / `output/` 等已失效路径（见 `loan-knowledge`）
-- **审批入口真值（D0-4）**：`ALLOCATION` 审批仅 `OPERATOR` / `SUPER_ADMIN` / `SUPER` / `BOSS`
-  （**不含 DEPT_MANAGER**）；`PRODUCT` / `DOWNLOAD` 才含 `DEPT_MANAGER`
+- **审批入口真值（D39 覆盖 D0-4）**：`ALLOCATION` 审批对 `DEPT_MANAGER` 开放，但仅本团队可审；跨团队由 BOSS 等上级审批。`PRODUCT` / `DOWNLOAD` 继续含 `DEPT_MANAGER`。
 - **分工红线（D0-1）**：前端由用户自己负责；助手改动须限定在用户指定范围
 
 ## 自检清单（改完必过）

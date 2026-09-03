@@ -33,7 +33,7 @@ description: >-
 5. **文件不存在则跳过本步，不阻塞**（保证本技能在其它仓库也可用）。
 6. 在回复开头输出「结论核对」小结，格式固定：
    ```
-   【结论核对】命中 D0-4（ALLOCATION 审批不含 DEPT_MANAGER）/ 未命中（grep 关键词：审批,分配,ALLOCATION）
+   【结论核对】命中 D39（DEPT_MANAGER 仅审批本人团队 ALLOCATION）/ 未命中（grep 关键词：审批,分配,ALLOCATION）
    ```
 7. **命中且与本次需求冲突 → 先向用户确认再动手**，不擅自推翻历史结论。
 

@@ -90,8 +90,7 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 
 - **契约真源**：`db/loan-db-schema.sql`（**表数以 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 为准，不写死数字**，规则 9）→ `loan-service` 代码 → `docs/knowledge-base/`
 - **禁止引用** `前端交互逻辑蓝图.html` / `后端逻辑蓝图.html` / `output/`（均不存在或已删除，见 `loan-knowledge`）
-- **审批权限真值（D0-4）**：`ALLOCATION` 审批仅 `OPERATOR` / `SUPER_ADMIN` / `SUPER` / `BOSS`
-  （**不含 DEPT_MANAGER**）；`PRODUCT` / `DOWNLOAD` 才含 `DEPT_MANAGER`。
+- **审批权限真值（D39 覆盖 D0-4）**：`ALLOCATION` 审批包含 `DEPT_MANAGER`，但部门经理仅可审批本人团队，跨团队必须由 BOSS 等上级审批；`OPERATOR` / `SUPER_ADMIN` / `SUPER` / `BOSS` 可审批全部。`PRODUCT` / `DOWNLOAD` 继续包含 `DEPT_MANAGER`。
   依据 `loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java` 的 `APPROVER_ROLES` vs `APPROVAL_ROLES`
 - **OCR 回灌真名（D0-3）**：`SubmissionFactsMerger.mergeFromOcr(reportNo, ocrFacts, operator)`，**不是** `mergeToOcr`
 - **分工红线（D0-1）**：前端（loan-web / 小程序）由用户自己负责，助手只做后端 `loan-service`
@@ -110,7 +109,7 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - [ ] 是否跑过 `mvn compile` 自检（**JDK 8 约束：禁 `var` / `List.of` / 文本块**）？
 - [ ] 业务标识是否走业务 ID（禁 `@PathVariable Long id` / `selectById` 作业务查询）？→ 见 `loan-biz-id`
 - [ ] 新增定时任务是否用 XXL-Job（禁 `@Scheduled`）？
-- [ ] 涉及审批权限是否按 D0-4 真值校验（ALLOCATION 不含 DEPT_MANAGER）？
+- [ ] 涉及审批权限是否按 D39 真值校验（DEPT_MANAGER 仅本团队 ALLOCATION，跨团队上收）？
 - [ ] 重要写接口的幂等、状态 CAS、锁与线程安全是否有明确设计和并发验证？
 - [ ] 限流/熔断/traceId/日志分流与脱敏是否符合 `loan-code-standard` 后端验收清单？
 

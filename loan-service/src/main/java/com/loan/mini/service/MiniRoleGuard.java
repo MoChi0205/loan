@@ -55,7 +55,7 @@ public class MiniRoleGuard {
     }
 
     /**
-     * 校验当前用户为审批分配管理员（运营管理员 / 超级管理员）。
+     * 校验当前用户为审批分配管理员（运营管理员 / 超级管理员 / 部门经理）。
      *
      * @param user 当前登录用户，允许为 {@code null}
      */
@@ -63,7 +63,7 @@ public class MiniRoleGuard {
         requireStaff(user);
         String code = user.getRoleCode() == null ? "" : String.valueOf(user.getRoleCode()).toUpperCase();
         if (!APPROVER_ROLES.contains(code)) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "仅运营管理员或超级管理员可审批分配");
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅管理角色可审批分配");
         }
     }
 

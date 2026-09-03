@@ -10,6 +10,7 @@ import com.loan.approval.mapper.ProductApprovalMapper;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.common.util.PageOrder;
+import com.loan.common.service.BusinessNameService;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.mini.service.MiniClientService;
@@ -94,6 +95,7 @@ public class ApprovalService {
     private final BankProductMapper bankProductMapper;
     private final MiniClientService miniClientService;
     private final StaffMapper staffMapper;
+    private final BusinessNameService businessNameService;
 
     /**
      * 已开放的审批类型白名单（配置 {@code loan.mini.approval.types}，逗号分隔）。
@@ -132,11 +134,8 @@ public class ApprovalService {
 
         List<String> productCodes = result.getRecords().stream().map(ProductApproval::getBankProductCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
-        Map<String, String> productNameMap = productCodes.isEmpty() ? java.util.Collections.emptyMap()
-                : bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
-                        .in(BankProduct::getProductCode, productCodes)).stream()
-                        .collect(Collectors.toMap(BankProduct::getProductCode, BankProduct::getProductName));
-        Map<String, String> staffNameMap = staffNames(result.getRecords().stream()
+        Map<String, String> productNameMap = businessNameService.productNames(productCodes);
+        Map<String, String> staffNameMap = businessNameService.staffNames(result.getRecords().stream()
                 .map(ProductApproval::getApproverStaffCode).collect(Collectors.toSet()));
 
         List<Map<String, Object>> records = result.getRecords().stream().map(a -> {
@@ -175,7 +174,7 @@ public class ApprovalService {
         m.put("duplicateFlag", a.getDuplicateFlag());
         m.put("approveStatus", a.getApproveStatus());
         m.put("approverStaffCode", a.getApproverStaffCode());
-        m.put("approverStaffName", staffNames(Collections.singleton(a.getApproverStaffCode()))
+        m.put("approverStaffName", businessNameService.staffNames(Collections.singleton(a.getApproverStaffCode()))
                 .get(a.getApproverStaffCode()));
         m.put("approveOpinion", a.getApproveOpinion());
         m.put("timeoutAt", a.getTimeoutAt());
@@ -296,7 +295,7 @@ public class ApprovalService {
         Set<String> staffCodes = result.getRecords().stream()
                 .flatMap(a -> java.util.stream.Stream.of(a.getApplicantStaffCode(), a.getApproverStaffCode()))
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
-        Map<String, String> staffNameMap = staffNames(staffCodes);
+        Map<String, String> staffNameMap = businessNameService.staffNames(staffCodes);
         List<Map<String, Object>> records = result.getRecords().stream().map(a -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("approvalNo", a.getApprovalNo());
@@ -360,6 +359,9 @@ public class ApprovalService {
         if (a.getVoidFlag() != null && a.getVoidFlag() == 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "审批单已作废");
         }
+        if (!"APPROVED".equals(a.getApproveStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "仅已通过且有效的审批单可作废");
+        }
         a.setVoidFlag(1);
         a.setUpdatedBy(operator);
         downloadApprovalMapper.updateById(a);
@@ -376,17 +378,6 @@ public class ApprovalService {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "审批单不存在");
         }
         return a;
-    }
-
-    /** 批量加载人员姓名；列表转换严禁逐行查询。 */
-    private Map<String, String> staffNames(Set<String> staffCodes) {
-        Set<String> codes = staffCodes == null ? Collections.emptySet() : staffCodes.stream()
-                .filter(StringUtils::hasText).collect(Collectors.toSet());
-        if (codes.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return staffMapper.selectList(new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, codes)).stream()
-                .collect(Collectors.toMap(Staff::getStaffCode, Staff::getStaffName, (left, right) -> left));
     }
 
     /** 生成限时下载 token。 */

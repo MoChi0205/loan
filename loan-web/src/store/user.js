@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { login as loginApi, logout as logoutApi } from '@/api/auth';
 import { KEYS, getStorage, getStorageJSON, setStorage, setStorageJSON, removeStorage } from '@/utils/storage';
+import { defaultPermissionsForRole, hasActionPermission } from '@/utils/access';
 
 /**
  * 用户状态 Store：token + 用户信息（持久化到 localStorage）。
@@ -10,7 +11,7 @@ import { KEYS, getStorage, getStorageJSON, setStorage, setStorageJSON, removeSto
  * - 路由/指令「声明了权限但用户未授权」→ 拦截（403 / 隐藏按钮）；
  * - 后端登录下发的 permissions 优先；未下发时按角色映射：
  *   BOSS / OPERATOR / SUPER_ADMIN / SUPER 全量通配 '*'；
- *   DEPT_MANAGER / ADVISER 留空（= 仅可见未声明权限的页面，受菜单按角色过滤约束）。
+ *   DEPT_MANAGER / ADVISER 使用页面 + 操作级权限码，菜单仍由后端数据范围控制。
  */
 const TOKEN_KEY = KEYS.TOKEN;
 const USER_KEY = KEYS.USER;
@@ -22,16 +23,6 @@ const USER_KEY = KEYS.USER;
  * - ADVISER：本人视角，仅 客户档案（page:client）；
  * - CHANNEL：沙箱，无页面级权限。
  */
-const ROLE_PERMISSIONS = {
-  BOSS: ['*'],
-  OPERATOR: ['*'],
-  SUPER_ADMIN: ['*'],
-  SUPER: ['*'],
-  DEPT_MANAGER: ['page:client', 'page:audit'],
-  ADVISER: ['page:client'],
-  CHANNEL: [],
-};
-
 export const useUserStore = defineStore('user', {
   state: () => {
     // 本地用户信息容错：数据损坏时忽略并清理，避免应用启动即崩溃
@@ -48,7 +39,7 @@ export const useUserStore = defineStore('user', {
       permissions:
         (cachedUser?.permissions && cachedUser.permissions.length)
           ? cachedUser.permissions
-          : ROLE_PERMISSIONS[cachedUser?.roleCode] || [],
+          : defaultPermissionsForRole(cachedUser?.roleCode || (cachedUser?.userType === 'CHANNEL' ? 'CHANNEL' : '')),
     };
   },
   getters: {
@@ -82,7 +73,7 @@ export const useUserStore = defineStore('user', {
       this.token = data.token || '';
       this.user = data.user || null;
       // 权限：登录下发优先，否则按角色默认（BOSS 全通 / 其余留空=未配置）
-      const rolePerms = ROLE_PERMISSIONS[this.user?.roleCode] || [];
+      const rolePerms = defaultPermissionsForRole(this.roleCode || this.user?.roleCode);
       this.permissions = Array.isArray(data.permissions) && data.permissions.length
         ? data.permissions
         : rolePerms;
@@ -117,11 +108,7 @@ export const useUserStore = defineStore('user', {
      */
     hasPerm(code) {
       if (!code) return true;
-      const list = this.permissions || [];
-      if (!list.length) return false;
-      const pass = (c) => list.includes('*') || list.includes(c);
-      if (Array.isArray(code)) return code.every(pass);
-      return pass(code);
+      return hasActionPermission(this.permissions, code);
     },
   },
 });

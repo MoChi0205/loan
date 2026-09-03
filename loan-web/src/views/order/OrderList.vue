@@ -5,7 +5,7 @@
         <h2 class="loan-page-title">服务工单</h2>
         <p class="loan-page-subtitle">业务订单主表 · 谁建单归谁 · DEAL 计入营收并触发奖励结算</p>
       </div>
-      <el-button type="primary" @click="onAdd">
+      <el-button v-permission="ACTION_PERMISSION.ORDER_CREATE" type="primary" @click="onAdd">
         <AppIcon name="add" :size="14" />
         新建工单
       </el-button>
@@ -178,6 +178,8 @@ import { appConfirm } from '@/utils/confirm';
 import { copyText } from '@/utils/clipboard';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { clientDisplayLabel } from '@/utils/display';
+import { useUserStore } from '@/store/user';
+import { ACTION_PERMISSION, availableOrderTransitions } from '@/utils/access';
 import { pageOrders, createOrder, orderDetail, updateOrderStatus, pageClientLite } from '@/api/order';
 
 const statusText = {
@@ -187,6 +189,7 @@ const statusText = {
   CANCEL: '已取消',
   REFUND: '已退款',
 };
+const userStore = useUserStore();
 const statusTag = (s) => ({
   NEW: 'loan-tag-info',
   IN_SERVICE: 'loan-tag-warning',
@@ -216,15 +219,11 @@ function rowActions(row) {
     { key: 'detail', label: '详情', onClick: () => onDetail(row) },
     { key: 'copy', label: '复制单号', onClick: () => onCopy(row) },
   ];
-  if (row.status === 'NEW') {
-    actions.push({ key: 'start', label: '开始服务', type: 'success', confirm: `确认开始服务「${row.orderNo}」？`, onClick: () => onStart(row) });
-    actions.push({ key: 'cancel', label: '取消', type: 'danger', confirm: `确认取消工单「${row.orderNo}」？`, onClick: () => onCancel(row) });
-  } else if (row.status === 'IN_SERVICE') {
-    actions.push({ key: 'deal', label: '成交', type: 'success', onClick: () => openDeal(row) });
-    actions.push({ key: 'cancel', label: '取消', type: 'danger', confirm: `确认取消工单「${row.orderNo}」？`, onClick: () => onCancel(row) });
-  } else if (row.status === 'DEAL') {
-    actions.push({ key: 'refund', label: '退款冲正', type: 'danger', confirm: `确认将成交工单「${row.orderNo}」退款冲正？营收与奖励将联动冲减。`, onClick: () => onRefund(row) });
-  }
+  const transitions = availableOrderTransitions(row.status, userStore.permissions);
+  if (transitions.includes('IN_SERVICE')) actions.push({ key: 'start', label: '开始服务', type: 'success', confirm: `确认开始服务「${row.orderNo}」？`, onClick: () => onStart(row) });
+  if (transitions.includes('DEAL')) actions.push({ key: 'deal', label: '成交', type: 'success', onClick: () => openDeal(row) });
+  if (transitions.includes('CANCEL')) actions.push({ key: 'cancel', label: '取消', type: 'danger', confirm: `确认取消工单「${row.orderNo}」？`, onClick: () => onCancel(row) });
+  if (transitions.includes('REFUND')) actions.push({ key: 'refund', label: '退款冲正', type: 'danger', confirm: `确认将成交工单「${row.orderNo}」退款冲正？营收与奖励将联动冲减。`, onClick: () => onRefund(row) });
   return actions;
 }
 
