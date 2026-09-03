@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
  * 幂等 upsert 到接口权限表。新增 Controller 接口后重启即自动登记，无需手工维护种子数据。
  *
  * <p>首次运行（t_role_api 无数据）时为 DEPT_MANAGER / ADVISER 插入默认授权，
- * 保证系统开箱可用；BOSS 为超级角色不落库。
+ * 保证系统开箱可用；BOSS 按业务默认全量角色处理，不落库。
  *
  * @author loan-platform
  */
@@ -84,6 +84,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "dict:listAll",
             "sms:sendCode", "sms:verifyCode",
             "config:status",
+            "ocr:fieldDefs", "ocr:recognize",
     };
 
     /** 主管（DEPT_MANAGER）在顾问基础上追加管理接口 */
@@ -98,6 +99,9 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "blacklist:page",
             "report:page", "report:save", "report:toggle",
             "ocr:fieldDefs", "ocr:saveRecord",
+            "product:page", "product:get", "product:create", "product:update", "product:delete",
+            "product-city:list", "product-city:page", "product-city:detail", "product-city:batchQuery",
+            "product-city:bind", "product-city:update", "product-city:unbind",
     };
 
     private final RequestMappingHandlerMapping handlerMapping;
@@ -235,7 +239,10 @@ public class ApiPermissionSyncService implements ApplicationRunner {
         // 通配：授权按前缀（如 order: 全授权）
         seedByPrefix(adviserKeys, new String[]{"order:", "lead:", "client:", "attachment:", "screening:",
                 "notification:", "dashboard:", "audit:", "report:", "auth:", "dict:", "sms:", "config:"});
+        addExistingKeys(adviserKeys, ADVISER_APIS);
         seedByPrefix(managerKeys, new String[]{"org:", "approval:", "reward:", "blacklist:", "ocr:"});
+        seedByPrefix(managerKeys, new String[]{"product:", "product-city:", "partner-product:", "rule:",
+                "rule-template:", "strategy-template:", "execution-plan:", "channel:", "channel-strategy:"});
         managerKeys.addAll(adviserKeys);
 
         Map<String, List<String>> map = new LinkedHashMap<>();
@@ -254,7 +261,10 @@ public class ApiPermissionSyncService implements ApplicationRunner {
         List<String> managerKeys = new ArrayList<>();
         seedByPrefix(adviserKeys, new String[]{"order:", "lead:", "client:", "attachment:", "screening:",
                 "notification:", "dashboard:", "audit:", "report:", "auth:", "dict:", "sms:", "config:"});
+        addExistingKeys(adviserKeys, ADVISER_APIS);
         seedByPrefix(managerKeys, new String[]{"org:", "approval:", "reward:", "blacklist:", "ocr:"});
+        seedByPrefix(managerKeys, new String[]{"product:", "product-city:", "partner-product:", "rule:",
+                "rule-template:", "strategy-template:", "execution-plan:", "channel:", "channel-strategy:"});
         managerKeys.addAll(adviserKeys);
 
         backfillRole("ADVISER", adviserKeys);
@@ -304,6 +314,18 @@ public class ApiPermissionSyncService implements ApplicationRunner {
                 if (k.startsWith(p) && !out.contains(k)) {
                     out.add(k);
                 }
+            }
+        }
+    }
+
+    /** 从已登记接口中追加指定键；用于不宜整模块放开的最小权限。 */
+    private void addExistingKeys(List<String> out, String[] keys) {
+        Set<String> registered = apiPermissionMapper.selectList(
+                        new LambdaQueryWrapper<ApiPermission>().eq(ApiPermission::getStatus, "ACTIVE"))
+                .stream().map(ApiPermission::getApiKey).collect(Collectors.toSet());
+        for (String key : keys) {
+            if (registered.contains(key) && !out.contains(key)) {
+                out.add(key);
             }
         }
     }

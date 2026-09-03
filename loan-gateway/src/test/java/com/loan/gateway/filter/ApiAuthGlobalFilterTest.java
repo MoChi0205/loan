@@ -57,6 +57,27 @@ class ApiAuthGlobalFilterTest {
         assertFalse(filter.matchesTypeApiRules(null, "GET", new String[]{"/api/mini/lead/my"}));
     }
 
+    @Test
+    void authenticatedLogoutIsCommonForEveryRoleAndUserType() {
+        assertTrue(filter.isAuthenticatedCommonApi("/loan/api/auth/logout", "POST"));
+        assertTrue(filter.isAuthenticatedCommonApi("/api/auth/logout", "POST"));
+        assertFalse(filter.isAuthenticatedCommonApi("/loan/api/auth/logout", "GET"));
+    }
+
+    @Test
+    void bossSystemConfigDenyRuleOverridesBusinessSuperRole() {
+        Map<String, Object> rules = new LinkedHashMap<>();
+        Map<String, Object> deny = new LinkedHashMap<>();
+        deny.put("BOSS", Arrays.asList("org:roleList", "org:saveRolePermission", "api-perm:", "debug:"));
+        rules.put("roleDenyApiRules", deny);
+
+        assertTrue(filter.isRoleExplicitlyDenied(rules, "BOSS", "org:saveRolePermission"));
+        assertFalse(filter.isRoleExplicitlyDenied(rules, "BOSS", "org:staffPage"));
+        assertFalse(filter.isRoleExplicitlyDenied(rules, "BOSS", "config:status"));
+        assertFalse(filter.isRoleExplicitlyDenied(rules, "BOSS", "client:pageLite"));
+        assertFalse(filter.isRoleExplicitlyDenied(rules, "SUPER", "org:saveRolePermission"));
+    }
+
     private Map<String, String> rule(String method, String pathPattern) {
         Map<String, String> rule = new LinkedHashMap<>();
         rule.put("method", method);

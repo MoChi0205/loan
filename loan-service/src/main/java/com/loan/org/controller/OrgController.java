@@ -7,6 +7,7 @@ import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.log.annotation.OpLog;
+import com.loan.infrastructure.security.AdminRoleGuard;
 import com.loan.org.entity.Department;
 import com.loan.org.entity.Role;
 import com.loan.org.service.OrgService;
@@ -41,8 +42,8 @@ public class OrgController {
      * 菜单树（按角色过滤，供侧栏/权限配置用）。
      *
      * <p>普通用户只能获取自身角色菜单：渠道固定 CHANNEL，普通员工固定使用登录态角色，
-     * 防止通过 roleCode 参数猜测其他角色菜单。BOSS / SUPER_ADMIN 在组织权限配置页可显式
-     * 指定 roleCode 查看目标角色菜单；无登录态不提供兜底角色。
+     * 防止通过 roleCode 参数猜测其他角色菜单。OPERATOR / SUPER_ADMIN / SUPER 在组织权限配置页
+     * 可显式指定 roleCode 查看目标角色菜单；无登录态不提供兜底角色。
      *
      * @param roleCode 角色编码（可选）
      * @param user     当前登录用户（服务端兜底取角色，防前端空参/越权猜角色）
@@ -59,8 +60,7 @@ public class OrgController {
             effective = "CHANNEL";
         } else if (LoanUser.TYPE_STAFF.equals(user.getUserType())) {
             effective = user.getRoleCode();
-            boolean canInspectOtherRole = "BOSS".equalsIgnoreCase(effective)
-                    || "SUPER_ADMIN".equalsIgnoreCase(effective);
+            boolean canInspectOtherRole = AdminRoleGuard.isSystemConfigAdmin(user);
             if (canInspectOtherRole && roleCode != null && !roleCode.trim().isEmpty()) {
                 effective = roleCode.trim().toUpperCase();
             }
@@ -100,7 +100,8 @@ public class OrgController {
      * @return 已授权 menuId 列表
      */
     @GetMapping("/permission/list")
-    public Result<List<Long>> permissionList(@RequestParam String roleCode) {
+    public Result<List<Long>> permissionList(@RequestParam String roleCode, @CurrentUser LoanUser user) {
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         return Result.ok(orgService.listRolePermissionMenuIds(roleCode));
     }
 
@@ -136,6 +137,7 @@ public class OrgController {
     @PostMapping("/department/save")
     @OpLog(bizType = "组织权限", action = "DEPT_SAVE")
     public Result<Void> saveDepartment(@RequestBody Department req, @CurrentUser LoanUser user) {
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         orgWriteService.saveDepartment(req, user == null ? "system" : user.getName());
         return Result.ok();
     }
@@ -146,6 +148,7 @@ public class OrgController {
     @PostMapping("/department/disable")
     @OpLog(bizType = "组织权限", action = "DEPT_DISABLE")
     public Result<Void> disableDepartment(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         orgWriteService.disableDepartment((String) body.get("deptCode"),
                 user == null ? "system" : user.getName());
         return Result.ok();
@@ -157,6 +160,7 @@ public class OrgController {
     @PostMapping("/staff/save")
     @OpLog(bizType = "组织权限", action = "STAFF_SAVE")
     public Result<Void> saveStaff(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         orgWriteService.saveStaff(body, user == null ? "system" : user.getName());
         return Result.ok();
     }
@@ -167,6 +171,7 @@ public class OrgController {
     @PostMapping("/staff/disable")
     @OpLog(bizType = "组织权限", action = "STAFF_DISABLE")
     public Result<Void> disableStaff(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         orgWriteService.disableStaff((String) body.get("staffCode"),
                 user == null ? "system" : user.getName());
         return Result.ok();
@@ -180,6 +185,7 @@ public class OrgController {
     @PostMapping("/permission/save")
     @OpLog(bizType = "组织权限", action = "PERM_SAVE")
     public Result<Void> saveRolePermission(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         List<Long> menuIds = new java.util.ArrayList<>();
         Object rawIds = body.get("menuIds");
         if (rawIds instanceof List) {

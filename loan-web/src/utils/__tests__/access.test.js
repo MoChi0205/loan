@@ -27,6 +27,9 @@ describe('Web 操作级权限矩阵', () => {
     expect(hasActionPermission(permissions, ACTION_PERMISSION.LEAD_CREATE)).toBe(true);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_OWN_VIEW)).toBe(true);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.REPORT_OWN_VIEW)).toBe(true);
+    expect(hasActionPermission(permissions, 'page:client')).toBe(true);
+    expect(hasActionPermission(permissions, 'page:channel-report')).toBe(true);
+    expect(hasActionPermission(permissions, 'page:channel-product')).toBe(true);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.LEAD_CLAIM)).toBe(false);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_POOL_VIEW)).toBe(false);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_ASSIGN)).toBe(false);

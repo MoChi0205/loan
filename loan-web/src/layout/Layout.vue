@@ -233,11 +233,12 @@
           </el-tooltip>
         </div>
         <router-view v-slot="{ Component, route: r }">
-          <transition name="page-fade" mode="out-in">
-            <keep-alive :include="cachedViews">
-              <component :is="Component" :key="r.fullPath" />
-            </keep-alive>
-          </transition>
+          <!--
+            页面直接由最终路由驱动。不要在新增标签的同一更新周期动态修改 keep-alive
+            include：两者与 RouterView 同时 patch 时会出现 parentNode=null，表现为地址和
+            面包屑已变化但内容停留在旧页，刷新后才恢复。标签只保存导航记录，不缓存 DOM。
+          -->
+          <component :is="Component" :key="`${r.fullPath}:${refreshKey}`" />
         </router-view>
       </main>
     </div>
@@ -245,12 +246,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/store/user';
-import { menuTree } from '@/api/org';
 import { openContextMenu } from '@/utils/contextMenu';
 import { findMenuItem } from '@/utils/menu';
+import { canKeepOpenedTab } from '@/utils/routeAccess';
 import { KEYS, getStorageJSON, setStorage, setStorageJSON } from '@/utils/storage';
 import ThemeSwitch from '@/components/ThemeSwitch.vue';
 import AppIcon from '@/components/AppIcon.vue';
@@ -388,7 +389,8 @@ const menuGroups = computed(() => {
           ...item,
           title: item.path === '/lead' ? '我的线索'
             : item.path === '/client' ? '我的客户'
-              : item.path === '/report/screening' ? '客户分析报告' : item.title,
+              : item.path === '/product' ? '我的产品'
+                : item.path === '/report/screening' ? '客户分析报告' : item.title,
         })),
       }))
     : SAFE_MENU_GROUPS;
@@ -403,6 +405,12 @@ const menuGroups = computed(() => {
 /** 扁平菜单（标题查找用；跳过分区标题） */
 const menus = computed(() => menuGroups.value.flatMap((g) => g.items.filter((i) => i.path)));
 
+/** 当前角色下的页面标题；渠道页面使用业务化名称，避免面包屑/标签仍显示管理端通用名称。 */
+function resolveRolePageTitle(path, fallback = '') {
+  const item = findMenuItem(menus.value, path);
+  return item?.title || fallback;
+}
+
 /** 拉取当前角色的后端菜单树，构建可见 path 集合（去查询串）。 */
 async function loadRoleMenu() {
   try {
@@ -411,30 +419,22 @@ async function loadRoleMenu() {
       allowedCodes.value = null;
       return;
     }
-    const res = await menuTree(roleCode);
-    const nodes = res?.data || [];
-    const set = new Set();
-    const walk = (list) => {
-      (list || []).forEach((n) => {
-        if (n.code) set.add(String(n.code).split('?')[0]);
-        if (n.children && n.children.length) walk(n.children);
-      });
-    };
-    walk(nodes);
+    const set = await userStore.ensureMenuPaths();
     // 成功加载：空 Set = 该角色无任何菜单（区别于 null=加载失败回退全集，T12）
     allowedCodes.value = set;
     // 按当前角色菜单过滤残留 tab（降权/角色切换后清理无权限 tab，T8）
-    if (set.size) {
-      const before = openTabs.value.length;
-      openTabs.value = openTabs.value.filter((t) => {
-        if (t.path === '/workbench') return true;
-        return set.has(String(t.path).split('?')[0]);
-      });
-      if (openTabs.value.length !== before) saveTabs();
-      if (!openTabs.value.some((t) => t.path === route.fullPath)) {
-        const fallback = openTabs.value[openTabs.value.length - 1] || { path: '/workbench', title: '工作台' };
-        activeTab.value = fallback.path;
-      }
+    // 包括空菜单在内都必须清理旧角色标签；子路由按父菜单继承准入。
+    const before = openTabs.value.length;
+    openTabs.value = openTabs.value.filter((t) => canKeepOpenedTab(t.path, set, {
+      debugCenterEnabled: DEBUG_CENTER_VISIBLE,
+    }));
+    if (!openTabs.value.some((t) => t.path === '/workbench')) {
+      openTabs.value.unshift({ path: '/workbench', title: '工作台' });
+    }
+    if (openTabs.value.length !== before) saveTabs();
+    if (!openTabs.value.some((t) => t.path === route.fullPath)) {
+      const fallback = openTabs.value[openTabs.value.length - 1] || { path: '/workbench', title: '工作台' };
+      activeTab.value = fallback.path;
     }
   } catch (e) {
     // 权限数据不可用时 fail-closed：仅保留工作台，禁止展示未经授权的业务入口。
@@ -444,10 +444,7 @@ async function loadRoleMenu() {
 
 /** 当前菜单标题（动态面包屑：优先 route.meta.title，支持子页面如 /report/overview） */
 const currentTitle = computed(() => {
-  if (route.meta?.title) return route.meta.title;
-  const list = Array.isArray(menus.value) ? menus.value : [];
-  const m = list.find((item) => item?.path === route.path);
-  return m ? m.title : '企业贷款咨询服务';
+  return resolveRolePageTitle(route.fullPath, route.meta?.title || '企业贷款咨询服务');
 });
 
 /** 菜单激活态（前缀匹配，支持子页面；带 ?cg= 的菜单项按 fullPath 精确命中或 path 兜底，T1 修复） */
@@ -484,11 +481,8 @@ function onUserCommand(command) {
 // 多标签栏 + 分组折叠状态：统一走 storage 封装持久化
 const activeTab = ref(route.fullPath);
 const openTabs = ref([{ path: '/workbench', title: '工作台' }]);
-/** 已缓存页面（用于 keep-alive；name 与组件 defineOptions 对齐：去 query 后 path 的 / 与 - 转 _） */
-const cachedViews = ref(openTabs.value.map((t) => t.path.split('?')[0].replace(/[/-]/g, '_')));
-watch(openTabs, (tabs) => {
-  cachedViews.value = tabs.map((t) => t.path.split('?')[0].replace(/[/-]/g, '_'));
-}, { deep: true });
+/** 手动刷新版本：递增 key 只重建当前路由页面，不再依赖动态 keep-alive 白名单。 */
+const refreshKey = ref(0);
 /** 主菜单分组折叠状态：title -> 是否展开（默认全展开） */
 const groupExpanded = ref({});
 
@@ -506,6 +500,15 @@ function loadTabs() {
   if (Array.isArray(arr) && arr.length) {
     openTabs.value = arr;
   }
+  // 403 是瞬时错误状态，不跨登录/刷新持久化；角色切换后保留会造成多个“无权限”标签。
+  openTabs.value = openTabs.value.filter((t) => String(t?.path || '').split('?')[0] !== '/403');
+  if (!openTabs.value.length) openTabs.value = [{ path: '/workbench', title: '工作台' }];
+  // 登录角色变化后，按当前角色重算已保存标签标题（如渠道“我的客户/我的产品”）。
+  openTabs.value = openTabs.value.map((t) => ({
+    ...t,
+    title: resolveRolePageTitle(t.path, router.resolve(t.path).meta?.title || t.title),
+  }));
+  saveTabs();
   // 加载分组折叠状态
   const obj = getStorageJSON(KEYS.LAYOUT_GROUP, null);
   if (obj && typeof obj === 'object') groupExpanded.value = obj;
@@ -516,15 +519,17 @@ function saveTabs() {
 
 /** 用菜单或当前 route 找到标题（支持带 query 的菜单项，T7） */
 function findTitle(path) {
-  const targetPath = String(path || '');
-  const m = findMenuItem(menus.value, targetPath);
-  if (m) return m.title;
   // route meta.title
   const r = router.resolve(path);
-  return (r.meta && r.meta.title) || String(path).replace(/^\//, '').replace(/^./, (c) => c.toUpperCase());
+  return resolveRolePageTitle(
+    path,
+    (r.meta && r.meta.title) || String(path).replace(/^\//, '').replace(/^./, (c) => c.toUpperCase()),
+  );
 }
 
 function ensureTab(path) {
+  // 403 只是当次路由判定结果，不应以带 from 的 fullPath 不断新建标签。
+  if (String(path || '').split('?')[0] === '/403') return;
   if (!openTabs.value.find((t) => t.path === path)) {
     openTabs.value.push({ path, title: findTitle(path) });
     saveTabs();
@@ -555,13 +560,9 @@ function onTabClose(path) {
     router.push(next ? next.path : '/workbench');
   }
 }
-/** 刷新当前 tab：从 keep-alive include 临时剔除当前页 name → nextTick 恢复，强制组件销毁重建（不依赖未注册路由） */
+/** 刷新当前 tab：递增页面 key，强制当前路由组件销毁并重建。 */
 function onRefresh() {
-  const curName = route.fullPath.split('?')[0].replace(/[/-]/g, '_');
-  cachedViews.value = cachedViews.value.filter((n) => n !== curName);
-  nextTick(() => {
-    cachedViews.value = openTabs.value.map((t) => t.path.split('?')[0].replace(/[/-]/g, '_'));
-  });
+  refreshKey.value += 1;
 }
 /** 右键 tab 标签：弹出全局下拉菜单（刷新 / 关闭当前 / 关闭其他 / 全部关闭） */
 function onTabContextMenu(ev, t) {
@@ -588,7 +589,7 @@ watch(
   () => route.fullPath,
   (path) => {
     ensureTab(path);
-    activeTab.value = path;
+    if (String(path || '').split('?')[0] !== '/403') activeTab.value = path;
   },
 );
 
@@ -609,21 +610,15 @@ onMounted(() => {
 
 // 角色切换（如登录态刷新）后重新拉取菜单树
 watch(() => userStore.roleCode, () => loadRoleMenu());
+
+// 菜单树异步返回后刷新标签标题；避免 loadTabs 发生在角色菜单尚未加载时保留旧标题。
+watch(menus, () => {
+  openTabs.value = openTabs.value.map((t) => ({ ...t, title: findTitle(t.path) }));
+  saveTabs();
+}, { deep: true });
 </script>
 
 <style scoped>
-/* 页面切换过渡：淡入 + 轻微上移（keep-alive 缓存页切换同样生效） */
-.page-fade-enter-active,
-.page-fade-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-.page-fade-enter-from {
-  opacity: 0;
-  transform: translateY(6px);
-}
-.page-fade-leave-to {
-  opacity: 0;
-}
 .layout {
   display: flex;
   height: 100vh;

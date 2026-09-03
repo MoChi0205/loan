@@ -26,7 +26,7 @@ app.use(router);
 app.use(ElementPlus, { locale: zhCn });
 
 // 权限 checker 接线：v-permission 指令与路由守卫（meta.permission）共用同一判定。
-// 权限未配置（后端未下发）时放行；BOSS 兜底全通；登录下发权限码后按码校验。
+// 登录下发权限码后按码校验；页面是否可进入独立由后端动态菜单决定。
 setPermissionChecker((code) => {
   try {
     return useUserStore(pinia).hasPerm(code);

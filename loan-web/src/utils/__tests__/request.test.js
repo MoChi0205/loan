@@ -20,7 +20,10 @@ vi.mock('@/utils/storage', () => ({
 
 // @/router：SPA 跳转（被动态 import，redirectToLogin 调 push）
 vi.mock('@/router', () => ({
-  default: { push: vi.fn(() => Promise.resolve()) },
+  default: {
+    push: vi.fn(() => Promise.resolve()),
+    currentRoute: { value: { path: '/workbench', fullPath: '/workbench' } },
+  },
 }));
 
 // 从 mocked 模块取出引用，便于断言
@@ -63,6 +66,7 @@ describe('loan-web request 拦截器', () => {
     await request.get('/demo');
     expect(lastConfig.headers.Authorization).toBe('Bearer tok-123');
     expect(lastConfig.headers['X-Client-Type']).toBe('WEB');
+    expect(lastConfig.__loanRoute).toBe(window.location.pathname + window.location.search);
   });
 
   it('无 token 时不注入 Authorization，仅注入 X-Client-Type', async () => {
@@ -126,6 +130,32 @@ describe('loan-web request 拦截器', () => {
     expect(removeStorage).toHaveBeenCalledWith(KEYS.TOKEN);
     await tick();
     expect(router.push).toHaveBeenCalled();
+  });
+
+  it('普通接口 403 只提示，不把合法页面替换成无权限页', async () => {
+    adapterImpl = (config) => Promise.reject({
+      response: { status: 403, data: { message: '无权执行该操作' } },
+      config,
+      request: {},
+      isAxiosError: true,
+    });
+    await expect(request.get('/operation')).rejects.toBeDefined();
+    await tick();
+    expect(ElMessage.warning).toHaveBeenCalledWith('无权执行该操作');
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('显式页面访问探测 403 且仍在原路由时才进入无权限页', async () => {
+    window.history.replaceState({}, '', '/workbench');
+    adapterImpl = (config) => Promise.reject({
+      response: { status: 403, data: { message: '无页面权限' } },
+      config,
+      request: {},
+      isAxiosError: true,
+    });
+    await expect(request.get('/page-probe', { meta: { redirectOnForbidden: true } })).rejects.toBeDefined();
+    await tick();
+    expect(router.push).toHaveBeenCalledWith({ path: '/403', query: { from: '/workbench' } });
   });
 
   it('超时（ECONNABORTED）友好提示 warning', async () => {

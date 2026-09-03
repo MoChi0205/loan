@@ -1,5 +1,6 @@
 <template>
-  <div class="product-page">
+  <ChannelProductWorkspace v-if="isChannel" />
+  <div v-else class="product-page">
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">产品库</h2>
@@ -257,7 +258,7 @@
 
 <script setup>
 defineOptions({ name: '_product' });
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import DictSelect from '@/components/DictSelect.vue';
@@ -282,6 +283,11 @@ import {
 } from '@/api/partnerProduct';
 import { listProductCities, bindProductCities, updateProductCity, unbindProductCity } from '@/api/productCity';
 import { dictLabel } from '@/utils/dict';
+import { useUserStore } from '@/store/user';
+import ChannelProductWorkspace from './ChannelProductWorkspace.vue';
+
+const userStore = useUserStore();
+const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 
 const activeTab = ref('all');
 
@@ -705,7 +711,9 @@ async function onUnbindCity(c) {
   await loadCityList();
 }
 
-onMounted(loadAll);
+onMounted(() => {
+  if (!isChannel.value) loadAll();
+});
 </script>
 
 <style scoped>

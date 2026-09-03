@@ -13,6 +13,8 @@
 - 分页：`PageResult<T>`（page/size/total/records）
 - 字段命名：camelCase JSON（与 Java DTO 一致）
 - 敏感字段：手机号返回掩码（`138****0001`）；产品名/银行名对客脱敏（仅员工可见）
+- 已登录公共能力：`POST /api/auth/logout`、`GET /api/auth/me`、`GET /api/admin/org/menu/tree`不要求每个角色重复配置 `t_role_api`，但仍必须有效 JWT；菜单接口由后端强制取当前角色，普通用户不能用 `roleCode` 猜测他人菜单。
+- 管理角色边界：`OPERATOR/SUPER_ADMIN/SUPER` 可管理组织、菜单与接口权限；`BOSS` 是业务全量/审批角色，只保留客户分配所需的员工/部门只读选择器和工作台配置状态，不可访问系统配置写接口。
 
 ## 关键接口索引
 
@@ -76,6 +78,10 @@
 |------|------|------|
 | `POST /api/channel/lead` | 渠道录入线索；服务端强制来源、录入主体和 `PENDING_APPROVAL` | CHANNEL 本人 |
 | `GET /api/channel/lead/page` | 本人录入线索组合分页，不按归属顾问或审批状态隐式过滤；新增后立即可见，其他渠道不可见 | CHANNEL 本人 |
+| `GET /api/channel/product/list` | Web 查询本渠道账号录入的全部产品申请与审批进度 | CHANNEL 本人 |
+| `GET /api/channel/product/{approvalNo}` | Web 查询本人产品申请详情 | CHANNEL 本人 |
+| `POST /api/channel/product` / `PUT /api/channel/product/{approvalNo}` | Web 新增/编辑本人草稿或驳回产品 | CHANNEL 本人 |
+| `POST /api/channel/product/{approvalNo}/submit\|revoke\|delete-apply\|delete-cancel` | Web 提交审批、撤销、申请删除或撤销删除 | CHANNEL 本人，按审批状态机校验 |
 | `GET /api/channel/client/page` | 本人录入并已转化客户分页，返回脱敏手机号与 `ownerStaffName` | CHANNEL 本人只读 |
 | `POST /api/channel/client/batch` | body `{codes:[clientCode...]}`；去空、去重、保持请求顺序，单次最多 100 条，越权/未命中项不返回 | CHANNEL 本人只读 |
 | `GET /api/channel/client/{clientCode}` | 客户档案详情；越权编码返回 FORBIDDEN | CHANNEL 本人只读 |
@@ -152,7 +158,7 @@
 | `GET /api/mini/approval/counts` | 待审计数 `{PRODUCT, DOWNLOAD, ALLOCATION, TOTAL}` | 运营/超管/老板（OPERATOR/SUPER_ADMIN/SUPER/BOSS） |
 | `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可见本人团队；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
 | `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可审批本人团队；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
-| `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER_ADMIN/SUPER/BOSS |
+| `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER_ADMIN/SUPER/BOSS 全量；DEPT_MANAGER 仅本团队 |
 | `POST /api/admin/approval/allocation/{approvalNo}/approve` | 管理端 allocation 通过（`ApprovalController`，非 `/audit`） | 同上 |
 | `POST /api/admin/approval/allocation/{approvalNo}/reject` | 管理端 allocation 驳回 | 同上 |
 | `GET /api/admin/approval/unified/counts` | 管理端统一计数（**2026-08-31 校正**：实际路径带 unified 前缀，旧文写 `/approval/counts` 在代码中不存在） | OPERATOR/SUPER/BOSS |

@@ -28,12 +28,12 @@ description: >-
 | 前端推导 | `store/user.js resolveRole()`：同上 |
 | getter | `isStaff` 含 boss；**`isApproverRole` 含 boss**（`mine.vue:184`） |
 | 展示名 | `roleLabel` = `老板` |
-| 特殊 | 网关层：`ApiAuthGlobalFilter` 中 **BOSS 超级角色全量放行**（`t_role_api` 不落库） |
+| 特殊 | 网关层：BOSS 业务接口默认全量（`t_role_api` 不落库），但系统配置显式拒绝规则优先 |
 
 ## 2. 功能边界（能做什么）
 
 - **顾问（`role-adviser`）的全部能力** + **全量数据**
-- ✅ **可审批 `ALLOCATION`** —— `MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS]` **含 BOSS**
+- ✅ **可审批 `ALLOCATION`** —— `MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS, DEPT_MANAGER]` **含 BOSS**；DM 仅本团队，BOSS 可审全公司
 - ✅ **可审批 `PRODUCT` / `DOWNLOAD`** —— `APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]` **含 BOSS**
 - ✅ **有审批中心入口** —— `pages/approval/list.vue` + `mine.vue`（`isApproverRole` 含 boss）
 - 我的账户（C8）：**不展示「工号 / 部门」**（`mine.vue:224`，层级最高，无归属部门概念），仅展示角色 + 入职时间
@@ -42,7 +42,7 @@ description: >-
 
 1. ❌ **不等于超级管理员**：**不能改系统配置、不能配角色 / 菜单 / 接口授权**
    —— 这些属 `operator` / `super` 在 **Web 管理端**（`views/config`、`views/org`、`组织权限 → 接口权限`）的能力。
-   ⚠️ 网关层 BOSS 虽"全量放行"，但这**只是接口鉴权放行**，**不等于**拥有配置管理界面与配置写权限。
+   网关 `roleDenyApiRules.BOSS` 与后端 `AdminRoleGuard` 双层强制收紧：`api-perm:*`、角色/菜单权限与组织写接口、调试中心均拒绝；仅保留客户分配依赖的员工/部门只读选择器。
 2. ❌ **小程序端无客户管理列表、无线索公海**
    —— 08 矩阵对**全部 7 角色**均为 ❌，规划在 Web 端阶段二
 
@@ -101,6 +101,7 @@ description: >-
 
 - [ ] Step 0 结论核对是否已输出？
 - [ ] 是否把 boss 当成 super 用（给了配置 / 角色 / 菜单 / 接口授权写权限）？（❌ 禁止）
+- [ ] 是否同时验证 BOSS `api-perm/page`/`org/role/list` 被拒绝，而 `org/staff/page`/`org/department/tree`/`config/status` 仍可读？
 - [ ] 审批能力是否覆盖了**全部类型**（boss 在两个白名单都在列）？
 - [ ] `mine` 页审批中心入口是否保留（含角标）？
 - [ ] 是否注意到当前白名单只开了 ALLOCATION？

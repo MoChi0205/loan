@@ -9,7 +9,6 @@ import com.loan.apiperm.entity.RoleApi;
 import com.loan.apiperm.mapper.ApiPermissionMapper;
 import com.loan.apiperm.mapper.RoleApiMapper;
 import com.loan.context.LoanUser;
-import com.loan.context.UserContext;
 import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,14 +30,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
  * 接口权限服务：规则构建、Redis 下发（供网关鉴权）、管理端接口清单/角色授权。
  *
  * <p>鉴权规则以 JSON 形式写入 Redis（key {@code loan:api-perm:rules}），网关全局过滤器读取后
- * 按「接口定义（method+pathPattern+clientTypes）× 角色授权」判定；BOSS 为超级角色直接放行。
+ * 按「接口定义（method+pathPattern+clientTypes）× 角色授权」判定；BOSS 默认拥有业务接口，
+ * 但系统配置域由显式拒绝规则继续收紧。
  * 每次授权变更后调用 {@link #refreshRules(String)} 刷新，保证网关实时生效。
  *
  * @author loan-platform
@@ -54,8 +53,32 @@ public class ApiPermissionService {
     /** 鉴权规则版本 key（网关每请求比对，写后递增） */
     public static final String RULE_VERSION_KEY = "loan:api-perm:version";
 
-    /** 超级角色（全量放行，不落 t_role_api） */
-    public static final String SUPER_ROLE = "BOSS";
+    /** BOSS 角色：业务全量，但系统配置域受显式拒绝规则约束。 */
+    public static final String BOSS_ROLE = "BOSS";
+
+    /**
+     * 管理端默认全量接口角色。
+     *
+     * <p>这是应用内鉴权与网关鉴权的共同真值：新增接口不应因
+     * {@code t_role_api} 尚未逐条回填，导致菜单可见但网关 403。BOSS 的系统配置
+     * 边界继续由 {@link #BOSS_DENIED_API_RULES} 优先收紧。</p>
+     */
+    private static final List<String> FULL_ACCESS_ROLES = Collections.unmodifiableList(
+            Arrays.asList(BOSS_ROLE, "OPERATOR", "SUPER_ADMIN", "SUPER"));
+
+    /**
+     * BOSS 禁止的系统配置接口键。
+     *
+     * <p>末尾为冒号表示模块前缀，其余为精确接口键。不能拒绝整个 {@code org:}：客户直接分配仍需
+     * {@code org:staffPage}/{@code org:departmentTree} 作为顾问与部门选择器；工作台也需要
+     * {@code config:status} 的只读业务计数。</p>
+     */
+    private static final Set<String> BOSS_DENIED_API_RULES = Collections.unmodifiableSet(
+            new HashSet<>(Arrays.asList(
+                    "api-perm:", "debug:",
+                    "org:roleList", "org:permissionList",
+                    "org:saveDepartment", "org:disableDepartment",
+                    "org:saveStaff", "org:disableStaff", "org:saveRolePermission")));
 
     private final ApiPermissionMapper apiPermissionMapper;
     private final RoleApiMapper roleApiMapper;
@@ -119,7 +142,7 @@ public class ApiPermissionService {
      * <p>逻辑：
      * <ol>
      *   <li>未登录或非 /api/admin/** 路径：放行（其他层控制）</li>
-     *   <li>BOSS（superRole）：直接放行</li>
+     *   <li>BOSS：业务接口默认放行，系统配置显式拒绝</li>
      *   <li>CUSTOMER / CHANNEL：放行（由拦截器白名单/typeRules 控制）</li>
      *   <li>STAFF：按 method+pathPattern 匹配 apiKey，查 t_role_api（roleCode, apiKey）
      *       — <b>有授权放行；无授权也放行（保守防误伤，依赖码级 + 角色级兜底）</b>；
@@ -140,26 +163,28 @@ public class ApiPermissionService {
             return CheckResult.ok("非管理端路径（其他层控制）");
         }
         String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
-        if (SUPER_ROLE.equals(role)) {
-            return CheckResult.ok("BOSS 超级角色放行");
+        if (BOSS_ROLE.equals(role)) {
+            List<String> matchedKeys = matchApiKeys(method, path);
+            if (matchedKeys.isEmpty()) {
+                return CheckResult.ok("接口未登记（保守放行）");
+            }
+            for (String apiKey : matchedKeys) {
+                if (isBossDeniedApi(apiKey)) {
+                    return CheckResult.deny("BOSS 不可访问系统配置接口");
+                }
+            }
+            return CheckResult.ok("BOSS 业务接口放行");
         }
         if (!LoanUser.TYPE_STAFF.equals(user.getUserType())) {
             return CheckResult.ok("非员工（白名单/类型规则控制）");
         }
         // STAFF：按 method+path 匹配已登记接口
-        List<String> matchedKeys = new java.util.ArrayList<>();
-        for (ApiPermission p : pathCache) {
-            if (!"ACTIVE".equals(p.getStatus())) continue;
-            if (!method.equalsIgnoreCase(p.getHttpMethod())) continue;
-            if (antMatcher.match(p.getPathPattern(), path)) {
-                matchedKeys.add(p.getApiKey());
-            }
-        }
+        List<String> matchedKeys = matchApiKeys(method, path);
         if (matchedKeys.isEmpty()) {
             return CheckResult.ok("接口未登记（保守放行）");
         }
         // STAFF 管理角色默认全量（OPERATOR/SUPER_ADMIN/SUPER）；DM/ADVISER 按 t_role_api 精确授权
-        if ("OPERATOR".equals(role) || "SUPER_ADMIN".equals(role) || "SUPER".equals(role)) {
+        if (FULL_ACCESS_ROLES.contains(role)) {
             return CheckResult.ok("管理角色（" + role + "）默认全量 admin 接口放行");
         }
         // 查角色授权
@@ -174,6 +199,37 @@ public class ApiPermissionService {
             return CheckResult.deny("未配置授权（严格模式拦截，待业务方补 t_role_api）");
         }
         return CheckResult.ok("未配置授权（保守放行，待业务方补 t_role_api）");
+    }
+
+    /** 按 HTTP 方法与路径匹配当前已登记接口键。 */
+    private List<String> matchApiKeys(String method, String path) {
+        List<String> matchedKeys = new ArrayList<>();
+        for (ApiPermission p : pathCache) {
+            if (!"ACTIVE".equals(p.getStatus())) {
+                continue;
+            }
+            if (!("ALL".equalsIgnoreCase(p.getHttpMethod())
+                    || method.equalsIgnoreCase(p.getHttpMethod()))) {
+                continue;
+            }
+            if (antMatcher.match(p.getPathPattern(), path)) {
+                matchedKeys.add(p.getApiKey());
+            }
+        }
+        return matchedKeys;
+    }
+
+    /** 判断接口键是否属于 BOSS 禁止的系统配置域。 */
+    private boolean isBossDeniedApi(String apiKey) {
+        if (!StringUtils.hasText(apiKey)) {
+            return false;
+        }
+        for (String rule : BOSS_DENIED_API_RULES) {
+            if ((rule.endsWith(":") && apiKey.startsWith(rule)) || apiKey.equals(rule)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -208,7 +264,11 @@ public class ApiPermissionService {
             roleApisSorted.put(e.getKey(), new ArrayList<>(e.getValue()));
         }
         root.put("roleApis", roleApisSorted);
-        root.put("superRoles", Arrays.asList(SUPER_ROLE));
+        // 网关与应用内 check() 共用同一组全量角色，避免双份角色表漂移。
+        root.put("superRoles", new ArrayList<>(FULL_ACCESS_ROLES));
+        Map<String, List<String>> roleDenyApiPrefixes = new LinkedHashMap<>();
+        roleDenyApiPrefixes.put(BOSS_ROLE, new ArrayList<>(BOSS_DENIED_API_RULES));
+        root.put("roleDenyApiRules", roleDenyApiPrefixes);
         // 用户类型维度（无角色用户：客户只能访问 mini 接口，渠道只能访问 channel 接口）
         Map<String, List<String>> typeRules = new LinkedHashMap<>();
         typeRules.put("CUSTOMER", Arrays.asList("mini:"));
@@ -300,7 +360,7 @@ public class ApiPermissionService {
      * @return apiKey 列表
      */
     public List<String> listRoleApis(String roleCode) {
-        if (SUPER_ROLE.equals(roleCode)) {
+        if (BOSS_ROLE.equals(roleCode)) {
             return apiPermissionMapper.selectList(
                             new LambdaQueryWrapper<ApiPermission>().eq(ApiPermission::getStatus, "ACTIVE"))
                     .stream().map(ApiPermission::getApiKey).collect(Collectors.toList());
@@ -321,7 +381,7 @@ public class ApiPermissionService {
         for (Map.Entry<String, List<String>> e : roleApis.entrySet()) {
             String roleCode = e.getKey();
             List<String> keys = e.getValue() == null ? new ArrayList<>() : e.getValue();
-            if (SUPER_ROLE.equals(roleCode)) {
+            if (BOSS_ROLE.equals(roleCode)) {
                 continue; // BOSS 全量，不落库
             }
             roleApiMapper.delete(new LambdaQueryWrapper<RoleApi>().eq(RoleApi::getRoleCode, roleCode));

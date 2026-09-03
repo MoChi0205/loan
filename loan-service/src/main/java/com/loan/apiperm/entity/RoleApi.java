@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 /**
  * 角色 × 接口 授权（t_role_api）。
  *
- * <p>BOSS 为超级角色不落库（网关白名单放行）；其余角色在此表逐接口授权。
+ * <p>BOSS 为业务默认全量角色不落库（系统配置域仍显式拒绝）；
+ * DEPT_MANAGER / ADVISER 等精细角色在此表逐接口授权。
  *
  * @author loan-platform
  */

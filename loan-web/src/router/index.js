@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { KEYS, getStorage } from '@/utils/storage';
 import { hasPermission } from '@/directives/permission';
+import { useUserStore } from '@/store/user';
+import { canAccessRoute } from '@/utils/routeAccess';
 
 /**
  * 路由表（阶段一最小闭环）。
@@ -237,7 +239,7 @@ const router = createRouter({
  * 2. 已登录访问登录页 → 回工作台
  * 3. 路由声明了 meta.permission 且当前用户无该权限 → 跳 403
  */
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const token = getStorage(KEYS.TOKEN);
   // 未登录且目标页非公开页 → 跳登录
   if (!token && !to.meta.public) {
@@ -246,6 +248,20 @@ router.beforeEach((to) => {
   // 已登录访问登录页 → 回工作台
   if (token && to.path === '/login') {
     return { path: '/workbench' };
+  }
+  // 动态菜单是页面准入真值：无菜单即使手输 URL 也不可加载页面组件和首屏接口。
+  if (token && !to.meta.public && to.path !== '/403') {
+    try {
+      const store = useUserStore();
+      const menuPaths = await store.ensureMenuPaths();
+      if (!canAccessRoute(to.path, menuPaths, {
+        debugCenterEnabled: import.meta.env.VITE_DEBUG_CENTER === 'true',
+      })) {
+        return { path: '/403', query: { from: to.fullPath } };
+      }
+    } catch (e) {
+      return { path: '/403', query: { from: to.fullPath } };
+    }
   }
   // 权限校验（checker 已在 main.js 注入，未配置权限时放行）
   if (to.meta.permission && !hasPermission(to.meta.permission)) {

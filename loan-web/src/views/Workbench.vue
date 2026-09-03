@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">我的工作台</h2>
-        <p class="loan-page-subtitle">客户、产品、工单与审批的统一业务工作台</p>
+        <p class="loan-page-subtitle">{{ isChannel ? '管理本人录入的线索、客户、产品与分析报告' : '客户、产品、工单与审批的统一业务工作台' }}</p>
       </div>
       <div class="header-meta">
         <el-tooltip :content="nowText" placement="bottom">
@@ -16,7 +16,7 @@
     </div>
 
     <!-- 指标卡（含趋势） -->
-    <div class="metric-grid">
+    <div v-if="!isChannel" class="metric-grid">
       <div v-for="m in metrics" :key="m.label" class="metric-card loan-card loan-card-hover">
         <div class="metric-icon" :style="{ color: m.color, background: m.bg }">
           <AppIcon :name="m.icon" :size="22" />
@@ -36,10 +36,10 @@
     </div>
 
     <!-- 待办事项 -->
-    <div class="loan-card todo-card">
+    <div v-if="!isChannel && visibleTodos.length" class="loan-card todo-card">
       <h3 class="panel-title">待办事项</h3>
       <div class="todo-grid">
-        <router-link v-for="t in todos" :key="t.path" :to="t.path" class="todo-item" :class="{ 'todo-empty': t.count === 0 }">
+        <router-link v-for="t in visibleTodos" :key="t.path + t.name" :to="t.path" class="todo-item" :class="{ 'todo-empty': t.count === 0 }">
           <span class="todo-count mono">{{ t.count }}</span>
           <span class="todo-body">
             <span class="todo-name">{{ t.name }}</span>
@@ -51,7 +51,7 @@
     </div>
 
     <!-- 合作库到期预警 -->
-    <div class="loan-card expire-card">
+    <div v-if="!isChannel && canViewProduct" class="loan-card expire-card">
       <h3 class="panel-title">
         合作库到期预警
         <span v-if="expiring.length" class="panel-tip">{{ expiring.length }} 个产品即将到期</span>
@@ -68,11 +68,11 @@
     </div>
 
     <!-- 快捷入口 + 最近活动 -->
-    <div class="row-2col">
+    <div v-if="!isChannel && (visibleQuick.length || canViewAudit)" class="row-2col">
       <div class="loan-card quick-card">
         <h3 class="panel-title">快捷操作</h3>
         <div class="quick-grid">
-          <router-link v-for="q in quick" :key="q.path" :to="q.path" class="quick-item">
+          <router-link v-for="q in visibleQuick" :key="q.path" :to="q.path" class="quick-item">
             <span class="quick-icon"><AppIcon :name="q.icon" :size="20" /></span>
             <span class="quick-body">
               <span class="quick-name">{{ q.name }}</span>
@@ -83,7 +83,7 @@
         </div>
       </div>
 
-      <div class="loan-card recent-card">
+      <div v-if="canViewAudit" class="loan-card recent-card">
         <h3 class="panel-title">
           最近匹配
           <el-tag size="small" type="info" effect="plain" round>近 7 天</el-tag>
@@ -115,8 +115,19 @@
       </div>
     </div>
 
+    <div v-if="isChannel" class="loan-card quick-card channel-workspace">
+      <h3 class="panel-title">渠道工作区</h3>
+      <div class="quick-grid">
+        <router-link v-for="q in channelQuick" :key="q.path" :to="q.path" class="quick-item">
+          <span class="quick-icon"><AppIcon :name="q.icon" :size="20" /></span>
+          <span class="quick-body"><span class="quick-name">{{ q.name }}</span><span class="quick-desc">{{ q.desc }}</span></span>
+          <span class="quick-arrow" aria-hidden="true">→</span>
+        </router-link>
+      </div>
+    </div>
+
     <!-- 主链路 -->
-    <div class="loan-card chain-card">
+    <div v-if="!isChannel" class="loan-card chain-card">
       <h3 class="panel-title">核心主链路</h3>
       <div class="chain">
         <template v-for="(s, i) in chain" :key="s">
@@ -141,6 +152,13 @@ import { dashboardTodo, configStatus } from '@/api/dashboard';
 import { reportOverview } from '@/api/report';
 import { pagePartnerProducts } from '@/api/partnerProduct';
 import { formatDateTime } from '@/utils/format';
+import { useUserStore } from '@/store/user';
+
+const userStore = useUserStore();
+const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
+const allowedPaths = ref(new Set(['/workbench']));
+const canViewProduct = computed(() => allowedPaths.value.has('/product'));
+const canViewAudit = computed(() => allowedPaths.value.has('/audit'));
 
 const nowText = ref('');
 const status = ref({});
@@ -153,12 +171,15 @@ function refreshNow() {
   const w = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
   nowText.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 周${w} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-onMounted(() => {
+onMounted(async () => {
   refreshNow();
   timer = setInterval(refreshNow, 30000);
-  loadRecent();
-  loadStats();
-  loadExpiring();
+  if (!isChannel.value) {
+    await loadMenuAccess();
+    loadRecent();
+    loadStats();
+    if (canViewProduct.value) loadExpiring();
+  }
 });
 onUnmounted(() => {
   if (timer) clearInterval(timer);
@@ -227,6 +248,7 @@ const todos = computed(() => {
     { name: '我的线索', count: t.myLeadCount ?? 0, desc: '跟进中线索', path: '/lead' },
   ];
 });
+const visibleTodos = computed(() => todos.value.filter((item) => allowedPaths.value.has(item.path)));
 
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -257,6 +279,23 @@ const quick = [
     desc: '首次上线基础配置一键完成',
     icon: 'config',
   },
+];
+const visibleQuick = computed(() => quick.filter((item) => allowedPaths.value.has(item.path)));
+
+async function loadMenuAccess() {
+  try {
+    const paths = await userStore.ensureMenuPaths();
+    allowedPaths.value = new Set(['/workbench', ...paths]);
+  } catch (e) {
+    allowedPaths.value = new Set(['/workbench']);
+  }
+}
+
+const channelQuick = [
+  { path: '/lead', name: '我的线索', desc: '录入并查看本人提交的客户线索', icon: 'lead' },
+  { path: '/client', name: '我的客户', desc: '查看本人线索形成的客户档案与归属', icon: 'client' },
+  { path: '/product', name: '我的产品', desc: '录入产品并跟踪平台审批进度', icon: 'product' },
+  { path: '/report/screening', name: '客户分析报告', desc: '查看本人客户的分析结果', icon: 'reportDoc' },
 ];
 
 /** 最近匹配（对接 /api/admin/audit/page 取真实审计记录） */
@@ -321,6 +360,7 @@ function goAudit(trace) {
 }
 
 async function loadRecent() {
+  if (!canViewAudit.value) return;
   try {
     const res = await pageAudit({ page: 1, size: 5 });
     recentMatches.value = (res.data?.records || []).map((t) => ({

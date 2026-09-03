@@ -93,6 +93,36 @@ class OrgControllerTest {
     }
 
     @Test
+    @DisplayName("BOSS 不能借 roleCode 参数查看其他角色菜单")
+    void bossCannotInspectOtherRoleMenu() throws Exception {
+        try {
+            LoanUser boss = TestUsers.staffUser();
+            boss.setRoleCode("BOSS");
+            UserContext.setUser(boss);
+            mvc.perform(get("/api/admin/org/menu/tree").param("roleCode", "SUPER"))
+                    .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").value(0));
+            Mockito.verify(orgService).listMenusByRole("BOSS");
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("OPERATOR 可在组织配置页查看其他角色菜单")
+    void operatorCanInspectOtherRoleMenu() throws Exception {
+        try {
+            LoanUser operator = TestUsers.staffUser();
+            operator.setRoleCode("OPERATOR");
+            UserContext.setUser(operator);
+            mvc.perform(get("/api/admin/org/menu/tree").param("roleCode", "ADVISER"))
+                    .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").value(0));
+            Mockito.verify(orgService).listMenusByRole("ADVISER");
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
     @DisplayName("GET /api/admin/org/department/tree")
     void get_api_admin_org_department_tree() throws Exception {
         mvc.perform(get("/api/admin/org/department/tree"))
@@ -109,8 +139,15 @@ class OrgControllerTest {
     @Test
     @DisplayName("GET /api/admin/org/permission/list")
     void get_api_admin_org_permission_list() throws Exception {
-        mvc.perform(get("/api/admin/org/permission/list"))
-            .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+        try {
+            LoanUser operator = TestUsers.staffUser();
+            operator.setRoleCode("OPERATOR");
+            UserContext.setUser(operator);
+            mvc.perform(get("/api/admin/org/permission/list").param("roleCode", "ADVISER"))
+                    .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").value(0));
+        } finally {
+            UserContext.clear();
+        }
     }
 
     @Test
@@ -124,7 +161,9 @@ class OrgControllerTest {
     @DisplayName("POST /api/admin/org/department/save [auth]")
     void post_api_admin_org_department_save() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            LoanUser operator = TestUsers.staffUser();
+            operator.setRoleCode("OPERATOR");
+            UserContext.setUser(operator);
             mvc.perform(post("/api/admin/org/department/save").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
@@ -136,7 +175,9 @@ class OrgControllerTest {
     @DisplayName("POST /api/admin/org/department/disable [auth]")
     void post_api_admin_org_department_disable() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            LoanUser operator = TestUsers.staffUser();
+            operator.setRoleCode("OPERATOR");
+            UserContext.setUser(operator);
             mvc.perform(post("/api/admin/org/department/disable").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
@@ -148,7 +189,9 @@ class OrgControllerTest {
     @DisplayName("POST /api/admin/org/staff/save [auth]")
     void post_api_admin_org_staff_save() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            LoanUser operator = TestUsers.staffUser();
+            operator.setRoleCode("OPERATOR");
+            UserContext.setUser(operator);
             mvc.perform(post("/api/admin/org/staff/save").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
@@ -160,7 +203,9 @@ class OrgControllerTest {
     @DisplayName("POST /api/admin/org/staff/disable [auth]")
     void post_api_admin_org_staff_disable() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            LoanUser operator = TestUsers.staffUser();
+            operator.setRoleCode("OPERATOR");
+            UserContext.setUser(operator);
             mvc.perform(post("/api/admin/org/staff/disable").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
@@ -172,7 +217,9 @@ class OrgControllerTest {
     @DisplayName("POST /api/admin/org/permission/save [auth]")
     void post_api_admin_org_permission_save() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            LoanUser operator = TestUsers.staffUser();
+            operator.setRoleCode("OPERATOR");
+            UserContext.setUser(operator);
             mvc.perform(post("/api/admin/org/permission/save").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {

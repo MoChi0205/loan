@@ -73,14 +73,13 @@ INSERT INTO `t_menu` (`id`, `parent_id`, `menu_name`, `path`, `component`, `menu
 
 -- 角色权限（2026-09-01 补全 7 角色；调试中心仅 SUPER/SUPER_ADMIN；DEPT_MANAGER 部门视角；ADVISER 本人视角；CHANNEL 沙箱 3 项）
 INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`) VALUES
--- BOSS：全量 26（不含 /debug）
+-- BOSS：业务全量 24（不含组织权限、系统配置和调试中心）
 ('BOSS', 1, 'system'), ('BOSS', 2, 'system'), ('BOSS', 3, 'system'), ('BOSS', 4, 'system'),
 ('BOSS', 5, 'system'), ('BOSS', 6, 'system'), ('BOSS', 7, 'system'), ('BOSS', 8, 'system'),
 ('BOSS', 9, 'system'), ('BOSS', 10, 'system'), ('BOSS', 11, 'system'), ('BOSS', 12, 'system'),
 ('BOSS', 13, 'system'), ('BOSS', 14, 'system'), ('BOSS', 15, 'system'), ('BOSS', 16, 'system'),
 ('BOSS', 17, 'system'), ('BOSS', 18, 'system'), ('BOSS', 19, 'system'), ('BOSS', 20, 'system'),
-('BOSS', 21, 'system'), ('BOSS', 22, 'system'), ('BOSS', 23, 'system'), ('BOSS', 24, 'system'),
-('BOSS', 25, 'system'), ('BOSS', 27, 'system'),
+('BOSS', 21, 'system'), ('BOSS', 22, 'system'), ('BOSS', 23, 'system'), ('BOSS', 27, 'system'),
 -- OPERATOR：同 BOSS（26 项）
 ('OPERATOR', 1, 'system'), ('OPERATOR', 2, 'system'), ('OPERATOR', 3, 'system'), ('OPERATOR', 4, 'system'),
 ('OPERATOR', 5, 'system'), ('OPERATOR', 6, 'system'), ('OPERATOR', 7, 'system'), ('OPERATOR', 8, 'system'),

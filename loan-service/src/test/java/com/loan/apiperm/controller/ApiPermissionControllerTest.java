@@ -70,6 +70,7 @@ class ApiPermissionControllerTest {
         // 3) 字段注入兜底（@Resource/@Autowired 字段）
         ReflectionTestUtils.setField(controller, "apiPermissionService", apiPermissionService);
         ReflectionTestUtils.setField(controller, "syncService", syncService);
+        ReflectionTestUtils.setField(controller, "internalToken", "test-internal-token");
         // 4) standalone MockMvc：注册全局异常处理器 + 自定义 @CurrentUser 解析器（镜像生产切面）
         mvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -81,7 +82,7 @@ class ApiPermissionControllerTest {
     @DisplayName("GET /api/admin/api-perm/page [auth]")
     void get_api_admin_api_perm_page() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            UserContext.setUser(systemAdmin());
             mvc.perform(get("/api/admin/api-perm/page"))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
@@ -93,8 +94,8 @@ class ApiPermissionControllerTest {
     @DisplayName("GET /api/admin/api-perm/role/list [auth]")
     void get_api_admin_api_perm_role_list() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
-            mvc.perform(get("/api/admin/api-perm/role/list"))
+            UserContext.setUser(systemAdmin());
+            mvc.perform(get("/api/admin/api-perm/role/list").param("roleCode", "ADVISER"))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
             UserContext.clear();
@@ -105,7 +106,7 @@ class ApiPermissionControllerTest {
     @DisplayName("POST /api/admin/api-perm/role/save [auth]")
     void post_api_admin_api_perm_role_save() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            UserContext.setUser(systemAdmin());
             mvc.perform(post("/api/admin/api-perm/role/save").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
@@ -117,7 +118,7 @@ class ApiPermissionControllerTest {
     @DisplayName("POST /api/admin/api-perm/client-types [auth]")
     void post_api_admin_api_perm_client_types() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            UserContext.setUser(systemAdmin());
             mvc.perform(post("/api/admin/api-perm/client-types").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
@@ -129,7 +130,7 @@ class ApiPermissionControllerTest {
     @DisplayName("POST /api/admin/api-perm/sync [auth]")
     void post_api_admin_api_perm_sync() throws Exception {
         try {
-            UserContext.setUser(TestUsers.staffUser());
+            UserContext.setUser(systemAdmin());
             mvc.perform(post("/api/admin/api-perm/sync"))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
         } finally {
@@ -140,7 +141,14 @@ class ApiPermissionControllerTest {
     @Test
     @DisplayName("GET /internal/api-perm/rules")
     void get_internal_api_perm_rules() throws Exception {
-        mvc.perform(get("/internal/api-perm/rules"))
+        mvc.perform(get("/internal/api-perm/rules").param("token", "test-internal-token"))
             .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+    }
+
+    /** 生成具备系统配置权限的测试用户。 */
+    private LoanUser systemAdmin() {
+        LoanUser user = TestUsers.staffUser();
+        user.setRoleCode("OPERATOR");
+        return user;
     }
 }

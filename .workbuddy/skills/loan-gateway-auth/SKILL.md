@@ -36,7 +36,8 @@ description: >-
                  ├─ 接口未登记 → 403 {code:2001}「接口未登记权限配置」（强制全量登记）
                  ├─ 接口 DISABLED → 403
                  ├─ 端校验：请求头 X-Client-Type(WEB/MINI_APP) 不在接口 client_types → 403「该接口不支持 xx 端访问」
-                 ├─ 角色校验（员工）：BOSS 超级角色全量放行；其他查 t_role_api → 无 → 403
+                 ├─ 角色校验（员工）：BOSS/OPERATOR/SUPER_ADMIN/SUPER 业务默认全量；DM/ADVISER 查 t_role_api
+                 ├─ BOSS 系统配置显式拒绝先于业务全量放行
                  └─ 类型校验（无角色用户）：CUSTOMER→mini: 前缀；CHANNEL→channel: 前缀 + 精确 mini 接口白名单 → 不匹配 403
 ```
 
@@ -54,7 +55,7 @@ description: >-
 - `ApiPermissionSyncService`（`ApplicationRunner`）：启动时扫描 `RequestMappingHandlerMapping` 全部映射，
   自动 upsert 到 `t_api_permission`，`api_key = {模块}:{方法名}`（模块从 `/api/admin/{模块}/…` 提取）
 - 首次运行自动给 ADVISER（一线）/ DEPT_MANAGER（管理）插默认授权
-- 新增 Controller 接口后**重启服务即自动登记**；也可用 BOSS 调 `POST /api/admin/api-perm/sync` 手动同步
+- 新增 Controller 接口后**重启服务即自动登记**；也可用 OPERATOR / SUPER_ADMIN / SUPER 调 `POST /api/admin/api-perm/sync` 手动同步（BOSS 禁止系统配置）
 - CHANNEL Web 业务接口必须定义在 `/api/channel/**`，同步后 `api_key` 必须稳定为 `channel:*`；禁止为渠道放宽通用 `/api/admin/**`。服务内还须校验 `userType=CHANNEL` 并按 `userNo` 做本人数据隔离，网关前缀仅解决“能否进入接口”，不解决数据范围。
 - CHANNEL 小程序跨域能力使用 `typeApiRules` 的 HTTP method + pathPattern 精确白名单，只开放自有产品、本人线索和必要公共入口；禁止给 CHANNEL 增加 `mini:` 前缀，否则会越权到匹配、报告和工单。
 
@@ -67,7 +68,7 @@ description: >-
       > ⚠️ `clientTypes` 参数是**逗号分隔 String**（不是数组），传数组会 5000 错误
 - [ ] 角色授权是否合理：ADVISER 只给一线接口
       （order / lead / client / screening / notification / dashboard / audit / report 部分 / sms 验证码）
-- [ ] 管理 / 敏感接口（org 写、blacklist 写、reward 审核、approval 审批、api-perm）仅 BOSS / DEPT_MANAGER
+- [ ] 系统配置接口（org 写、角色/菜单/接口权限、debug）是否仅 OPERATOR / SUPER_ADMIN / SUPER，且 BOSS 显式拒绝？业务审批另按审批类型角色表校验。
 - [ ] 网关匹配优先级：**精确路径优先于通配**（`/order/page` 不会被 `/order/{orderNo}` 抢占，网关已两轮匹配）
 - [ ] 服务重启后确认日志 `[ApiPerm] 接口清单同步完成，共 N 个接口`，N 与预期一致
 - [ ] CHANNEL 接口是否为 `/api/channel/**` 且同步为稳定 `channel:*` 键？列表、批量、详情是否在服务内重复执行本人数据范围校验？
@@ -91,6 +92,7 @@ description: >-
 | 401 `code:2000` | 无 token / JWT 过期 / 密钥不一致 | 重新登录；核对 `jwt.secret` |
 | 403「接口未登记」 | 接口未同步 / path 不匹配 | 重启服务或调 sync；核对 `path_pattern`（**不含 `/loan` 前缀**，网关自动兼容） |
 | 403「无权限访问」 | 角色未授权 | 组织权限 → 接口权限 勾选该角色 |
+| 菜单可见但页面某个 tab 403 | 页面额外首屏 API 未授权，或应用/网关全量角色集不一致 | 按“菜单→路由→页面源码实际 API→网关→Controller”逐层对齐，禁止只补单条库数据掩盖模型漂移 |
 | 403「不支持 xx 端访问」 | `client_types` 不含当前端 | `api-perm/client-types` 调整；前端带 `X-Client-Type` 头 |
 | 403「接口已停用」 | `status=DISABLED` | 同步后恢复 `ACTIVE` |
 | 502 | 网关转发后端不可达 | 确认 8080 存活；路由 uri 正确 |
@@ -111,6 +113,8 @@ description: >-
 - [ ] 新接口是否被 `ApiPermissionSyncService` 自动登记（日志 N 与预期一致）？
 - [ ] `client_types` 是否覆盖所有需要的端（WEB / MINI_APP / ADMIN-WEB）？传参是否用逗号分隔 String？
 - [ ] 角色授权是否符合「一线 vs 管理/敏感」划分？
+- [ ] 应用发布的 `superRoles` 是否与应用内默认全量角色完全一致（BOSS/OPERATOR/SUPER_ADMIN/SUPER）？BOSS 显式拒绝是否先判定？
+- [ ] 是否按每个角色的动态菜单逐页验证了实际首屏 API，而不是只核对菜单数量？
 - [ ] 是否误把 `/api/admin/**` 或完整 `mini:*` 加入 CHANNEL 白名单？CHANNEL 仅命中 `channel:*` + 经确认的精确 mini 接口，菜单树属于已登录公共接口例外。
 - [ ] 审批类接口是否按 D39 真值授权（DM 仅本团队 ALLOCATION）？
 - [ ] 前端请求头是否带 `X-Client-Type`？
@@ -127,7 +131,7 @@ description: >-
 - `docs/knowledge-base/04-后端 API 契约.md#前后端契约变更纪律`
 - `docs/knowledge-base/01-角色权限模型.md#7 角色体系（必须严格区分）`
 - `docs/knowledge-base/07-沟通-上线-测试-部署清单.md#本地联调环境（后端不在本地 docker，直连 prd 服务器配置）`
-- 管理界面：Web 端「组织权限 → 接口权限」tab（BOSS 配置角色勾选接口）
+- 管理界面：Web 端「组织权限 → 接口权限」tab（OPERATOR / SUPER_ADMIN / SUPER 配置，BOSS 不可进入）
 - 表结构：`db/migrate-api-perm.sql`
 - 代码：`loan-gateway/.../filter/ApiAuthGlobalFilter.java`、`loan-service/.../apiperm/**`
 - 交叉技能：`loan-backend`、`loan-web-dev`、`loan-service-ops`

@@ -9,6 +9,7 @@ import com.loan.common.ResultCode;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
+import com.loan.infrastructure.security.AdminRoleGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +26,8 @@ import java.util.Map;
 /**
  * 接口权限管理（Web 管理端）+ 内部规则下发（供网关鉴权）。
  *
- * <p>管理接口仅 BOSS 可操作；内部规则接口校验 {@code X-Internal-Token} 头（网关兜底拉取）。
+ * <p>管理接口仅运营管理员或超级管理员可操作；内部规则接口校验
+ * {@code X-Internal-Token} 头（网关兜底拉取）。
  *
  * @author loan-platform
  */
@@ -41,7 +43,7 @@ public class ApiPermissionController {
     private String internalToken;
 
     /**
-     * 接口清单分页（仅 BOSS）。
+     * 接口清单分页（仅系统配置管理员）。
      *
      * @param keyword     接口键/路径关键字（可选）
      * @param moduleGroup 分组（可选）
@@ -57,7 +59,7 @@ public class ApiPermissionController {
             @RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
-        requireBoss(user);
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         return Result.ok(apiPermissionService.page(keyword, moduleGroup, page, size));
     }
 
@@ -70,7 +72,7 @@ public class ApiPermissionController {
     @GetMapping("/api/admin/api-perm/role/list")
     public Result<List<String>> roleList(
             @RequestParam(value = "roleCode") String roleCode, @CurrentUser LoanUser user) {
-        requireBoss(user);
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         return Result.ok(apiPermissionService.listRoleApis(roleCode));
     }
 
@@ -83,7 +85,7 @@ public class ApiPermissionController {
      */
     @PostMapping("/api/admin/api-perm/role/save")
     public Result<Void> roleSave(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
-        requireBoss(user);
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         String roleCode = (String) body.get("roleCode");
         if (roleCode == null || roleCode.trim().isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "角色编码必填");
@@ -105,7 +107,7 @@ public class ApiPermissionController {
      */
     @PostMapping("/api/admin/api-perm/client-types")
     public Result<Void> updateClientTypes(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
-        requireBoss(user);
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         String apiKey = (String) body.get("apiKey");
         String clientTypes = (String) body.get("clientTypes");
         if (apiKey == null || apiKey.trim().isEmpty() || clientTypes == null) {
@@ -124,7 +126,7 @@ public class ApiPermissionController {
      */
     @PostMapping("/api/admin/api-perm/sync")
     public Result<Integer> sync(@CurrentUser LoanUser user) {
-        requireBoss(user);
+        AdminRoleGuard.requireSystemConfigAdmin(user);
         int n = syncService.syncApis();
         apiPermissionService.refreshRules(user == null ? "system" : user.getName());
         return Result.ok(n);
@@ -144,14 +146,4 @@ public class ApiPermissionController {
         return Result.ok(apiPermissionService.internalRules());
     }
 
-    /**
-     * 校验当前用户为 BOSS。
-     *
-     * @param user 当前用户
-     */
-    private void requireBoss(LoanUser user) {
-        if (user == null || !ApiPermissionService.SUPER_ROLE.equals(user.getRoleCode())) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "仅老板可配置接口权限");
-        }
-    }
 }

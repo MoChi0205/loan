@@ -31,7 +31,7 @@ import java.util.Map;
  *
  * <p>流程：白名单放行 → JWT 认证（解析 userId/userType/userNo/roleCode）→
  * 端识别（X-Client-Type，默认 WEB）→ 接口匹配（method + pathPattern）→
- * 三重校验：接口状态 / 可用端 / 角色授权（BOSS 全量）。
+ * 三重校验：接口状态 / 可用端 / 角色授权（BOSS 业务全量，系统配置域显式拒绝）。
  * 未登记接口一律拒绝（强制「所有接口都鉴权」）。通过后透传身份头给下游。
  *
  * @author loan-platform
@@ -183,6 +183,12 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
             log.warn("[Gateway] 端受限: {} 不可访问 {} {} (允许 {})", clientType, httpMethod, path, clientTypes);
             return reject(exchange, HttpStatus.FORBIDDEN, 2001, "该接口不支持 " + clientType + " 端访问");
         }
+        String apiKey = asString(matched.get("apiKey"));
+        // 显式拒绝优先于超级角色放行：BOSS 是业务全量角色，但不是系统配置管理员。
+        if (isRoleExplicitlyDenied(rules, roleCode, apiKey)) {
+            log.warn("[Gateway] 角色显式拒绝: role={} {} {} (apiKey={})", roleCode, httpMethod, path, apiKey);
+            return reject(exchange, HttpStatus.FORBIDDEN, 2001, "当前角色无权访问系统配置接口");
+        }
         // 角色校验（员工：按 t_role_api；无角色用户：按 userType 前缀规则）
         List<String> superRoles = (List<String>) rules.get("superRoles");
         if (superRoles != null && superRoles.contains(roleCode)) {
@@ -190,7 +196,6 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         }
         // 用户类型维度：前缀规则承载完整业务域，精确规则承载跨域的最小必要接口。
         // CHANNEL 不能放开 mini:，否则会同时获得匹配、报告和工单等明确禁止能力。
-        String apiKey = asString(matched.get("apiKey"));
         Map<String, Object> typeRules = (Map<String, Object>) rules.get("typeRules");
         if (typeRules != null && StringUtils.hasText(userType) && !StringUtils.hasText(roleCode)) {
             Object prefixesObj = typeRules.get(userType);
@@ -222,6 +227,32 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         }
         log.warn("[Gateway] 越权拦截: role={} {} {} (apiKey={})", roleCode, httpMethod, path, apiKey);
         return reject(exchange, HttpStatus.FORBIDDEN, 2001, "无权限访问该接口");
+    }
+
+    /** 先于超级角色放行判断角色显式拒绝前缀，避免 BOSS 越权到系统配置域。 */
+    @SuppressWarnings("unchecked")
+    boolean isRoleExplicitlyDenied(Map<String, Object> rules, String roleCode, String apiKey) {
+        if (rules == null || !StringUtils.hasText(roleCode) || !StringUtils.hasText(apiKey)) {
+            return false;
+        }
+        Object denyMapObject = rules.get("roleDenyApiRules");
+        if (!(denyMapObject instanceof Map)) {
+            return false;
+        }
+        Object prefixesObject = ((Map<String, Object>) denyMapObject).get(roleCode);
+        if (!(prefixesObject instanceof List)) {
+            return false;
+        }
+        for (Object item : (List<?>) prefixesObject) {
+            if (item == null) {
+                continue;
+            }
+            String rule = String.valueOf(item);
+            if ((rule.endsWith(":") && apiKey.startsWith(rule)) || apiKey.equals(rule)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -330,7 +361,11 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
     /**
      * 已登录用户公共接口。只豁免角色授权，不豁免 JWT 认证。
      */
-    private boolean isAuthenticatedCommonApi(String path, String httpMethod) {
+    boolean isAuthenticatedCommonApi(String path, String httpMethod) {
+        if ("POST".equalsIgnoreCase(httpMethod)) {
+            return "/loan/api/auth/logout".equals(path)
+                    || "/api/auth/logout".equals(path);
+        }
         if (!"GET".equalsIgnoreCase(httpMethod)) {
             return false;
         }

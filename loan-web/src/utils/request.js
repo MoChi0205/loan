@@ -18,6 +18,16 @@ const request = axios.create({
   timeout: 30000,
 });
 
+/**
+ * 只有显式标记为“页面访问探测”的请求收到 403 时才进入无权限页。
+ *
+ * 普通页面数据、按钮操作、登出等接口的 403 只提示错误；否则一次子请求失败就会把
+ * 整个合法页面替换成 /403，造成“动态菜单可见但页面无法操作”的假象。
+ */
+function shouldRedirectForbidden(config) {
+  return config?.meta?.redirectOnForbidden === true;
+}
+
 /** 错误提示节流：同一文案 3 秒内只弹一次（防并发失败连弹） */
 const MESSAGE_THROTTLE_MS = 3000;
 const lastShownAt = new Map();
@@ -59,6 +69,8 @@ request.interceptors.request.use(
     }
     // 端标识：网关按 X-Client-Type 校验接口可用端（WEB / MINI_APP）
     config.headers['X-Client-Type'] = 'WEB';
+    // 记录发起请求时的页面，避免旧页面的延迟 403 把用户从新页面踢走。
+    config.__loanRoute = window.location.pathname + window.location.search;
     return config;
   },
   (error) => Promise.reject(error),
@@ -88,14 +100,19 @@ request.interceptors.response.use(
       redirectToLogin();
       return Promise.reject(error);
     }
-    // 2.5) HTTP 403（无权限）：提示并跳 /403（Layout 内子路由，保留侧栏，T2；避免页内空表+toast 循环）
+    // 2.5) HTTP 403：操作/子请求仅提示；显式页面访问探测才允许跳无权限页。
+    // 同时校验发起路由，防止 keep-alive/旧请求延迟返回后把用户从新页面踢走。
     if (error.response && error.response.status === 403) {
       showThrottled(error.response?.data?.message || '当前角色无权执行该操作', 'warning');
-      import('@/router').then(({ default: router }) => {
-        if (router.currentRoute.value.path !== '/403') {
-          router.push({ path: '/403', query: { from: router.currentRoute.value.fullPath } });
-        }
-      });
+      const routeAtRequest = error.config?.__loanRoute;
+      if (shouldRedirectForbidden(error.config)) {
+        import('@/router').then(({ default: router }) => {
+          const current = router.currentRoute.value.fullPath;
+          if (router.currentRoute.value.path !== '/403' && (!routeAtRequest || routeAtRequest === current)) {
+            router.push({ path: '/403', query: { from: router.currentRoute.value.fullPath } });
+          }
+        });
+      }
       return Promise.reject(error);
     }
     // 3) 超时：友好提示（节流）

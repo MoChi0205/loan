@@ -25,14 +25,15 @@ export const ACTION_PERMISSION = Object.freeze({
   ORDER_STATUS: 'order:status',
 });
 
-const MANAGER_PERMISSIONS = Object.freeze(['*']);
+const BUSINESS_MANAGER_PERMISSIONS = Object.freeze(['*']);
 
 /** 未下发 permissions 时的角色最小权限，安全边界仍由后端负责。 */
 const ROLE_DEFAULT_PERMISSIONS = Object.freeze({
-  BOSS: MANAGER_PERMISSIONS,
-  OPERATOR: MANAGER_PERMISSIONS,
-  SUPER_ADMIN: MANAGER_PERMISSIONS,
-  SUPER: MANAGER_PERMISSIONS,
+  // BOSS 的“*”仅表示业务操作全量；页面能否进入仍以动态菜单为准，系统配置菜单不授予 BOSS。
+  BOSS: BUSINESS_MANAGER_PERMISSIONS,
+  OPERATOR: BUSINESS_MANAGER_PERMISSIONS,
+  SUPER_ADMIN: BUSINESS_MANAGER_PERMISSIONS,
+  SUPER: BUSINESS_MANAGER_PERMISSIONS,
   DEPT_MANAGER: Object.freeze([
     'page:client',
     'page:audit',
@@ -69,6 +70,7 @@ const ROLE_DEFAULT_PERMISSIONS = Object.freeze({
   CHANNEL: Object.freeze([
     'page:client',
     'page:channel-report',
+    'page:channel-product',
     ACTION_PERMISSION.LEAD_CREATE,
     ACTION_PERMISSION.CLIENT_OWN_VIEW,
     ACTION_PERMISSION.REPORT_OWN_VIEW,

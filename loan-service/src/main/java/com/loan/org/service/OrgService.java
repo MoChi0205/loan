@@ -63,7 +63,7 @@ public class OrgService {
      * 按角色查询菜单树（所有角色统一走 t_role_permission 数据）。
      *
      * <p>D24 修正：原 BOSS 特判"全放行"绕过权限表，导致调试中心等收窄项对 BOSS 可见；
-     * 现 BOSS 同样由 t_role_permission 驱动（种子已配 25 项，不含 /debug）。
+     * 现 BOSS 同样由 t_role_permission 驱动；业务菜单保留，组织权限、系统配置和调试中心不授予。
      *
      * @param roleCode 角色编码
      * @return 菜单树

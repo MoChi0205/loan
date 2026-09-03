@@ -53,10 +53,10 @@ ON DUPLICATE KEY UPDATE `menu_name`=VALUES(`menu_name`), `component`=VALUES(`com
 DELETE FROM `t_role_permission`
 WHERE `role_code` IN ('BOSS','DEPT_MANAGER','ADVISER','OPERATOR','SUPER_ADMIN','SUPER','CHANNEL');
 
--- BOSS：全量 26 项（不含 /debug——调试中心仅 SUPER/SUPER_ADMIN，D19）
+-- BOSS：业务全量 24 项；不含组织权限、系统配置和调试中心（老板不是系统配置管理员）
 INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`)
 SELECT 'BOSS', m.`id`, 'system' FROM `t_menu` m WHERE m.`path` IN
-('/workbench','/lead','/client','/ocr','/screening','/order','/approval','/product','/rule-template','/rule','/strategy-template','/plan-edit','/channel-config','/channel-strategy','/channel-user-list','/blacklist','/report-template','/sms','/reward','/reward-rule','/audit','/report/center','/report/trend','/report/screening','/org','/config-wizard');
+('/workbench','/lead','/client','/ocr','/screening','/order','/approval','/product','/rule-template','/rule','/strategy-template','/plan-edit','/channel-config','/channel-strategy','/channel-user-list','/blacklist','/report-template','/sms','/reward','/reward-rule','/audit','/report/center','/report/trend','/report/screening');
 
 -- OPERATOR：同 BOSS（运营为管理视角全量，不含调试中心）
 INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`)

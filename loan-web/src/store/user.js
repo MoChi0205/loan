@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia';
 import { login as loginApi, logout as logoutApi } from '@/api/auth';
+import { menuTree } from '@/api/org';
 import { KEYS, getStorage, getStorageJSON, setStorage, setStorageJSON, removeStorage } from '@/utils/storage';
 import { defaultPermissionsForRole, hasActionPermission } from '@/utils/access';
+import { flattenMenuPaths } from '@/utils/routeAccess';
 
 /**
  * 用户状态 Store：token + 用户信息（持久化到 localStorage）。
@@ -10,7 +12,7 @@ import { defaultPermissionsForRole, hasActionPermission } from '@/utils/access';
  * - 路由/指令「未声明权限」→ 放行；
  * - 路由/指令「声明了权限但用户未授权」→ 拦截（403 / 隐藏按钮）；
  * - 后端登录下发的 permissions 优先；未下发时按角色映射：
- *   BOSS / OPERATOR / SUPER_ADMIN / SUPER 全量通配 '*'；
+ *   BOSS / OPERATOR / SUPER_ADMIN / SUPER 业务操作通配 '*'，页面准入仍以动态菜单为准；
  *   DEPT_MANAGER / ADVISER 使用页面 + 操作级权限码，菜单仍由后端数据范围控制。
  */
 const TOKEN_KEY = KEYS.TOKEN;
@@ -18,7 +20,8 @@ const USER_KEY = KEYS.USER;
 
 /**
  * 角色默认权限映射（未下发 permissions 时的兜底；T9 对齐菜单矩阵与 4 条 meta.permission）：
- * - 管理/运营角色（BOSS/OPERATOR/SUPER_ADMIN/SUPER）全量通配 '*'（可进全部页）；
+ * - 管理/运营角色（BOSS/OPERATOR/SUPER_ADMIN/SUPER）业务操作通配 '*'；
+ *   BOSS 不拥有组织权限/系统配置页面，页面范围由后端动态菜单收口；
  * - DEPT_MANAGER：部门视角，可见 客户档案/审计日志（page:client/page:audit），不可见 组织权限/风控名单；
  * - ADVISER：本人视角，仅 客户档案（page:client）；
  * - CHANNEL：沙箱，仅本人线索、产品、客户和分析报告页面权限。
@@ -40,6 +43,9 @@ export const useUserStore = defineStore('user', {
         (cachedUser?.permissions && cachedUser.permissions.length)
           ? cachedUser.permissions
           : defaultPermissionsForRole(cachedUser?.roleCode || (cachedUser?.userType === 'CHANNEL' ? 'CHANNEL' : '')),
+      /** 当前角色后端动态菜单 path；null 表示尚未加载，Set 表示已加载。 */
+      menuPaths: null,
+      menuRoleCode: '',
     };
   },
   getters: {
@@ -72,15 +78,30 @@ export const useUserStore = defineStore('user', {
       const data = res?.data || {};
       this.token = data.token || '';
       this.user = data.user || null;
-      // 权限：登录下发优先，否则按角色默认（BOSS 全通 / 其余留空=未配置）
+      // 权限：登录下发优先，否则按角色默认；页面准入始终由动态菜单决定。
       const rolePerms = defaultPermissionsForRole(this.roleCode || this.user?.roleCode);
       this.permissions = Array.isArray(data.permissions) && data.permissions.length
         ? data.permissions
         : rolePerms;
+      this.menuPaths = null;
+      this.menuRoleCode = '';
       if (this.user && this.permissions.length) this.user = { ...this.user, permissions: this.permissions };
       setStorage(TOKEN_KEY, this.token);
       setStorageJSON(USER_KEY, this.user);
       return data;
+    },
+
+    /** 拉取并缓存当前角色动态菜单，路由守卫与 Layout 共用同一结果。 */
+    async ensureMenuPaths(force = false) {
+      const roleCode = this.roleCode;
+      if (!roleCode) return new Set();
+      if (!force && this.menuPaths instanceof Set && this.menuRoleCode === roleCode) {
+        return this.menuPaths;
+      }
+      const res = await menuTree(roleCode);
+      this.menuPaths = flattenMenuPaths(res?.data || []);
+      this.menuRoleCode = roleCode;
+      return this.menuPaths;
     },
 
     /**
@@ -95,6 +116,8 @@ export const useUserStore = defineStore('user', {
       this.token = '';
       this.user = null;
       this.permissions = [];
+      this.menuPaths = null;
+      this.menuRoleCode = '';
       removeStorage(TOKEN_KEY);
       removeStorage(USER_KEY);
     },

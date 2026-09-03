@@ -102,6 +102,9 @@ description: >-
 | `GET /api/mini/lead/my` | 我录入的全部线索，新增后立即可见 | CHANNEL 仅本人（含待审/通过/驳回） |
 | `POST /api/channel/lead` | Web 录入线索，初始待终审 | CHANNEL 本人 |
 | `GET /api/channel/lead/page` | Web 本人录入线索分页 | CHANNEL 本人 |
+| `GET /api/channel/product/list` / `/{approvalNo}` | Web 本人产品申请列表/详情 | CHANNEL 本人 |
+| `POST /api/channel/product` / `PUT /api/channel/product/{approvalNo}` | Web 本人产品草稿新增/编辑 | CHANNEL 本人 |
+| `POST /api/channel/product/{approvalNo}/submit\|revoke\|delete-apply\|delete-cancel` | Web 本人产品审批状态流转 | CHANNEL 本人 |
 | `GET /api/channel/client/page` / `/{clientCode}` | Web 本人客户分页/详情 | CHANNEL 本人只读 |
 | `POST /api/channel/client/batch` | Web 本人客户批量摘要（最多 100） | CHANNEL 本人只读 |
 | `GET /api/channel/report/page` / `/{reportNo}` | Web 本人客户分析报告分页/详情 | CHANNEL 本人只读 |
@@ -131,6 +134,7 @@ description: >-
 
 - [ ] Step 0 结论核对是否已输出？
 - [ ] Web 客户/报告是否严格走 `/api/channel/**` 并按本人 `userNo` 隔离？小程序报告 tab 是否仍隐藏？
+- [ ] Web 产品页是否只走 `/api/channel/product/**`，且页面挂载时未触发 `/api/admin/product|partner-product|product-city/**`？
 - [ ] 新增接口是否在 `MiniMatchController` 六处守卫之外**也**加了 `TYPE_CHANNEL` 守卫？
 - [ ] 唯一索引冲突文案是否只返友好提示（未泄露归属人）？
 - [ ] tabBar 是否以 `TabBar.vue` 的 **4 tab** 为准（未沿用 01 文档的 3 tab 错误）？

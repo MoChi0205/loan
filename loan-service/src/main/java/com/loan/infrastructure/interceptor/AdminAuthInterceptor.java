@@ -30,8 +30,10 @@ import java.util.Set;
  *   <li>未登录 → 401；</li>
  *   <li>渠道沙箱白名单（自身菜单树 + 线索录入/本人线索分页 + 本行产品只读分页，T11）；</li>
  *   <li>STAFF 角色级（管理角色 BOSS / DEPT_MANAGER / OPERATOR / SUPER_ADMIN / SUPER）；</li>
- *   <li>码级校验（T9/D28）：受保护管理前缀按 {@code t_role_permission × t_menu.permission_code}
+ *   <li>码级校验（T9/D28）：受保护业务前缀按 {@code t_role_permission × t_menu.permission_code}
  *       判定页面级权限（page:org / page:blacklist / page:client），与前端 {@code meta.permission} 对齐。
+ *       组织域同时包含客户分配所需的员工/部门只读选择器，不能用整个 {@code /org/**} 前缀拦截；
+ *       组织与权限写接口改由 {@code AdminRoleGuard} 在 Controller 精确守卫。
  *       说明：audit 前缀因工作台复用（Workbench 调 audit/page 且 ADVISER 无 page:audit）不做码级拦截，
  *       由前端菜单 + meta.permission 管控（审计为只读记录）。</li>
  * </ol>
@@ -54,7 +56,6 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
     private static final java.util.Map<String, String> URI_PERMISSION =
             new java.util.HashMap<>();
     static {
-        URI_PERMISSION.put("/api/admin/org/", "page:org");
         URI_PERMISSION.put("/api/admin/blacklist/", "page:blacklist");
         URI_PERMISSION.put("/api/admin/client/", "page:client");
     }
