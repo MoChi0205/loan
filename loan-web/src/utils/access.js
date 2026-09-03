@@ -14,6 +14,8 @@ export const ACTION_PERMISSION = Object.freeze({
   CLIENT_RECYCLE: 'client:recycle',
   CLIENT_UPDATE: 'client:update',
   CLIENT_SCREENING: 'client:screening',
+  CLIENT_OWN_VIEW: 'client:own:view',
+  REPORT_OWN_VIEW: 'report:own:view',
   PRODUCT_AUDIT: 'approval:product:audit',
   DOWNLOAD_APPLY: 'approval:download:apply',
   DOWNLOAD_AUDIT: 'approval:download:audit',
@@ -63,8 +65,14 @@ const ROLE_DEFAULT_PERMISSIONS = Object.freeze({
     ACTION_PERMISSION.ORDER_CREATE,
     ACTION_PERMISSION.ORDER_STATUS,
   ]),
-  // 渠道仅能录入并查看本人线索，不能进入公海或执行归属操作。
-  CHANNEL: Object.freeze([ACTION_PERMISSION.LEAD_CREATE]),
+  // 渠道只读查看本人录入形成的客户、分析报告和归属姓名；不能操作归属或发起匹配。
+  CHANNEL: Object.freeze([
+    'page:client',
+    'page:channel-report',
+    ACTION_PERMISSION.LEAD_CREATE,
+    ACTION_PERMISSION.CLIENT_OWN_VIEW,
+    ACTION_PERMISSION.REPORT_OWN_VIEW,
+  ]),
 });
 
 /**
@@ -74,6 +82,11 @@ const ROLE_DEFAULT_PERMISSIONS = Object.freeze({
  */
 export function defaultPermissionsForRole(roleCode) {
   return [...(ROLE_DEFAULT_PERMISSIONS[String(roleCode || '').toUpperCase()] || [])];
+}
+
+/** 当前缓存登录态是否为合作渠道账号，供 API 路由选择统一复用。 */
+export function isChannelUser(user) {
+  return user?.userType === 'CHANNEL';
 }
 
 /**

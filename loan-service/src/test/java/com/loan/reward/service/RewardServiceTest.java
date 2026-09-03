@@ -13,6 +13,7 @@ import com.loan.reward.entity.RewardRecord;
 import com.loan.reward.entity.RewardRule;
 import com.loan.reward.mapper.RewardRecordMapper;
 import com.loan.reward.mapper.RewardRuleMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -403,18 +404,37 @@ class RewardServiceTest {
     }
 
     @Test
-    @DisplayName("saveRule：带 id → 走更新")
+    @DisplayName("saveRule：带业务版本 → 走更新")
     void saveRule_update() {
         RewardRule rule = new RewardRule();
-        rule.setId(5L);
+        rule.setRuleVersion("rule-existing");
         rule.setProductCode("bp1");
         rule.setCustomerGroup("ENTERPRISE");
         rule.setDirectRate(new BigDecimal("0.1"));
+        RewardRule existing = new RewardRule();
+        existing.setId(5L);
+        existing.setRuleVersion("rule-existing");
+        when(rewardRuleMapper.selectOne(any())).thenReturn(existing);
         when(rewardRuleMapper.updateById(any())).thenReturn(1);
 
         service.saveRule(rule, "op");
         verify(rewardRuleMapper).updateById(any());
         verify(rewardRuleMapper, never()).insert(any());
+    }
+
+    @Test
+    @DisplayName("saveRule：重复产品与客群 → 返回可理解的业务异常")
+    void saveRule_duplicateDimension() {
+        RewardRule rule = new RewardRule();
+        rule.setProductCode("bp1");
+        rule.setCustomerGroup("ENTERPRISE");
+        rule.setDirectRate(new BigDecimal("0.1"));
+        when(rewardRuleMapper.insert(any())).thenThrow(new DuplicateKeyException("uk_product_group"));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.saveRule(rule, "op"));
+        assertEquals(ResultCode.PARAM_ERROR.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("已配置"));
     }
 
     // ---------- disableRule / listRules ----------
@@ -424,10 +444,10 @@ class RewardServiceTest {
     void disableRule_success() {
         RewardRule rule = new RewardRule();
         rule.setStatus("ACTIVE");
-        when(rewardRuleMapper.selectById(anyLong())).thenReturn(rule);
+        when(rewardRuleMapper.selectOne(any())).thenReturn(rule);
         when(rewardRuleMapper.updateById(any())).thenReturn(1);
 
-        service.disableRule(1L, "op");
+        service.disableRule("rule-existing", "op");
         ArgumentCaptor<RewardRule> cap = ArgumentCaptor.forClass(RewardRule.class);
         verify(rewardRuleMapper).updateById(cap.capture());
         assertEquals("DISABLED", cap.getValue().getStatus());
@@ -436,9 +456,9 @@ class RewardServiceTest {
     @Test
     @DisplayName("disableRule：不存在 → 数据不存在")
     void disableRule_notFound() {
-        when(rewardRuleMapper.selectById(anyLong())).thenReturn(null);
+        when(rewardRuleMapper.selectOne(any())).thenReturn(null);
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.disableRule(1L, "op"));
+                () -> service.disableRule("rule-missing", "op"));
         assertEquals(ResultCode.DATA_NOT_FOUND.getCode(), ex.getCode());
     }
 

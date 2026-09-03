@@ -188,7 +188,8 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         if (superRoles != null && superRoles.contains(roleCode)) {
             return forward(exchange, chain, userId, userNo, roleCode, userType, clientType);
         }
-        // 用户类型维度：CUSTOMER 只能访问 mini: 前缀接口，CHANNEL 只能访问 channel: 前缀接口
+        // 用户类型维度：前缀规则承载完整业务域，精确规则承载跨域的最小必要接口。
+        // CHANNEL 不能放开 mini:，否则会同时获得匹配、报告和工单等明确禁止能力。
         String apiKey = asString(matched.get("apiKey"));
         Map<String, Object> typeRules = (Map<String, Object>) rules.get("typeRules");
         if (typeRules != null && StringUtils.hasText(userType) && !StringUtils.hasText(roleCode)) {
@@ -200,6 +201,11 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
                         return forward(exchange, chain, userId, userNo, roleCode, userType, clientType);
                     }
                 }
+            }
+            Map<String, Object> typeApiRules = (Map<String, Object>) rules.get("typeApiRules");
+            if (typeApiRules != null
+                    && matchesTypeApiRules(typeApiRules.get(userType), httpMethod, candidates)) {
+                return forward(exchange, chain, userId, userNo, roleCode, userType, clientType);
             }
             log.warn("[Gateway] 类型越权拦截: userType={} {} {} (apiKey={})", userType, httpMethod, path, apiKey);
             return reject(exchange, HttpStatus.FORBIDDEN, 2001, "无权限访问该接口");
@@ -216,6 +222,36 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         }
         log.warn("[Gateway] 越权拦截: role={} {} {} (apiKey={})", roleCode, httpMethod, path, apiKey);
         return reject(exchange, HttpStatus.FORBIDDEN, 2001, "无权限访问该接口");
+    }
+
+    /**
+     * 匹配无角色用户类型的精确接口授权。
+     *
+     * <p>该方法保持包级可见，便于对渠道允许/禁止边界做纯单元测试。
+     */
+    @SuppressWarnings("unchecked")
+    boolean matchesTypeApiRules(Object rulesObject, String httpMethod, String[] candidates) {
+        if (!(rulesObject instanceof List)) {
+            return false;
+        }
+        for (Object item : (List<?>) rulesObject) {
+            if (!(item instanceof Map)) {
+                continue;
+            }
+            Map<String, Object> rule = (Map<String, Object>) item;
+            String method = asString(rule.get("method"));
+            String pattern = asString(rule.get("pathPattern"));
+            if (!StringUtils.hasText(pattern)
+                    || !("ALL".equalsIgnoreCase(method) || method.equalsIgnoreCase(httpMethod))) {
+                continue;
+            }
+            for (String candidate : candidates) {
+                if (candidate != null && pathMatcher.match(pattern, candidate)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

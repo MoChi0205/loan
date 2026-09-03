@@ -2,8 +2,8 @@
   <div class="lead-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">线索公海</h2>
-        <p class="loan-page-subtitle">线索认领与客户顾问分配统一管理</p>
+        <h2 class="loan-page-title">{{ isChannel ? '我的线索' : '线索公海' }}</h2>
+        <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审批通过后进入公海' : '线索认领与客户顾问分配统一管理' }}</p>
       </div>
       <el-button v-permission="ACTION_PERMISSION.LEAD_CREATE" type="primary" @click="openCreate">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
@@ -14,8 +14,8 @@
     <div class="loan-card">
       <el-tabs v-model="activeTab" @tab-change="onTabChange">
         <el-tab-pane label="我的线索" name="mine" />
-        <el-tab-pane label="公海" name="pool" />
-        <el-tab-pane v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_POOL_VIEW)" label="未分配客户" name="clients" />
+        <el-tab-pane v-if="!isChannel" label="公海" name="pool" />
+        <el-tab-pane v-if="!isChannel && userStore.hasPerm(ACTION_PERMISSION.CLIENT_POOL_VIEW)" label="未分配客户" name="clients" />
       </el-tabs>
 
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
@@ -23,7 +23,7 @@
           <el-option label="企业" value="ENTERPRISE" />
           <el-option label="个人" value="PERSONAL" />
         </el-select>
-        <el-select v-if="activeTab !== 'clients'" v-model="query.source" placeholder="来源" clearable style="width: 150px">
+        <el-select v-if="activeTab !== 'clients' && !isChannel" v-model="query.source" placeholder="来源" clearable style="width: 150px">
           <el-option v-for="(v, k) in sourceMap" :key="k" :label="v" :value="k" />
         </el-select>
         <el-select v-if="activeTab !== 'clients'" v-model="query.followStatus" placeholder="跟进状态" clearable style="width: 140px">
@@ -65,12 +65,12 @@
         >
           <template #empty>
             <AppEmpty
-              :title="activeTab === 'clients' ? '暂无未分配客户' : '暂无线索'"
-              :desc="activeTab === 'clients' ? '新注册且尚未分配服务顾问的客户会显示在这里' : '点击右上角「新增线索」录入第一条客户线索'"
+              :title="activeTab === 'clients' ? '暂无未分配客户' : (isChannel ? '暂无本人录入的线索' : '暂无线索')"
+              :desc="activeTab === 'clients' ? '新注册且尚未分配服务顾问的客户会显示在这里' : (isChannel ? '新增成功后会立即显示，审批通过后进入公司公海' : '点击右上角「新增线索」录入第一条客户线索')"
             />
           </template>
-          <el-table-column v-if="activeTab !== 'clients'" type="selection" width="44" fixed="left" reserve-selection />
-          <el-table-column v-if="activeTab !== 'clients'" prop="leadNo" label="线索编号" width="120" show-overflow-tooltip />
+          <el-table-column v-if="activeTab !== 'clients' && !isChannel" type="selection" width="44" fixed="left" reserve-selection />
+          <el-table-column v-if="activeTab !== 'clients' && !isChannel" prop="leadNo" label="线索编号" width="120" show-overflow-tooltip />
         <el-table-column v-if="activeTab === 'clients'" label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.enterpriseName || row.customerName || '微信客户' }}</div>
@@ -140,7 +140,7 @@
             <el-option label="个人" value="PERSONAL" />
           </el-select>
         </el-form-item>
-        <el-form-item label="来源">
+        <el-form-item v-if="!isChannel" label="来源">
           <el-select v-model="form.source" style="width: 100%" placement="top-start">
             <el-option label="老板" value="BOSS" />
             <el-option label="顾问" value="ADVISER" />
@@ -206,6 +206,7 @@ const activeTab = ref('mine');
 const router = useRouter();
 const userStore = useUserStore();
 const roleCode = computed(() => (userStore.roleCode || '').toUpperCase());
+const isChannel = computed(() => roleCode.value === 'CHANNEL');
 const canClaimClient = computed(() => roleCode.value === 'ADVISER');
 const rowKey = (row) => row.leadNo || row.clientCode;
 
@@ -309,7 +310,9 @@ function rowActions(row) {
   if (row.clientCode) {
     actions.push({ key: 'profile', label: '档案', onClick: () => goProfile(row.clientCode) });
   }
-  actions.push({ key: "copy", label: "复制线索编号", onClick: () => onCopy(row.leadNo) });
+  if (!isChannel.value) {
+    actions.push({ key: 'copy', label: '复制线索编号', onClick: () => onCopy(row.leadNo) });
+  }
   if (activeTab.value === 'pool' && userStore.hasPerm(ACTION_PERMISSION.LEAD_CLAIM)) {
     actions.push({ key: 'claim', label: '认领', type: 'success', confirm: `确认认领「${row.contactName}」？`, onClick: () => onClaim(row) });
   } else if (activeTab.value === 'mine' && userStore.hasPerm(ACTION_PERMISSION.LEAD_ASSIGN)) {
@@ -412,7 +415,7 @@ const formRules = {
 };
 
 function openCreate() {
-  Object.assign(form, { contactName: '', phone: '', leadType: 'ENTERPRISE', source: 'ADVISER' });
+  Object.assign(form, { contactName: '', phone: '', leadType: 'ENTERPRISE', source: isChannel.value ? 'CHANNEL' : 'ADVISER' });
   createVisible.value = true;
 }
 
@@ -420,8 +423,8 @@ async function onCreate() {
   await formRef.value.validate();
   creating.value = true;
   try {
-    await createLead({ ...form });
-    ElMessage.success('新增成功');
+    await createLead({ ...form, source: isChannel.value ? 'CHANNEL' : form.source });
+    ElMessage.success(isChannel.value ? '已提交，等待公司审批' : '新增成功');
     createVisible.value = false;
     load();
   } catch (e) {
@@ -509,12 +512,14 @@ async function onAssign() {
 // 本地枚举映射（后端字典暂未覆盖线索跟进状态/来源，待后端补齐后改用 DictTag）
 // ============================================================
 const followStatusMap = {
+  PENDING_APPROVAL: { label: '待公司审批', type: 'warning' },
   NEW: { label: '新线索', type: 'info' },
   INTENTION: { label: '有意向', type: 'primary' },
   POTENTIAL: { label: '潜力客户', type: 'success' },
   VISITED: { label: '已到访', type: 'warning' },
   NO_ANSWER: { label: '未接通', type: 'muted' },
   NO_NEED: { label: '无需求', type: 'muted' },
+  REJECTED: { label: '已驳回', type: 'muted' },
 };
 /** 邀请绑定 / 小程序注册来源的引荐人与认证状态列：仅当列表数据含对应字段时展示 */
 const hasReferrer = computed(() => data.value.some((r) => r.referrerName || r.inviterName || r.referrer));

@@ -41,6 +41,11 @@ description: >-
 - **录入客户（线索）**：`POST /api/mini/lead/submit` —— 走 **`Lead` 不进 `ClientProfile`**，
   归属 = **公海**（`owner_staff_id = NULL`），由公司员工认领（C20）
 - **我录入的线索**：`GET /api/mini/lead/my`（**仅本人录入**）
+- **新增后立即可见**：`PENDING_APPROVAL / NEW / REJECTED` 等全部本人线索都进入“我的线索”；审批只控制是否进入公司公海，不影响录入渠道本人查看
+- **Web 本人客户档案（只读）**：`GET /api/channel/client/page|/{clientCode}`；仅本人录入且已通过终审、已形成客户档案的数据，展示归属顾问姓名
+- **Web 本人客户分析报告（只读）**：`GET /api/channel/report/page|/{reportNo}`；仅上述本人客户的分析报告，不含命中产品明细
+- **批量只读查询**：`POST /api/channel/client/batch`、`POST /api/channel/report/batch`；业务编码去重、单次最多 100 条、一次查库，越权/未命中项不返回
+- **渠道新增线索终审**：新增线索初始 `PENDING_APPROVAL`；由 BOSS / SUPER_ADMIN / SUPER 任一单级终审，通过后 `NEW` 进入公海，驳回为 `REJECTED`
 - **我的账户 = 银行信息**（C8）：所属银行 / 合作开始 / 银行联系人 / 银行编码
 - 材料上传（`POST /api/mini/upload`）
 
@@ -49,23 +54,24 @@ description: >-
 1. ❌ **不可操作智能匹配 —— 渠道是唯一不可操作匹配的角色**（C1）
    —— 后端 `MiniMatchController` 在 `run`(L61)、`history`(L135)、`reportList`(L135)、`products`(L162)、
    `diagnosis`(L185)、`detail`(L203) **六处均有 `TYPE_CHANNEL` 守卫**
-2. ❌ **不可见任何报告（含自己的）** —— C3；`reportList` 渠道分支**直接返回空 `PageResult`**（不是过滤，是拒绝）
+2. ❌ **小程序不可见报告；Web 不可见非本人录入客户报告** —— C3 / D50；小程序 `reportList` 渠道分支仍返回空，Web 仅走 `/api/channel/report/**` 本人范围
 3. ❌ **不可见服务单 tab** —— `TabBar.vue` 渠道分支无 `order`；08 矩阵「❌ 隐藏」
-4. ❌ **不可见客户档案、不可查重、不可归属流转** —— C2 / C10；`GET /api/mini/client/search` 仅 STAFF
+4. ❌ **小程序不可见客户档案；Web 客户档案不可写、不可查重、不可归属流转** —— C2 / C10 / D50；Web 只读本人录入形成的档案
 5. ❌ **录入命中唯一索引冲突时，只返友好文案，严禁泄露归属人** —— C20（`msg="该客户已被录入，请联系运营"`）
-6. ❌ **看不到匹配结果、看不到客户归属、看不到报告命中产品明细** —— `report/{reportNo}/products` 渠道直接拒绝
+6. ❌ **看不到匹配结果、看不到报告命中产品明细，不可修改客户归属**；D50 仅允许 Web 只读显示归属顾问姓名，不返回归属工号
 
 ## 4. 可见数据范围
 
 | 维度 | 范围 |
 |---|---|
 | 产品 | **仅自有**（`requireChannel` + 本人） |
-| 线索 | **仅本人录入**的 `t_lead`（`GET /api/mini/lead/my`） |
-| 报告 / 匹配 / 工单 | **一律不可见**（空集或拒绝） |
-| 客户档案 | 不可见 |
-| 归属信息 | 不可见（冲突时也不得泄露） |
+| 线索 | **仅本人录入**的 `t_lead`（待审/通过/驳回全部可见）；其他渠道不可见 |
+| 报告 | 小程序不可见；Web 仅本人录入且已形成客户的分析报告只读 |
+| 匹配 / 命中产品明细 / 工单 | 一律不可见（空集或拒绝） |
+| 客户档案 | 小程序不可见；Web 仅本人录入且已形成客户的档案只读 |
+| 归属信息 | Web 仅显示顾问姓名，不返回工号；冲突提示仍不得泄露归属人 |
 
-> 沙箱语义：渠道**只能看到自己产出的东西**，看不到任何"公司侧资产"。
+> 沙箱语义：渠道只能看到本人产出的线索、产品，以及这些线索形成的客户/报告只读视图；客户服务归属仍是公司侧资产，仅展示顾问姓名，不开放任何写操作。
 
 ## 5. tabBar 结构
 
@@ -92,8 +98,14 @@ description: >-
 | `POST /api/mini/product/{code}/revoke` | 撤销审批 | 仅本人（PENDING） |
 | `POST /api/mini/product/{code}/delete-apply` | 申请删除 | 仅本人（OK 状态） |
 | `POST /api/mini/product/{code}/delete-cancel` | 撤销删除 | 仅本人（PENDING_DELETE） |
-| `POST /api/mini/lead/submit` | 录入线索（进**公海**） | **含 CHANNEL**（沙箱隔离） |
-| `GET /api/mini/lead/my` | 我录入的线索 | 已登录（仅本人） |
+| `POST /api/mini/lead/submit` | 录入线索（先待公司审批） | **含 CHANNEL**（沙箱隔离） |
+| `GET /api/mini/lead/my` | 我录入的全部线索，新增后立即可见 | CHANNEL 仅本人（含待审/通过/驳回） |
+| `POST /api/channel/lead` | Web 录入线索，初始待终审 | CHANNEL 本人 |
+| `GET /api/channel/lead/page` | Web 本人录入线索分页 | CHANNEL 本人 |
+| `GET /api/channel/client/page` / `/{clientCode}` | Web 本人客户分页/详情 | CHANNEL 本人只读 |
+| `POST /api/channel/client/batch` | Web 本人客户批量摘要（最多 100） | CHANNEL 本人只读 |
+| `GET /api/channel/report/page` / `/{reportNo}` | Web 本人客户分析报告分页/详情 | CHANNEL 本人只读 |
+| `POST /api/channel/report/batch` | Web 本人客户报告批量摘要（最多 100） | CHANNEL 本人只读 |
 | `POST /api/mini/upload` | 材料上传 | CUSTOMER / STAFF / CHANNEL |
 
 > 待删产品终审在 `GET /api/mini/partner-product/delete/pending` +
@@ -101,7 +113,7 @@ description: >-
 
 ## 7. 相关结论编号
 
-`C1`（**渠道唯一不可操作匹配**）· `C3`（渠道不可见报告）· `C8`（我的页账户 = 银行信息）· `C9`（渠道产品删除走审批，不新增表）· `C20`（渠道线索录�� → 公海 + 唯一索引冲突不泄归属人）
+`C1`（渠道唯一不可操作匹配）· `C3`（小程序不可见报告，Web 由 D50 覆盖）· `C8`（我的页账户 = 银行信息）· `C9`（渠道产品删除走审批，不新增表）· `C20`（渠道线索录入与唯一索引冲突不泄归属人）· `D50`（Web 本人客户/报告/归属姓名只读 + 渠道内容终审）
 
 ## 8. 必读文档指针
 
@@ -118,8 +130,10 @@ description: >-
 ## 改动自检清单
 
 - [ ] Step 0 结论核对是否已输出？
-- [ ] 是否在任何环节给渠道"开了口子"（看到报告 / 匹配 / 客户档案 / 归属人）？
+- [ ] Web 客户/报告是否严格走 `/api/channel/**` 并按本人 `userNo` 隔离？小程序报告 tab 是否仍隐藏？
 - [ ] 新增接口是否在 `MiniMatchController` 六处守卫之外**也**加了 `TYPE_CHANNEL` 守卫？
 - [ ] 唯一索引冲突文案是否只返友好提示（未泄露归属人）？
 - [ ] tabBar 是否以 `TabBar.vue` 的 **4 tab** 为准（未沿用 01 文档的 3 tab 错误）？
-- [ ] 渠道录入是否走 `Lead` 进**公海**（未直接落 `ClientProfile`）？
+- [ ] 渠道录入是否走 `Lead` 并先 `PENDING_APPROVAL`，终审通过才进公海（未直接落 `ClientProfile`）？
+- [ ] 新增后是否立即出现在渠道本人列表，且待审/通过/驳回均可见、其他渠道不可见？
+- [ ] 是否只返回归属顾问姓名，未暴露归属工号、匹配 trace 或命中产品明细？

@@ -24,6 +24,6 @@ export function saveRewardRule(data) {
   return request({ url: '/api/admin/reward/rule', method: 'post', data });
 }
 /** 停用奖励规则 */
-export function disableRewardRule(id) {
-  return request({ url: `/api/admin/reward/rule/${id}/disable`, method: 'post' });
+export function disableRewardRule(ruleVersion) {
+  return request({ url: `/api/admin/reward/rule/${ruleVersion}/disable`, method: 'post' });
 }

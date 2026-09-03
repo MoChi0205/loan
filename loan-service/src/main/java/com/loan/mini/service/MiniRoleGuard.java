@@ -35,6 +35,10 @@ public class MiniRoleGuard {
     private static final List<String> APPROVAL_ROLES =
             Arrays.asList("BOSS", "DEPT_MANAGER", "OPERATOR", "SUPER_ADMIN", "SUPER");
 
+    /** 渠道新增内容单级终审，仅老板与两级超级管理员。 */
+    private static final List<String> CHANNEL_FINAL_APPROVER_ROLES =
+            Arrays.asList("BOSS", "SUPER_ADMIN", "SUPER");
+
     /**
      * 校验当前用户为已登录的企业员工。
      *
@@ -87,6 +91,14 @@ public class MiniRoleGuard {
         String code = user.getRoleCode() == null ? "" : String.valueOf(user.getRoleCode()).toUpperCase();
         if (!APPROVAL_ROLES.contains(code)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "无审批权限");
+        }
+    }
+
+    public void requireChannelFinalApprover(LoanUser user) {
+        requireStaff(user);
+        String code = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
+        if (!CHANNEL_FINAL_APPROVER_ROLES.contains(code)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅老板或超级管理员可审批渠道新增内容");
         }
     }
 }

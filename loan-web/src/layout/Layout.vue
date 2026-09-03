@@ -271,6 +271,7 @@ const roleText = computed(() => {
     OPERATOR: '运营',
     SUPER_ADMIN: '超管',
     SUPER: '超级管理员',
+    CHANNEL: '合作渠道管理员',
   };
   return m[userStore.roleCode] || userStore.roleCode || '管理员';
 });
@@ -380,7 +381,17 @@ const SAFE_MENU_GROUPS = DEBUG_CENTER_VISIBLE
       .map((g) => ({ ...g, items: g.items.filter((it) => !it.path || it.path.split('?')[0] !== '/debug') }))
       .filter((g) => g.items.length);
 const menuGroups = computed(() => {
-  const raw = SAFE_MENU_GROUPS;
+  const raw = userStore.roleCode === 'CHANNEL'
+    ? SAFE_MENU_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.map((item) => ({
+          ...item,
+          title: item.path === '/lead' ? '我的线索'
+            : item.path === '/client' ? '我的客户'
+              : item.path === '/report/screening' ? '客户分析报告' : item.title,
+        })),
+      }))
+    : SAFE_MENU_GROUPS;
   if (allowedCodes.value == null) return [SAFE_MENU_GROUPS[0]];
   if (allowedCodes.value.size === 0) return [SAFE_MENU_GROUPS[0]]; // 仅工作台
   const set = allowedCodes.value;

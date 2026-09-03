@@ -5,6 +5,7 @@ import {
   availableOrderTransitions,
   defaultPermissionsForRole,
   hasActionPermission,
+  isChannelUser,
 } from '@/utils/access';
 
 describe('Web 操作级权限矩阵', () => {
@@ -21,11 +22,18 @@ describe('Web 操作级权限矩阵', () => {
     expect(hasActionPermission(permissions, ACTION_PERMISSION.ALLOCATION_AUDIT)).toBe(false);
   });
 
-  it('渠道只能录入本人线索，不能进入公海操作', () => {
+  it('渠道可只读查看本人录入客户及报告，但不能进入公海或修改归属', () => {
     const permissions = defaultPermissionsForRole('CHANNEL');
     expect(hasActionPermission(permissions, ACTION_PERMISSION.LEAD_CREATE)).toBe(true);
+    expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_OWN_VIEW)).toBe(true);
+    expect(hasActionPermission(permissions, ACTION_PERMISSION.REPORT_OWN_VIEW)).toBe(true);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.LEAD_CLAIM)).toBe(false);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_POOL_VIEW)).toBe(false);
+    expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_ASSIGN)).toBe(false);
+    expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_UPDATE)).toBe(false);
+    expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_SCREENING)).toBe(false);
+    expect(isChannelUser({ userType: 'CHANNEL' })).toBe(true);
+    expect(isChannelUser({ userType: 'STAFF' })).toBe(false);
   });
 });
 

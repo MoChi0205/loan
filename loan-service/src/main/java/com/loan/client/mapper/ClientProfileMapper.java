@@ -1,12 +1,16 @@
 package com.loan.client.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.client.entity.ClientProfile;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * 客户档案 Mapper。
@@ -15,6 +19,59 @@ import java.time.LocalDateTime;
  */
 @Mapper
 public interface ClientProfileMapper extends BaseMapper<ClientProfile> {
+
+    /**
+     * 渠道本人录入并已转化的客户分页。录入主体使用渠道业务编号，兼容历史 ext_json 记录。
+     */
+    @Select({"<script>",
+            "SELECT cp.* FROM t_client_profile cp",
+            "WHERE EXISTS (SELECT 1 FROM t_lead l",
+            " WHERE (l.client_profile_code = cp.client_code OR l.lead_no = cp.lead_no",
+            "        OR (l.phone_hash = cp.phone_hash AND l.lead_type = cp.customer_group))",
+            " AND l.source = 'CHANNEL'",
+            " AND l.follow_status NOT IN ('PENDING_APPROVAL', 'REJECTED')",
+            " AND (l.recorder_staff_code = #{channelNo}",
+            "      OR JSON_UNQUOTE(JSON_EXTRACT(l.ext_json, '$.recorderChannelNo')) = #{channelNo}))",
+            "<if test='keyword != null and keyword != \"\"'>",
+            " AND (cp.contact_name LIKE CONCAT('%', #{keyword}, '%')",
+            "      OR cp.enterprise_name LIKE CONCAT('%', #{keyword}, '%')",
+            "      <if test='phoneHash != null and phoneHash != \"\"'> OR cp.phone_hash = #{phoneHash}</if>)",
+            "</if>",
+            "ORDER BY cp.created_at",
+            "<choose><when test='orderDir == \"asc\"'> ASC</when><otherwise> DESC</otherwise></choose>",
+            "</script>"})
+    Page<ClientProfile> selectChannelOwnedPage(Page<ClientProfile> page,
+                                                @Param("channelNo") String channelNo,
+                                                @Param("keyword") String keyword,
+                                                @Param("phoneHash") String phoneHash,
+                                                @Param("orderDir") String orderDir);
+
+    /** 渠道按客户业务编码批量查询本人可见客户；单次查询避免逐条校验。 */
+    @Select({"<script>",
+            "SELECT cp.* FROM t_client_profile cp",
+            "WHERE cp.client_code IN",
+            "<foreach collection='clientCodes' item='code' open='(' separator=',' close=')'>#{code}</foreach>",
+            "AND EXISTS (SELECT 1 FROM t_lead l",
+            " WHERE (l.client_profile_code = cp.client_code OR l.lead_no = cp.lead_no",
+            "        OR (l.phone_hash = cp.phone_hash AND l.lead_type = cp.customer_group))",
+            " AND l.source = 'CHANNEL'",
+            " AND l.follow_status NOT IN ('PENDING_APPROVAL', 'REJECTED')",
+            " AND (l.recorder_staff_code = #{channelNo}",
+            "      OR JSON_UNQUOTE(JSON_EXTRACT(l.ext_json, '$.recorderChannelNo')) = #{channelNo}))",
+            "</script>"})
+    List<ClientProfile> selectChannelOwnedByCodes(@Param("channelNo") String channelNo,
+                                                   @Param("clientCodes") Collection<String> clientCodes);
+
+    /** 渠道是否拥有指定客户的只读查看范围。 */
+    @Select("SELECT COUNT(1) FROM t_client_profile cp WHERE cp.client_code = #{clientCode} "
+            + "AND EXISTS (SELECT 1 FROM t_lead l "
+            + "WHERE (l.client_profile_code = cp.client_code OR l.lead_no = cp.lead_no "
+            + "OR (l.phone_hash = cp.phone_hash AND l.lead_type = cp.customer_group)) "
+            + "AND l.source = 'CHANNEL' AND l.follow_status NOT IN ('PENDING_APPROVAL', 'REJECTED') "
+            + "AND (l.recorder_staff_code = #{channelNo} "
+            + "OR JSON_UNQUOTE(JSON_EXTRACT(l.ext_json, '$.recorderChannelNo')) = #{channelNo}))")
+    int countChannelOwnedClient(@Param("channelNo") String channelNo,
+                                @Param("clientCode") String clientCode);
 
     /** 客户仍未分配时原子写入服务顾问，防止并发审批覆盖已生效归属。 */
     @Update("UPDATE t_client_profile SET owner_staff_code = #{staffCode}, "

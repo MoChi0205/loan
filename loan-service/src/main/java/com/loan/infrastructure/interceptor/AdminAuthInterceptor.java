@@ -106,6 +106,14 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
             }
             return true;
         }
+        // 渠道专用工作区：接口路径由网关 typeRules(channel:*) 控制，服务内再次校验用户类型；
+        // 具体客户/报告数据范围由 ChannelDataScopeService 在列表与详情两层强制收口。
+        if (path != null && path.startsWith("/api/channel/")) {
+            if (!LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "仅合作渠道账号可访问");
+            }
+            return true;
+        }
         // 渠道沙箱白名单（T11/D21）：渠道仅可访问 自身菜单树 + 线索录入/本人线索分页 + 本行产品只读分页。
         // 数据隔离在 Controller 层强制（LeadController.page 对 CHANNEL 强制 ownerNo，禁查公海；
         // ProductController.page 对 CHANNEL 强制本行 scope），其余 /api/admin/** 对渠道一律 403。

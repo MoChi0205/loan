@@ -24,15 +24,20 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * 小程序端线索录入：渠道/客户/员工提交融资需求 → 线索（CHANNEL/VIP/渠道录入进公海）。
+ * 小程序端线索录入：渠道/客户/员工提交融资需求 → 线索（CHANNEL 终审通过后、VIP 直接进入公海）。
  *
  * <p>敏感字段（phone/creditCode）AES 加密 + SHA-256 哈希落库；查重走哈希比对（不以明文）。
- * 渠道录入不归属渠道，直接进公海（owner_staff_id = NULL），由公司员工后续认领（C2 claim 流程）。
+ * 渠道录入不归属渠道（owner_staff_id = NULL），待公司终审通过后才进入公海，由员工后续认领。
  *
  * @author loan-platform
  */
@@ -82,7 +87,7 @@ public class MiniLeadService {
             ext.put("recorderNo", user.getUserNo());
         }
         lead.setExtJson(toJson(ext));
-        lead.setFollowStatus("NEW");
+        lead.setFollowStatus(LoanUser.TYPE_CHANNEL.equals(user.getUserType()) ? "PENDING_APPROVAL" : "NEW");
 
         // 唯一索引冲突（uk_phone_hash_type）兜底：返回 duplicated=true，不泄露归属人（沙箱隔离）
         try {
@@ -101,7 +106,7 @@ public class MiniLeadService {
     }
 
     /**
-     * 我录入的线索（仅当前用户本人，沙箱脱敏：不返归属人、不返 clientProfileId）。
+     * 我录入的线索（仅当前用户本人，沙箱脱敏）。
      *
      * @param page 页码
      * @param size 每页大小
@@ -110,20 +115,32 @@ public class MiniLeadService {
      */
     public PageResult<Map<String, Object>> myLeads(int page, int size, LoanUser user) {
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Lead::getCreatedBy, user.getName());
+        if (LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
+            // 渠道账号必须按稳定业务编号隔离；createdBy 姓名可能重名，只保留为历史数据兼容。
+            wrapper.eq(Lead::getSource, "CHANNEL")
+                    .and(w -> w.eq(Lead::getRecorderStaffCode, user.getUserNo())
+                            .or().apply("JSON_UNQUOTE(JSON_EXTRACT(ext_json, '$.recorderChannelNo')) = {0}",
+                                    user.getUserNo()));
+        } else if (StringUtils.hasText(user.getUserNo())) {
+            wrapper.eq(Lead::getRecorderStaffCode, user.getUserNo());
+        } else {
+            wrapper.eq(Lead::getCreatedBy, user.getName());
+        }
         wrapper.orderByDesc(Lead::getCreatedAt);
         Page<Lead> p = leadMapper.selectPage(new Page<>(page, size), wrapper);
+        Map<Long, String> enterpriseNames = enterpriseNamesOf(p.getRecords());
 
         List<Map<String, Object>> records = new ArrayList<>(p.getRecords().size());
         for (Lead l : p.getRecords()) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("leadNo", l.getLeadNo());
             m.put("contactName", DesensitizeUtils.name(l.getContactName()));
-            m.put("entName", entNameOf(l.getId()));
+            m.put("entName", enterpriseNames.get(l.getId()));
             // phone 密文需手动解密（AesTypeHandler 仅写入生效）后掩码
             String plain = AesUtils.decrypt(l.getPhone());
             m.put("phone", plain == null ? "" : DesensitizeUtils.phone(plain));
             m.put("followStatus", l.getFollowStatus());
+            m.put("clientCode", l.getClientProfileCode());
             m.put("createdAt", l.getCreatedAt() == null ? null : l.getCreatedAt().toLocalDate().format(DATE_FMT));
             records.add(m);
         }
@@ -152,14 +169,9 @@ public class MiniLeadService {
         return "VIP";
     }
 
-    /**
-     * 录入人工号：员工=本人工号（归属本人）；渠道/客户=null（进公海）。
-     */
+    /** 录入主体业务编号。归属是否进公海由 LeadService 根据来源独立判定。 */
     private String recorderCodeOf(LoanUser user) {
-        if (LoanUser.TYPE_STAFF.equals(user.getUserType())) {
-            return user.getUserNo();
-        }
-        return null;
+        return user == null ? null : user.getUserNo();
     }
 
     /**
@@ -204,16 +216,25 @@ public class MiniLeadService {
         leadEntExtMapper.insert(ext);
     }
 
-    /**
-     * 按线索 ID 取企业名称（无企业扩展则返回 null）。
-     */
-    private String entNameOf(Long leadId) {
-        if (leadId == null) {
-            return null;
+    /** 当前页一次批量装配企业名称，避免“我的线索”逐行查询形成 N+1。 */
+    private Map<Long, String> enterpriseNamesOf(List<Lead> leads) {
+        if (leads == null || leads.isEmpty()) {
+            return Collections.emptyMap();
         }
-        LeadEntExt ext = leadEntExtMapper.selectOne(
-                new LambdaQueryWrapper<LeadEntExt>().eq(LeadEntExt::getLeadId, leadId));
-        return ext == null ? null : ext.getCompanyName();
+        Set<Long> leadIds = leads.stream().map(Lead::getId).filter(java.util.Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (leadIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<LeadEntExt> extensions = leadEntExtMapper.selectList(
+                new LambdaQueryWrapper<LeadEntExt>().in(LeadEntExt::getLeadId, leadIds));
+        Map<Long, String> names = new HashMap<>();
+        for (LeadEntExt extension : extensions) {
+            if (extension.getLeadId() != null) {
+                names.put(extension.getLeadId(), extension.getCompanyName());
+            }
+        }
+        return names;
     }
 
     /**

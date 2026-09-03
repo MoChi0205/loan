@@ -7,7 +7,7 @@
 | 表 | 用途 | 新增/关注 |
 |----|------|----------|
 | `t_client_profile`（客户档案） | 客户主数据；`owner_staff_code IS NULL` 是未分配客户池唯一真源 | 含 `owner_staff_code`、`phone_hash`、`credit_code_hash`、`wx_openid_hash`；**C26 新增** `last_followed_at`（超期回收判定基准，归属/审批通过时 `touchAssignment` 刷新）、`assign_blocked_until`（回收冷却到期，冷却期内原归属人不可认领/不可被直接分配） |
-| `t_client_screening`（初筛报告） | 报告汇总，档位 + 数量展示，不含银行/产品名 | **唯一与产品明细的关联点**（`report_no`） |
+| `t_client_screening`（初筛报告） | 报告汇总，档位 + 数量展示，不含银行/产品名 | **唯一与产品明细的关联点**（`report_no`）；渠道本人报告走 `idx_client_created(client_profile_code,created_at)` |
 | `t_screening_product`（报告命中产品明细） | **C19 新增** | `report_no` + `product_code` + `hit_result` + `match_score` + uk_report_product |
 | `t_match_trace`（匹配审计） | 全链路 trace_uuid | **仅管理端可见** |
 | `t_match_rule_log`（匹配规则日志） | 双结果审计 | trace_id + rule_code + step_result |
@@ -20,7 +20,7 @@
 | `t_client_recycle_config`（**客户回收配置**） | **C26 新增** 全局单行回收规则 | `config_key=GLOBAL`；`recycle_enabled`(1/0) / `recycle_days`(超期天数) / `warn_days`(预警天数) / `cooldown_days`(回收后冷却)；无配置行时 `ClientAllocationService.recycleConfig()` 返回 null 由调用方按默认值兜底 |
 | `t_invitation`（分享引荐） | 分享码生成、消费和引荐归因；不负责服务顾问归属 | `referrer_client_code` / `used_by_client_code` 使用客户业务编码；绑定不回写 `owner_staff_code` |
 | `t_industry_benchmark`（**行业均值**） | **T1 新增** | dimensions（industry / annual_tax / annual_invoice / found_years / tax_rate）+ 均值；`IndustryBenchmarkService.avgByDimension`；缺失兜底硬编码 45/50/55/60/55 |
-| `t_lead`（线索） | **T4 新增** | `source` 字典含 CHANNEL（旧 `MINI` 已废弃）；渠道录入进公海 `owner_staff_code=NULL`（业务编码，非 id，D26 修正）；AES+SHA 处理 `phone`/`credit_code`；唯一索引冲突返友好文案不泄归属人 |
+| `t_lead`（线索） | **T4 新增** | `source` 字典含 CHANNEL（旧 `MINI` 已废弃）；渠道录入先 `PENDING_APPROVAL`，终审通过后进公海 `owner_staff_code=NULL`；`recorder_staff_code` 保存稳定渠道 `userNo`；渠道本人数据查询走 `idx_recorder_source_status`，转化关联走 `idx_client_profile_code`；AES+SHA 处理 `phone`/`credit_code`；唯一索引冲突返友好文案不泄归属人 |
 | `t_lead_ent_ext`（线索企业扩展字段） | **T4 新增** | `ent_name` / `credit_code` / `industry` / `found_years` / `annual_tax_amount` / `annual_invoice_amount`（对应 lead/submit body 企业字段） |
 | `t_ocr_record`（OCR 回灌记录） | **T2 新增** | `biz_scene` / `biz_id` / `biz_code`（业务ID：reportNo/clientCode/productCode，红线#3）/ `extract_json` / `confidence_avg`；`data_json._ocrMeta.version` 派生 `materialVersion`（D26 修正：补录 biz_code 列，实体与表已对齐） |
 | `t_service_attachment`（材料附件） | **T2 新增 `report_no` 列** | 关联诊断材料回灌；原有 `file_key` / `url` 不变（向后兼容） |

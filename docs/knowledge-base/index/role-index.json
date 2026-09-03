@@ -1,6 +1,6 @@
 {
-  "version": "1.1",
-  "updatedAt": "2026-08-31",
+  "version": "1.2",
+  "updatedAt": "2026-09-03",
   "owner": "T02 + T03",
   "description": "loan-main 业务 7 角色的机器可读索引。内容镜像自 .workbuddy/skills/role-*.md 7 份技能，并与设计文档 §B.2.3 能力速查矩阵、代码真源（MiniRoleGuard / TabBar.vue / MiniAuthController）交叉验证。冲突时一律以代码为准，并同步回写技能与本文件。",
   "sourceOfTruth": {
@@ -115,9 +115,9 @@
       "isChannel": true,
       "fallback": false,
       "sandbox": true,
-      "sandboxNote": "沙箱隔离：只能看到自己产出的东西（自有产品 + 本人录入线索），看不到任何公司侧资产",
+      "sandboxNote": "沙箱隔离：可新增线索并立即查看本人全部状态线索；终审通过后才进入公司公海；可操作自有产品，Web 只读本人线索形成的客户、分析报告和归属顾问姓名，不开放公司侧写操作",
       "dataScope": "ownPlusOwnLeads",
-      "dataScopeNote": "仅自有产品 + 本人提交 t_lead；报告/匹配/工单/客户档案/归属信息一律不可见",
+      "dataScopeNote": "自有产品 + 本人提交 t_lead（待审/通过/驳回全部可见，其他渠道不可见）；Web 只读本人录入且终审通过后形成的客户、报告与归属顾问姓名；小程序报告仍隐藏，匹配/工单/命中产品明细不可见",
       "tabBar": {
         "count": 4,
         "tabs": [
@@ -143,6 +143,14 @@
         "POST /api/mini/product/{code}/delete-cancel",
         "POST /api/mini/lead/submit",
         "GET /api/mini/lead/my",
+        "POST /api/channel/lead",
+        "GET /api/channel/lead/page",
+        "GET /api/channel/client/page",
+        "POST /api/channel/client/batch",
+        "GET /api/channel/client/{clientCode}",
+        "GET /api/channel/report/page",
+        "POST /api/channel/report/batch",
+        "GET /api/channel/report/{reportNo}",
         "POST /api/mini/upload"
       ],
       "conclusions": [
@@ -150,7 +158,8 @@
         "C3",
         "C8",
         "C9",
-        "C20"
+        "C20",
+        "D50"
       ],
       "derivation": {
         "backend": "`MiniAuthController.resolveRoleInfo()`：`LoanUser.TYPE_CHANNEL.equals(userType)` → `role = \"channel\"`",
@@ -164,11 +173,11 @@
       },
       "cannot": [
         "**不可操作智能匹配 —— 渠道是唯一不可操作匹配的角色**（C1） 后端 `MiniMatchController` 在 `run`(L61)、`history`(L135)、`reportList`(L135)、`products`(L162)、 `diagnosis`(L185)、`detail`(L203) **六处均有 `TYPE_CHANNEL` 守卫**",
-        "**不可见任何报告（含自己的）** —— C3；`reportList` 渠道分支**直接返回空 `PageResult`**（不是过滤，是拒绝）",
+        "**小程序不可见报告；Web 不可见非本人录入客户报告** —— C3/D50；Web 仅走 `/api/channel/report/**` 本人范围",
         "**不可见服务单 tab** —— `TabBar.vue` 渠道分支无 `order`；08 矩阵「❌ 隐藏」",
-        "**不可见客户档案、不可查重、不可归属流转** —— C2 / C10；`GET /api/mini/client/search` 仅 STAFF",
+        "**小程序不可见客户档案；Web 客户档案仅本人只读，不可查重、编辑或归属流转** —— C2/C10/D50",
         "**录入命中唯一索引冲突时，只返友好文案，严禁泄露归属人** —— C20（`msg=\"该客户已被录入，请联系运营\"`）",
-        "**看不到匹配结果、看不到客户归属、看不到报告命中产品明细** —— `report/{reportNo}/products` 渠道直接拒绝"
+        "**看不到匹配结果、看不到报告命中产品明细、不可修改客户归属**；Web 仅显示归属顾问姓名，不返回工号"
       ],
       "approvalTypes": [],
       "skillPath": ".workbuddy/skills/role-channel",

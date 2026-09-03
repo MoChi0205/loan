@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 小程序端：线索录入（融资需求提交）。渠道/客户/员工均可提交，渠道录入进公海（沙箱隔离）。
+ * 小程序端：线索录入（融资需求提交）。渠道/客户/员工均可提交，渠道终审通过后进公海。
  *
  * @author loan-platform
  */

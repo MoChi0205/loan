@@ -11,6 +11,7 @@
       <el-tab-pane label="产品审核" name="product" />
       <el-tab-pane label="附件下载审批" name="download" />
       <el-tab-pane v-if="canAuditAllocation" label="客户分配审批" name="allocation" />
+      <el-tab-pane v-if="canAuditChannelContent" label="渠道线索审批" name="channelLead" />
     </el-tabs>
 
     <!-- ============ 产品审核 ============ -->
@@ -64,6 +65,25 @@
       </el-table>
       </AppTableState>
       <AppPagination v-if="!errorP" v-model:page="queryP.page" v-model:size="queryP.size" :total="totalP" @change="loadP" />
+    </div>
+
+    <!-- ============ 渠道新增线索终审（老板/超级管理员单级终审） ============ -->
+    <div v-show="activeTab === 'channelLead'" class="loan-card">
+      <AppSearchBar :loading="loadingCL" @search="searchCL" @reset="resetCL">
+        <el-input v-model="queryCL.keyword" placeholder="联系人 / 手机号 / 线索编号" style="width: 260px" clearable @keyup.enter="searchCL" />
+      </AppSearchBar>
+      <AppTableState :error="errorCL" @retry="loadCL">
+        <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo">
+          <template #empty><AppEmpty title="暂无渠道线索审批" desc="渠道录入新线索后将在此等待终审" /></template>
+          <el-table-column prop="contactName" label="联系人" width="130" />
+          <el-table-column prop="phone" label="手机号" width="140" />
+          <el-table-column prop="channelName" label="录入渠道" min-width="150" />
+          <el-table-column prop="leadType" label="客群" width="100"><template #default="{ row }">{{ row.leadType === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
+          <el-table-column prop="createdAt" label="提交时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="openAudit('channelLead', { ...row, approvalNo: row.leadNo })">审核</el-button></template></el-table-column>
+        </el-table>
+      </AppTableState>
+      <AppPagination v-if="!errorCL" v-model:page="queryCL.page" v-model:size="queryCL.size" :total="totalCL" @change="loadCL" />
     </div>
 
     <!-- ============ 附件下载审批 ============ -->
@@ -218,15 +238,17 @@ import {
   pageProductApprovals, auditProductApproval,
   pageDownloadApprovals, auditDownloadApproval, voidDownloadApproval, applyDownload,
   pageAllocationApprovals, auditAllocationApproval,
+  pageChannelLeadApprovals, auditChannelLeadApproval,
 } from '@/api/approval';
 import { pageAttachments } from '@/api/attachment';
 
 const userStore = useUserStore();
 /** D39/C24：DM 可审本团队分配，跨团队由后端拒绝并上收 BOSS。 */
 const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.ALLOCATION_AUDIT));
+const canAuditChannelContent = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
 
 const activeTab = ref('product');
-const loadedTabs = reactive({ product: false, download: false, allocation: false });
+const loadedTabs = reactive({ product: false, download: false, allocation: false, channelLead: false });
 const statusText = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' };
 const statusTag = (s) => ({ PENDING: 'loan-tag-warning', APPROVED: 'loan-tag-success', REJECTED: 'loan-tag-danger' }[s] || 'loan-tag-muted');
 function attachmentCount(value) {
@@ -253,6 +275,9 @@ const { loading: loadingD, error: errorD, data: dataD, total: totalD, query: que
 /** 客户分配审批表 */
 const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA } =
   useTable(pageAllocationApprovals, { keyword: '' });
+
+const { loading: loadingCL, error: errorCL, data: dataCL, total: totalCL, query: queryCL, load: loadCL, onSearch: searchCL, onReset: resetCL } =
+  useTable(pageChannelLeadApprovals, { keyword: '' });
 
 function productActions(row) {
   const actions = [];
@@ -340,6 +365,10 @@ async function onAudit() {
       await auditAllocationApproval(auditForm.approvalNo, payload);
       ElMessage.success(auditForm.approve ? '已通过，客户归属流转完成' : '已驳回');
       loadA();
+    } else if (auditForm.kind === 'channelLead') {
+      await auditChannelLeadApproval(auditForm.approvalNo, payload);
+      ElMessage.success(auditForm.approve ? '已通过，线索进入公海' : '已驳回');
+      loadCL();
     } else {
       await auditDownloadApproval(auditForm.approvalNo, payload);
       ElMessage.success(auditForm.approve ? '已通过，24h 限时链接已生成' : '已驳回');
@@ -433,11 +462,13 @@ async function onApply() {
 watch(activeTab, async (tab) => {
   if (loadedTabs[tab]) return;
   if (tab === 'allocation' && !canAuditAllocation.value) return;
+  if (tab === 'channelLead' && !canAuditChannelContent.value) return;
   loadedTabs[tab] = true;
   try {
     if (tab === 'product') await loadP();
     else if (tab === 'download') await loadD();
-    else await loadA();
+    else if (tab === 'allocation') await loadA();
+    else await loadCL();
   } catch {
     loadedTabs[tab] = false;
   }

@@ -2,10 +2,11 @@
   <div class="client-profile-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ detail.enterpriseName || detail.realName || detail.name || '客户档案' }}</h2>
-        <p class="loan-page-subtitle">客户资料 · 认证信息 · 服务归属 · 操作留痕</p>
+        <h2 class="loan-page-title">{{ isChannel && !clientCode ? '我的客户' : (detail.enterpriseName || detail.realName || detail.name || '客户档案') }}</h2>
+        <p class="loan-page-subtitle">{{ isChannel ? '本人录入客户 · 档案只读 · 服务归属' : '客户资料 · 认证信息 · 服务归属 · 操作留痕' }}</p>
       </div>
       <div class="header-actions">
+        <el-button v-if="isChannel && clientCode" @click="backToChannelClients">返回我的客户</el-button>
         <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_SCREENING)" type="primary" :disabled="!clientCode" @click="goScreening">
           <AppIcon name="screening" :size="14" />
           发起初筛
@@ -20,7 +21,21 @@
     </div>
 
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
-      <AppEmpty title="请选择客户" desc="从客户列表选择一条客户档案后查看详情" />
+      <template v-if="isChannel">
+        <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
+          <el-input v-model="clientQuery.keyword" placeholder="客户姓名 / 企业名称 / 手机号" clearable style="width: 260px" @keyup.enter="searchClients" />
+        </AppSearchBar>
+        <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode">
+          <template #empty><AppEmpty title="暂无客户档案" desc="本人录入的线索转化为客户后会显示在这里" /></template>
+          <el-table-column prop="clientName" label="客户" min-width="180" />
+          <el-table-column prop="phone" label="手机号" width="130" />
+          <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
+          <el-table-column prop="createdAt" label="建档时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="openChannelClient(row)">查看档案</el-button></template></el-table-column>
+        </el-table>
+        <AppPagination v-model:page="clientQuery.page" v-model:size="clientQuery.size" :total="clientTotal" @change="loadClients" />
+      </template>
+      <AppEmpty v-else title="请选择客户" desc="从客户列表选择一条客户档案后查看详情" />
     </div>
     <div v-else v-loading="loading" class="profile-body">
       <!-- ① 基础信息 -->
@@ -68,7 +83,7 @@
       </div>
 
       <!-- ③ 审计信息 -->
-      <div class="loan-card section-card">
+      <div v-if="!isChannel" class="loan-card section-card">
         <h3 class="panel-title">审计信息</h3>
         <el-descriptions :column="4" border>
           <el-descriptions-item label="创建人">{{ detail.createdByName || detail.createdBy || '—' }}</el-descriptions-item>
@@ -151,25 +166,44 @@
 
 <script setup>
 defineOptions({ name: '_client_profile' });
-import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppDialog from '@/components/AppDialog.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
+import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppPagination from '@/components/AppPagination.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { getClientDetail, updateClientDetail, assignClient, recycleClient } from '@/api/client';
+import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient } from '@/api/client';
 import { staffPage } from '@/api/org';
 import { useUserStore } from '@/store/user';
+import { useTable } from '@/composables/useTable';
 import { staffDisplayLabel } from '@/utils/display';
 import { ACTION_PERMISSION } from '@/utils/access';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
+const {
+  loading: listLoading,
+  data: clientRows,
+  total: clientTotal,
+  query: clientQuery,
+  load: loadClients,
+  onSearch: searchClients,
+  onReset: resetClients,
+} = useTable(pageClients, { keyword: '' });
+function openChannelClient(row) {
+  router.push({ path: '/client', query: { clientCode: row.clientCode } });
+}
+function backToChannelClients() {
+  router.push({ path: '/client' });
+}
 
 /** 档案详情（后端已脱敏敏感字段，前端再做一层兜底展示） */
 const detail = reactive({
@@ -457,18 +491,13 @@ watch(
     if (code) {
       clientCode.value = code;
       loadDetail(code);
+      return;
     }
+    clientCode.value = '';
+    if (isChannel.value) loadClients();
   },
   { immediate: true },
 );
-
-onMounted(() => {
-  const code = route.query.clientCode || route.params.clientCode;
-  if (code) {
-    clientCode.value = code;
-    loadDetail(code);
-  }
-});
 </script>
 
 <style scoped>

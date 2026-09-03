@@ -22,6 +22,7 @@ import com.loan.reward.mapper.RewardRecordMapper;
 import com.loan.reward.mapper.RewardRuleMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -342,7 +343,7 @@ public class RewardService {
      *
      * <p>产品编码 × 客群 唯一；无全局默认，须显式配置。状态缺省 ACTIVE。
      *
-     * @param rule    规则（id 为空则新增）
+     * @param rule    规则（ruleVersion 为空则新增）
      * @param operator 操作人
      */
     @Transactional(rollbackFor = Exception.class)
@@ -353,20 +354,50 @@ public class RewardService {
         if (rule.getDirectRate() == null) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "直推比例必填");
         }
-        if (rule.getStatus() == null) {
-            rule.setStatus("ACTIVE");
-        }
-        if (rule.getValidFrom() == null) {
-            rule.setValidFrom(LocalDateTime.now());
-        }
-        if (rule.getId() == null) {
+        if (!StringUtils.hasText(rule.getRuleVersion())) {
+            if (!StringUtils.hasText(rule.getStatus())) {
+                rule.setStatus("ACTIVE");
+            }
+            if (rule.getValidFrom() == null) {
+                rule.setValidFrom(LocalDateTime.now());
+            }
             rule.setRuleVersion(BizIdGenerator.generate("rule"));
             rule.setCreatedBy(operator);
             rule.setUpdatedBy(operator);
-            rewardRuleMapper.insert(rule);
+            try {
+                rewardRuleMapper.insert(rule);
+            } catch (DuplicateKeyException e) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "该产品与客群已配置奖励规则");
+            }
         } else {
-            rule.setUpdatedBy(operator);
-            rewardRuleMapper.updateById(rule);
+            RewardRule existing = getRuleByVersion(rule.getRuleVersion());
+            existing.setProductCode(rule.getProductCode());
+            existing.setCustomerGroup(rule.getCustomerGroup());
+            existing.setDirectRate(rule.getDirectRate());
+            existing.setIndirectRate(rule.getIndirectRate());
+            if (rule.getIndirectEnabled() != null) {
+                existing.setIndirectEnabled(rule.getIndirectEnabled());
+            }
+            if (StringUtils.hasText(rule.getBaseCaliber())) {
+                existing.setBaseCaliber(rule.getBaseCaliber());
+            }
+            if (rule.getValidFrom() != null) {
+                existing.setValidFrom(rule.getValidFrom());
+            }
+            if (rule.getValidUntil() != null) {
+                existing.setValidUntil(rule.getValidUntil());
+            }
+            existing.setMinAmount(rule.getMinAmount());
+            existing.setMaxAmount(rule.getMaxAmount());
+            if (StringUtils.hasText(rule.getStatus())) {
+                existing.setStatus(rule.getStatus());
+            }
+            existing.setUpdatedBy(operator);
+            try {
+                rewardRuleMapper.updateById(existing);
+            } catch (DuplicateKeyException e) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "该产品与客群已配置其他奖励规则");
+            }
         }
     }
 
@@ -374,14 +405,29 @@ public class RewardService {
      * 停用奖励规则。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void disableRule(Long id, String operator) {
-        RewardRule rule = rewardRuleMapper.selectById(id);
-        if (rule == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "规则不存在");
-        }
+    public void disableRule(String ruleVersion, String operator) {
+        RewardRule rule = getRuleByVersion(ruleVersion);
         rule.setStatus("DISABLED");
         rule.setUpdatedBy(operator);
         rewardRuleMapper.updateById(rule);
+    }
+
+    /**
+     * 按规则业务版本查询，物理主键仅留在持久层内部。
+     *
+     * @param ruleVersion 规则业务版本
+     * @return 规则实体
+     */
+    private RewardRule getRuleByVersion(String ruleVersion) {
+        if (!StringUtils.hasText(ruleVersion)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "规则版本不能为空");
+        }
+        RewardRule rule = rewardRuleMapper.selectOne(new LambdaQueryWrapper<RewardRule>()
+                .eq(RewardRule::getRuleVersion, ruleVersion));
+        if (rule == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "规则不存在");
+        }
+        return rule;
     }
 
     /**

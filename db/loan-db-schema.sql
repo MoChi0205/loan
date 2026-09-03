@@ -503,7 +503,7 @@ CREATE TABLE `t_client_profile` (
   `vip_expire_at` datetime DEFAULT NULL COMMENT 'VIP到期时间(T-7提醒续费,到期自动降级)',
   `invited_flag` tinyint NOT NULL DEFAULT '0' COMMENT '受邀标记(受邀用户免费自动VIP+独享分享推荐奖励)',
   `source` varchar(32) DEFAULT NULL COMMENT '来源(引荐绑定/公海认领/转正)',
-  `lead_id` bigint DEFAULT NULL COMMENT '转正来源线索ID(双向关联)',
+  `lead_no` varchar(64) DEFAULT NULL COMMENT '转正来源线索编号(业务ID:lead+32位随机)',
   `wecom_added` tinyint NOT NULL DEFAULT '0' COMMENT '企微添加标记',
   `status` varchar(16) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态(ACTIVE/DISABLED)',
   `remark` varchar(500) DEFAULT NULL COMMENT '备注',
@@ -516,6 +516,8 @@ CREATE TABLE `t_client_profile` (
   UNIQUE KEY `uk_client_code` (`client_code`),
   UNIQUE KEY `uk_phone_hash_group` (`phone_hash`,`customer_group`),
   KEY `idx_owner` (`owner_staff_code`),
+  KEY `idx_lead_no` (`lead_no`),
+  KEY `idx_created_at` (`created_at`),
   KEY `idx_credit_code_hash` (`credit_code_hash`),
   KEY `idx_group_status` (`customer_group`,`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户档案(线索认证通过后转正;数据权限按部门+角色隔离)';
@@ -649,9 +651,9 @@ DROP TABLE IF EXISTS `t_client_screening`;
 CREATE TABLE `t_client_screening` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `report_no` varchar(64) NOT NULL COMMENT '报告编号(业务ID:report+32位随机)',
-  `client_profile_id` bigint NOT NULL COMMENT '客户档案ID',
-  `match_trace_id` bigint NOT NULL COMMENT '匹配审计ID',
-  `template_id` bigint NOT NULL COMMENT '报告模板版本ID(版本锁定,改模板不影响历史报告)',
+  `client_profile_code` varchar(64) NOT NULL COMMENT '客户编码(业务ID:client+32位随机)',
+  `match_trace_no` varchar(64) NOT NULL COMMENT '匹配审计链路UUID(业务编码)',
+  `template_code` varchar(64) NOT NULL COMMENT '报告模板编码(版本锁定,改模板不影响历史报告)',
   `grade` varchar(8) DEFAULT NULL COMMENT '档位(HIGH高/MIDDLE中/LOW低,不用百分比)',
   `bank_count` int NOT NULL DEFAULT '0' COMMENT '预计可进件银行数(客户端唯一可见数量口径)',
   `product_count` int NOT NULL DEFAULT '0' COMMENT '命中产品数',
@@ -665,8 +667,9 @@ CREATE TABLE `t_client_screening` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_report_no` (`report_no`),
-  KEY `idx_client` (`client_profile_id`),
-  KEY `idx_trace` (`match_trace_id`)
+  KEY `idx_client_created` (`client_profile_code`,`created_at`),
+  KEY `idx_trace` (`match_trace_no`),
+  KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='初筛报告(档位+数量展示;不含任何银行/产品名称)';
 
 DROP TABLE IF EXISTS `t_report_template`;
@@ -963,7 +966,7 @@ CREATE TABLE `t_attachment_download_log` (
 DROP TABLE IF EXISTS `t_reward_rule`;
 CREATE TABLE `t_reward_rule` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `rule_version` varchar(32) NOT NULL COMMENT '规则版本(冻结快照,后续改比例不影响已生成奖励单)',
+  `rule_version` varchar(64) NOT NULL COMMENT '规则版本(业务唯一编码,冻结快照,后续改比例不影响已生成奖励单)',
   `direct_rate` decimal(6,4) NOT NULL COMMENT '直推比例(第1层X%)',
   `indirect_rate` decimal(6,4) DEFAULT NULL COMMENT '间推比例(第2层Y%,后台预留开关默认关)',
   `indirect_enabled` tinyint NOT NULL DEFAULT '0' COMMENT '间推开关(默认关闭,发1层存2层)',
@@ -1108,13 +1111,13 @@ CREATE TABLE `t_lead` (
   `contact_name` varchar(64) NOT NULL COMMENT '联系人',
   `phone` varchar(256) NOT NULL COMMENT '手机号(AES加密)',
   `phone_hash` varchar(64) NOT NULL COMMENT '手机号SHA-256哈希(查重与等值查询,加密不影响索引)',
-  `source` varchar(16) NOT NULL COMMENT '来源(BOSS老板/ADVISER员工顾问/CHANNEL渠道/VIP客户;渠道VIP录入不归属直接进公海)',
-  `recorder_staff_id` bigint DEFAULT NULL COMMENT '录入人(公司员工时=归属人)',
-  `owner_staff_id` bigint DEFAULT NULL COMMENT '归属人(NULL=公海)',
-  `follow_status` varchar(16) NOT NULL DEFAULT 'NEW' COMMENT '跟进状态(NEW新线索/INTENTION有意向/POTENTIAL潜在/VISITED已拜访/NO_ANSWER未接通/NO_NEED无意向,对齐tse)',
+  `source` varchar(16) NOT NULL COMMENT '来源(BOSS老板/ADVISER员工顾问/CHANNEL渠道/VIP客户;CHANNEL待终审通过后进公海,VIP直接进公海)',
+  `recorder_staff_code` varchar(64) DEFAULT NULL COMMENT '录入主体业务编码(员工工号或渠道稳定userNo)',
+  `owner_staff_code` varchar(32) DEFAULT NULL COMMENT '归属人工号(NULL=公海)',
+  `follow_status` varchar(32) NOT NULL DEFAULT 'NEW' COMMENT '状态(PENDING_APPROVAL待渠道终审/NEW新线索/REJECTED驳回/INTENTION有意向/POTENTIAL潜在/VISITED已拜访/NO_ANSWER未接通/NO_NEED无意向)',
   `last_followed_at` datetime DEFAULT NULL COMMENT '最后跟进时间(回收扫描依据)',
   `assign_blocked_until` datetime DEFAULT NULL COMMENT '认领冷却截止(回收后冷却期内原归属人不能认领/被指派)',
-  `client_profile_id` bigint DEFAULT NULL COMMENT '转正客户档案ID(认证通过后转正,CONVERT流转)',
+  `client_profile_code` varchar(64) DEFAULT NULL COMMENT '转正客户编码(业务ID:client+32位随机,CONVERT流转)',
   `ext_json` json DEFAULT NULL COMMENT '扩展预留(未沟通字段先落JSON不改表)',
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人姓名',
   `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人姓名',
@@ -1123,8 +1126,12 @@ CREATE TABLE `t_lead` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_lead_no` (`lead_no`),
   UNIQUE KEY `uk_phone_hash_type` (`phone_hash`,`lead_type`),
-  KEY `idx_owner_status_follow` (`owner_staff_id`,`follow_status`,`last_followed_at`),
-  KEY `idx_public_pool` (`lead_type`,`owner_staff_id`,`follow_status`)
+  KEY `idx_owner_status_follow` (`owner_staff_code`,`follow_status`,`last_followed_at`),
+  KEY `idx_public_pool` (`lead_type`,`owner_staff_code`,`follow_status`),
+  KEY `idx_recorder_source_status` (`recorder_staff_code`,`source`,`follow_status`,`created_at`),
+  KEY `idx_client_profile_code` (`client_profile_code`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_updated_at` (`updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='线索主表(唯一入口;归属/回收/公海/流转/定时任务只作用主表,逻辑只写一份)';
 
 DROP TABLE IF EXISTS `t_lead_ent_ext`;

@@ -2,7 +2,7 @@
 -- 菜单 / 角色权限 增量补齐（2026-09-01 · 对应 D19/D20）
 -- 目的：修复「动态菜单名存实亡」——原种子（init-data.sql）仅 5 条菜单、
 --       且仅 BOSS 有 t_role_permission → 非 BOSS 角色前端兜底看全量、BOSS 反见截断。
--- 本次：补全 26 条菜单 + 7 角色权限（含 CHANNEL 沙箱 3 项）。
+-- 本次：补全菜单 + 7 角色权限（CHANNEL 沙箱含本人客户与分析报告只读入口）。
 -- 幂等：t_menu 按 uk_path upsert；t_role_permission 先清后插；t_role 按 uk_role_code upsert。
 -- 适用：已有数据的库（远程 prd / 本地 docker 卷均可重复执行）。
 -- 执行：mysql -uroot -p loan_db --default-character-set=utf8mb4 < db/menu-permission-seed-2026-09-01.sql
@@ -14,7 +14,7 @@ INSERT INTO `t_role` (`role_code`, `role_name`, `description`, `created_by`) VAL
 ('OPERATOR', '运营', '日常运营：审批/短信/奖励/报表全量', 'system'),
 ('SUPER_ADMIN', '超管', '系统管理与全部数据', 'system'),
 ('SUPER', '超级管理员', '最高权限（含调试中心）', 'system'),
-('CHANNEL', '渠道合作方', '渠道沙箱：工作台/线索录入/我的产品', 'system')
+('CHANNEL', '渠道合作方', '渠道沙箱：工作台/本人线索/本人产品/本人客户与分析报告', 'system')
 ON DUPLICATE KEY UPDATE `role_name`=VALUES(`role_name`), `description`=VALUES(`description`);
 
 -- 2. 菜单 upsert（按 path 唯一键 uk_path，幂等）
@@ -82,10 +82,10 @@ INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`)
 SELECT 'ADVISER', m.`id`, 'system' FROM `t_menu` m WHERE m.`path` IN
 ('/workbench','/lead','/client','/ocr','/screening','/order','/report/center');
 
--- CHANNEL：渠道沙箱 3 项（工作台 / 线索录入 / 我的产品，D19）
+-- CHANNEL：渠道沙箱 5 项（本人线索/产品，以及本人录入形成客户的只读档案和分析报告）
 INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`)
 SELECT 'CHANNEL', m.`id`, 'system' FROM `t_menu` m WHERE m.`path` IN
-('/workbench','/lead','/product');
+('/workbench','/lead','/client','/product','/report/screening');
 
 -- ============================================================
 -- 4. 补充示例员工（覆盖 7 角色中 5 个管理角色，便于逐角色验收菜单）

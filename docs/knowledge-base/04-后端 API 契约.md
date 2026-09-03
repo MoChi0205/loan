@@ -7,7 +7,7 @@
 ## 通用约定
 
 - Base URL：`loan-service/api/mini/*`（小程序端）
-- 管理端：`/api/admin/**` —— **统一鉴权**（AdminAuthInterceptor）：需登录 + STAFF + 管理角色（BOSS/DEPT_MANAGER/OPERATOR/SUPER_ADMIN/SUPER），2026-08-30 阶段三落地，匿名/客户/渠道一律 403
+- 管理端：`/api/admin/**` 主要供 STAFF；渠道 Web 使用 `/api/channel/**` 专用工作区接口，网关按 `channel:*` 类型规则放行并由后端强制本人数据范围
 - 返回：`Result<T>`（code=0 成功，code≠0 失败）+ message
 - 鉴权：`@CurrentUser LoanUser`（前端 Token 自动注入，拦截器读取 `Authorization`）
 - 分页：`PageResult<T>`（page/size/total/records）
@@ -67,8 +67,23 @@
 
 | 接口 | 说明 | 权限 |
 |------|------|------|
-| `POST /api/mini/lead/submit` | 录入融资需求线索；body 新增企业字段 `entName`/`creditCode`/`industry`/`foundYears`/`annualTaxAmount`/`annualInvoiceAmount`（**全部可选、前端字符串**）；`source` 由后端按用户类型派生：**CHANNEL→进公海 / BOSS→BOSS / 其他 STAFF→ADVISER / CUSTOMER→VIP**（旧 `MINI` 字典已废弃）；响应由 `Result<String>` 改 `Result<Map>`：`{leadNo, duplicated}`，重复时 `msg="该客户已被录入，请联系运营"` 且**不泄归属人** | **含 CHANNEL**（沙箱隔离） |
-| `GET /api/mini/lead/my?page&size` | **我录入的线索**；`PageResult<Map>`，字段 `leadNo`/`contactName`(脱敏)/`entName`/`phone`(掩码)/`followStatus`/`createdAt`，**仅本人录入** | 已登录 |
+| `POST /api/mini/lead/submit` | 录入融资需求线索；body 新增企业字段 `entName`/`creditCode`/`industry`/`foundYears`/`annualTaxAmount`/`annualInvoiceAmount`（**全部可选、前端字符串**）；`source` 由后端按用户类型派生：**CHANNEL→PENDING_APPROVAL（终审通过才进入公海） / BOSS→BOSS / 其他 STAFF→ADVISER / CUSTOMER→VIP**（旧 `MINI` 字典已废弃）；响应由 `Result<String>` 改 `Result<Map>`：`{leadNo, duplicated}`，重复时 `msg="该客户已被录入，请联系运营"` 且**不泄归属人** | **含 CHANNEL**（沙箱隔离） |
+| `GET /api/mini/lead/my?page&size` | **我录入的线索**；`PageResult<Map>`，字段 `leadNo`/`contactName`(脱敏)/`entName`/`phone`(掩码)/`followStatus`/`createdAt`，渠道按稳定 `userNo` 强隔离且不按审批状态过滤，新增后立即可见（含 `PENDING_APPROVAL/NEW/REJECTED`） | 已登录，仅本人 |
+
+### 渠道 Web 工作区（D50）
+
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `POST /api/channel/lead` | 渠道录入线索；服务端强制来源、录入主体和 `PENDING_APPROVAL` | CHANNEL 本人 |
+| `GET /api/channel/lead/page` | 本人录入线索组合分页，不按归属顾问或审批状态隐式过滤；新增后立即可见，其他渠道不可见 | CHANNEL 本人 |
+| `GET /api/channel/client/page` | 本人录入并已转化客户分页，返回脱敏手机号与 `ownerStaffName` | CHANNEL 本人只读 |
+| `POST /api/channel/client/batch` | body `{codes:[clientCode...]}`；去空、去重、保持请求顺序，单次最多 100 条，越权/未命中项不返回 | CHANNEL 本人只读 |
+| `GET /api/channel/client/{clientCode}` | 客户档案详情；越权编码返回 FORBIDDEN | CHANNEL 本人只读 |
+| `GET /api/channel/report/page` | 本人录入客户的分析报告组合分页 | CHANNEL 本人只读 |
+| `POST /api/channel/report/batch` | body `{codes:[reportNo...]}`；去空、去重、保持请求顺序，单次最多 100 条，越权/未命中项不返回 | CHANNEL 本人只读 |
+| `GET /api/channel/report/{reportNo}` | 分析报告详情与归属顾问姓名；不返回命中产品明细 | CHANNEL 本人只读 |
+| `GET /api/admin/approval/channel-lead/page` | 渠道新增线索待审分页 | BOSS/SUPER_ADMIN/SUPER |
+| `POST /api/admin/approval/channel-lead/{leadNo}/audit` | 单级终审；同结论幂等，条件更新防并发 | BOSS/SUPER_ADMIN/SUPER |
 
 ### 工单 / 产品
 | 接口 | 说明 | 权限 |
@@ -97,6 +112,7 @@
 | `GET /api/admin/order/page` | 列表与详情返回 `ownerStaffName`；服务端按当前页员工编码集合批量补齐，无逐行查询 |
 | 产品/下载/分配审批分页 | 返回 `approverStaffName` / `applicantStaffName` / `applicantName` 等姓名字段，编码仅作为接口内部定位字段 |
 | 策略与奖励规则分页 | 返回 `bankProductName` / `productName`，按当前页产品编码集合批量补齐 |
+| 奖励规则 | `GET/POST /api/admin/reward/rule`；更新由请求体 `ruleVersion` 定位，停用使用 `POST /api/admin/reward/rule/{ruleVersion}/disable`；物理 `id` 不对外返回 |
 
 ### 邀请（invitation）
 | 接口 | 说明 | 权限 |

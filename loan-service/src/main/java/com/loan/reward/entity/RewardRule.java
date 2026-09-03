@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -23,6 +24,7 @@ public class RewardRule implements Serializable {
 
     /** 主键 ID（内部） */
     @TableId(type = IdType.AUTO)
+    @JsonIgnore
     private Long id;
 
     /** 规则版本（冻结快照，改比例不影响已生成奖励单） */

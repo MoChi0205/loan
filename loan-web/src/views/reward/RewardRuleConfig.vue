@@ -57,7 +57,7 @@
     </div>
 
     <!-- 规则编辑弹窗 -->
-    <AppDialog v-model:visible="dialogVisible" :title="editingId ? '编辑奖励规则' : '新增奖励规则'" :loading="saving" @confirm="onSave">
+    <AppDialog v-model:visible="dialogVisible" :title="editingRuleVersion ? '编辑奖励规则' : '新增奖励规则'" :loading="saving" @confirm="onSave">
       <el-form ref="formRef" :model="form" :rules="rules_valid" label-width="110px" label-position="right">
         <el-form-item label="产品" prop="productCode">
           <RemoteProductSelect v-model="form.productCode" :customer-group="form.customerGroup" />
@@ -140,7 +140,7 @@ function rowActions(row) {
 
 const dialogVisible = ref(false);
 const saving = ref(false);
-const editingId = ref(null);
+const editingRuleVersion = ref('');
 const formRef = ref();
 const indirectOn = ref(false);
 const form = reactive({
@@ -163,7 +163,7 @@ function resetForm() {
     indirectRate: 0.05, minAmount: null, maxAmount: null,
   });
   indirectOn.value = false;
-  editingId.value = null;
+  editingRuleVersion.value = '';
 }
 
 function openCreate() {
@@ -181,7 +181,7 @@ function openEdit(row) {
     maxAmount: row.maxAmount,
   });
   indirectOn.value = row.indirectEnabled === 1;
-  editingId.value = row.id;
+  editingRuleVersion.value = row.ruleVersion;
   dialogVisible.value = true;
 }
 
@@ -198,7 +198,7 @@ async function onSave() {
       minAmount: form.minAmount,
       maxAmount: form.maxAmount,
     };
-    if (editingId.value) payload.id = editingId.value;
+    if (editingRuleVersion.value) payload.ruleVersion = editingRuleVersion.value;
     await saveRewardRule(payload);
     ElMessage.success('已保存');
     dialogVisible.value = false;
@@ -210,7 +210,7 @@ async function onSave() {
 
 async function onDisable(row) {
   try {
-    await disableRewardRule(row.id);
+    await disableRewardRule(row.ruleVersion);
     ElMessage.success('已停用');
     load();
   } catch (e) { /* 拦截器已提示 */ }

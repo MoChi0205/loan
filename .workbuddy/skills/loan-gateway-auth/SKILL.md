@@ -37,7 +37,7 @@ description: >-
                  ├─ 接口 DISABLED → 403
                  ├─ 端校验：请求头 X-Client-Type(WEB/MINI_APP) 不在接口 client_types → 403「该接口不支持 xx 端访问」
                  ├─ 角色校验（员工）：BOSS 超级角色全量放行；其他查 t_role_api → 无 → 403
-                 └─ 类型校验（无角色用户）：CUSTOMER→mini: 前缀、CHANNEL→channel: 前缀（规则 typeRules）→ 不匹配 403
+                 └─ 类型校验（无角色用户）：CUSTOMER→mini: 前缀；CHANNEL→channel: 前缀 + 精确 mini 接口白名单 → 不匹配 403
 ```
 
 ## 三张关键表 / 两个 Redis key
@@ -46,7 +46,7 @@ description: >-
 |---|---|
 | `t_api_permission` | 接口清单（`api_key` / `http_method` / `path_pattern` / `module_group` / `client_types` / `status`） |
 | `t_role_api` | 角色 × 接口授权（`role_code` + `api_key`；BOSS 不落库） |
-| Redis `loan:api-perm:rules` | 全量规则 JSON（含 `typeRules` 用户类型维度：CUSTOMER→`mini:` / CHANNEL→`channel:`） |
+| Redis `loan:api-perm:rules` | 全量规则 JSON（`typeRules` 前缀 + `typeApiRules` 精确 method/path；CHANNEL 不得整体放开 `mini:`） |
 | Redis `loan:api-perm:version` | 版本号（网关每请求比对，变更即刷新，近实时生效） |
 
 ## 接口清单自动同步（不用手工维护种子数据）
@@ -55,6 +55,8 @@ description: >-
   自动 upsert 到 `t_api_permission`，`api_key = {模块}:{方法名}`（模块从 `/api/admin/{模块}/…` 提取）
 - 首次运行自动给 ADVISER（一线）/ DEPT_MANAGER（管理）插默认授权
 - 新增 Controller 接口后**重启服务即自动登记**；也可用 BOSS 调 `POST /api/admin/api-perm/sync` 手动同步
+- CHANNEL Web 业务接口必须定义在 `/api/channel/**`，同步后 `api_key` 必须稳定为 `channel:*`；禁止为渠道放宽通用 `/api/admin/**`。服务内还须校验 `userType=CHANNEL` 并按 `userNo` 做本人数据隔离，网关前缀仅解决“能否进入接口”，不解决数据范围。
+- CHANNEL 小程序跨域能力使用 `typeApiRules` 的 HTTP method + pathPattern 精确白名单，只开放自有产品、本人线索和必要公共入口；禁止给 CHANNEL 增加 `mini:` 前缀，否则会越权到匹配、报告和工单。
 
 ## 新增 / 修改接口的检查清单
 
@@ -68,6 +70,7 @@ description: >-
 - [ ] 管理 / 敏感接口（org 写、blacklist 写、reward 审核、approval 审批、api-perm）仅 BOSS / DEPT_MANAGER
 - [ ] 网关匹配优先级：**精确路径优先于通配**（`/order/page` 不会被 `/order/{orderNo}` 抢占，网关已两轮匹配）
 - [ ] 服务重启后确认日志 `[ApiPerm] 接口清单同步完成，共 N 个接口`，N 与预期一致
+- [ ] CHANNEL 接口是否为 `/api/channel/**` 且同步为稳定 `channel:*` 键？列表、批量、详情是否在服务内重复执行本人数据范围校验？
 
 ## 网关本地联调（重要）
 
@@ -108,6 +111,7 @@ description: >-
 - [ ] 新接口是否被 `ApiPermissionSyncService` 自动登记（日志 N 与预期一致）？
 - [ ] `client_types` 是否覆盖所有需要的端（WEB / MINI_APP / ADMIN-WEB）？传参是否用逗号分隔 String？
 - [ ] 角色授权是否符合「一线 vs 管理/敏感」划分？
+- [ ] 是否误把 `/api/admin/**` 或完整 `mini:*` 加入 CHANNEL 白名单？CHANNEL 仅命中 `channel:*` + 经确认的精确 mini 接口，菜单树属于已登录公共接口例外。
 - [ ] 审批类接口是否按 D39 真值授权（DM 仅本团队 ALLOCATION）？
 - [ ] 前端请求头是否带 `X-Client-Type`？
 - [ ] 本地联调是否 `curl localhost:8080/loan/...`（确认是 8080 直连验证，非 8088）？

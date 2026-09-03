@@ -100,7 +100,7 @@ class RewardControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/admin/reward/rule/test/disable [auth]")
+    @DisplayName("POST /api/admin/reward/rule/rule-test/disable [auth]")
     void post_api_admin_reward_rule_test_disable() throws Exception {
         try {
             UserContext.setUser(TestUsers.staffUser());

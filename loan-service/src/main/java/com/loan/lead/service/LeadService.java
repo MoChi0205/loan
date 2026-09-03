@@ -24,11 +24,13 @@ import org.springframework.util.StringUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * 线索服务：新增（谁录入归谁，渠道/VIP 进公海）/ 分页（我的/公海）/ 认领 / 指派。
+ * 线索服务：新增（谁录入归谁，渠道终审通过/VIP 进公海）/ 分页（我的/公海）/ 认领 / 指派。
  *
  * <p>回收规则：按 t_lead_recycle_config 逐状态配置回收天数（阶段一默认 NEW 30 天），
  * 超过 lastFollowedAt 无跟进自动回收进公海（见 {@link #recycleOverdue()}，供定时任务）。
@@ -55,7 +57,7 @@ public class LeadService {
     private final SensitiveViewService sensitiveViewService;
 
     /**
-     * 新增线索（谁录入归谁；来源 CHANNEL/VIP 不归属直接进公海）。
+     * 新增线索（谁录入归谁；来源 CHANNEL/VIP 不归属，其中 CHANNEL 终审通过后才对公海可见）。
      *
      * @param lead          线索（contactName/phone/leadType 必填）
      * @param recorderCode  录入人工号（业务编码）
@@ -71,7 +73,7 @@ public class LeadService {
         lead.setPhoneHash(sha256(lead.getPhone()));
         lead.setRecorderStaffCode(recorderCode);
         lead.setFollowStatus(lead.getFollowStatus() == null ? "NEW" : lead.getFollowStatus());
-        // 渠道 / VIP / 小程序(MINI) 录入不归属，直接进公海
+        // 渠道 / VIP / 小程序(MINI) 录入均不预设顾问归属；渠道是否进入公海另由审批状态控制。
         boolean toPool = "CHANNEL".equalsIgnoreCase(lead.getSource())
                 || "VIP".equalsIgnoreCase(lead.getSource())
                 || "MINI".equalsIgnoreCase(lead.getSource());
@@ -107,7 +109,10 @@ public class LeadService {
         if (ownerStaffCode != null) {
             wrapper.eq(Lead::getOwnerStaffCode, ownerStaffCode);
         } else {
-            wrapper.isNull(Lead::getOwnerStaffCode);
+            wrapper.isNull(Lead::getOwnerStaffCode)
+                    // 渠道线索只有终审通过变为 NEW 后才进入公司公海；待审/驳回仅渠道本人可见。
+                    .and(w -> w.ne(Lead::getSource, "CHANNEL")
+                            .or().eq(Lead::getFollowStatus, "NEW"));
         }
         if (StringUtils.hasText(leadType)) {
             wrapper.eq(Lead::getLeadType, leadType);
@@ -135,6 +140,103 @@ public class LeadService {
             lead.setPhone(exempt ? plain : DesensitizeUtils.phone(plain));
         });
         return PageResult.build(page, size, result.getTotal(), result.getRecords());
+    }
+
+    /** 渠道本人录入线索分页；录入与归属两个维度不可混用。 */
+    public PageResult<Lead> pageByRecorder(String recorderCode, String leadType, String followStatus,
+                                           String keyword, int page, int size, String orderBy, String orderDir) {
+        if (!StringUtils.hasText(recorderCode)) {
+            return PageResult.build(page, size, 0L, java.util.Collections.emptyList());
+        }
+        LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Lead::getSource, "CHANNEL")
+                .and(w -> w.eq(Lead::getRecorderStaffCode, recorderCode)
+                        .or().apply("JSON_UNQUOTE(JSON_EXTRACT(ext_json, '$.recorderChannelNo')) = {0}", recorderCode));
+        applyLeadFilters(wrapper, leadType, followStatus, keyword);
+        PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, Lead::getCreatedAt);
+        Page<Lead> result = leadMapper.selectPage(new Page<>(page, size), wrapper);
+        result.getRecords().forEach(lead -> {
+            String plain = com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone());
+            lead.setPhone(DesensitizeUtils.phone(plain));
+            lead.setRecorderStaffCode(null);
+            lead.setOwnerStaffCode(null);
+        });
+        return PageResult.build(page, size, result.getTotal(), result.getRecords());
+    }
+
+    /** 公司终审人查看渠道新增线索待审列表。 */
+    public PageResult<Map<String, Object>> channelPendingPage(String keyword, int page, int size) {
+        LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<Lead>()
+                .eq(Lead::getSource, "CHANNEL")
+                .eq(Lead::getFollowStatus, "PENDING_APPROVAL");
+        applyLeadFilters(wrapper, null, null, keyword);
+        wrapper.orderByAsc(Lead::getCreatedAt);
+        Page<Lead> result = leadMapper.selectPage(new Page<>(page, size), wrapper);
+        List<Map<String, Object>> records = result.getRecords().stream().map(lead -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("leadNo", lead.getLeadNo());
+            row.put("contactName", lead.getContactName());
+            row.put("phone", DesensitizeUtils.phone(com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone())));
+            row.put("leadType", lead.getLeadType());
+            row.put("channelName", lead.getCreatedBy());
+            row.put("followStatus", lead.getFollowStatus());
+            row.put("createdAt", lead.getCreatedAt());
+            return row;
+        }).collect(Collectors.toList());
+        return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    /**
+     * 渠道新增线索单级终审。相同结论重复请求幂等通过，相反结论或非待审状态拒绝。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void auditChannelLead(String leadNo, boolean approve, String opinion, String operator) {
+        if (!StringUtils.hasText(leadNo)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "线索编号不能为空");
+        }
+        if (!approve && !StringUtils.hasText(opinion)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "驳回意见必填");
+        }
+        Lead current = leadMapper.selectOne(new LambdaQueryWrapper<Lead>().eq(Lead::getLeadNo, leadNo.trim()));
+        if (current == null || !"CHANNEL".equals(current.getSource())) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "渠道线索不存在");
+        }
+        String target = approve ? "NEW" : "REJECTED";
+        if (target.equals(current.getFollowStatus())) {
+            return;
+        }
+        if (!"PENDING_APPROVAL".equals(current.getFollowStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "该线索已完成审批，不可变更结论");
+        }
+        int updated = leadMapper.auditChannelLead(leadNo.trim(), target, operator);
+        if (updated == 0) {
+            Lead latest = leadMapper.selectOne(new LambdaQueryWrapper<Lead>().eq(Lead::getLeadNo, leadNo.trim()));
+            if (latest != null && target.equals(latest.getFollowStatus())) {
+                return;
+            }
+            throw new BusinessException(ResultCode.PARAM_ERROR, "审批状态已变化，请刷新后重试");
+        }
+        allocationRecordMapper.insert(buildRecord(leadNo.trim(), approve ? "APPROVE" : "REJECT",
+                null, null, operator, approve ? "渠道线索审批通过" : "渠道线索驳回：" + opinion.trim()));
+    }
+
+    private void applyLeadFilters(LambdaQueryWrapper<Lead> wrapper, String leadType,
+                                  String followStatus, String keyword) {
+        if (StringUtils.hasText(leadType)) {
+            wrapper.eq(Lead::getLeadType, leadType);
+        }
+        if (StringUtils.hasText(followStatus)) {
+            wrapper.eq(Lead::getFollowStatus, followStatus);
+        }
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            if (kw.matches("\\d{11}")) {
+                wrapper.and(w -> w.like(Lead::getContactName, kw).or().like(Lead::getLeadNo, kw)
+                        .or().eq(Lead::getPhoneHash, sha256(kw)));
+            } else {
+                wrapper.and(w -> w.like(Lead::getContactName, kw).or().like(Lead::getLeadNo, kw));
+            }
+        }
     }
 
     /**

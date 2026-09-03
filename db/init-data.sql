@@ -19,7 +19,7 @@ INSERT INTO `t_role` (`role_code`, `role_name`, `description`, `created_by`) VAL
 ('OPERATOR', '运营', '日常运营：审批/短信/奖励/报表全量', 'system'),
 ('SUPER_ADMIN', '超管', '系统管理与全部数据', 'system'),
 ('SUPER', '超级管理员', '最高权限（含调试中心）', 'system'),
-('CHANNEL', '渠道合作方', '渠道沙箱：工作台/线索录入/我的产品', 'system');
+('CHANNEL', '渠道合作方', '渠道沙箱：本人线索/产品/客户档案/分析报告', 'system');
 
 -- 示例部门（通用部门树）
 INSERT INTO `t_department` (`dept_code`, `dept_name`, `parent_id`, `sort`, `created_by`) VALUES
@@ -114,8 +114,9 @@ INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`) VALUES
 -- ADVISER：本人视角 7 项（非审批人；材料识别供顾问传客户材料）
 ('ADVISER', 1, 'system'), ('ADVISER', 2, 'system'), ('ADVISER', 3, 'system'), ('ADVISER', 4, 'system'),
 ('ADVISER', 5, 'system'), ('ADVISER', 21, 'system'), ('ADVISER', 27, 'system'),
--- CHANNEL：渠道沙箱 3 项
-('CHANNEL', 1, 'system'), ('CHANNEL', 2, 'system'), ('CHANNEL', 7, 'system');
+-- CHANNEL：渠道沙箱 5 项（客户档案和分析报告均只读且仅本人录入客户）
+('CHANNEL', 1, 'system'), ('CHANNEL', 2, 'system'), ('CHANNEL', 3, 'system'),
+('CHANNEL', 7, 'system'), ('CHANNEL', 23, 'system');
 
 -- ============================================================
 -- 二、渠道产品域：银行渠道 / 产品 / 合作库上架

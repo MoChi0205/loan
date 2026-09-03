@@ -21,7 +21,7 @@ const USER_KEY = KEYS.USER;
  * - 管理/运营角色（BOSS/OPERATOR/SUPER_ADMIN/SUPER）全量通配 '*'（可进全部页）；
  * - DEPT_MANAGER：部门视角，可见 客户档案/审计日志（page:client/page:audit），不可见 组织权限/风控名单；
  * - ADVISER：本人视角，仅 客户档案（page:client）；
- * - CHANNEL：沙箱，无页面级权限。
+ * - CHANNEL：沙箱，仅本人线索、产品、客户和分析报告页面权限。
  */
 export const useUserStore = defineStore('user', {
   state: () => {

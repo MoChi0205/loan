@@ -2,8 +2,8 @@
   <div class="report-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">初筛报告</h2>
-        <p class="loan-page-subtitle">初筛引擎生成的报告记录，可按档位/状态/编号检索</p>
+        <h2 class="loan-page-title">{{ isChannel ? '客户分析报告' : '初筛报告' }}</h2>
+        <p class="loan-page-subtitle">{{ isChannel ? '仅展示本人录入客户的分析结果和归属顾问' : '初筛引擎生成的报告记录，可按档位/状态/编号检索' }}</p>
       </div>
     </div>
 
@@ -16,7 +16,7 @@
         <el-select v-model="queryS.status" placeholder="状态" clearable style="width: 130px">
           <el-option label="已生成" value="GENERATED" /><el-option label="已查看" value="VIEWED" />
         </el-select>
-        <el-select v-model="queryS.source" placeholder="来源" clearable style="width: 130px">
+        <el-select v-if="!isChannel" v-model="queryS.source" placeholder="来源" clearable style="width: 130px">
           <el-option label="小程序提交" value="MINI" />
           <el-option label="Web 录入" value="WEB" />
         </el-select>
@@ -25,11 +25,12 @@
 
       <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo">
         <template #empty>
-          <AppEmpty title="暂无报告" desc="在「初筛执行」中为客户生成第一份匹配报告" />
+          <AppEmpty title="暂无报告" :desc="isChannel ? '本人录入的客户生成分析报告后会显示在这里' : '在「初筛执行」中为客户生成第一份匹配报告'" />
         </template>
-        <el-table-column prop="reportNo" label="报告编号" width="120" show-overflow-tooltip />
+        <el-table-column v-if="!isChannel" prop="reportNo" label="报告编号" width="120" show-overflow-tooltip />
         <el-table-column prop="clientName" label="客户" min-width="150" show-overflow-tooltip />
-        <el-table-column label="来源" width="110">
+        <el-table-column v-if="isChannel" prop="ownerStaffName" label="归属顾问" width="130"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
+        <el-table-column v-if="!isChannel" label="来源" width="110">
           <template #default="{ row }">
             <span class="loan-tag" :class="sourceTag(row.source)">{{ sourceText(row.source) }}</span>
           </template>
@@ -79,11 +80,12 @@
     <el-drawer v-model="detailVisible" title="初筛报告详情" size="480px">
       <template v-if="detail">
         <el-descriptions :column="1" border>
-          <el-descriptions-item label="报告编号">{{ detail.reportNo }}</el-descriptions-item>
-          <el-descriptions-item label="来源">
+          <el-descriptions-item v-if="!isChannel" label="报告编号">{{ detail.reportNo }}</el-descriptions-item>
+          <el-descriptions-item v-if="!isChannel" label="来源">
             <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="客户">{{ detail.clientName || detail.enterpriseName || detail.contactName || '—' }}<template v-if="detail.phone"><br><span class="cell-sub">{{ desensitizePhone(detail.phone) }}</span></template></el-descriptions-item>
+          <el-descriptions-item v-if="isChannel" label="归属顾问">{{ detail.ownerStaffName || '待分配' }}</el-descriptions-item>
           <el-descriptions-item label="档位">{{ gradeText[detail.grade] || detail.grade }}</el-descriptions-item>
           <el-descriptions-item label="可进件银行">{{ detail.bankCount }}</el-descriptions-item>
           <el-descriptions-item label="命中产品">{{ detail.productCount }}</el-descriptions-item>
@@ -100,7 +102,7 @@
 
 <script setup>
 defineOptions({ name: '_report_screening' });
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
@@ -108,8 +110,11 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { pageScreenings, screeningDetail } from '@/api/report';
+import { useUserStore } from '@/store/user';
 
 const route = useRoute();
+const userStore = useUserStore();
+const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 
 const gradeText = { HIGH: '高', MIDDLE: '中', LOW: '低' };
 const gradeTag = (g) => ({ HIGH: 'loan-tag-success', MIDDLE: 'loan-tag-warning', LOW: 'loan-tag-muted' }[g] || 'loan-tag-muted');

@@ -67,15 +67,14 @@ public class LeadController {
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
             @CurrentUser LoanUser user) {
-        // 渠道沙箱强制本人隔离（T11/D21）：渠道只能查本人线索（C20 渠道走 Lead），禁止 pool=true 查公海
+        // 渠道沙箱强制本人隔离：渠道按录入主体查询而不是按归属人查询（渠道线索归属为空）。
         boolean isChannel = user != null && LoanUser.TYPE_CHANNEL.equals(user.getUserType());
-        String ownerNo;
         if (isChannel) {
-            pool = false;
-            ownerNo = user.getUserNo();
-        } else {
-            ownerNo = pool ? null : (user == null ? null : user.getUserNo());
+            return Result.ok(leadService.pageByRecorder(user.getUserNo(), leadType, followStatus, keyword,
+                    page, size, orderBy, orderDir));
         }
+        String ownerNo;
+        ownerNo = pool ? null : (user == null ? null : user.getUserNo());
         String roleCode = user == null ? null : user.getRoleCode();
         String userNo = user == null ? null : user.getUserNo();
         return Result.ok(leadService.page(ownerNo, leadType, followStatus, keyword, page, size, roleCode, userNo, orderBy, orderDir));

@@ -58,7 +58,7 @@
       </view>
 
       <!-- 功能菜单 -->
-      <view class="card menu-card u-hover" @click="goOrder">
+      <view v-if="!isChannelRole" class="card menu-card u-hover" @click="goOrder">
         <view class="menu-left">
           <view class="menu-icon-wrap">
             <AppIcon name="list" size="md" />
@@ -266,7 +266,7 @@ onShow(() => {
         loadInviteCode();
         loadSummary();
       }
-      loadOrderTip();
+      if (!isChannelRole.value) loadOrderTip();
       // 审批中心角标：仅审批角色拉取待审总数
       if (isApproverRole.value) loadApprovalCount();
     }

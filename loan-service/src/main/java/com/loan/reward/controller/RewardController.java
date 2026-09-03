@@ -84,14 +84,14 @@ public class RewardController {
     /**
      * 停用奖励规则。
      *
-     * @param id   规则 ID
+     * @param ruleVersion 规则业务版本
      * @param user 当前用户
      * @return 成功标记
      */
-    @PostMapping("/rule/{id}/disable")
+    @PostMapping("/rule/{ruleVersion}/disable")
     @OpLog(bizType = "奖励规则", action = "DISABLE")
-    public Result<Void> disableRule(@PathVariable Long id, @CurrentUser LoanUser user) {
-        rewardService.disableRule(id, user == null ? "system" : user.getUserNo());
+    public Result<Void> disableRule(@PathVariable String ruleVersion, @CurrentUser LoanUser user) {
+        rewardService.disableRule(ruleVersion, user == null ? "system" : user.getUserNo());
         return Result.ok();
     }
 

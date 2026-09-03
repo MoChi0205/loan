@@ -1,14 +1,18 @@
 import request from '@/utils/request';
+import { getStorageJSON, KEYS } from '@/utils/storage';
+import { isChannelUser } from '@/utils/access';
+
+const isChannel = () => isChannelUser(getStorageJSON(KEYS.USER, null));
 
 /**
  * 线索接口（对接 loan-service /api/admin/lead）。
  */
 export function pageLead(params) {
-  return request({ url: '/api/admin/lead/page', method: 'get', params });
+  return request({ url: isChannel() ? '/api/channel/lead/page' : '/api/admin/lead/page', method: 'get', params });
 }
 
 export function createLead(data) {
-  return request({ url: '/api/admin/lead', method: 'post', data });
+  return request({ url: isChannel() ? '/api/channel/lead' : '/api/admin/lead', method: 'post', data });
 }
 
 export function claimLead(leadNo) {

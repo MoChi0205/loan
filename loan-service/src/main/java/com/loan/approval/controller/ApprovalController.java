@@ -9,6 +9,7 @@ import com.loan.log.annotation.OpLog;
 import com.loan.mini.service.MiniClientService;
 import com.loan.mini.service.MiniRoleGuard;
 import com.loan.common.util.PageParams;
+import com.loan.lead.service.LeadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,10 +34,37 @@ public class ApprovalController {
     private final ApprovalService approvalService;
     private final MiniClientService miniClientService;
     private final MiniRoleGuard miniRoleGuard;
+    private final LeadService leadService;
 
     /** 产品/下载审批专用守卫，避免仅依赖前端隐藏按钮。 */
     private void requireApprovalRole(String type, LoanUser user) {
         miniRoleGuard.requireApproverFor(type, user);
+    }
+
+    // ============================================================
+    // 渠道新增线索终审
+    // ============================================================
+
+    @GetMapping("/channel-lead/page")
+    public Result<PageResult<Map<String, Object>>> channelLeadPage(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @CurrentUser LoanUser user) {
+        miniRoleGuard.requireChannelFinalApprover(user);
+        return Result.ok(leadService.channelPendingPage(keyword, PageParams.page(page), PageParams.size(size)));
+    }
+
+    @PostMapping("/channel-lead/{leadNo}/audit")
+    @OpLog(bizType = "渠道线索审批", action = "AUDIT")
+    public Result<Void> channelLeadAudit(@PathVariable String leadNo,
+                                         @RequestBody(required = false) Map<String, Object> body,
+                                         @CurrentUser LoanUser user) {
+        miniRoleGuard.requireChannelFinalApprover(user);
+        boolean approve = body != null && Boolean.TRUE.equals(body.get("approve"));
+        String opinion = body == null || body.get("opinion") == null ? null : String.valueOf(body.get("opinion"));
+        leadService.auditChannelLead(leadNo, approve, opinion, user.getName());
+        return Result.ok();
     }
 
     // ============================================================

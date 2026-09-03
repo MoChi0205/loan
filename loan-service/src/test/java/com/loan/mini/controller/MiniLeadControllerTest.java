@@ -23,6 +23,8 @@ import com.loan.context.LoanUser;
 import com.loan.exception.GlobalExceptionHandler;
 
 import com.loan.mini.service.MiniLeadService;
+import com.loan.api.dto.PageResult;
+import java.util.Collections;
 
 /**
  * L1 接口契约测试（自动生成，共 1 端点，其中 1 个需登录）。
@@ -80,6 +82,23 @@ class MiniLeadControllerTest {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(post("/api/mini/lead/submit").content("{}").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("GET /api/mini/lead/my [auth]")
+    void get_api_mini_lead_my() throws Exception {
+        Mockito.when(miniLeadService.myLeads(Mockito.eq(1), Mockito.eq(10), Mockito.any(LoanUser.class)))
+                .thenReturn(PageResult.build(1, 10, 0L, Collections.emptyList()));
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(get("/api/mini/lead/my").param("page", "1").param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").exists())
+                    .andExpect(jsonPath("$.data.records").isArray());
+            Mockito.verify(miniLeadService).myLeads(Mockito.eq(1), Mockito.eq(10), Mockito.any(LoanUser.class));
         } finally {
             UserContext.clear();
         }

@@ -15,6 +15,14 @@ export function auditProductApproval(approvalNo, data) {
   return request({ url: `/api/admin/approval/product/${approvalNo}/audit`, method: 'post', data });
 }
 
+/** 渠道新增线索终审（仅老板/超级管理员）。 */
+export function pageChannelLeadApprovals(params) {
+  return request({ url: '/api/admin/approval/channel-lead/page', method: 'get', params });
+}
+export function auditChannelLeadApproval(leadNo, data) {
+  return request({ url: `/api/admin/approval/channel-lead/${leadNo}/audit`, method: 'post', data });
+}
+
 /** 附件下载审批 */
 export function applyDownload(data) {
   return request({ url: '/api/admin/approval/download/apply', method: 'post', data });

@@ -5,7 +5,7 @@
       <!-- 提示条：录入客户进入公海，由顾问跟进（渠道沙箱隔离） -->
       <view class="tip-bar">
         <AppIcon name="users" size="md" />
-        <text class="tip-text">录入的客户进入公司公海，由顾问跟进（渠道沙箱隔离，仅可见本人录入）</text>
+        <text class="tip-text">新增后仅本人立即可见，待公司审批通过后进入公海并由顾问跟进</text>
       </view>
 
       <!-- 基本信息 -->
@@ -79,7 +79,7 @@
         <AppEmpty v-else-if="hasError && !records.length" title="加载失败" desc="网络异常，请重试">
           <AppButton variant="primary" size="md" @click="reload">重试</AppButton>
         </AppEmpty>
-        <AppEmpty v-else-if="!loading && !records.length" title="暂无录入的线索" desc="录入客户后，线索会显示在这里" />
+        <AppEmpty v-else-if="!loading && !records.length" title="暂无本人录入的线索" desc="新增成功后会立即显示，审批通过后进入公司公海" />
         <view v-else
           v-for="(item, index) in records"
           :key="item.leadNo"
@@ -108,7 +108,7 @@
 /**
  * 渠道「录入客户」页（T4 渠道录入客户 tab）。
  *
- * 渠道合作方录入的线索进入公司公海，由顾问跟进（沙箱隔离：列表仅返回本人录入）。
+ * 渠道合作方录入后本人立即可见，待公司终审通过才进入公海（沙箱隔离：列表仅返回本人录入）。
  * 对接 api/lead.js 的 submitLead / myLeads。
  */
 import { ref, reactive } from 'vue';
@@ -179,6 +179,9 @@ function buildPayload() {
 /** 跟进状态中文标签（未知枚举回退原值） */
 function statusLabel(s) {
   const map = {
+    PENDING_APPROVAL: '待公司审批',
+    NEW: '审批通过',
+    REJECTED: '已驳回',
     PENDING: '待跟进',
     FOLLOWING: '跟进中',
     WON: '已成交',
@@ -266,7 +269,7 @@ async function onSubmit() {
       uni.showToast({ title: '该客户已被录入，请联系运营', icon: 'none', duration: 2500 });
       return;
     }
-    uni.showToast({ title: '录入成功', icon: 'success' });
+    uni.showToast({ title: '录入成功，等待公司审批', icon: 'none', duration: 2200 });
     resetForm();
     loadLeads();
   } catch (e) {

@@ -1,4 +1,8 @@
 import request from '@/utils/request';
+import { getStorageJSON, KEYS } from '@/utils/storage';
+import { isChannelUser } from '@/utils/access';
+
+const isChannel = () => isChannelUser(getStorageJSON(KEYS.USER, null));
 
 /**
  * 客户档案接口（对接 loan-service /api/admin/client，P0-6）。
@@ -7,7 +11,14 @@ import request from '@/utils/request';
  * 敏感字段（phone / creditCode / realName / idCardNo）后端已脱敏，前端仅做兜底脱敏展示。
  */
 export function getClientDetail(clientCode) {
-  return request({ url: `/api/admin/client/${clientCode}`, method: 'get' });
+  const prefix = isChannel() ? '/api/channel/client' : '/api/admin/client';
+  return request({ url: `${prefix}/${clientCode}`, method: 'get' });
+}
+
+/** 客户分页：渠道后端强制本人录入范围，员工使用管理端轻量列表。 */
+export function pageClients(params) {
+  const url = isChannel() ? '/api/channel/client/page' : '/api/admin/client/page-lite';
+  return request({ url, method: 'get', params });
 }
 
 /** 档案编辑（基础信息 + 个人档案合并，含操作留痕） */

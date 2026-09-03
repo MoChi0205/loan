@@ -214,7 +214,33 @@ public class ApiPermissionService {
         typeRules.put("CUSTOMER", Arrays.asList("mini:"));
         typeRules.put("CHANNEL", Arrays.asList("channel:"));
         root.put("typeRules", typeRules);
+        // 渠道小程序仅开放业务必需入口，不能把 mini: 整体前缀放开，否则会越权到匹配、报告、工单。
+        // 使用 method + pathPattern 精确授权，不依赖扫描顺序生成的 apiKey，避免同名 Controller 方法产生 #1 后缀。
+        Map<String, List<Map<String, String>>> typeApiRules = new LinkedHashMap<>();
+        List<Map<String, String>> channelMiniApis = new ArrayList<>();
+        channelMiniApis.add(typeApiRule("GET", "/api/mini/me"));
+        channelMiniApis.add(typeApiRule("POST", "/api/mini/lead/submit"));
+        channelMiniApis.add(typeApiRule("GET", "/api/mini/lead/my"));
+        channelMiniApis.add(typeApiRule("GET", "/api/mini/product/list"));
+        channelMiniApis.add(typeApiRule("POST", "/api/mini/product"));
+        channelMiniApis.add(typeApiRule("GET", "/api/mini/product/{code}"));
+        channelMiniApis.add(typeApiRule("PUT", "/api/mini/product/{code}"));
+        channelMiniApis.add(typeApiRule("POST", "/api/mini/product/{code}/submit"));
+        channelMiniApis.add(typeApiRule("POST", "/api/mini/product/{code}/revoke"));
+        channelMiniApis.add(typeApiRule("POST", "/api/mini/product/{code}/delete-apply"));
+        channelMiniApis.add(typeApiRule("POST", "/api/mini/product/{code}/delete-cancel"));
+        channelMiniApis.add(typeApiRule("GET", "/api/mini/partner-product/active"));
+        typeApiRules.put("CHANNEL", channelMiniApis);
+        root.put("typeApiRules", typeApiRules);
         return root;
+    }
+
+    /** 构造无角色用户类型的精确接口授权项。 */
+    private Map<String, String> typeApiRule(String method, String pathPattern) {
+        Map<String, String> rule = new LinkedHashMap<>();
+        rule.put("method", method);
+        rule.put("pathPattern", pathPattern);
+        return rule;
     }
 
     /**
