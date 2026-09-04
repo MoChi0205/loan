@@ -191,6 +191,7 @@ public class RuleTemplateService {
                         .orderByDesc(RuleTemplateVersion::getVersionNo));
 
         Map<String, Object> result = new LinkedHashMap<>();
+        template.setId(null);
         result.put("template", template);
         fields.forEach(f -> { f.setId(null); });
         result.put("fields", fields);

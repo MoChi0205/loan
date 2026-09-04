@@ -141,6 +141,7 @@ public class PlanOrchestrationService {
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
+        plan.setId(null);
         result.put("plan", plan);
         result.put("modules", moduleVOs);
         return result;

@@ -218,6 +218,7 @@ public class StrategyTemplateService {
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
+        template.setId(null);
         result.put("template", template);
         result.put("modules", moduleVOs);
         return result;
