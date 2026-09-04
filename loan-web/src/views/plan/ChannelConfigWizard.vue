@@ -28,9 +28,9 @@
       <el-table :data="channels" stripe row-key="channelCode" class="wiz-pick-table" @row-click="pickChannel">
         <el-table-column prop="bankName" label="银行渠道" min-width="200" />
         <el-table-column prop="channelCode" label="渠道编码" min-width="160" />
-        <el-table-column label="操作" width="120">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click.stop="pickChannel(row)">选择此渠道</el-button>
+            <AppTableActions :actions="[{ key: 'pick', label: '选择此渠道', onClick: () => pickChannel(row) }]" />
           </template>
         </el-table-column>
       </el-table>
@@ -158,10 +158,12 @@
                     <span v-else>—</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="120" fixed="right">
+                <el-table-column label="操作" width="130" fixed="right">
                   <template #default="{ row }">
-                    <el-button link type="primary" size="small" @click="openStepDialog(activeModule, row)">编辑</el-button>
-                    <el-button link type="danger" size="small" @click="onDeleteStep(activeModule, row)">删除</el-button>
+                    <AppTableActions :actions="[
+                      { key: 'edit', label: '编辑', onClick: () => openStepDialog(activeModule, row) },
+                      { key: 'delete', label: '删除', type: 'danger', confirm: '确认删除该步骤？', onClick: () => onDeleteStep(activeModule, row) },
+                    ]" />
                   </template>
                 </el-table-column>
               </el-table>
@@ -203,10 +205,12 @@
             <span class="loan-tag" :class="row.status === 'ACTIVE' ? 'loan-tag-success' : 'loan-tag-muted'">{{ row.status === 'ACTIVE' ? '已上线' : '草稿' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="onValidate(row)">校验</el-button>
-            <el-button v-if="row.status !== 'ACTIVE'" link type="success" @click="onEnable(row)">上线</el-button>
+            <AppTableActions :actions="[
+              { key: 'validate', label: '校验', onClick: () => onValidate(row) },
+              ...(row.status !== 'ACTIVE' ? [{ key: 'enable', label: '上线', type: 'success', onClick: () => onEnable(row) }] : []),
+            ]" />
           </template>
         </el-table-column>
       </el-table>
