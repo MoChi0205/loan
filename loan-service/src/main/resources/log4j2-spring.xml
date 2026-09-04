@@ -2,7 +2,7 @@
 <!-- Log4j2 日志配置（参考 tse） -->
 <Configuration status="WARN">
     <Properties>
-        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</Property>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [traceId=%X{traceId:-none}] %-5level %logger{36} - %msg%n</Property>
         <!-- 后台启动由 LOAN_LOG_DIR 指定绝对目录；未设置时仍兼容本地前台运行。 -->
         <Property name="LOG_DIR">${env:LOAN_LOG_DIR:-logs}</Property>
     </Properties>
@@ -10,11 +10,27 @@
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="${LOG_PATTERN}"/>
         </Console>
-        <RollingFile name="RollingFile" fileName="${LOG_DIR}/loan-platform.log"
-                     filePattern="${LOG_DIR}/loan-platform-%d{yyyy-MM-dd}.log.gz">
+        <RollingFile name="BizFile" fileName="${LOG_DIR}/biz.log"
+                     filePattern="${LOG_DIR}/archive/%d{yyyy-MM-dd}-loan-platform-service-biz-%i.log.gz">
             <PatternLayout pattern="${LOG_PATTERN}"/>
             <Policies>
-                <TimeBasedTriggeringPolicy/>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="100 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30">
+                <Delete basePath="${LOG_DIR}/archive" maxDepth="1">
+                    <IfFileName glob="*-loan-platform-service-biz-*.log.gz"/>
+                    <IfLastModified age="30d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        <RollingFile name="ErrorFile" fileName="${LOG_DIR}/error.log"
+                     filePattern="${LOG_DIR}/error/%d{yyyy-MM-dd}-loan-platform-service-error-%i.log.gz">
+            <ThresholdFilter level="error" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
+                <SizeBasedTriggeringPolicy size="100 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="30"/>
         </RollingFile>
@@ -22,11 +38,13 @@
     <Loggers>
         <Root level="info">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
+            <AppenderRef ref="BizFile"/>
+            <AppenderRef ref="ErrorFile"/>
         </Root>
         <Logger name="com.loan" level="debug" additivity="false">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="RollingFile"/>
+            <AppenderRef ref="BizFile"/>
+            <AppenderRef ref="ErrorFile"/>
         </Logger>
     </Loggers>
 </Configuration>

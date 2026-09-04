@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 网关全局鉴权过滤器：所有请求先认证后鉴权，通过才转发到下游。
@@ -40,6 +41,8 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
+
+    private static final String TRACE_HEADER = "X-Trace-Id";
 
     /** 无需鉴权路径（登录/验证码/公钥/字典/调试） */
     private static final List<String> WHITE_LIST = Arrays.asList(
@@ -72,27 +75,37 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
      */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String path = exchange.getRequest().getURI().getPath();
+        // 生成/透传链路 ID，并在转发请求中保持一致；下游服务会继续写入日志 MDC。
+        String traceId = normalizeTraceId(exchange.getRequest().getHeaders().getFirst(TRACE_HEADER));
+        if (!StringUtils.hasText(traceId)) {
+            traceId = UUID.randomUUID().toString().replace("-", "");
+        }
+        exchange.getResponse().getHeaders().set(TRACE_HEADER, traceId);
+        final String finalTraceId = traceId;
+        ServerWebExchange tracedExchange = exchange.mutate()
+                .request(exchange.getRequest().mutate().header(TRACE_HEADER, finalTraceId).build())
+                .build();
+        String path = tracedExchange.getRequest().getURI().getPath();
         if (isWhiteListed(path)) {
-            return chain.filter(exchange);
+            return chain.filter(tracedExchange);
         }
 
         // 1. JWT 认证
-        String token = extractToken(exchange.getRequest());
+        String token = extractToken(tracedExchange.getRequest());
         if (!StringUtils.hasText(token)) {
-            return reject(exchange, HttpStatus.UNAUTHORIZED, 2000, "未登录或会话已过期");
+            return reject(tracedExchange, HttpStatus.UNAUTHORIZED, 2000, "未登录或会话已过期");
         }
         Claims claims = jwtUtil.parse(token);
         if (claims == null) {
-            return reject(exchange, HttpStatus.UNAUTHORIZED, 2000, "登录已过期，请重新登录");
+            return reject(tracedExchange, HttpStatus.UNAUTHORIZED, 2000, "登录已过期，请重新登录");
         }
         // 2. 加载规则并鉴权
         String roleCode = asString(claims.get("roleCode"));
         String userType = asString(claims.get("userType"));
         String userNo = asString(claims.get("userNo"));
         String userId = asString(claims.get("userId"));
-        String clientType = resolveClientType(exchange.getRequest(), claims);
-        String httpMethod = exchange.getRequest().getMethod() == null
+        String clientType = resolveClientType(tracedExchange.getRequest(), claims);
+        String httpMethod = tracedExchange.getRequest().getMethod() == null
                 ? "ALL" : exchange.getRequest().getMethod().name();
 
         // 当前用户与自身菜单是“已认证即可访问”的公共能力。若继续依赖每个角色重复维护
@@ -100,18 +113,24 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         // 此处仍要求 JWT 有效，并继续向下游透传服务端解析出的身份；具体菜单范围由后端
         // 按当前身份强制收口，不能由普通用户通过 roleCode 参数扩大权限。
         if (isAuthenticatedCommonApi(path, httpMethod)) {
-            return forward(exchange, chain, userId, userNo, roleCode, userType, clientType);
+            return forward(tracedExchange, chain, userId, userNo, roleCode, userType, clientType);
         }
         return ruleService.loadRules()
                 .flatMap(rules -> {
                     if (rules == null) {
-                        return reject(exchange, HttpStatus.FORBIDDEN, 2001, "接口权限规则未配置，请联系管理员");
+                return reject(tracedExchange, HttpStatus.FORBIDDEN, 2001, "接口权限规则未配置，请联系管理员");
                     }
-                    return doAuthorize(exchange, chain, rules, roleCode, clientType, path,
+                    return doAuthorize(tracedExchange, chain, rules, roleCode, clientType, path,
                             httpMethod,
                             userId, userNo, userType);
                 })
-                .switchIfEmpty(reject(exchange, HttpStatus.FORBIDDEN, 2001, "接口权限规则不可用，请联系管理员"));
+                .switchIfEmpty(reject(tracedExchange, HttpStatus.FORBIDDEN, 2001, "接口权限规则不可用，请联系管理员"));
+    }
+
+    private String normalizeTraceId(String value) {
+        if (!StringUtils.hasText(value)) return null;
+        String traceId = value.trim();
+        return traceId.length() <= 64 && traceId.matches("[A-Za-z0-9_-]+") ? traceId : null;
     }
 
     /**
