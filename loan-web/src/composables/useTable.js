@@ -12,6 +12,8 @@ import { reactive, ref } from 'vue';
  *   );
  *   onMounted(load);
  *
+ *   // 内置请求序列保护：旧请求晚返回时不会覆盖最新 Tab/查询结果。
+ *
  *   // loader 接收当前 query（已含 page/size），返回后端 PageResult：{ records, total }
  *   async function pageProducts(query) {
  *     const res = await request({ url: '/api/...', params: query });
@@ -31,23 +33,28 @@ export function useTable(loader, initialQuery = {}, options = {}) {
     sortDir: '',
     ...initialQuery,
   });
+  // 请求序列号：连续搜索、分页或 Tab 切换时，旧响应不得覆盖最后一次请求结果。
+  let requestSeq = 0;
 
   async function load() {
     if (typeof loader !== 'function') return;
+    const seq = ++requestSeq;
     loading.value = true;
     error.value = null;
     try {
       const res = await loader(query);
+      if (seq !== requestSeq) return;
       // 兼容两种返回：1) 直接 PageResult  2) 包裹在 { data: PageResult }
       const payload = res?.data ?? res;
       data.value = payload?.records ?? [];
       total.value = Number(payload?.total ?? 0);
     } catch (e) {
+      if (seq !== requestSeq) return;
       data.value = [];
       total.value = 0;
       error.value = e || new Error('列表加载失败');
     } finally {
-      loading.value = false;
+      if (seq === requestSeq) loading.value = false;
     }
   }
 
