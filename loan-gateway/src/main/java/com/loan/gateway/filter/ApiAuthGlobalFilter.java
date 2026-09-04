@@ -82,6 +82,11 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         }
         exchange.getResponse().getHeaders().set(TRACE_HEADER, traceId);
         final String finalTraceId = traceId;
+        // 下游业务服务也会回写该头；提交响应前再次 set，确保客户端只收到一个稳定值。
+        exchange.getResponse().beforeCommit(() -> {
+            exchange.getResponse().getHeaders().set(TRACE_HEADER, finalTraceId);
+            return Mono.empty();
+        });
         ServerWebExchange tracedExchange = exchange.mutate()
                 .request(exchange.getRequest().mutate().header(TRACE_HEADER, finalTraceId).build())
                 .build();
