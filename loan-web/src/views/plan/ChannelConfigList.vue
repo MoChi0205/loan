@@ -36,12 +36,15 @@
                       <span class="loan-tag" :class="s.status === 'ACTIVE' ? 'loan-tag-success' : 'loan-tag-muted'">{{ s.status === 'ACTIVE' ? '已上线' : '草稿' }}</span>
                     </template>
                   </el-table-column>
-                  <el-table-column label="操作" width="170" fixed="right">
+                  <el-table-column label="操作" width="190" fixed="right">
                     <template #default="{ row: s }">
-                      <el-button link type="primary" @click="gotoOrch(row, s)">编排</el-button>
-                      <el-button link type="primary" @click="onValidate(s)">校验</el-button>
-                      <el-button v-if="s.status !== 'ACTIVE'" link type="success" @click="onEnable(s)">上线</el-button>
-                      <el-button v-else link type="warning" @click="onDisable(s)">下线</el-button>
+                      <AppTableActions :max-inline="2" :actions="[
+                        { key: 'orchestrate', label: '编排', onClick: () => gotoOrch(row, s) },
+                        { key: 'validate', label: '校验', onClick: () => onValidate(s) },
+                        s.status !== 'ACTIVE'
+                          ? { key: 'enable', label: '上线', type: 'success', onClick: () => onEnable(s) }
+                          : { key: 'disable', label: '下线', type: 'warning', onClick: () => onDisable(s) },
+                      ]" />
                     </template>
                   </el-table-column>
                 </el-table>
@@ -81,6 +84,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
+import AppTableActions from '@/components/AppTableActions.vue';
 import { formatDateTime } from '@/utils/format';
 import { channelSummary, pageStrategy, enableStrategy, disableStrategy, validateStrategy } from '@/api/channelStrategy';
 import { listPlans } from '@/api/plan';

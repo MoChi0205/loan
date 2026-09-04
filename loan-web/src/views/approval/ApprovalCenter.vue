@@ -80,7 +80,11 @@
           <el-table-column prop="channelName" label="录入渠道" min-width="150" />
           <el-table-column prop="leadType" label="客群" width="100"><template #default="{ row }">{{ row.leadType === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
           <el-table-column prop="createdAt" label="提交时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="openAudit('channelLead', { ...row, approvalNo: row.leadNo })">审核</el-button></template></el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <AppTableActions :actions="[{ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('channelLead', { ...row, approvalNo: row.leadNo }) }]" />
+            </template>
+          </el-table-column>
         </el-table>
       </AppTableState>
       <AppPagination v-if="!errorCL" v-model:page="queryCL.page" v-model:size="queryCL.size" :total="totalCL" @change="loadCL" />

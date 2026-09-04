@@ -31,7 +31,11 @@
           <el-table-column prop="phone" label="手机号" width="130" />
           <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
           <el-table-column prop="createdAt" label="建档时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="openChannelClient(row)">查看档案</el-button></template></el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <AppTableActions :actions="[{ key: 'detail', label: '查看档案', onClick: () => openChannelClient(row) }]" />
+            </template>
+          </el-table-column>
         </el-table>
         <AppPagination v-model:page="clientQuery.page" v-model:size="clientQuery.size" :total="clientTotal" @change="loadClients" />
       </template>
@@ -181,6 +185,7 @@ import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
 import { staffDisplayLabel } from '@/utils/display';
 import { ACTION_PERMISSION } from '@/utils/access';
+import AppTableActions from '@/components/AppTableActions.vue';
 
 const route = useRoute();
 const router = useRouter();

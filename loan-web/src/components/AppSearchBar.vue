@@ -8,13 +8,13 @@
       <slot />
     </div>
     <div class="app-search-actions">
-      <slot name="append">
-        <el-button v-if="showReset" :disabled="loading" @click="onResetClick">重置</el-button>
-        <el-button v-if="showSearch" type="primary" :loading="loading" @click="onSearchClick">
-          <svg v-if="!loading" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right: 4px; vertical-align: -2px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-          查询
-        </el-button>
-      </slot>
+      <!-- 查询/重置始终保留；append 仅用于追加导出、批量等业务操作，避免插槽覆盖默认操作 -->
+      <el-button v-if="showReset" :disabled="loading" @click="onResetClick">重置</el-button>
+      <el-button v-if="showSearch" type="primary" :loading="loading" @click="onSearchClick">
+        <svg v-if="!loading" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right: 4px; vertical-align: -2px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        查询
+      </el-button>
+      <slot name="append" />
     </div>
   </div>
 </template>
@@ -24,7 +24,7 @@
  * 列表页查询栏（公共组件）。
  *
  * <p>提供统一的筛选区布局 + 查询/重置按钮，支持回车提交（输入框内按回车触发 search）。
- * 默认 slot 放筛选字段，#append 插槽放额外操作（导出/批量等）。
+ * 默认 slot 放筛选字段，#append 插槽追加额外操作（导出/批量等），不会覆盖查询/重置。
  *
  * 用法：
  *   <AppSearchBar @search="onSearch" @reset="onReset" :loading="loading">

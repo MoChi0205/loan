@@ -192,40 +192,35 @@
       <main id="main-content" class="content">
         <!-- 多标签栏：可切换 / 关闭 / 刷新（多主菜单独立保留） -->
         <div v-if="openTabs.length" class="tabs-bar">
-          <el-tabs
-            v-model="activeTab"
-            type="card"
-            :closable="openTabs.length > 1"
-            @tab-click="onTabClick"
-            @tab-remove="onTabRemove"
-          >
-            <el-tab-pane
+          <div class="route-tabs" role="tablist" aria-label="已打开页面">
+            <button
               v-for="t in openTabs"
               :key="t.path"
-              :name="t.path"
-              :closable="false"
+              type="button"
+              role="tab"
+              class="route-tab"
+              :class="{ 'is-active': route.fullPath === t.path }"
+              :aria-selected="route.fullPath === t.path ? 'true' : 'false'"
+              :title="t.title"
+              @click="navigateToTab(t.path)"
+              @contextmenu.prevent="onTabContextMenu($event, t)"
             >
-              <template #label>
-                <span class="tab-label" @contextmenu.prevent="onTabContextMenu($event, t)">
-                  <span class="tab-label__text" :title="t.title">{{ t.title }}</span>
-                  <svg
-                    v-if="t.path !== '/workbench' && openTabs.length > 1"
-                    class="tab-close"
-                    viewBox="0 0 24 24"
-                    width="12"
-                    height="12"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    @click.stop="onTabClose(t.path)"
-                    aria-label="关闭标签"
-                  >
-                    <path d="M6 6l12 12M6 18L18 6" />
-                  </svg>
-                </span>
-              </template>
-            </el-tab-pane>
-          </el-tabs>
+              <span class="tab-label__text">{{ t.title }}</span>
+              <span
+                v-if="t.path !== '/workbench' && openTabs.length > 1"
+                class="tab-close"
+                role="button"
+                tabindex="0"
+                aria-label="关闭标签"
+                @click.stop="onTabClose(t.path)"
+                @keyup.enter.stop="onTabClose(t.path)"
+              >
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 6l12 12M6 18L18 6" />
+                </svg>
+              </span>
+            </button>
+          </div>
           <el-tooltip content="刷新当前页" placement="bottom">
             <button class="tabs-refresh" @click="onRefresh" aria-label="刷新">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 11-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
@@ -251,6 +246,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/store/user';
 import { openContextMenu } from '@/utils/contextMenu';
 import { findMenuItem } from '@/utils/menu';
+import { HOME_TAB, MAX_OPEN_TABS, closeTab, sanitizeTabs, upsertTab } from '@/utils/navigationTabs';
 import { canKeepOpenedTab } from '@/utils/routeAccess';
 import { KEYS, getStorageJSON, setStorage, setStorageJSON } from '@/utils/storage';
 import ThemeSwitch from '@/components/ThemeSwitch.vue';
@@ -434,7 +430,7 @@ async function loadRoleMenu() {
     if (openTabs.value.length !== before) saveTabs();
     if (!openTabs.value.some((t) => t.path === route.fullPath)) {
       const fallback = openTabs.value[openTabs.value.length - 1] || { path: '/workbench', title: '工作台' };
-      activeTab.value = fallback.path;
+      if (route.fullPath !== fallback.path) router.replace(fallback.path);
     }
   } catch (e) {
     // 权限数据不可用时 fail-closed：仅保留工作台，禁止展示未经授权的业务入口。
@@ -468,7 +464,7 @@ function onUserCommand(command) {
   if (command === 'logout') {
     userStore.doLogout().then(() => {
       // 退出登录时清空标签栏
-      openTabs.value = [{ path: '/workbench', title: '工作台' }];
+      openTabs.value = [HOME_TAB];
       setStorageJSON(KEYS.LAYOUT_TABS, []);
       router.push('/login');
     });
@@ -479,8 +475,7 @@ function onUserCommand(command) {
 // 多标签栏：主菜单点击/路由切换 → 自动开 tab；可切换/关闭/刷新
 // ============================================================
 // 多标签栏 + 分组折叠状态：统一走 storage 封装持久化
-const activeTab = ref(route.fullPath);
-const openTabs = ref([{ path: '/workbench', title: '工作台' }]);
+const openTabs = ref([HOME_TAB]);
 /** 手动刷新版本：递增 key 只重建当前路由页面，不再依赖动态 keep-alive 白名单。 */
 const refreshKey = ref(0);
 /** 主菜单分组折叠状态：title -> 是否展开（默认全展开） */
@@ -497,12 +492,7 @@ function toggleGroup(title) {
 
 function loadTabs() {
   const arr = getStorageJSON(KEYS.LAYOUT_TABS, null);
-  if (Array.isArray(arr) && arr.length) {
-    openTabs.value = arr;
-  }
-  // 403 是瞬时错误状态，不跨登录/刷新持久化；角色切换后保留会造成多个“无权限”标签。
-  openTabs.value = openTabs.value.filter((t) => String(t?.path || '').split('?')[0] !== '/403');
-  if (!openTabs.value.length) openTabs.value = [{ path: '/workbench', title: '工作台' }];
+  openTabs.value = sanitizeTabs(arr, MAX_OPEN_TABS);
   // 登录角色变化后，按当前角色重算已保存标签标题（如渠道“我的客户/我的产品”）。
   openTabs.value = openTabs.value.map((t) => ({
     ...t,
@@ -530,34 +520,28 @@ function findTitle(path) {
 function ensureTab(path) {
   // 403 只是当次路由判定结果，不应以带 from 的 fullPath 不断新建标签。
   if (String(path || '').split('?')[0] === '/403') return;
-  if (!openTabs.value.find((t) => t.path === path)) {
-    openTabs.value.push({ path, title: findTitle(path) });
+  const nextTabs = upsertTab(openTabs.value, { path, title: findTitle(path) }, route.fullPath, MAX_OPEN_TABS);
+  if (nextTabs.length !== openTabs.value.length || nextTabs.some((tab, index) => tab.path !== openTabs.value[index]?.path || tab.title !== openTabs.value[index]?.title)) {
+    openTabs.value = nextTabs;
     saveTabs();
   }
 }
 
-/** 点击 tab 切换路由（tab 键 = fullPath，支持 ?cg= 区分，T7） */
-function onTabClick(pane) {
-  const path = pane?.props?.name || pane?.name;
+/** 点击顶部标签时只发起导航，活动态由 route.fullPath 单向计算。 */
+function navigateToTab(path) {
   if (path && path !== route.fullPath) {
     router.push(path);
   }
 }
-/** el-tabs tab-remove 事件 */
-function onTabRemove(name) {
-  onTabClose(name);
-}
 /** 自定义关闭按钮 */
 function onTabClose(path) {
-  if (path === '/workbench') return; // 工作台常驻
-  const idx = openTabs.value.findIndex((t) => t.path === path);
-  if (idx < 0) return;
-  openTabs.value.splice(idx, 1);
+  const result = closeTab(openTabs.value, path);
+  if (result.tabs.length === openTabs.value.length) return;
+  openTabs.value = result.tabs;
   saveTabs();
   // 若关闭的是当前 tab，跳到相邻 tab
   if (route.fullPath === path) {
-    const next = openTabs.value[Math.min(idx, openTabs.value.length - 1)];
-    router.push(next ? next.path : '/workbench');
+    router.push(result.nextPath || HOME_TAB.path);
   }
 }
 /** 刷新当前 tab：递增页面 key，强制当前路由组件销毁并重建。 */
@@ -584,12 +568,11 @@ function onTabContextMenu(ev, t) {
   ]);
 }
 
-/** 监听路由变化：自动加入 tab 并切到 active（键 = fullPath，T7） */
+/** 监听路由变化：导航成功后才加入标签，route 是唯一活动态真值。 */
 watch(
   () => route.fullPath,
   (path) => {
     ensureTab(path);
-    if (String(path || '').split('?')[0] !== '/403') activeTab.value = path;
   },
 );
 
@@ -603,7 +586,6 @@ function onMenuClick(ev, item) {
 onMounted(() => {
   loadTabs();
   ensureTab(route.fullPath);
-  activeTab.value = route.fullPath;
   // 按当前角色加载后端菜单树，驱动动态菜单
   loadRoleMenu();
 });
@@ -1068,54 +1050,58 @@ watch(menus, () => {
   transform: rotate(180deg);
 }
 
-/* 多标签栏：可关闭、可刷新、切换不刷新已打开页面 */
+/* 顶部路由标签：轻量单向导航，不依赖 el-tabs 内部 watcher。 */
 .tabs-bar {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   background: var(--loan-sider-bg);
   border-bottom: 1px solid var(--loan-border);
-  padding: 0 8px;
-  min-width: 0; /* 关键：flex 子项允许收缩，让 el-tabs__nav-wrap 可触发横向滚动 */
+  padding: 5px 8px;
+  min-width: 0;
 }
-.tabs-bar :deep(.el-tabs) {
+.route-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   flex: 1;
-  min-width: 0; /* 关键：允许 el-tabs 收缩到 tabs-bar 宽度，nav 溢出时走 EP 内部滚动，
-                   否则 nav-wrap 会被 nav 内容撑到 1129px 超出 tabs-bar 背景（12+ tab 时右侧溢出） */
-  overflow: hidden;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
 }
-.tabs-bar :deep(.el-tabs__header) {
-  margin: 0;
-  border: none;
-}
-.tabs-bar :deep(.el-tabs__nav-wrap::after) {
-  display: none;
-}
-.tabs-bar :deep(.el-tabs__item) {
+.route-tab {
+  appearance: none;
   border: 1px solid var(--loan-border);
   border-radius: 6px 6px 0 0;
-  margin-right: 4px;
-  height: 30px;
-  line-height: 30px;
+  height: 32px;
   padding: 0 12px;
   font-size: 12px;
   background: var(--loan-card-bg);
+  color: var(--loan-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  max-width: 168px;
+  transition: background var(--loan-transition), color var(--loan-transition), border-color var(--loan-transition);
 }
-.tabs-bar :deep(.el-tabs__item.is-active) {
+.route-tab:hover {
+  color: var(--loan-text);
+  border-color: var(--loan-border-strong);
+}
+.route-tab:focus-visible {
+  outline: 2px solid var(--loan-primary);
+  outline-offset: -2px;
+}
+.route-tab.is-active {
   background: var(--loan-primary);
   color: #fff;
   border-color: var(--loan-primary);
 }
-.tabs-bar :deep(.el-tabs__item.is-active .tab-close) {
+.route-tab.is-active .tab-close {
   color: rgba(255, 255, 255, 0.85);
-}
-.tabs-bar :deep(.el-tabs__item .el-icon-close) {
-  font-size: 12px;
-  margin-left: 4px;
-}
-.tab-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 .tab-label__text {
   max-width: 130px;
@@ -1128,6 +1114,9 @@ watch(menus, () => {
   border-radius: 50%;
   padding: 2px;
   line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: currentColor;
   opacity: 0.7;
   flex-shrink: 0;

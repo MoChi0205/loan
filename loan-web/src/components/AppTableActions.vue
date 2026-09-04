@@ -169,8 +169,9 @@ function onCommand(c) {
   white-space: nowrap;
   font-size: 12px;
   line-height: 1.4;
-  max-width: 100%;
-  overflow: hidden;
+  /* 允许长中文和下拉触发器完整展示；表格固定列负责布局，不在组件内二次裁切 */
+  max-width: none;
+  overflow: visible;
 }
 
 .app-table-actions__sep {

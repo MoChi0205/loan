@@ -150,7 +150,7 @@
 
 <script setup>
 defineOptions({ name: '_sms' });
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
@@ -165,6 +165,7 @@ import {
 } from '@/api/sms';
 
 const activeTab = ref('template');
+const loadedTabs = reactive({ template: false, record: false });
 const typeText = { LOGIN_VERIFY: '登录验证', NOTIFICATION: '通知', MARKETING: '业务营销' };
 const statusText = { PENDING: '待发送', SENT: '已发送', SUCCESS: '成功', FAIL: '失败' };
 const statusTag = (s) => ({ PENDING: 'loan-tag-muted', SENT: 'loan-tag-info', SUCCESS: 'loan-tag-success', FAIL: 'loan-tag-danger' }[s] || 'loan-tag-muted');
@@ -264,5 +265,17 @@ async function onSend() {
   }
 }
 
-onMounted(() => { loadT(); loadR(); });
+/** 按需加载页面内 Tab，避免首屏同时请求模板与发送记录；切换回来复用已加载数据。 */
+watch(activeTab, async (tab) => {
+  if (loadedTabs[tab]) return;
+  loadedTabs[tab] = true;
+  try {
+    if (tab === 'template') await loadT();
+    else await loadR();
+  } catch {
+    loadedTabs[tab] = false;
+  }
+}, { immediate: true });
+
+onMounted(() => { /* 数据由 activeTab watcher 按需加载 */ });
 </script>
