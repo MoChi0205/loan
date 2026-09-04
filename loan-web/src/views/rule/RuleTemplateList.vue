@@ -81,7 +81,7 @@
             <span class="c6">必填</span>
             <span class="c7">操作</span>
           </div>
-          <div v-for="f in editFields" :key="f.id" class="rt-field-row">
+          <div v-for="f in editFields" :key="f.fieldBizCode" class="rt-field-row">
             <span class="c1">{{ f.fieldCode }}</span>
             <span class="c2">{{ f.fieldName }}</span>
             <span class="c3">{{ f.fieldType }}</span>
@@ -126,8 +126,8 @@
     <AppDialog v-model:visible="importDialog.visible" title="导入为规则" :loading="importDialog.saving" @confirm="onImport">
       <el-form label-width="90px">
         <el-form-item label="选择字段">
-          <el-select v-model="importDialog.fieldId" placeholder="选择字段定义（缺省取第一个）" clearable style="width: 100%">
-            <el-option v-for="f in importFields" :key="f.id" :label="`${f.fieldName}（${f.fieldCode}）`" :value="f.id" />
+          <el-select v-model="importDialog.fieldCode" placeholder="选择字段定义（缺省取第一个）" clearable style="width: 100%">
+            <el-option v-for="f in importFields" :key="f.fieldBizCode" :label="`${f.fieldName}（${f.fieldCode}）`" :value="f.fieldBizCode" />
           </el-select>
         </el-form-item>
         <div class="rt-import-tip">将按所选字段定义实例化一条「规则目录」规则（草稿态），字段编码/名称/运算符/默认值均来自模版。</div>
@@ -234,7 +234,7 @@ const fieldRules = {
 };
 function openFieldDialog(f) {
   fieldDialog.title = f ? '编辑字段' : '添加字段';
-  fieldDialog.editingId = f?.id || null;
+  fieldDialog.editingId = f?.fieldBizCode || null;
   Object.assign(fieldDialog.form, f
     ? { fieldCode: f.fieldCode, fieldName: f.fieldName, fieldType: f.fieldType, operator: f.operator, defaultValue: f.defaultValue, sort: f.sort }
     : { fieldCode: '', fieldName: '', fieldType: 'STRING', operator: '==', defaultValue: '', sort: 0 });
@@ -245,7 +245,7 @@ async function onSaveField() {
   await fieldFormRef.value.validate();
   fieldDialog.saving = true;
   try {
-    const payload = { templateId: currentTpl.value.id, ...fieldDialog.form, required: fieldDialog.requiredFlag ? 1 : 0 };
+    const payload = { templateCode: currentTpl.value.templateCode, ...fieldDialog.form, required: fieldDialog.requiredFlag ? 1 : 0 };
     if (fieldDialog.editingId) await updateField(fieldDialog.editingId, payload);
     else await createField(payload);
     fieldDialog.visible = false;
@@ -255,17 +255,17 @@ async function onSaveField() {
 }
 async function onDeleteField(f) {
   try { await appConfirm(`确认删除字段「${f.fieldName}」？`); } catch { return; }
-  await deleteField(f.id);
+  await deleteField(f.fieldBizCode);
   const res = await templateDetail(currentTpl.value.templateCode);
   editFields.value = res.data?.fields || [];
 }
 
 // 导入为规则
-const importDialog = reactive({ visible: false, saving: false, templateId: null, fieldId: null });
+const importDialog = reactive({ visible: false, saving: false, templateId: null, fieldCode: null });
 const importFields = ref([]);
 async function openImport(row) {
   importDialog.templateId = row.templateCode;
-  importDialog.fieldId = null;
+  importDialog.fieldCode = null;
   const res = await templateDetail(row.templateCode);
   importFields.value = res.data?.fields || [];
   importDialog.visible = true;
@@ -273,7 +273,7 @@ async function openImport(row) {
 async function onImport() {
   importDialog.saving = true;
   try {
-    const res = await importToRule(importDialog.templateId, importDialog.fieldId || undefined);
+    const res = await importToRule(importDialog.templateId, importDialog.fieldCode || undefined);
     ElMessage.success(`已导入为规则：${res.data}`);
     importDialog.visible = false;
   } finally { importDialog.saving = false; }

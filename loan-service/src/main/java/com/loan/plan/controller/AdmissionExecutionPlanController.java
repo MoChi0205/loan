@@ -85,26 +85,25 @@ public class AdmissionExecutionPlanController {
      * 新建模块。
      */
     @PostMapping("/module")
-    public Result<Long> createModule(@RequestBody AdmissionPlanModule module, @CurrentUser LoanUser user) {
+    public Result<String> createModule(@RequestBody AdmissionPlanModule module, @CurrentUser LoanUser user) {
         return Result.ok(orchestrationService.createModule(module, operatorName(user)));
     }
 
     /**
      * 更新模块。
      */
-    @PutMapping("/module/{id}")
-    public Result<String> updateModule(@PathVariable Long id, @RequestBody AdmissionPlanModule module) {
-        module.setId(id);
-        orchestrationService.updateModule(module, null);
+    @PutMapping("/module/{moduleCode}")
+    public Result<String> updateModule(@PathVariable("moduleCode") String moduleCode, @RequestBody AdmissionPlanModule module) {
+        orchestrationService.updateModule(moduleCode, module, null);
         return Result.ok("ok");
     }
 
     /**
      * 删除模块（级联步骤）。
      */
-    @DeleteMapping("/module/{id}")
-    public Result<String> deleteModule(@PathVariable Long id) {
-        orchestrationService.deleteModule(id);
+    @DeleteMapping("/module/{moduleCode}")
+    public Result<String> deleteModule(@PathVariable String moduleCode) {
+        orchestrationService.deleteModule(moduleCode);
         return Result.ok("ok");
     }
 
@@ -112,26 +111,25 @@ public class AdmissionExecutionPlanController {
      * 新建步骤。
      */
     @PostMapping("/step")
-    public Result<Long> createStep(@RequestBody AdmissionPlanStep step, @CurrentUser LoanUser user) {
+    public Result<String> createStep(@RequestBody AdmissionPlanStep step, @CurrentUser LoanUser user) {
         return Result.ok(orchestrationService.createStep(step, operatorName(user)));
     }
 
     /**
      * 更新步骤。
      */
-    @PutMapping("/step/{id}")
-    public Result<String> updateStep(@PathVariable Long id, @RequestBody AdmissionPlanStep step) {
-        step.setId(id);
-        orchestrationService.updateStep(step, null);
+    @PutMapping("/step/{stepCode}")
+    public Result<String> updateStep(@PathVariable("stepCode") String stepCode, @RequestBody AdmissionPlanStep step) {
+        orchestrationService.updateStep(stepCode, step, null);
         return Result.ok("ok");
     }
 
     /**
      * 删除步骤。
      */
-    @DeleteMapping("/step/{id}")
-    public Result<String> deleteStep(@PathVariable Long id) {
-        orchestrationService.deleteStep(id);
+    @DeleteMapping("/step/{stepCode}")
+    public Result<String> deleteStep(@PathVariable("stepCode") String stepCode) {
+        orchestrationService.deleteStep(stepCode);
         return Result.ok("ok");
     }
 

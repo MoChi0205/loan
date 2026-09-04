@@ -63,8 +63,8 @@ public class RuleTemplateController {
     }
 
     /** 编辑模板 */
-    @PutMapping("/{id}")
-    public Result<String> update(@PathVariable String templateCode, @RequestBody RuleTemplate template,
+    @PutMapping("/{templateCode}")
+    public Result<String> update(@PathVariable("templateCode") String templateCode, @RequestBody RuleTemplate template,
                                  @CurrentUser LoanUser user) {
         template.setTemplateCode(templateCode);
         templateService.update(template, operatorName(user));
@@ -72,58 +72,57 @@ public class RuleTemplateController {
     }
 
     /** 删除模板（级联字段/版本） */
-    @DeleteMapping("/{id}")
-    public Result<String> delete(@PathVariable String templateCode) {
+    @DeleteMapping("/{templateCode}")
+    public Result<String> delete(@PathVariable("templateCode") String templateCode) {
         templateService.delete(templateCode);
         return Result.ok("ok");
     }
 
     /** 发布（生成版本快照 + 上线） */
-    @PostMapping("/{id}/publish")
-    public Result<String> publish(@PathVariable String templateCode, @CurrentUser LoanUser user) {
+    @PostMapping("/{templateCode}/publish")
+    public Result<String> publish(@PathVariable("templateCode") String templateCode, @CurrentUser LoanUser user) {
         templateService.publish(templateCode, operatorName(user));
         return Result.ok("ok");
     }
 
     /** 下线 */
-    @PostMapping("/{id}/offline")
-    public Result<String> offline(@PathVariable String templateCode, @CurrentUser LoanUser user) {
+    @PostMapping("/{templateCode}/offline")
+    public Result<String> offline(@PathVariable("templateCode") String templateCode, @CurrentUser LoanUser user) {
         templateService.offline(templateCode, operatorName(user));
         return Result.ok("ok");
     }
 
     /** 模板详情（模板 + 字段 + 版本） */
-    @GetMapping("/{id}/detail")
-    public Result<Map<String, Object>> detail(@PathVariable String templateCode) {
+    @GetMapping("/{templateCode}/detail")
+    public Result<Map<String, Object>> detail(@PathVariable("templateCode") String templateCode) {
         return Result.ok(templateService.detail(templateCode));
     }
 
-    /** 导入为规则（fieldId 可选，缺省取第一个字段） */
-    @PostMapping("/{id}/import")
-    public Result<String> importToRule(@PathVariable String templateCode,
-                                       @RequestParam(required = false) Long fieldId,
+    /** 导入为规则（fieldCode 可选，缺省取第一个字段） */
+    @PostMapping("/{templateCode}/import")
+    public Result<String> importToRule(@PathVariable("templateCode") String templateCode,
+                                       @RequestParam(required = false) String fieldCode,
                                        @CurrentUser LoanUser user) {
-        return Result.ok(templateService.importToRule(templateCode, fieldId, operatorName(user)));
+        return Result.ok(templateService.importToRule(templateCode, fieldCode, operatorName(user)));
     }
 
     /** 新建字段定义 */
     @PostMapping("/field")
-    public Result<Long> createField(@RequestBody RuleTemplateField field) {
+    public Result<String> createField(@RequestBody RuleTemplateField field) {
         return Result.ok(templateService.createField(field));
     }
 
     /** 更新字段定义 */
-    @PutMapping("/field/{id}")
-    public Result<String> updateField(@PathVariable Long id, @RequestBody RuleTemplateField field) {
-        field.setId(id);
-        templateService.updateField(field);
+    @PutMapping("/field/{fieldCode}")
+    public Result<String> updateField(@PathVariable String fieldCode, @RequestBody RuleTemplateField field) {
+        templateService.updateField(fieldCode, field);
         return Result.ok("ok");
     }
 
     /** 删除字段定义 */
-    @DeleteMapping("/field/{id}")
-    public Result<String> deleteField(@PathVariable Long id) {
-        templateService.deleteField(id);
+    @DeleteMapping("/field/{fieldCode}")
+    public Result<String> deleteField(@PathVariable String fieldCode) {
+        templateService.deleteField(fieldCode);
         return Result.ok("ok");
     }
 

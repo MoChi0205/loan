@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 /**
  * 计划编排服务：计划 + 模块 + 步骤 的 CRUD 与详情组装（对齐 mds Step4 PlanWorkflowEditor）。
@@ -111,7 +112,7 @@ public class PlanOrchestrationService {
         List<Map<String, Object>> moduleVOs = new ArrayList<>();
         for (AdmissionPlanModule module : modules) {
             Map<String, Object> mvo = new LinkedHashMap<>();
-            mvo.put("id", module.getId());
+            mvo.put("moduleBizCode", module.getModuleBizCode());
             mvo.put("moduleCode", module.getModuleCode());
             mvo.put("moduleName", module.getModuleName());
             mvo.put("logicType", module.getLogicType());
@@ -122,7 +123,7 @@ public class PlanOrchestrationService {
             for (AdmissionPlanStep step : moduleSteps.getOrDefault(module.getId(), Collections.emptyList())) {
                 Rule rule = ruleMap.get(step.getRuleId());
                 Map<String, Object> svo = new LinkedHashMap<>();
-                svo.put("id", step.getId());
+                svo.put("stepCode", step.getStepCode());
                 svo.put("ruleId", step.getRuleId());
                 svo.put("ruleCode", rule != null ? rule.getRuleCode() : null);
                 svo.put("ruleName", rule != null ? rule.getRuleName() : null);
@@ -210,8 +211,13 @@ public class PlanOrchestrationService {
      * 新建模块。
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long createModule(AdmissionPlanModule module, String operator) {
+    public String createModule(AdmissionPlanModule module, String operator) {
+        if (module.getPlanId() == null && StringUtils.hasText(module.getPlanCode())) {
+            module.setPlanId(findByCode(module.getPlanCode()).getId());
+        }
+        if (module.getPlanId() == null) throw new BusinessException(ResultCode.PARAM_ERROR, "计划编码必填");
         module.setId(null);
+        module.setModuleBizCode(StringUtils.hasText(module.getModuleBizCode()) ? module.getModuleBizCode() : "module_" + UUID.randomUUID().toString().replace("-", ""));
         if (module.getSort() == null) {
             module.setSort(0);
         }
@@ -225,14 +231,20 @@ public class PlanOrchestrationService {
         module.setCreatedBy(operator);
         module.setCreatedAt(LocalDateTime.now());
         moduleMapper.insert(module);
-        return module.getId();
+        return module.getModuleBizCode();
     }
 
     /**
      * 更新模块。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void updateModule(AdmissionPlanModule module, String operator) {
+    public void updateModule(String moduleBizCode, AdmissionPlanModule module, String operator) {
+        AdmissionPlanModule current = moduleMapper.selectOne(new LambdaQueryWrapper<AdmissionPlanModule>()
+                .eq(AdmissionPlanModule::getModuleBizCode, moduleBizCode));
+        if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模块不存在");
+        module.setId(current.getId());
+        module.setModuleBizCode(null);
+        module.setPlanId(null);
         if (module.getJoinWithNextModule() != null) {
             module.setJoinWithNextModule(normalizeJoin(module.getJoinWithNextModule(), "joinWithNextModule"));
         }
@@ -243,7 +255,11 @@ public class PlanOrchestrationService {
      * 删除模块（级联删除步骤）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void deleteModule(Long moduleId) {
+    public void deleteModule(String moduleBizCode) {
+        AdmissionPlanModule current = moduleMapper.selectOne(new LambdaQueryWrapper<AdmissionPlanModule>()
+                .eq(AdmissionPlanModule::getModuleBizCode, moduleBizCode));
+        if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模块不存在");
+        Long moduleId = current.getId();
         stepMapper.delete(new LambdaQueryWrapper<AdmissionPlanStep>()
                 .eq(AdmissionPlanStep::getModuleId, moduleId));
         moduleMapper.deleteById(moduleId);
@@ -253,8 +269,15 @@ public class PlanOrchestrationService {
      * 新建步骤（单条规则）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long createStep(AdmissionPlanStep step, String operator) {
+    public String createStep(AdmissionPlanStep step, String operator) {
+        if (step.getModuleId() == null && StringUtils.hasText(step.getModuleBizCode())) {
+            AdmissionPlanModule module = moduleMapper.selectOne(new LambdaQueryWrapper<AdmissionPlanModule>()
+                    .eq(AdmissionPlanModule::getModuleBizCode, step.getModuleBizCode()));
+            if (module != null) step.setModuleId(module.getId());
+        }
+        if (step.getModuleId() == null) throw new BusinessException(ResultCode.PARAM_ERROR, "父模块编码必填");
         step.setId(null);
+        step.setStepCode(StringUtils.hasText(step.getStepCode()) ? step.getStepCode() : "step_" + UUID.randomUUID().toString().replace("-", ""));
         if (step.getStepSort() == null) {
             step.setStepSort(0);
         }
@@ -273,14 +296,20 @@ public class PlanOrchestrationService {
         step.setCreatedBy(operator);
         step.setCreatedAt(LocalDateTime.now());
         stepMapper.insert(step);
-        return step.getId();
+        return step.getStepCode();
     }
 
     /**
      * 更新步骤。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void updateStep(AdmissionPlanStep step, String operator) {
+    public void updateStep(String stepCode, AdmissionPlanStep step, String operator) {
+        AdmissionPlanStep current = stepMapper.selectOne(new LambdaQueryWrapper<AdmissionPlanStep>()
+                .eq(AdmissionPlanStep::getStepCode, stepCode));
+        if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "步骤不存在");
+        step.setId(current.getId());
+        step.setStepCode(null);
+        step.setModuleId(null);
         if (step.getJoinWithNext() != null) {
             step.setJoinWithNext(normalizeJoin(step.getJoinWithNext(), "joinWithNext"));
         }
@@ -380,8 +409,11 @@ public class PlanOrchestrationService {
      * 删除步骤。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void deleteStep(Long stepId) {
-        stepMapper.deleteById(stepId);
+    public void deleteStep(String stepCode) {
+        AdmissionPlanStep current = stepMapper.selectOne(new LambdaQueryWrapper<AdmissionPlanStep>()
+                .eq(AdmissionPlanStep::getStepCode, stepCode));
+        if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "步骤不存在");
+        stepMapper.deleteById(current.getId());
     }
 
     /**
@@ -422,6 +454,7 @@ public class PlanOrchestrationService {
         for (StrategyTemplateModule module : modules) {
             AdmissionPlanModule newModule = new AdmissionPlanModule();
             newModule.setPlanId(plan.getId());
+            newModule.setModuleBizCode("module_" + UUID.randomUUID().toString().replace("-", ""));
             newModule.setModuleCode(module.getModuleCode());
             newModule.setModuleName(module.getModuleName());
             newModule.setLogicType(module.getLogicType());
@@ -439,6 +472,7 @@ public class PlanOrchestrationService {
             for (StrategyTemplateStep step : steps) {
                 AdmissionPlanStep newStep = new AdmissionPlanStep();
                 newStep.setModuleId(newModule.getId());
+                newStep.setStepCode("step_" + UUID.randomUUID().toString().replace("-", ""));
                 newStep.setRuleId(step.getRuleId());
                 newStep.setRuleVersionId(resolveRuleVersionId(step.getRuleId()));
                 newStep.setStepSort(step.getStepSort());
@@ -508,6 +542,7 @@ public class PlanOrchestrationService {
         for (AdmissionPlanModule module : modules) {
             AdmissionPlanModule newModule = new AdmissionPlanModule();
             newModule.setPlanId(newPlan.getId());
+            newModule.setModuleBizCode("module_" + UUID.randomUUID().toString().replace("-", ""));
             newModule.setModuleCode(module.getModuleCode());
             newModule.setModuleName(module.getModuleName());
             newModule.setLogicType(module.getLogicType());
@@ -525,6 +560,7 @@ public class PlanOrchestrationService {
             for (AdmissionPlanStep step : steps) {
                 AdmissionPlanStep newStep = new AdmissionPlanStep();
                 newStep.setModuleId(newModule.getId());
+                newStep.setStepCode("step_" + UUID.randomUUID().toString().replace("-", ""));
                 newStep.setRuleId(step.getRuleId());
                 newStep.setRuleVersionId(step.getRuleVersionId());
                 newStep.setStepSort(step.getStepSort());

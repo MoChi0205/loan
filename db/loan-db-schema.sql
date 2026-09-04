@@ -348,6 +348,7 @@ CREATE TABLE `t_admission_execution_plan` (
 DROP TABLE IF EXISTS `t_admission_plan_module`;
 CREATE TABLE `t_admission_plan_module` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `module_biz_code` varchar(64) NOT NULL COMMENT '模块业务编码',
   `plan_id` bigint NOT NULL COMMENT '计划ID',
   `module_code` varchar(64) NOT NULL COMMENT '模块编码',
   `module_name` varchar(128) NOT NULL COMMENT '模块名称',
@@ -397,6 +398,7 @@ CREATE TABLE `t_strategy_template` (
 DROP TABLE IF EXISTS `t_strategy_template_module`;
 CREATE TABLE `t_strategy_template_module` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `module_biz_code` varchar(64) NOT NULL COMMENT '模块业务编码',
   `template_id` bigint NOT NULL COMMENT '策略模板ID',
   `module_code` varchar(64) NOT NULL COMMENT '模块编码',
   `module_name` varchar(128) NOT NULL COMMENT '模块名称',
@@ -410,6 +412,7 @@ CREATE TABLE `t_strategy_template_module` (
 DROP TABLE IF EXISTS `t_strategy_template_step`;
 CREATE TABLE `t_strategy_template_step` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `step_code` varchar(64) NOT NULL COMMENT '步骤业务编码',
   `template_module_id` bigint NOT NULL COMMENT '模板模块ID',
   `rule_template_id` bigint DEFAULT NULL COMMENT '规则模板ID',
   `rule_id` bigint DEFAULT NULL COMMENT '直接引用规则ID',
@@ -454,6 +457,7 @@ CREATE TABLE `t_rule_template` (
 DROP TABLE IF EXISTS `t_rule_template_field`;
 CREATE TABLE `t_rule_template_field` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `field_biz_code` varchar(64) NOT NULL COMMENT '字段业务编码',
   `template_id` bigint NOT NULL COMMENT '规则模板ID',
   `field_code` varchar(64) NOT NULL COMMENT '字段编码',
   `field_name` varchar(64) NOT NULL COMMENT '字段名称',

@@ -58,7 +58,7 @@
       </div>
 
       <!-- 模块列表 -->
-      <div v-for="(m, mi) in modules" :key="m.id" class="module-card-v2">
+      <div v-for="(m, mi) in modules" :key="m.moduleBizCode" class="module-card-v2">
         <!-- 模块头 -->
         <div class="mod-head">
           <div class="mod-head-left">
@@ -91,7 +91,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(s, si) in m.steps" :key="s.id">
+              <tr v-for="(s, si) in m.steps" :key="s.stepCode">
                 <td class="col-num">{{ s.stepSort ?? si + 1 }}</td>
                 <td class="col-rule-name">{{ s.ruleName || s.ruleCode || '—' }}</td>
                 <td class="col-code"><code>{{ s.ruleCode || '—' }}</code></td>
@@ -491,7 +491,7 @@ const moduleRules = {
 };
 function openModuleDialog(m) {
   moduleDialog.title = m ? '编辑模块' : '添加模块';
-  moduleDialog.editingId = m?.id || null;
+  moduleDialog.editingId = m?.moduleBizCode || null;
   Object.assign(moduleDialog.form, m
     ? { moduleCode: m.moduleCode, moduleName: m.moduleName, logicType: m.logicType, joinWithNextModule: m.joinWithNextModule || 'AND', isGlobalPre: m.isGlobalPre || 0, sort: m.sort }
     : { moduleCode: '', moduleName: '', logicType: 'AND', joinWithNextModule: 'AND', isGlobalPre: 0, sort: 0 });
@@ -504,10 +504,10 @@ function openModuleDialog(m) {
  *  违规时抛 Error（message 即提示语）。 */
 function validateModuleJoin(form, editingId) {
   const list = (modules.value || []).map((m) => ({
-    id: m.id,
-    sort: m.id === editingId ? form.sort : m.sort,
+    id: m.moduleBizCode,
+    sort: m.moduleBizCode === editingId ? form.sort : m.sort,
     moduleName: m.moduleName,
-    joinWithNextModule: m.id === editingId ? form.joinWithNextModule : m.joinWithNextModule,
+    joinWithNextModule: m.moduleBizCode === editingId ? form.joinWithNextModule : m.joinWithNextModule,
   }));
   if (!editingId) {
     list.push({ id: '__new__', sort: form.sort, moduleName: form.moduleName, joinWithNextModule: form.joinWithNextModule });
@@ -539,11 +539,11 @@ function validateModuleJoin(form, editingId) {
 /** 前端 FR-03 校验：步骤 joinWithNext 聚合合法性（与后端对齐）。
  *  校验：stepSort 唯一 / 末位步骤不可 OR。步骤级连续 OR 允许（如 A OR B OR C 合法）。 */
 function validateStepJoin(form, moduleId, editingId) {
-  const module = (modules.value || []).find((m) => m.id === moduleId);
+  const module = (modules.value || []).find((m) => m.moduleBizCode === moduleId);
   const steps = (module?.steps || []).map((s) => ({
-    id: s.id,
-    stepSort: s.id === editingId ? form.stepSort : s.stepSort,
-    joinWithNext: s.id === editingId ? form.joinWithNext : s.joinWithNext,
+    id: s.stepCode,
+    stepSort: s.stepCode === editingId ? form.stepSort : s.stepSort,
+    joinWithNext: s.stepCode === editingId ? form.joinWithNext : s.joinWithNext,
   }));
   if (!editingId) {
     steps.push({ id: '__new__', stepSort: form.stepSort, joinWithNext: form.joinWithNext });
@@ -595,7 +595,7 @@ async function onSaveModule() {
 }
 async function onDeleteModule(m) {
   try { await appConfirm(`确认删除模块「${m.moduleName}」？（将级联删除步骤）`); } catch { return; }
-  await deleteModule(m.id);
+  await deleteModule(m.moduleBizCode);
   loadDetail();
 }
 
@@ -609,8 +609,8 @@ const stepRules = {
   ruleId: [{ required: true, message: '请选择规则', trigger: 'change' }],
 };
 function openStepDialog(m, s) {
-  stepDialog.moduleId = m.id;
-  stepDialog.editingId = s?.id || null;
+  stepDialog.moduleId = m.moduleBizCode;
+  stepDialog.editingId = s?.stepCode || null;
   stepDialog.title = s ? '编辑步骤' : '添加步骤';
   // 编辑时从已有规则反推分类
   const existingRule = s ? (rules.value || []).find((r) => (r.ruleId && r.ruleId === s.ruleId) || r.ruleCode === s.ruleCode) : null;
@@ -645,7 +645,7 @@ async function onSaveStep() {
       await updateStep(stepDialog.editingId, form);
       ElMessage.success('已保存');
     } else {
-      await createStep({ moduleId: stepDialog.moduleId, ...form });
+      await createStep({ moduleBizCode: stepDialog.moduleId, ...form });
       ElMessage.success('已添加');
     }
     stepDialog.visible = false;
@@ -654,7 +654,7 @@ async function onSaveStep() {
 }
 async function onDeleteStep(m, s) {
   try { await appConfirm(`确认删除步骤「${s.ruleName}」？`); } catch { return; }
-  await deleteStep(s.id);
+  await deleteStep(s.stepCode);
   loadDetail();
 }
 

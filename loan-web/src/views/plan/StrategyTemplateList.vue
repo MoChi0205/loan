@@ -71,7 +71,7 @@
     <!-- 编排弹窗 -->
     <AppDialog v-model:visible="editVisible" :title="`模版编排 · ${currentTpl?.templateName || ''}`" width="720px">
       <div class="tpl-edit">
-        <div v-for="m in editModules" :key="m.id" class="tpl-module">
+        <div v-for="m in editModules" :key="m.moduleBizCode" class="tpl-module">
           <div class="tpl-module-head">
             <span class="tpl-module-name">{{ m.moduleName }}</span>
             <span class="loan-tag" :class="m.logicType === 'OR' ? 'loan-tag-warning' : 'loan-tag-info'">{{ m.logicType }}</span>
@@ -83,7 +83,7 @@
             </div>
           </div>
           <div class="tpl-steps">
-            <div v-for="s in m.steps" :key="s.id" class="tpl-step">
+            <div v-for="s in m.steps" :key="s.stepCode" class="tpl-step">
               <span class="tpl-step-rule">{{ s.ruleName || s.ruleCode }}</span>
               <span v-if="s.joinWithNext === 'OR'" class="loan-tag loan-tag-warning">或</span>
               <span v-else-if="s.joinWithNext === 'AND'" class="loan-tag loan-tag-info">且</span>
@@ -344,7 +344,7 @@ const modRules = {
 };
 function openModuleDialog(m) {
   modDialog.title = m ? '编辑模块' : '添加模块';
-  modDialog.editingId = m?.id || null;
+  modDialog.editingId = m?.moduleBizCode || null;
   Object.assign(modDialog.form, m
     ? { moduleCode: m.moduleCode, moduleName: m.moduleName, logicType: m.logicType, joinWithNextModule: m.joinWithNextModule || 'AND', sort: m.sort }
     : { moduleCode: '', moduleName: '', logicType: 'AND', joinWithNextModule: 'AND', sort: 0 });
@@ -354,7 +354,7 @@ async function onSaveModule() {
   await modFormRef.value.validate();
   modDialog.saving = true;
   try {
-    const payload = { templateId: currentTpl.value.id, ...modDialog.form };
+    const payload = { templateCode: currentTpl.value.templateCode, ...modDialog.form };
     if (modDialog.editingId) await updateTemplateModule(modDialog.editingId, payload);
     else await createTemplateModule(payload);
     modDialog.visible = false;
@@ -364,7 +364,7 @@ async function onSaveModule() {
 }
 async function onDeleteModule(m) {
   try { await appConfirm(`确认删除模块「${m.moduleName}」？`); } catch { return; }
-  await deleteTemplateModule(m.id);
+  await deleteTemplateModule(m.moduleBizCode);
   const res = await templateDetail(currentTpl.value.templateCode);
   editModules.value = res.data?.modules || [];
 }
@@ -395,8 +395,8 @@ const stepRules = {
   ruleId: [{ required: true, message: '请选择规则', trigger: 'change' }],
 };
 function openStepDialog(m, s) {
-  stepDialog.moduleId = m.id;
-  stepDialog.editingId = s?.id || null;
+  stepDialog.moduleId = m.moduleBizCode;
+  stepDialog.editingId = s?.stepCode || null;
   stepDialog.title = s ? '编辑步骤' : '添加步骤';
   Object.assign(stepDialog.form, s
     ? { ruleId: s.ruleId, stepSort: s.stepSort, joinWithNext: s.joinWithNext || 'AND', isDryRun: s.isDryRun || 0, conditionField: s.conditionField || '', conditionOperator: s.conditionOperator || '', conditionValue: s.conditionValue || '' }
@@ -421,7 +421,7 @@ async function onSaveStep() {
       await updateTemplateStep(stepDialog.editingId, form);
       ElMessage.success('已保存');
     } else {
-      await createTemplateStep({ templateModuleId: stepDialog.moduleId, ...form });
+      await createTemplateStep({ moduleBizCode: stepDialog.moduleId, ...form });
       ElMessage.success('已添加');
     }
     stepDialog.visible = false;
@@ -431,7 +431,7 @@ async function onSaveStep() {
 }
 async function onDeleteStep(m, s) {
   try { await appConfirm(`确认删除步骤「${s.ruleName}」？`); } catch { return; }
-  await deleteTemplateStep(s.id);
+  await deleteTemplateStep(s.stepCode);
   const res = await templateDetail(currentTpl.value.templateCode);
   editModules.value = res.data?.modules || [];
 }

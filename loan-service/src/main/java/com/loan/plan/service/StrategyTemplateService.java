@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 /**
  * 策略模版服务：模版 CRUD + 模块/步骤编排 + 上线/下线（对齐 mds 功能策略模版）。
@@ -189,7 +190,7 @@ public class StrategyTemplateService {
         List<Map<String, Object>> moduleVOs = new ArrayList<>();
         for (StrategyTemplateModule module : modules) {
             Map<String, Object> mvo = new LinkedHashMap<>();
-            mvo.put("id", module.getId());
+            mvo.put("moduleBizCode", module.getModuleBizCode());
             mvo.put("moduleCode", module.getModuleCode());
             mvo.put("moduleName", module.getModuleName());
             mvo.put("logicType", module.getLogicType());
@@ -199,7 +200,7 @@ public class StrategyTemplateService {
             for (StrategyTemplateStep step : moduleSteps.getOrDefault(module.getId(), Collections.emptyList())) {
                 Rule rule = step.getRuleId() == null ? null : ruleMap.get(step.getRuleId());
                 Map<String, Object> svo = new LinkedHashMap<>();
-                svo.put("id", step.getId());
+                svo.put("stepCode", step.getStepCode());
                 svo.put("ruleId", step.getRuleId());
                 svo.put("ruleCode", rule != null ? rule.getRuleCode() : null);
                 svo.put("ruleName", rule != null ? rule.getRuleName() : null);
@@ -237,8 +238,13 @@ public class StrategyTemplateService {
 
     /** 新建模块 */
     @Transactional(rollbackFor = Exception.class)
-    public Long createModule(StrategyTemplateModule module) {
+    public String createModule(StrategyTemplateModule module) {
+        if (module.getTemplateId() == null && StringUtils.hasText(module.getTemplateCode())) {
+            module.setTemplateId(requireByCode(module.getTemplateCode()).getId());
+        }
+        if (module.getTemplateId() == null) throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
         module.setId(null);
+        module.setModuleBizCode(StringUtils.hasText(module.getModuleBizCode()) ? module.getModuleBizCode() : "module_" + UUID.randomUUID().toString().replace("-", ""));
         if (module.getSort() == null) {
             module.setSort(0);
         }
@@ -247,18 +253,28 @@ public class StrategyTemplateService {
         }
         module.setCreatedAt(LocalDateTime.now());
         moduleMapper.insert(module);
-        return module.getId();
+        return module.getModuleBizCode();
     }
 
     /** 更新模块 */
     @Transactional(rollbackFor = Exception.class)
-    public void updateModule(StrategyTemplateModule module) {
+    public void updateModule(String moduleBizCode, StrategyTemplateModule module) {
+        StrategyTemplateModule current = moduleMapper.selectOne(new LambdaQueryWrapper<StrategyTemplateModule>()
+                .eq(StrategyTemplateModule::getModuleBizCode, moduleBizCode));
+        if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模块不存在");
+        module.setId(current.getId());
+        module.setModuleBizCode(null);
+        module.setTemplateId(null);
         moduleMapper.updateById(module);
     }
 
     /** 删除模块（级联步骤） */
     @Transactional(rollbackFor = Exception.class)
-    public void deleteModule(Long moduleId) {
+    public void deleteModule(String moduleBizCode) {
+        StrategyTemplateModule current = moduleMapper.selectOne(new LambdaQueryWrapper<StrategyTemplateModule>()
+                .eq(StrategyTemplateModule::getModuleBizCode, moduleBizCode));
+        if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模块不存在");
+        Long moduleId = current.getId();
         stepMapper.delete(new LambdaQueryWrapper<StrategyTemplateStep>()
                 .eq(StrategyTemplateStep::getTemplateModuleId, moduleId));
         moduleMapper.deleteById(moduleId);
@@ -266,8 +282,15 @@ public class StrategyTemplateService {
 
     /** 新建步骤 */
     @Transactional(rollbackFor = Exception.class)
-    public Long createStep(StrategyTemplateStep step) {
+    public String createStep(StrategyTemplateStep step) {
+        if (step.getTemplateModuleId() == null && StringUtils.hasText(step.getModuleBizCode())) {
+            StrategyTemplateModule module = moduleMapper.selectOne(new LambdaQueryWrapper<StrategyTemplateModule>()
+                    .eq(StrategyTemplateModule::getModuleBizCode, step.getModuleBizCode()));
+            if (module != null) step.setTemplateModuleId(module.getId());
+        }
+        if (step.getTemplateModuleId() == null) throw new BusinessException(ResultCode.PARAM_ERROR, "父模块编码必填");
         step.setId(null);
+        step.setStepCode(StringUtils.hasText(step.getStepCode()) ? step.getStepCode() : "step_" + UUID.randomUUID().toString().replace("-", ""));
         if (step.getStepSort() == null) {
             step.setStepSort(0);
         }
@@ -279,19 +302,28 @@ public class StrategyTemplateService {
         }
         step.setCreatedAt(LocalDateTime.now());
         stepMapper.insert(step);
-        return step.getId();
+        return step.getStepCode();
     }
 
     /** 更新步骤 */
     @Transactional(rollbackFor = Exception.class)
-    public void updateStep(StrategyTemplateStep step) {
+    public void updateStep(String stepCode, StrategyTemplateStep step) {
+        StrategyTemplateStep current = stepMapper.selectOne(new LambdaQueryWrapper<StrategyTemplateStep>()
+                .eq(StrategyTemplateStep::getStepCode, stepCode));
+        if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "步骤不存在");
+        step.setId(current.getId());
+        step.setStepCode(null);
+        step.setTemplateModuleId(null);
         stepMapper.updateById(step);
     }
 
     /** 删除步骤 */
     @Transactional(rollbackFor = Exception.class)
-    public void deleteStep(Long stepId) {
-        stepMapper.deleteById(stepId);
+    public void deleteStep(String stepCode) {
+        StrategyTemplateStep current = stepMapper.selectOne(new LambdaQueryWrapper<StrategyTemplateStep>()
+                .eq(StrategyTemplateStep::getStepCode, stepCode));
+        if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "步骤不存在");
+        stepMapper.deleteById(current.getId());
     }
 
     /**
@@ -347,7 +379,7 @@ public class StrategyTemplateService {
      * @return 新模版 ID
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long snapshotFromChannel(String channelCode, String strategyCode, String templateCode,
+    public String snapshotFromChannel(String channelCode, String strategyCode, String templateCode,
                                     String templateName, String operator) {
         if (!StringUtils.hasText(channelCode) || !StringUtils.hasText(strategyCode)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "源渠道与策略编码必填");
@@ -387,7 +419,7 @@ public class StrategyTemplateService {
         template.setUpdatedAt(LocalDateTime.now());
         templateMapper.insert(template);
         copyPlanTreeToTemplate(plan, template.getId(), operator);
-        return template.getId();
+        return template.getTemplateCode();
     }
 
     /** 深拷贝执行计划树（模块 + 步骤，含 AND/OR 链 / 空跑 / 步骤参数 / 前置条件）到策略模版 */
@@ -399,6 +431,7 @@ public class StrategyTemplateService {
         for (AdmissionPlanModule module : modules) {
             StrategyTemplateModule newModule = new StrategyTemplateModule();
             newModule.setTemplateId(templateId);
+            newModule.setModuleBizCode("module_" + UUID.randomUUID().toString().replace("-", ""));
             newModule.setModuleCode(module.getModuleCode());
             newModule.setModuleName(module.getModuleName());
             newModule.setLogicType(module.getLogicType());
@@ -414,6 +447,7 @@ public class StrategyTemplateService {
             for (AdmissionPlanStep step : steps) {
                 StrategyTemplateStep newStep = new StrategyTemplateStep();
                 newStep.setTemplateModuleId(newModule.getId());
+                newStep.setStepCode("step_" + UUID.randomUUID().toString().replace("-", ""));
                 newStep.setRuleId(step.getRuleId());
                 newStep.setStepSort(step.getStepSort());
                 newStep.setJoinWithNext(step.getJoinWithNext());

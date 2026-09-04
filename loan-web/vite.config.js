@@ -17,6 +17,18 @@ export default defineConfig({
   build: {
     // 不清空 dist 目录，避免触发删除确认（本地验证用；生产发布可改回 true）
     emptyOutDir: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('/echarts/')) return 'vendor-echarts';
+          if (id.includes('/element-plus/')) return 'vendor-element';
+          if (id.includes('/vue') || id.includes('/vue-router') || id.includes('/pinia')) return 'vendor-vue';
+          if (id.includes('/axios/') || id.includes('/jsencrypt/')) return 'vendor-utils';
+          return 'vendor';
+        },
+      },
+    },
   },
   server: {
     port: 5173,

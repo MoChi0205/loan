@@ -36,17 +36,17 @@ export function templateDetail(templateCode) {
   return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/detail`, method: 'get' });
 }
 
-export function importToRule(templateCode, fieldId) {
-  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/import`, method: 'post', params: { fieldId } });
+export function importToRule(templateCode, fieldCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/import`, method: 'post', params: { fieldCode } });
 }
 
 // 字段定义
 export function createField(data) {
   return request({ url: '/api/admin/rule-template/field', method: 'post', data });
 }
-export function updateField(id, data) {
-  return request({ url: `/api/admin/rule-template/field/${id}`, method: 'put', data });
+export function updateField(code, data) {
+  return request({ url: `/api/admin/rule-template/field/${encodeURIComponent(code)}`, method: 'put', data });
 }
-export function deleteField(id) {
-  return request({ url: `/api/admin/rule-template/field/${id}`, method: 'delete' });
+export function deleteField(code) {
+  return request({ url: `/api/admin/rule-template/field/${encodeURIComponent(code)}`, method: 'delete' });
 }

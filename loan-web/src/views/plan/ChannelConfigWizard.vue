@@ -102,10 +102,10 @@
             <div class="orch-nav-list">
               <div
                 v-for="m in modules"
-                :key="m.id"
+                :key="m.moduleBizCode"
                 class="orch-nav-item"
-                :class="{ active: activeModuleId === m.id }"
-                @click="activeModuleId = m.id"
+                :class="{ active: activeModuleId === m.moduleBizCode }"
+                @click="activeModuleId = m.moduleBizCode"
               >
                 <span class="mod-order">M{{ m.sort }}</span>
                 <span class="mod-name">{{ m.moduleName }}</span>
@@ -704,11 +704,11 @@ const editStrategyCode = ref('');
 const editStrategy = computed(() => strategies.value.find((s) => s.strategyCode === editStrategyCode.value) || null);
 const modules = ref([]);
 const activeModuleId = ref(null);
-const activeModule = computed(() => modules.value.find((m) => m.id === activeModuleId.value) || null);
+const activeModule = computed(() => modules.value.find((m) => m.moduleBizCode === activeModuleId.value) || null);
 function gotoOrchestration(row) { editStrategyCode.value = row.strategyCode; step.value = 2; loadOrchestration(); }
 /** 判断模块是否为当前编排中的最后一个模块（用于控制 joinWithNextModule 标签显示） */
 function hasNextModule(m) {
-  const idx = modules.value.findIndex((mod) => mod.id === m.id);
+  const idx = modules.value.findIndex((mod) => mod.moduleBizCode === m.moduleBizCode);
   return idx >= 0 && idx < modules.value.length - 1;
 }
 async function loadOrchestration() {
@@ -717,7 +717,7 @@ async function loadOrchestration() {
   if (!planCode) { modules.value = []; activeModuleId.value = null; return; }
   const res = await planDetail(planCode);
   modules.value = res.data?.modules || [];
-  activeModuleId.value = modules.value.length ? modules.value[0].id : null;
+  activeModuleId.value = modules.value.length ? modules.value[0].moduleBizCode : null;
 }
 
 /** 将当前策略绑定的执行计划另存为模版草稿（对齐 mds v2 save-as-template） */
@@ -790,7 +790,7 @@ const moduleRules = {
 };
 function openModuleDialog(m) {
   moduleDialog.title = m ? '编辑模块' : '添加模块';
-  moduleDialog.editingId = m?.id || null;
+  moduleDialog.editingId = m?.moduleBizCode || null;
   Object.assign(moduleDialog.form, m
     ? { moduleCode: m.moduleCode, moduleName: m.moduleName, logicType: m.logicType, joinWithNextModule: m.joinWithNextModule || 'AND', isGlobalPre: m.isGlobalPre || 0, sort: m.sort }
     : { moduleCode: '', moduleName: '', logicType: 'AND', joinWithNextModule: 'AND', isGlobalPre: 0, sort: 0 });
@@ -805,7 +805,7 @@ async function onSaveModule() {
   }
   moduleDialog.saving = true;
   try {
-    const payload = { planId: planIdOf(editStrategy.value.executionPlanCode), ...moduleDialog.form };
+  const payload = { planCode: editStrategy.value.executionPlanCode, ...moduleDialog.form };
     if (moduleDialog.editingId) await updateModule(moduleDialog.editingId, payload);
     else await createModule(payload);
     ElMessage.success('已保存');
@@ -815,7 +815,7 @@ async function onSaveModule() {
 }
 async function onDeleteModule(m) {
   try { await appConfirm(`确认删除模块「${m.moduleName}」？（将级联删除步骤）`); } catch { return; }
-  await deleteModule(m.id);
+  await deleteModule(m.moduleBizCode);
   loadOrchestration();
 }
 
@@ -847,8 +847,8 @@ const valueDisabled = computed(() =>
   ['IS_BLANK', 'IS_NOT_BLANK'].includes(stepDialog.form.conditionOperator));
 
 function openStepDialog(m, s) {
-  stepDialog.moduleId = m.id;
-  stepDialog.editingId = s?.id || null;
+  stepDialog.moduleId = m.moduleBizCode;
+  stepDialog.editingId = s?.stepCode || null;
   stepDialog.title = s ? '编辑步骤' : '添加步骤';
   Object.assign(stepDialog.form, s
     ? { ruleId: s.ruleId, stepSort: s.stepSort, joinWithNext: s.joinWithNext || 'AND', isDryRun: s.isDryRun || 0, conditionField: s.conditionField || '', conditionOperator: s.conditionOperator || '', conditionValue: s.conditionValue || '' }
@@ -874,7 +874,7 @@ async function onSaveStep() {
       await updateStep(stepDialog.editingId, form);
       ElMessage.success('已保存');
     } else {
-      await createStep({ moduleId: stepDialog.moduleId, ...form });
+      await createStep({ moduleBizCode: stepDialog.moduleId, ...form });
       ElMessage.success('已添加');
     }
     stepDialog.visible = false;
@@ -883,7 +883,7 @@ async function onSaveStep() {
 }
 async function onDeleteStep(m, s) {
   try { await appConfirm(`确认删除步骤「${s.ruleName}」？`); } catch { return; }
-  await deleteStep(s.id);
+  await deleteStep(s.stepCode);
   loadOrchestration();
 }
 

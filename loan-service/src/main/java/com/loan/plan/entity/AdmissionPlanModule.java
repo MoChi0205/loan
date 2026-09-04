@@ -3,6 +3,7 @@ package com.loan.plan.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -23,8 +24,15 @@ public class AdmissionPlanModule implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 模块业务编码（对外标识） */
+    private String moduleBizCode;
+
     /** 计划 ID */
     private Long planId;
+
+    /** 父计划业务编码（接口入参使用，不落库） */
+    @TableField(exist = false)
+    private String planCode;
 
     /** 模块编码 */
     private String moduleCode;

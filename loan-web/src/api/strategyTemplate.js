@@ -35,22 +35,22 @@ export function templateDetail(templateCode) {
 export function createTemplateModule(data) {
   return request({ url: '/api/admin/strategy-template/module', method: 'post', data });
 }
-export function updateTemplateModule(id, data) {
-  return request({ url: `/api/admin/strategy-template/module/${id}`, method: 'put', data });
+export function updateTemplateModule(code, data) {
+  return request({ url: `/api/admin/strategy-template/module/${encodeURIComponent(code)}`, method: 'put', data });
 }
-export function deleteTemplateModule(id) {
-  return request({ url: `/api/admin/strategy-template/module/${id}`, method: 'delete' });
+export function deleteTemplateModule(code) {
+  return request({ url: `/api/admin/strategy-template/module/${encodeURIComponent(code)}`, method: 'delete' });
 }
 
 // 步骤
 export function createTemplateStep(data) {
   return request({ url: '/api/admin/strategy-template/step', method: 'post', data });
 }
-export function updateTemplateStep(id, data) {
-  return request({ url: `/api/admin/strategy-template/step/${id}`, method: 'put', data });
+export function updateTemplateStep(code, data) {
+  return request({ url: `/api/admin/strategy-template/step/${encodeURIComponent(code)}`, method: 'put', data });
 }
-export function deleteTemplateStep(id) {
-  return request({ url: `/api/admin/strategy-template/step/${id}`, method: 'delete' });
+export function deleteTemplateStep(code) {
+  return request({ url: `/api/admin/strategy-template/step/${encodeURIComponent(code)}`, method: 'delete' });
 }
 
 // 渠道策略 → 模版快照（对齐 mds v2 snapshot-from-channel）

@@ -28,22 +28,22 @@ export function deletePlan(planCode) {
 export function createModule(data) {
   return request({ url: '/api/admin/execution-plan/module', method: 'post', data });
 }
-export function updateModule(id, data) {
-  return request({ url: `/api/admin/execution-plan/module/${id}`, method: 'put', data });
+export function updateModule(code, data) {
+  return request({ url: `/api/admin/execution-plan/module/${encodeURIComponent(code)}`, method: 'put', data });
 }
-export function deleteModule(id) {
-  return request({ url: `/api/admin/execution-plan/module/${id}`, method: 'delete' });
+export function deleteModule(code) {
+  return request({ url: `/api/admin/execution-plan/module/${encodeURIComponent(code)}`, method: 'delete' });
 }
 
 // 步骤
 export function createStep(data) {
   return request({ url: '/api/admin/execution-plan/step', method: 'post', data });
 }
-export function updateStep(id, data) {
-  return request({ url: `/api/admin/execution-plan/step/${id}`, method: 'put', data });
+export function updateStep(code, data) {
+  return request({ url: `/api/admin/execution-plan/step/${encodeURIComponent(code)}`, method: 'put', data });
 }
-export function deleteStep(id) {
-  return request({ url: `/api/admin/execution-plan/step/${id}`, method: 'delete' });
+export function deleteStep(code) {
+  return request({ url: `/api/admin/execution-plan/step/${encodeURIComponent(code)}`, method: 'delete' });
 }
 
 // 模版应用 / 另存为模版 / 计划复制（对齐 mds v2 apply-template / save-as-template / copy）

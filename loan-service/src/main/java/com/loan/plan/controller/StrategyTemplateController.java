@@ -111,26 +111,25 @@ public class StrategyTemplateController {
      * 新建模块。
      */
     @PostMapping("/module")
-    public Result<Long> createModule(@RequestBody StrategyTemplateModule module) {
+    public Result<String> createModule(@RequestBody StrategyTemplateModule module) {
         return Result.ok(templateService.createModule(module));
     }
 
     /**
      * 更新模块。
      */
-    @PutMapping("/module/{id}")
-    public Result<String> updateModule(@PathVariable Long id, @RequestBody StrategyTemplateModule module) {
-        module.setId(id);
-        templateService.updateModule(module);
+    @PutMapping("/module/{moduleCode}")
+    public Result<String> updateModule(@PathVariable("moduleCode") String moduleCode, @RequestBody StrategyTemplateModule module) {
+        templateService.updateModule(moduleCode, module);
         return Result.ok("ok");
     }
 
     /**
      * 删除模块（级联步骤）。
      */
-    @DeleteMapping("/module/{id}")
-    public Result<String> deleteModule(@PathVariable Long id) {
-        templateService.deleteModule(id);
+    @DeleteMapping("/module/{moduleCode}")
+    public Result<String> deleteModule(@PathVariable String moduleCode) {
+        templateService.deleteModule(moduleCode);
         return Result.ok("ok");
     }
 
@@ -138,26 +137,25 @@ public class StrategyTemplateController {
      * 新建步骤。
      */
     @PostMapping("/step")
-    public Result<Long> createStep(@RequestBody StrategyTemplateStep step) {
+    public Result<String> createStep(@RequestBody StrategyTemplateStep step) {
         return Result.ok(templateService.createStep(step));
     }
 
     /**
      * 更新步骤。
      */
-    @PutMapping("/step/{id}")
-    public Result<String> updateStep(@PathVariable Long id, @RequestBody StrategyTemplateStep step) {
-        step.setId(id);
-        templateService.updateStep(step);
+    @PutMapping("/step/{stepCode}")
+    public Result<String> updateStep(@PathVariable("stepCode") String stepCode, @RequestBody StrategyTemplateStep step) {
+        templateService.updateStep(stepCode, step);
         return Result.ok("ok");
     }
 
     /**
      * 删除步骤。
      */
-    @DeleteMapping("/step/{id}")
-    public Result<String> deleteStep(@PathVariable Long id) {
-        templateService.deleteStep(id);
+    @DeleteMapping("/step/{stepCode}")
+    public Result<String> deleteStep(@PathVariable("stepCode") String stepCode) {
+        templateService.deleteStep(stepCode);
         return Result.ok("ok");
     }
 
@@ -165,7 +163,7 @@ public class StrategyTemplateController {
      * 渠道策略生成模版快照：把渠道下某策略的执行计划深拷贝为草稿态模版。
      */
     @PostMapping("/snapshot-from-channel")
-    public Result<Long> snapshotFromChannel(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
+    public Result<String> snapshotFromChannel(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
         return Result.ok(templateService.snapshotFromChannel(body.get("channelCode"), body.get("strategyCode"),
                 body.get("templateCode"), body.get("templateName"), operatorName(user)));
     }
