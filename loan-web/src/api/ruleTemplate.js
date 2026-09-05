@@ -1,0 +1,52 @@
+import request from '@/utils/request';
+
+/**
+ * 规则模板接口（对接 loan-service /api/admin/rule-template）。
+ * 模板 = 一条可复用规则骨架（主表 + 字段定义 + 版本快照），可导入为规则。
+ */
+export function pageTemplate(params) {
+  return request({ url: '/api/admin/rule-template/page', method: 'get', params });
+}
+
+export function categories() {
+  return request({ url: '/api/admin/rule-template/categories', method: 'get' });
+}
+
+export function createTemplate(data) {
+  return request({ url: '/api/admin/rule-template', method: 'post', data });
+}
+
+export function updateTemplate(templateCode, data) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}`, method: 'put', data });
+}
+
+export function deleteTemplate(templateCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}`, method: 'delete' });
+}
+
+export function publishTemplate(templateCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/publish`, method: 'post' });
+}
+
+export function offlineTemplate(templateCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/offline`, method: 'post' });
+}
+
+export function templateDetail(templateCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/detail`, method: 'get' });
+}
+
+export function importToRule(templateCode, fieldCode) {
+  return request({ url: `/api/admin/rule-template/${encodeURIComponent(templateCode)}/import`, method: 'post', params: { fieldCode } });
+}
+
+// 字段定义
+export function createField(data) {
+  return request({ url: '/api/admin/rule-template/field', method: 'post', data });
+}
+export function updateField(code, data) {
+  return request({ url: `/api/admin/rule-template/field/${encodeURIComponent(code)}`, method: 'put', data });
+}
+export function deleteField(code) {
+  return request({ url: `/api/admin/rule-template/field/${encodeURIComponent(code)}`, method: 'delete' });
+}

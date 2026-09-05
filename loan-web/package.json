@@ -1,0 +1,29 @@
+{
+  "name": "loan-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "企业贷款咨询服务产品系统 Web 管理端（Vue 3 + Element Plus，参考 tse-frontend）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "echarts": "^5.5.0",
+    "element-plus": "^2.6.0",
+    "jsencrypt": "^3.3.0",
+    "pinia": "^2.1.0",
+    "vue": "^3.4.0",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "jsdom": "^30.0.1",
+    "vite": "^5.2.0",
+    "vitest": "^2.1.9"
+  }
+}

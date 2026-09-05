@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>小程序预览 - 企融通</title>
+<style>
+  /* ============================================================
+     iPhone 14 Pro 手机框架预览（纯静态，无构建依赖）
+     逻辑尺寸 393 × 852（iPhone 14 Pro 的 CSS 逻辑分辨率）
+     iframe 内嵌 H5 dev server：http://localhost:5174
+     ============================================================ */
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  :root {
+    /* 设备逻辑尺寸 */
+    --device-w: 393px;
+    --device-h: 852px;
+    /* 屏幕圆角（模拟 iPhone 圆角屏） */
+    --device-radius: 50px;
+    /* 顶部状态栏高度（含刘海/灵动岛安全区） */
+    --statusbar-h: 54px;
+    /* 微信小程序导航栏高度 */
+    --navbar-h: 44px;
+    /* 底部 Home Indicator 安全区 */
+    --home-h: 34px;
+    /* 机身边框厚度 */
+    --bezel: 11px;
+    /* 配色：瑞幸风格深色调 */
+    --ink: #0b1d3a;
+    --gold: #c8a96e;
+    --bg: #1a1a2e;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    min-height: 100vh;
+    padding: 32px 16px;
+    background: radial-gradient(circle at 50% 0%, #262645 0%, var(--bg) 62%, #12121f 100%);
+    color: rgba(255, 255, 255, 0.62);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ====== 缩放容器：小屏/矮屏自动缩小，保证整机可见 ====== */
+  .stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: center center;
+  }
+
+  /* ====== 机身 ====== */
+  .phone {
+    position: relative;
+    width: calc(var(--device-w) + var(--bezel) * 2);
+    height: calc(var(--device-h) + var(--bezel) * 2);
+    padding: var(--bezel);
+    border-radius: calc(var(--device-radius) + var(--bezel));
+    background: linear-gradient(150deg, #4a4a55 0%, #16161c 28%, #2b2b34 55%, #101016 100%);
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.06),
+      0 30px 70px rgba(0, 0, 0, 0.62),
+      0 0 120px rgba(11, 29, 58, 0.45);
+  }
+
+  /* 侧边按键（电源 / 音量） */
+  .phone::before {
+    content: "";
+    position: absolute;
+    right: calc(var(--bezel) * -1 - 3px);
+    top: 210px;
+    width: 3px;
+    height: 92px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #3a3a46, #1c1c24);
+  }
+
+  .phone::after {
+    content: "";
+    position: absolute;
+    left: calc(var(--bezel) * -1 - 3px);
+    top: 158px;
+    width: 3px;
+    height: 56px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #3a3a46, #1c1c24);
+  }
+
+  /* ====== 屏幕（真实显示区）====== */
+  .screen {
+    position: relative;
+    width: var(--device-w);
+    height: var(--device-h);
+    border-radius: var(--device-radius);
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  /* ====== 顶部状态栏 ====== */
+  .status-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--statusbar-h);
+    padding: 0 30px 0 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    z-index: 30;
+    user-select: none;
+  }
+
+  .status-time {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    color: #000000;
+    min-width: 44px;
+  }
+
+  .status-icons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #000000;
+  }
+
+  .status-icons svg {
+    display: block;
+  }
+
+  /* ====== 灵动岛（Dynamic Island）====== */
+  .dynamic-island {
+    position: absolute;
+    top: 11px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 37px;
+    border-radius: 20px;
+    background: #000000;
+    z-index: 40;
+    pointer-events: none;
+  }
+
+  /* 灵动岛内的前摄圆点 */
+  .dynamic-island::after {
+    content: "";
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 32%, #2b3550 0%, #0a0d16 62%, #000000 100%);
+  }
+
+  /* ====== 小程序导航栏 ====== */
+  .nav-bar {
+    position: absolute;
+    top: var(--statusbar-h);
+    left: 0;
+    right: 0;
+    height: var(--navbar-h);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border-bottom: 1px solid #f0f0f2;
+    z-index: 20;
+  }
+
+  .nav-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1a1a2e;
+    letter-spacing: 0.5px;
+  }
+
+  /* 胶囊按钮（右上角，模拟微信小程序） */
+  .nav-capsule {
+    position: absolute;
+    right: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  .capsule-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #1a1a2e;
+    box-shadow: 5px 0 0 -0.5px #1a1a2e, -5px 0 0 -0.5px #1a1a2e;
+  }
+
+  .capsule-more,
+  .capsule-close {
+    font-size: 15px;
+    line-height: 1;
+    color: #1a1a2e;
+  }
+
+  /* ====== 内容区（iframe 承载页）====== */
+  .viewport {
+    position: absolute;
+    top: calc(var(--statusbar-h) + var(--navbar-h));
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #f5f6f8;
+    overflow: hidden;
+  }
+
+  .viewport iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #f5f6f8;
+  }
+
+  /* ====== 底部 Home Indicator ====== */
+  .home-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 134px;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  /* ====== 说明文案 ====== */
+  .caption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .caption-main {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.72);
+    letter-spacing: 0.4px;
+  }
+
+  .caption-sub {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.38);
+    letter-spacing: 0.3px;
+  }
+
+  .caption-sub code {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.09);
+    color: var(--gold);
+    font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 11px;
+  }
+
+  .caption a {
+    color: var(--gold);
+    text-decoration: none;
+  }
+
+  .caption a:hover {
+    text-decoration: underline;
+  }
+
+  /* ====== 自适应缩放：保证整机完整可见 ====== */
+  @media (max-height: 980px) {
+    .stage { transform: scale(0.92); }
+  }
+  @media (max-height: 900px) {
+    .stage { transform: scale(0.82); }
+  }
+  @media (max-height: 800px) {
+    .stage { transform: scale(0.72); }
+  }
+  @media (max-height: 700px) {
+    .stage { transform: scale(0.62); }
+  }
+  @media (max-width: 460px) {
+    .stage { transform: scale(0.84); }
+  }
+  @media (max-width: 380px) {
+    .stage { transform: scale(0.74); }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="phone">
+      <div class="screen">
+        <!-- 顶部状态栏：时间 09:19 + 信号 + WiFi + 电量 -->
+        <div class="status-bar">
+          <span class="status-time">09:19</span>
+          <div class="status-icons">
+            <!-- 蜂窝信号（4 格渐强，全部点亮） -->
+            <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-label="信号">
+              <rect x="0"  y="8"  width="3" height="4"  rx="1" />
+              <rect x="5"  y="6"  width="3" height="6"  rx="1" />
+              <rect x="10" y="3"  width="3" height="9"  rx="1" />
+              <rect x="15" y="0"  width="3" height="12" rx="1" />
+            </svg>
+            <!-- WiFi 扇形 -->
+            <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" aria-label="WiFi">
+              <path d="M1.2 4.1a9.6 9.6 0 0 1 13.6 0" />
+              <path d="M3.9 6.9a5.9 5.9 0 0 1 8.2 0" />
+              <path d="M6.6 9.6a2.2 2.2 0 0 1 2.8 0" />
+              <circle cx="8" cy="11" r="0.9" fill="currentColor" stroke="none" />
+            </svg>
+            <!-- 电量 100% -->
+            <svg width="26" height="13" viewBox="0 0 26 13" fill="none" aria-label="电量">
+              <rect x="0.9" y="0.9" width="21" height="11.2" rx="3.4" stroke="currentColor"
+                    stroke-opacity="0.4" stroke-width="1" />
+              <rect x="2.4" y="2.4" width="18" height="8.2" rx="2.2" fill="currentColor" />
+              <path d="M23.6 4.4v4.2a2.4 2.4 0 0 0 0-4.2Z" fill="currentColor" fill-opacity="0.45" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- 灵动岛 -->
+        <div class="dynamic-island"></div>
+
+        <!-- 微信小程序导航栏 -->
+        <div class="nav-bar">
+          <span class="nav-title">企业贷款咨询</span>
+          <div class="nav-capsule">
+            <span class="capsule-more">···</span>
+            <span class="capsule-dot"></span>
+            <span class="capsule-close">◯</span>
+          </div>
+        </div>
+
+        <!-- 页面内容：内嵌 H5 dev server -->
+        <div class="viewport">
+          <iframe
+            id="appFrame"
+            src="http://localhost:5174"
+            title="企融通小程序 H5 预览"
+            loading="eager"
+          ></iframe>
+        </div>
+
+        <!-- 底部 Home Indicator -->
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption">
+    <span class="caption-main">手机框架预览 · 刷新页面以同步最新代码</span>
+    <span class="caption-sub">
+      内嵌 <code>http://localhost:5174</code> · 需先启动 H5 dev server
+      · <a href="http://localhost:5174" target="_blank" rel="noopener">全屏打开</a>
+    </span>
+  </div>
+
+  <script>
+    /**
+     * 刷新时给 iframe 追加时间戳，绕过缓存以确保同步最新代码。
+     * 说明：H5 dev server 自带 HMR，正常开发时刷新本页即可；
+     *      这里额外处理「浏览器缓存了 iframe 首次加载结果」的边缘情况。
+     */
+    (function bootstrapFrame() {
+      var frame = document.getElementById('appFrame');
+      if (!frame) {
+        return;
+      }
+      var base = frame.getAttribute('src').split('#')[0];
+      frame.setAttribute('src', base + '#t=' + Date.now());
+
+      // 键盘快捷键：R 键刷新 iframe（不重载外壳，保留滚动位置）
+      document.addEventListener('keydown', function onKeyDown(event) {
+        if (event.key !== 'r' && event.key !== 'R') {
+          return;
+        }
+        if (event.metaKey || event.ctrlKey || event.altKey) {
+          return;
+        }
+        var active = document.activeElement;
+        var tag = active ? String(active.tagName).toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea') {
+          return;
+        }
+        frame.contentWindow.location.reload();
+      });
+    })();
+  </script>
+</body>
+</html>

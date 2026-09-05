@@ -1,0 +1,1132 @@
+/* ============================================================
+ * loan-web 全局设计系统 —— 浅色专业商务风（金融信贷后台）
+ *
+ * 设计语言：
+ *  1. 白卡 + 浅灰底 + 品牌蓝，克制、专业、可信
+ *  2. 柔和阴影 + 清晰边框 + 8px 基线间距
+ *  3. 微交互仅动画 transform/opacity，时长 0.2s
+ *
+ * 主题约定：所有颜色走 CSS 变量（由 src/theme/index.js 从环境配置注入），
+ * 组件内禁止硬编码颜色。改 .env 即可全局换肤。
+ * ============================================================ */
+
+:root {
+  /* 兜底默认值（正式值由 applyTheme 从环境配置覆盖）——深蓝金融高对比暗色 */
+  --loan-primary: #3b82f6;
+  --loan-primary-hover: #60a5fa;
+  --loan-primary-active: #93c5fd;
+  --loan-primary-soft: rgba(59, 130, 246, 0.16);
+  --loan-primary-deep: rgba(59, 130, 246, 0.26);
+  --loan-accent: #38bdf8;
+  --loan-accent-soft: rgba(56, 189, 248, 0.16);
+  --loan-gradient: linear-gradient(135deg, #3b82f6, #38bdf8);
+
+  --loan-bg: #0b1220;
+  --loan-card-bg: #131e33;
+  --loan-surface: #0e1828;
+  --loan-border: #243148;
+  --loan-border-strong: #3b4a63;
+
+  --loan-text: #f1f5f9;
+  --loan-text-secondary: #cbd5e1;
+  --loan-text-muted: #94a3b8;
+
+  --loan-success: #34d399;
+  --loan-warning: #fbbf24;
+  --loan-danger: #f87171;
+  --loan-info: #38bdf8;
+
+  --loan-sider-bg: #0e1726;
+  --loan-sider-text: #cbd5e1;
+  --loan-sider-active-bg: rgba(59, 130, 246, 0.16);
+  --loan-sider-active-text: #93c5fd;
+  --loan-sider-active-bar: #3b82f6;
+
+  /* 圆角令牌（8px 基线） */
+  --loan-radius-sm: 6px;
+  --loan-radius: 8px;
+  --loan-radius-lg: 12px;
+
+  /* 阴影令牌（暗色下用更深、更柔的阴影） */
+  --loan-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --loan-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --loan-shadow-lg: 0 12px 32px -6px rgba(0, 0, 0, 0.5);
+
+  /* 动效令牌（克制：仅 transform/opacity） */
+  --loan-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --loan-transition: 0.2s var(--loan-ease);
+}
+
+/* ============================================================
+ * 暗色模式：Element Plus 全局变量覆盖（一次性适配全部组件）
+ * 修复 el-tree 白盒、弹窗/下拉/消息/提示等"白窗闪现"
+ * ============================================================ */
+:root[data-theme="dark"] {
+  --el-color-white: #131e33;
+  --el-color-black: #f1f5f9;
+  --el-bg-color: #131e33;
+  --el-bg-color-page: #0b1220;
+  --el-bg-color-overlay: #16233a;
+
+  --el-text-color-primary: #f1f5f9;
+  --el-text-color-regular: #cbd5e1;
+  --el-text-color-secondary: #94a3b8;
+  --el-text-color-placeholder: #64748b;
+  --el-text-color-disabled: #475569;
+
+  --el-border-color: #243148;
+  --el-border-color-light: #243148;
+  --el-border-color-lighter: #1e2a42;
+  --el-border-color-extra-light: #1a2438;
+  --el-border-color-hover: #3b4a63;
+
+  --el-fill-color: #1a2440;
+  --el-fill-color-light: #162033;
+  --el-fill-color-lighter: #131c2e;
+  --el-fill-color-extra-light: #101826;
+  --el-fill-color-dark: #243148;
+  --el-fill-color-blank: #131e33;
+
+  --el-mask-color: rgba(11, 18, 32, 0.6);
+  --el-mask-color-extra-light: rgba(11, 18, 32, 0.3);
+  --el-disabled-bg-color: #1a2440;
+  --el-disabled-text-color: #475569;
+  --el-disabled-border-color: #243148;
+
+  /* 表格（暗色） */
+  --el-table-border-color: #243148;
+  --el-table-header-bg-color: #0e1828;
+  --el-table-row-hover-bg-color: rgba(59, 130, 246, 0.14);
+  --el-table-current-row-bg-color: rgba(59, 130, 246, 0.16);
+  --el-table-tr-bg-color: transparent;
+  --el-table-expanded-cell-bg-color: #0e1828;
+
+  /* 消息 / 通知（暗色） */
+  --el-notification-bg-color: #16233a;
+  --el-notification-title-color: #f1f5f9;
+  --el-notification-content-color: #cbd5e1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--loan-bg);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  color: var(--loan-text);
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--loan-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+ * 卡片（核心视觉元素：白卡 + 细边框 + 柔和阴影）
+ * ============================================================ */
+
+.loan-card {
+  position: relative;
+  background: var(--loan-card-bg);
+  border: 1px solid var(--loan-border);
+  border-radius: var(--loan-radius);
+  padding: 18px 22px;
+  box-shadow: var(--loan-shadow-sm);
+  transition: var(--loan-transition);
+}
+
+/* 卡片悬浮抬升（仅 transform + box-shadow） */
+.loan-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--loan-shadow-lg);
+  border-color: var(--loan-border-strong);
+}
+
+/* ============================================================
+ * 页面标题区
+ * ============================================================ */
+
+.loan-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.loan-page-title {
+  font-size: 24px;      /* 层级跳跃:页面标题 24 / 卡片标题 14 / 正文 13-14 */
+  font-weight: 700;
+  color: var(--loan-text);
+  margin: 0;
+  letter-spacing: 0.2px;
+}
+
+.loan-page-subtitle {
+  font-size: 13px;
+  color: var(--loan-text-secondary);
+  margin: 4px 0 0;
+}
+
+/* 面板内小标题 */
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--loan-text);
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--loan-border);
+}
+
+/* ============================================================
+ * 筛选区 / 表单
+ * ============================================================ */
+
+.loan-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* ============================================================
+ * 状态徽标（语义色 + 图标 + 文字，不止靠颜色区分）
+ * ============================================================ */
+
+.loan-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  line-height: 20px;
+  border: 1px solid transparent;
+  font-weight: 500;
+  transition: var(--loan-transition);
+}
+
+.loan-tag-success {
+  color: var(--loan-success);
+  background: color-mix(in srgb, var(--loan-success) 10%, transparent);
+  border-color: color-mix(in srgb, var(--loan-success) 26%, transparent);
+}
+
+.loan-tag-warning {
+  color: var(--loan-warning);
+  background: color-mix(in srgb, var(--loan-warning) 10%, transparent);
+  border-color: color-mix(in srgb, var(--loan-warning) 26%, transparent);
+}
+
+.loan-tag-danger {
+  color: var(--loan-danger);
+  background: color-mix(in srgb, var(--loan-danger) 10%, transparent);
+  border-color: color-mix(in srgb, var(--loan-danger) 26%, transparent);
+}
+
+.loan-tag-info {
+  color: var(--loan-info);
+  background: color-mix(in srgb, var(--loan-info) 10%, transparent);
+  border-color: color-mix(in srgb, var(--loan-info) 26%, transparent);
+}
+
+.loan-tag-primary {
+  color: var(--loan-primary);
+  background: var(--loan-primary-soft);
+  border-color: color-mix(in srgb, var(--loan-primary) 26%, transparent);
+}
+
+.loan-tag-muted {
+  color: var(--loan-text-secondary);
+  background: var(--loan-surface);
+  border-color: var(--loan-border);
+}
+
+/* ============================================================
+ * Element Plus 细节校正（商务风改造）
+ * ============================================================ */
+
+.el-button {
+  border-radius: var(--loan-radius-sm);
+  transition: var(--loan-transition);
+  font-weight: 500;
+}
+
+.el-button--primary {
+  background: var(--loan-primary);
+  border-color: var(--loan-primary);
+  color: #ffffff;
+}
+
+.el-button--primary:hover {
+  background: var(--loan-primary-hover);
+  border-color: var(--loan-primary-hover);
+  color: #ffffff;
+}
+
+.el-button--primary:active {
+  background: var(--loan-primary-active);
+  border-color: var(--loan-primary-active);
+  color: #ffffff;
+}
+
+/* primary 按钮在 hover/active 上 SVG 颜色跟随白字 */
+.el-button--primary svg { stroke: #ffffff; }
+
+/* 卡片默认样式对齐 */
+.el-card {
+  border-radius: var(--loan-radius);
+  border-color: var(--loan-border);
+}
+
+/* 表格：白底、清晰分隔线、克制的 hover */
+.el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: var(--loan-surface);
+  --el-table-row-hover-bg-color: var(--loan-primary-soft);
+  --el-table-border-color: var(--loan-border);
+  --el-table-text-color: var(--loan-text);
+  --el-table-header-text-color: var(--loan-text-secondary);
+  background: transparent;
+}
+
+.el-table th.el-table__cell {
+  background: var(--loan-surface);
+  color: var(--loan-text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--loan-border);
+}
+
+.el-table td.el-table__cell {
+  border-bottom: 1px solid var(--loan-border);
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: var(--loan-surface);
+}
+
+/* 树组件（el-tree）暗色适配 */
+.el-tree {
+  background: transparent;
+  color: var(--loan-text);
+}
+
+/* 关键：节点内容允许换行 + 不截断短名（"市场部"等不再被 ellipsis 误伤） */
+.el-tree-node__content {
+  color: var(--loan-text-secondary);
+  border-radius: 4px;
+  white-space: normal !important;
+  height: auto;
+  min-height: 28px;
+  align-items: center;
+  padding: 4px 6px;
+}
+.el-tree-node__content:hover {
+  background: var(--loan-primary-soft);
+}
+.el-tree-node.is-current > .el-tree-node__content {
+  background: var(--loan-primary-deep);
+  color: var(--loan-primary);
+}
+.el-tree-node__expand-icon {
+  color: var(--loan-text-muted);
+  margin-top: 0;
+}
+/* label 节点：长名字允许折行，短名字完整显示 */
+.el-tree-node__label {
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+/* 输入框 / 下拉 */
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  background: var(--loan-card-bg);
+  border-radius: var(--loan-radius-sm);
+  box-shadow: 0 0 0 1px var(--loan-border) inset;
+  transition: box-shadow var(--loan-transition);
+}
+
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--loan-primary) inset;
+}
+
+/* 表单标签色 */
+.el-form-item__label {
+  color: var(--loan-text-secondary);
+}
+
+/* Tabs */
+.el-tabs__item {
+  color: var(--loan-text-secondary);
+}
+
+.el-tabs__item.is-active {
+  color: var(--loan-primary);
+}
+
+.el-tabs__active-bar {
+  background: var(--loan-primary);
+}
+
+.el-tabs__nav-wrap::after {
+  background-color: var(--loan-border);
+  height: 1px;
+}
+
+/* ============================================================
+ * 顶部多标签页（tabs 数量过多时支持横向滚动/两端翻页）
+ * 注意：不要覆盖 .el-tabs__nav-wrap / .el-tabs__nav-scroll 的 overflow！
+ * Element Plus 内置滚动机制（nav-wrap overflow:hidden + is-scrollable 时
+ * 显示 prev/next 按钮并 transform 移动 nav）。覆盖为 overflow-x:auto 会
+ * 双滚动条嵌套并让 nav 溢出 tabs-bar 背景，导致页面整体撑宽/右侧空白。
+ * ============================================================ */
+.el-tabs__nav-wrap--is-scrollable {
+  padding: 0 28px; /* 给左右翻页按钮留位置 */
+}
+.el-tabs__nav {
+  white-space: nowrap;
+}
+/* 左右翻页按钮 */
+.el-tabs__nav-prev,
+.el-tabs__nav-next {
+  color: var(--loan-text-secondary);
+  background: var(--loan-card-bg);
+  border-radius: 4px;
+  line-height: 32px;
+  height: 32px;
+  width: 24px;
+  opacity: 0.85;
+}
+.el-tabs__nav-prev:hover,
+.el-tabs__nav-next:hover {
+  opacity: 1;
+  color: var(--loan-primary);
+}
+
+/* 暗色下输入框/选择器文本与占位符（保证可读） */
+.el-input__inner,
+.el-textarea__inner {
+  color: var(--loan-text);
+}
+
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  color: var(--loan-text-muted);
+}
+
+.el-select__placeholder {
+  color: var(--loan-text-muted);
+}
+
+/* 分页文字与按钮（暗色下可读） */
+.el-pagination {
+  color: var(--loan-text-secondary);
+}
+
+.el-pagination .el-pager li {
+  color: var(--loan-text-secondary);
+  background: transparent;
+}
+
+.el-pagination .el-pager li.is-active {
+  color: #fff;
+  background: var(--loan-primary);
+}
+
+.el-pagination button {
+  color: var(--loan-text-secondary);
+  background: transparent;
+}
+
+/* 空状态 */
+.el-empty__description p {
+  color: var(--loan-text-muted);
+}
+
+/* 分页 */
+.el-pagination {
+  justify-content: flex-end;
+}
+
+/* ============================================================
+ * 表格固定列遮蔽（修复 fixed 列透明导致下方内容透出的 bug）
+ *
+ * 根因：Element Plus 2.6 固定列为 sticky 定位 td（el-table-fixed-column--left/--right），
+ * 背景继承行背景（background: inherit），而全局把 --el-table-tr-bg-color 设为 transparent，
+ * 横向滚动时下方行内容透传显示。
+ * 修复：对 2.6 sticky 结构显式给背景（普通/斑马纹/hover/表头/暗色全覆盖）。
+ * ============================================================ */
+
+/* 表头固定列：跟随表头底色 */
+.el-table__header-wrapper tr th.el-table-fixed-column--left,
+.el-table__header-wrapper tr th.el-table-fixed-column--right {
+  background-color: var(--el-table-header-bg-color, #f8fafc) !important;
+}
+
+/* 正文固定列 → 跟随卡片底色（--loan-card-bg 浅色 #fff / 暗色 #131e33 自动适配） */
+.el-table__body-wrapper tr td.el-table-fixed-column--left,
+.el-table__body-wrapper tr td.el-table-fixed-column--right {
+  background-color: var(--loan-card-bg) !important;
+}
+
+/* 斑马纹行：固定列跟随斑马纹底色（--loan-surface 浅色 #f9fafb / 暗色 #0e1828） */
+.el-table--striped
+  .el-table__body
+  tr.el-table__row--striped
+  td.el-table-fixed-column--left,
+.el-table--striped
+  .el-table__body
+  tr.el-table__row--striped
+  td.el-table-fixed-column--right {
+  background-color: var(--loan-surface) !important;
+}
+
+/* hover 行：固定列跟随 hover 底色（暗色保留品牌蓝 hover） */
+.el-table__body-wrapper tr:hover td.el-table-fixed-column--left,
+.el-table__body-wrapper tr:hover td.el-table-fixed-column--right {
+  background-color: var(--el-table-row-hover-bg-color, #f1f5f9) !important;
+}
+:root[data-theme="dark"]
+  .el-table__body-wrapper
+  tr:hover
+  td.el-table-fixed-column--left,
+:root[data-theme="dark"]
+  .el-table__body-wrapper
+  tr:hover
+  td.el-table-fixed-column--right {
+  background-color: rgba(59, 130, 246, 0.14) !important;
+}
+
+/* 滚动状态阴影（增强固定列与内容的分隔感） */
+.el-table.is-scrolling-right td.el-table-fixed-column--right {
+  box-shadow: var(--el-table-fixed-right-column, inset -10px 0 10px -10px rgba(0, 0, 0, 0.15));
+}
+.el-table.is-scrolling-left td.el-table-fixed-column--left {
+  box-shadow: var(--el-table-fixed-left-column, inset 10px 0 10px -10px rgba(0, 0, 0, 0.15));
+}
+
+/* 兼容旧版容器结构（element-plus ≤2.3，保留以防降级） */
+.el-table__fixed,
+.el-table__fixed-right,
+.el-table__fixed .el-table__cell,
+.el-table__fixed-right .el-table__cell {
+  background-color: var(--loan-card-bg) !important;
+}
+
+/* ============================================================
+ * el-tree 节点文字不截断（短名"市场部"等被默认 ellipsis 误伤）
+ * ============================================================ */
+.el-tree-node__content {
+  white-space: normal !important;
+  height: auto !important;
+  min-height: 28px;
+  align-items: center;
+}
+.el-tree-node__content > .el-tree-node__expand-icon {
+  margin-top: 0;
+}
+.el-tree-node__label {
+  white-space: normal !important;
+  word-break: break-all;
+}
+
+/* ============================================================
+ * 弹窗（el-dialog）与确认框（el-message-box）
+ * 与全局商务主题一致：圆角、边框、柔阴影、标题/底栏分区
+ * ============================================================ */
+
+/* 遮罩：柔和深色 */
+.el-overlay {
+  background-color: rgba(15, 23, 42, 0.45);
+}
+
+.el-dialog {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 24px 56px -8px rgba(15, 23, 42, 0.2);
+  border: 1px solid var(--loan-border);
+  background: var(--loan-card-bg);
+}
+
+.el-dialog__header {
+  padding: 18px 24px;
+  margin: 0;
+  background: var(--loan-card-bg);
+  border-bottom: 1px solid var(--loan-border);
+}
+
+.el-dialog__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--loan-text);
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+}
+
+.el-dialog__body {
+  padding: 22px 24px;
+  color: var(--loan-text);
+  font-size: 14px;
+}
+
+.el-dialog__footer {
+  padding: 14px 24px;
+  background: var(--loan-surface);
+  border-top: 1px solid var(--loan-border);
+}
+
+.el-dialog__headerbtn {
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--loan-radius-sm);
+  transition: background var(--loan-transition);
+}
+
+.el-dialog__headerbtn .el-dialog__close {
+  color: var(--loan-text-muted);
+  font-size: 18px;
+}
+
+.el-dialog__headerbtn:hover {
+  background: var(--loan-surface);
+}
+
+.el-dialog__headerbtn:hover .el-dialog__close {
+  color: var(--loan-text);
+}
+
+/* MessageBox 确认弹窗（appConfirm 使用） */
+.el-message-box {
+  border-radius: 12px;
+  border: 1px solid var(--loan-border);
+  box-shadow: 0 20px 48px -8px rgba(15, 23, 42, 0.2);
+  background: var(--loan-card-bg);
+  padding-bottom: 0;
+}
+
+.el-message-box__header {
+  padding: 20px 24px 8px;
+}
+
+.el-message-box__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--loan-text);
+  line-height: 1.4;
+}
+
+.el-message-box__content {
+  padding: 8px 24px 20px;
+  color: var(--loan-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.el-message-box__btns {
+  padding: 0 20px 20px;
+}
+
+.el-message-box__btns .el-button {
+  min-width: 80px;
+}
+
+/* ============================================================
+ * 浮层主题化：抽屉 / 提示 / 气泡 / 下拉 / 选择器列表
+ * 统一圆角、边框、柔阴影，与全局商务主题一致
+ * ============================================================ */
+
+/* 抽屉 Drawer */
+.el-drawer {
+  background: var(--loan-card-bg);
+  box-shadow: -8px 0 24px rgba(15, 23, 42, 0.1);
+}
+
+.el-drawer__header {
+  padding: 18px 24px;
+  margin-bottom: 0;
+  color: var(--loan-text);
+  font-weight: 600;
+  border-bottom: 1px solid var(--loan-border);
+}
+
+.el-drawer__body {
+  padding: 20px 24px;
+  color: var(--loan-text);
+}
+
+.el-drawer__footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--loan-border);
+}
+
+/* Tooltip / Popover（浅色气泡） */
+.el-popper.is-light {
+  border: 1px solid var(--loan-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  color: var(--loan-text);
+}
+
+.el-popper.is-light .el-popper__arrow::before {
+  border: 1px solid var(--loan-border);
+  background: var(--loan-card-bg);
+}
+
+/* Dropdown 下拉菜单（AppTableActions「更多」等） */
+.el-dropdown-menu {
+  border-radius: 8px;
+  border: 1px solid var(--loan-border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  background: var(--loan-card-bg);
+}
+
+.el-dropdown-menu__item {
+  color: var(--loan-text);
+  font-size: 13px;
+  line-height: 32px;
+}
+
+.el-dropdown-menu__item:not(.is-disabled):hover,
+.el-dropdown-menu__item:not(.is-disabled):focus {
+  background: var(--loan-primary-soft);
+  color: var(--loan-primary);
+}
+
+.el-dropdown-menu__item.is-disabled {
+  color: var(--loan-text-muted);
+}
+
+/* ============================================================
+ * 选择器下拉列表（el-select popper）—— 双重 selector 命中 EP 2.6 的实际 class
+ * ============================================================ */
+.el-select__popper.el-popper,
+.el-select-dropdown.el-popper {
+  border-radius: 8px;
+  border: 1px solid var(--loan-border) !important;   /* 显式边框（"吐舌头"无边框修） */
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  background: var(--loan-card-bg) !important;          /* 显式背景（避免透明散落） */
+  overflow: visible !important;                        /* 防止下拉项被裁剪（"吐舌头"修） */
+  max-height: 280px;
+  overflow-y: auto !important;
+}
+
+.el-select-dropdown__item {
+  color: var(--loan-text);
+  font-size: 13px;
+  padding: 0 16px;
+  height: 34px;
+  line-height: 34px;
+}
+
+.el-select-dropdown__item.is-hovering {
+  background: var(--loan-primary-soft) !important;
+  color: var(--loan-primary) !important;
+}
+
+.el-select-dropdown__item.is-selected {
+  color: var(--loan-primary);
+  font-weight: 500;
+}
+
+/* ============================================================
+ * 无障碍：统一焦点可见性（键盘导航清晰）
+ * ============================================================ */
+
+:focus-visible {
+  outline: 2px solid var(--loan-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 滚动条（细、低调） */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--loan-border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--loan-text-muted);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================
+ * el-tooltip 浮层边界保护（操作列 hover 内容透传到下方列的问题）
+ * Element Plus show-overflow-tooltip 默认 placement=top，hover 触发的浮层在某些行（最末行）
+ * 会向下溢出与下方分页栏 / 表格列重叠。
+ * 方案：限制浮层最大宽度 + 提高 z-index + 让 popper 在表格外层更紧凑。
+ */
+.el-popper.is-dark {
+  max-width: 320px;
+  z-index: 2200 !important; /* 高于 el-table fixed 列，避免被覆盖 */
+  word-break: break-all;
+}
+.el-popper[data-popper-placement^='top'] {
+  margin-bottom: 4px;
+}
+/* el-table 内 tooltip 默认 placement=top 在最后一行时向下溢出 → 改为 top-start 偏左 */
+.el-table .el-tooltip__popper {
+  font-size: 12px;
+}
+/* 操作列 hover 内容（"更多"下拉等）不要盖住下方列 */
+.el-popper[data-popper-placement^='bottom'] {
+  margin-top: 4px;
+}
+
+
+/* ============================================================
+ * 列表页表格填充满容器（flex 布局，比固定 calc 更鲁棒）
+ * 链路：.content (flex col) → .loan-page 类名 (flex col, flex:1) →
+ *       .loan-card (flex col, flex:1) → .el-table (flex:1, min-height:0)
+ * 中间含 .el-tabs / AppSearchBar 等会自动占固定高度，剩余给表格。
+ * 兼容所有 *-page 类（lead-page / audit-page / order-page ...）。
+ * ============================================================ */
+/* 排除独立页面（login-page / error-page 等不需要列表页 flex 布局） */
+[class$="-page"]:not(.login-page):not(.error-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+[class$="-page"] > .loan-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+[class$="-page"] > .loan-card > .el-table {
+  /* 用 min-height 而非 flex:1：让 el-table 按内容自适应，
+     数据多时 el-table 内部 scroll，数据少时不撑大留大片空白。
+     红框（"操作"列右侧+数据行下方的空白）就是 flex:1 撑满后内部无内容的视觉。 */
+  min-height: 360px;
+  margin-bottom: 12px;       /* 与下方分页栏留点间距 */
+}
+/* 个别页面（如弹窗内）可在 el-table 上显式 style="height:auto" 覆盖 */
+.loan-card > .el-table[style*="auto"] {
+  flex: none;
+}
+
+/* ============================================================
+ * el-table 横向滚动 + fixed 列兜底定位（防止"操作列覆盖其他列"重叠透传）
+ *
+ * 根因：Element Plus 2.6 的 el-table 当列总宽 ≤ bodyWrapper 宽时不会创建
+ * .el-table__fixed-right-wrapper，但 td 仍打 el-table-fixed-column--right
+ * className（position: relative + z-index: 1）。当主表格出现 horizontal
+ * scroll 时，fixed td 仍按普通列渲染，造成与其他列位置错位 / 覆盖透传。
+ *
+ * 修复（双重保险）：
+ * 1) 给所有 el-table 容器加 overflow-x: auto + min-width: 100%，让 EP 在
+ *    bodyWrapper.scrollWidth > clientWidth 时主动创建 fixed wrapper
+ * 2) 兜底：fixed column td 在没 wrapper 情况下回 flow（z-index:auto + position:static），
+ *    避免与主表格列位置错位
+ * ============================================================ */
+.el-table {
+  overflow-x: auto;
+}
+.el-table__body-wrapper,
+.el-table__header-wrapper {
+  min-width: 100%;
+}
+/* 兜底：fixed column 不漂移（仅当外层 fixed wrapper 不存在时生效） */
+.el-table__body tr td.el-table-fixed-column--right,
+.el-table__body tr td.el-table-fixed-column--left {
+  position: static;
+  z-index: auto;
+  background: inherit;
+}
+
+/* ============================================================
+ * el-dialog 弹窗底部留白修复
+ * 默认 .el-form-item 最后一个有 margin-bottom 22 + body padding 22 → 44px 黑色空块
+ * 同时清除无意义的 form-item label 留白（label=""时也占位）
+ * ============================================================ */
+.el-dialog__body { padding-bottom: 0; }
+.el-dialog__body .el-form { margin-bottom: 0; }
+.el-dialog__body .el-form-item:last-child { margin-bottom: 0; }
+.el-dialog__body .el-form-item { margin-bottom: 18px; }
+/* 弹窗内文本/说明段无默认 margin-top（避免空行留白） */
+.el-dialog__footer { padding-top: 0; }
+.el-dialog__body > p,
+.el-dialog__body > div { margin-top: 0; }
+
+/* ============================================================
+ * el-dialog footer "黑色矩形" 真正修复
+ * 根因：.el-dialog__footer 自带深色背景（dark=#0e1828 / light=#fff），
+ *       text-align:right 让按钮右对齐 → footer 左侧大片空白显示深色背景 = "黑块"
+ * 修法：footer 背景透明 + 按钮 flex 布局 + 移除 padding-bottom 14
+ * ============================================================ */
+.el-dialog__footer {
+  background: transparent;
+  padding: 16px 24px;
+  text-align: right;        /* 按钮靠右，与原 EP 默认一致 */
+}
+.el-dialog__footer .el-button + .el-button { margin-left: 8px; }  /* 按钮间距 */
+
+/* ============================================================
+ * el-table 数据少时"操作列右侧+行下方的大白方块"修复
+ * 根因：.el-table__body-wrapper 默认 height:100% 撑出容器高（如 320px），
+ *       但内部 .el-table__body（table）只有 1 行数据（43px），
+ *       → bodyWrap 内部有 277px 空白，视觉上像"操作列右侧+行下方的大白方块"
+ * 修复：bodyWrapper 高度自适应 = 内容实际高（数据多时用 .el-table 自身 flex:1 控制）
+ * ============================================================ */
+[class$="-page"] .el-table__body-wrapper {
+  min-height: 0;
+  height: auto !important;
+}
+
+/* 让 el-table 自身高度按内容自适应（不撑出 bodyWrapper 高度 100%） */
+[class$="-page"] .el-table {
+  height: auto !important;
+}
+
+/* ============================================================
+ * el-table 数据少时"操作列右侧+行下方的大白方块"修复（重要）
+ * 根因：EP 2.6 的 .el-table__body-wrapper 默认 `flex: 1 1 0%`，撑满 .el-table 容器高度；
+ *       但内部 .el-table__body（table）只有 1 行数据（如 43px），
+ *       → bodyWrapper 撑出 320px，内有 277px 空白显示为"白方块"
+ * 修法：bodyWrapper 不 flex:1，按内容自适应（flex: 0 0 auto + height: auto）
+ *       el-table 容器本身也按内容自适应（不设 min-height 强制撑大）
+ * 数据多时：el-table 自然撑满 .loan-card 剩余空间（之前 flex:1 规则仍生效，因为 bodyWrapper 现在 flex: 0 0 auto 不抢空间）
+ * ============================================================ */
+.el-table__body-wrapper {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+[class$="-page"] > .loan-card > .el-table {
+  min-height: 0 !important;
+  height: auto !important;
+  margin-bottom: 12px;
+}
+
+/* ============================================================
+ * el-table 列总宽 > 容器宽时：让 bodyWrapper 真正 horizontal scroll，
+ * 触发 EP 创建 fixed-right wrapper，"操作"列才真正 fixed 在右侧不被压缩。
+ *
+ * 根因：EP 2.6 创建 fixed wrapper 的条件是 bodyWrapper.scrollWidth > clientWidth。
+ *       默认 bodyWrapper overflow:hidden 抑制了水平滚动 → scrollWidth === clientWidth
+ *       → EP 不创建 fixed wrapper → "操作"列 td 仍按普通列渲染被压缩。
+ * 修法：bodyWrapper overflow-x: auto + table 容器 min-width 大于 bodyWrapper 宽
+ *       → bodyWrapper 内部有 horizontal scroll → EP 创建 fixed wrapper
+ * ============================================================ */
+.el-table {
+  overflow-x: auto !important;        /* 关键：让 bodyWrapper 真正能 horizontal scroll */
+}
+.el-table__body-wrapper,
+.el-table__header-wrapper {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+}
+/* 给表格容器一个最小宽度触发 horizontal scroll（让 EP 检测到列总 > 容器） */
+[class$="-page"] > .loan-card > .el-table {
+  min-width: 100%;
+  width: 100%;
+}
+
+/* 强制内部 table 不被 bodyWrapper 压缩（table-layout 让列宽固定后 table 总宽 = 列总） */
+.el-table__body,
+.el-table__header {
+  width: max-content !important;       /* table 至少 100% 容器，可超出到列总和 */
+  min-width: 100% !important;
+}
+
+/* 关键：让 bodyWrapper 撑出 table 实际宽（不被父容器约束） */
+.el-table {
+  max-width: 100% !important;
+}
+/* inner-wrapper + header/body wrapper：宽度约束 100%，body 真正 overflow-x: auto */
+.el-table .el-table__inner-wrapper {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 100% !important;
+}
+.el-table__header-wrapper,
+.el-table__body-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+/* ============================================================
+ * "操作"列真正 fixed-right：手动 sticky 定位
+ * 根因：EP 2.6 在列总 ≤ 容器时不会自动创建 fixed wrapper，导致 fixed 列被压缩。
+ * 修法：手动给"操作"列 td 用 position: sticky; right: 0，让 horizontal scroll 时操作列固定在视口右。
+ * ============================================================ */
+.el-table__body tr td.el-table-fixed-column--right,
+.el-table__header-wrapper tr th.el-table-fixed-column--right {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 3 !important;
+  background: var(--loan-card-bg) !important;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.06);
+}
+
+/* 子内容宽度受卡片约束；裁剪策略仅在下方 sticky 契约中定义为 overflow: clip。 */
+[class$="-page"] .el-card,
+[class$="-page"] .el-form {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ============================================================
+ * 无障碍:跳过主内容链接(WCAG 2.4.1 A)
+ * 默认隐藏,键盘聚焦时显示在左上角
+ * ============================================================ */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 9999;
+  font-size: 14px;
+}
+.skip-link:focus {
+  left: 8px;
+  background: var(--loan-primary);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 6px;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+ * 无障碍:prefers-reduced-motion 全局兜底(WCAG 2.2.2 A)
+ * 用户系统设置"减少动态效果"时,关闭所有动画/过渡
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+ * 表格行高 44px(WCAG 2.5.8 触摸目标 ≥ 44px + 阅读舒适)
+ * EP 默认行高 38px 偏紧,长时间看数据易疲劳
+ * ============================================================ */
+.el-table__body td.el-table__cell {
+  padding: 13px 0;
+}
+.el-table__header th.el-table__cell {
+  padding: 11px 0;
+}
+
+/* ============================================================
+ * 修复 el-table 表头与数据列错位
+ * 根因:.el-table__body-wrapper > .el-scrollbar > .el-scrollbar__view
+ *       比父容器窄 15px(滚动条预留),导致 body table 比 header table 早 15px,
+ *       每列累积 5-6px 错位,最后一列偏移达 41px
+ * 修复:.el-scrollbar__view 撑满父容器(覆盖默认滚动条预留的 15px)
+ *       同时给 header/body table 强制一致 width + box-sizing
+ * ============================================================ */
+.el-table__body-wrapper .el-scrollbar__view,
+.el-table__header-wrapper {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding-right: 0 !important;  /* 覆盖默认滚动条预留 15px */
+}
+.el-table .el-table__header-wrapper table,
+.el-table .el-table__body-wrapper table {
+  width: 100% !important;       /* 强制 body 和 header table 宽度一致 */
+  margin: 0 !important;
+}
+
+/* ============================================================
+ * 列表页表头吸顶（页面滚动时表头固定在内容区顶部）
+ *
+ * 需求：列表页整页滚动（.content overflow-y:auto），默认表头随页面滚走，
+ *       数据多时看不到列名。期望表头吸顶，滚动数据时列名始终可见。
+ *
+ * 方案：让 .el-table__header-wrapper 使用 position:sticky; top:0，
+ *       使其相对外层 .content 滚动容器吸顶（紧贴 topbar 下缘）。
+ *
+ * 关键：position:sticky 只相对"最近的滚动容器"生效；而
+ *       .loan-card(overflow:hidden)、.el-table(overflow-x:auto)、
+ *       .el-tabs__content(overflow:hidden)、.el-card(overflow:hidden)
+ *       都是滚动容器，会截断 sticky 导致吸顶失效。
+ *       统一改用 overflow:clip —— 同样裁剪溢出内容，但【不产生滚动容器】，
+ *       sticky 得以穿透到 .content 滚动容器上生效。
+ *
+ * 注意：overflow:clip 与 overflow:hidden 视觉一致（均裁到 padding 盒），
+ *       仅少了"可滚动容器"这一属性，对既有防溢出兜底无回归。
+ * ============================================================ */
+[class$="-page"] > .loan-card,
+[class$="-page"] .el-tabs__content,
+[class$="-page"] .el-card {
+  overflow: clip;
+}
+/* 覆盖全局 .el-table{overflow-x:auto!important}（列表页内表格） */
+[class$="-page"] .el-table {
+  overflow: clip !important;
+}
+/* 操作列（fixed-right）防裁切：fixed 列内部的 cell 允许内容溢出显示，
+   避免 width 偏窄时文字被 overflow:clip 截断（如"查看档案 · 申请认领"）。
+   仅影响 fixed-right 列的内部 cell，不影响表头吸顶和整体布局。 */
+[class$="-page"] .el-table__fixed-right .cell,
+[class$="-page"] .el-table__fixed-right .el-table__cell {
+  overflow: visible;
+}
+/* 表头吸顶：滚动 .content 时表头贴住内容区顶部（topbar 下缘）
+   注：top: -20px 对应 .content 的 padding-top(20px)——sticky 偏移量以
+   content 内容盒顶缘(80px)为基准，-20px 使其吸在顶栏下缘(60px)无缝贴合。 */
+[class$="-page"] .el-table__header-wrapper {
+  position: sticky;
+  top: -20px;
+  z-index: 6;
+  background: var(--loan-surface);   /* 不透明底色，盖住下方滚动行 */
+}
+
+/* ============================================================
+ * 表头吸顶配套：列表页防 flex 塌陷（数据多时页面滚动而非压扁表格）
+ *
+ * 根因：*-page 根与 .loan-card 都是 flex:1（即 1 1 0%）+ min-height:0，
+ *       当数据行多、表格自然高度超过视口剩余空间时，flex-shrink 会把
+ *       整条链压缩塌陷：表格被压到几十 px，行被 overflow:clip 裁掉且
+ *       无法滚动 → 表头吸顶也失去意义（页面根本不滚动）。
+ *
+ * 修法：让页面按「自然高度」参与布局——
+ *   1) *-page 根：flex: 1 0 auto —— 数据少时撑满视口，数据多时溢出，
+ *      由 .content 滚动（永不压缩）
+ *   2) .loan-card：flex: 0 0 auto —— 卡片按内容自然高度，内部表格/
+ *      搜索栏/分页永不被压缩，行永远完整展示
+ *   3) 页头等固定元素 flex-shrink: 0，防止被压缩
+ * ============================================================ */
+[class$="-page"]:not(.login-page):not(.error-page) {
+  flex: 1 0 auto;
+}
+[class$="-page"] > .loan-card {
+  flex: 0 0 auto;
+}
+[class$="-page"] > .loan-page-header,
+[class$="-page"] > .loan-card > .el-table {
+  flex-shrink: 0;
+}

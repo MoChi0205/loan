@@ -1,0 +1,1021 @@
+{
+  "version": "1.0",
+  "generated": "2026-08-31",
+  "source": "docs/knowledge-base/11-业务域文档索引.md",
+  "owner": "T03",
+  "description": "loan-main 业务域 → 文档映射的机器可读索引。人读版与机器读版同源（同一份数据生成），域数量恒等。implemented 为三态：true=正常实现 / false=真空包 / \"relocated:<实际包路径>\"=位置不一致（包空但功能已实现，禁止判为无实现）。",
+  "conventions": {
+    "mustReadFormat": "<知识库文件名>#<该文件中的真实标题文本>，相对 docs/knowledge-base/ 解析",
+    "implementedTriState": {
+      "true": "正常实现",
+      "false": "真空包（全仓零相关类，可安全地从零实现）",
+      "relocated:<path>": "位置不一致：包目录为空，但功能已在 <path> 实现，禁止重复造轮子"
+    },
+    "statusValues": [
+      "active",
+      "empty-package",
+      "relocated"
+    ],
+    "backendCountSource": "本文件域数由 loan-service/src/main/java/com/loan 下实测 find -name '*.java' 计数得出（46 个包，其中 8 个空包）",
+    "frontendCountSource": "mini 路由取自 loan-mini/pages.json（13 条）；web 视图取自 loan-web/src/views（18 个目录）"
+  },
+  "sourceOfTruth": {
+    "backendPackages": "loan-service/src/main/java/com/loan",
+    "miniRoutes": "loan-mini/pages.json",
+    "miniTabBar": "loan-mini/components/TabBar.vue",
+    "webViews": "loan-web/src/views",
+    "roleIndex": "docs/knowledge-base/index/role-index.json",
+    "decisionLog": "docs/knowledge-base/10-历史结论与决策日志.md"
+  },
+  "counts": {
+    "groups": 9,
+    "domains": 39,
+    "implementedTrue": 30,
+    "implementedFalse": 3,
+    "implementedRelocated": 6
+  },
+  "groups": [
+    {
+      "id": "G1",
+      "name": "客户与线索域",
+      "domains": [
+        {
+          "id": "client",
+          "name": "客户 Client",
+          "backend": [
+            "client(5)",
+            "submission(6)",
+            "personal(7)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/client/create",
+              "pages/match/match（步骤 0 查重）"
+            ],
+            "web": [
+              "views/client(1)"
+            ]
+          },
+          "mustRead": [
+            "01-角色权限模型.md#7 角色体系（必须严格区分）",
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#客户查重 + 归属流转（C2/C10/C19）",
+            "02-业务红线与编码规范.md#敏感字段",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）"
+          ],
+          "conclusions": [
+            "C2",
+            "C10",
+            "C19"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "查重与归属流转的唯一入口域；客户档案与 `submission`（融资需求提交）同属此域。"
+        },
+        {
+          "id": "lead",
+          "name": "线索 Lead",
+          "backend": [
+            "lead(9)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/client/create"
+            ],
+            "web": [
+              "views/lead(1)"
+            ]
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#线索录入（融资需求，T4 · 渠道走 Lead）",
+            "02-业务红线与编码规范.md#敏感字段",
+            "09-业务流程知识图谱.md#3. 模块节点（12）与主线流程（FLOW_SEQ）"
+          ],
+          "conclusions": [
+            "C20"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "渠道录入走 `Lead` 进**公海**（`owner_staff_id = NULL`），不落 `ClientProfile`（C20）。"
+        },
+        {
+          "id": "channel",
+          "name": "渠道 / 合作机构",
+          "backend": [
+            "channel(3)",
+            "partner(6)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/product/list",
+              "pages/product/edit",
+              "pages/client/create"
+            ],
+            "web": [
+              "views/product(1)"
+            ]
+          },
+          "mustRead": [
+            "01-角色权限模型.md#7 角色体系（必须严格区分）",
+            "04-后端 API 契约.md#工单 / 产品",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）",
+            "02-业务红线与编码规范.md#用户明示红线（不可破）"
+          ],
+          "conclusions": [
+            "C1",
+            "C9",
+            "C20"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "沙箱隔离角色的落地域（详见 `index/role-index.json` 的 channel 条目）。"
+        },
+        {
+          "id": "invitation",
+          "name": "邀请 Invitation",
+          "backend": [
+            "invitation(3)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/index/index",
+              "pages/auth/auth",
+              "pages/mine/mine"
+            ],
+            "web": []
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#邀请（invitation）",
+            "04-后端 API 契约.md#鉴权 / 用户",
+            "01-角色权限模型.md#前端：Pinia store（store/user.js）",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）"
+          ],
+          "conclusions": [
+            "C8"
+          ],
+          "implemented": true,
+          "status": "active"
+        },
+        {
+          "id": "personal",
+          "name": "个人 / 实名认证",
+          "backend": [
+            "personal(7)",
+            "auth(4)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/auth/auth"
+            ],
+            "web": []
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#鉴权 / 用户",
+            "02-业务红线与编码规范.md#敏感字段",
+            "03-数据模型（DB schema 索引）.md#敏感字段处理"
+          ],
+          "conclusions": [
+            "C8"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "企业/个人认证为**客户独有**能力（08 矩阵其余 6 角色为「—」）。"
+        }
+      ]
+    },
+    {
+      "id": "G2",
+      "name": "匹配与规则域",
+      "domains": [
+        {
+          "id": "engine",
+          "name": "规则引擎 Engine",
+          "backend": [
+            "engine(32)",
+            "rule(17)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/rule(2)",
+              "views/screening(1)"
+            ]
+          },
+          "mustRead": [
+            "02-业务红线与编码规范.md#编码规范",
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "00-项目结构与代码地图.md#模块地图（阶段四规划）"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active",
+          "note": "全仓最活跃域（32 + 17 = 49 个类）；枚举实现 `Grade`/`StepResult` 等位于 `engine/enums/`。"
+        },
+        {
+          "id": "match",
+          "name": "智能匹配 Match",
+          "backend": [
+            "match(0)",
+            "mini(22)",
+            "screening(2)",
+            "engine(32)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/match/match"
+            ],
+            "web": [
+              "views/screening(1)"
+            ]
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#匹配（C15）",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）",
+            "09-业务流程知识图谱.md#3. 模块节点（12）与主线流程（FLOW_SEQ）",
+            "01-角色权限模型.md#7 角色体系（必须严格区分）"
+          ],
+          "conclusions": [
+            "C1",
+            "C2",
+            "C10"
+          ],
+          "implemented": "relocated:mini/service/MiniMatchService.java + engine/service/MatchService.java + facade/impl/MatchFacadeImpl.java + screening/",
+          "status": "relocated",
+          "note": "⚠️ `com.loan.match` 是**空目录**，但匹配功能**已实现**且分散多处：小程序侧入口 `mini/service/MiniMatchService`、引擎侧计算 `engine/service/MatchService`、门面 `facade/impl/MatchFacadeImpl`、初筛 `screening/`。**禁止判为「无实现」重复造轮子**。"
+        },
+        {
+          "id": "screening",
+          "name": "初筛 Screening",
+          "backend": [
+            "screening(2)",
+            "engine(32)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/screening(1)"
+            ]
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#匹配（C15）",
+            "09-业务流程知识图谱.md#3. 模块节点（12）与主线流程（FLOW_SEQ）"
+          ],
+          "conclusions": [
+            "C4",
+            "C19"
+          ],
+          "implemented": true,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "G3",
+      "name": "报告与诊断域",
+      "domains": [
+        {
+          "id": "report",
+          "name": "报告 Report",
+          "backend": [
+            "report(14)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/report/list",
+              "pages/report/detail"
+            ],
+            "web": [
+              "views/report(4)",
+              "views/template(1)"
+            ]
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#报告",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）",
+            "09-业务流程知识图谱.md#3. 模块节点（12）与主线流程（FLOW_SEQ）"
+          ],
+          "conclusions": [
+            "C3",
+            "C4",
+            "C11",
+            "C19"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "三分支可见性：渠道空集 / 客户 own（仅日期维度）/ 员工全量四维（C3、C11）。"
+        },
+        {
+          "id": "ocr",
+          "name": "OCR 识别",
+          "backend": [
+            "ocr(9)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/match/match（上传）"
+            ],
+            "web": []
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#材料上传（G3 · 2026-08-30 新增）",
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "09-业务流程知识图谱.md#3. 模块节点（12）与主线流程（FLOW_SEQ）"
+          ],
+          "conclusions": [
+            "C21"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "设计文档原写 `00#OCR 回灌链路`，该标题在 `00` 中**不存在**，已改指真实标题 `04#材料上传（G3 · 2026-08-30 新增）`。"
+        },
+        {
+          "id": "attachment",
+          "name": "附件 Attachment",
+          "backend": [
+            "attachment(4)",
+            "approval(9)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/match/match"
+            ],
+            "web": []
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#材料上传（G3 · 2026-08-30 新增）",
+            "01-角色权限模型.md#7 角色体系（必须严格区分）"
+          ],
+          "conclusions": [
+            "C9",
+            "C21"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "附件下载审批实体 `AttachmentDownloadApproval` 在 `approval` 包内，故本域跨 `attachment` + `approval` 两包。当前为**本地磁盘模式**，阿里云 OSS 客户端尚未接入（`AttachmentService.java:15` 注释明示「后续迭代接入」）。"
+        },
+        {
+          "id": "sensitive",
+          "name": "敏感数据 Sensitive",
+          "backend": [
+            "sensitive(8)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "无独立目录（散落各视图）"
+            ]
+          },
+          "mustRead": [
+            "02-业务红线与编码规范.md#敏感字段",
+            "03-数据模型（DB schema 索引）.md#敏感字段处理",
+            "../plans/sensitive-view-auth-design.md"
+          ],
+          "conclusions": [
+            "C4"
+          ],
+          "implemented": true,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "G4",
+      "name": "工单与审批域",
+      "domains": [
+        {
+          "id": "order",
+          "name": "工单 / 服务单 Order",
+          "backend": [
+            "order(6)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/order/list",
+              "pages/order/detail"
+            ],
+            "web": [
+              "views/order(1)"
+            ]
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#工单 / 产品",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）",
+            "01-角色权限模型.md#7 角色体系（必须严格区分）"
+          ],
+          "conclusions": [
+            "C7"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "客户仅「状态 + 时间」二维筛选，员工为四维（C7）。"
+        },
+        {
+          "id": "approval",
+          "name": "审批中心 Approval",
+          "backend": [
+            "approval(9)",
+            "apiperm(7)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/approval/list（入口在 pages/mine/mine）"
+            ],
+            "web": [
+              "views/approval(1)"
+            ]
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#审批中心（统一，T5）",
+            "01-角色权限模型.md#7 角色体系（必须严格区分）",
+            "09-业务流程知识图谱.md#4.3 SM_ALLOC 客户归属流转（C2/C19，审批动作已统一为 UA3）",
+            "10-历史结论与决策日志.md#结论台账"
+          ],
+          "conclusions": [
+            "C9",
+            "C19",
+            "C22"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "权限真值在代码：`MiniRoleGuard.APPROVER_ROLES`（ALLOCATION）**不含 DEPT_MANAGER**；`APPROVAL_ROLES`（PRODUCT/DOWNLOAD）含 DEPT_MANAGER。`04-后端 API 契约.md` 第 90-91 行的相反描述已过时，**以代码 + D0-4 为准**。"
+        }
+      ]
+    },
+    {
+      "id": "G5",
+      "name": "产品与合作机构域",
+      "domains": [
+        {
+          "id": "product",
+          "name": "产品 Product",
+          "backend": [
+            "product(13)",
+            "partner(6)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/product/list",
+              "pages/product/edit"
+            ],
+            "web": [
+              "views/product(1)"
+            ]
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#工单 / 产品",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）",
+            "09-业务流程知识图谱.md#3. 模块节点（12）与主线流程（FLOW_SEQ）"
+          ],
+          "conclusions": [
+            "C9"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "渠道删除产品走审批，复用 `t_product_approval`（`applyType=CREATE/DELETE`），**不新增表**（C9）。"
+        },
+        {
+          "id": "blacklist",
+          "name": "黑名单 Blacklist",
+          "backend": [
+            "blacklist(4)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/blacklist(1)"
+            ]
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "02-业务红线与编码规范.md#用户明示红线（不可破）",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "G6",
+      "name": "组织与权限域",
+      "domains": [
+        {
+          "id": "org",
+          "name": "组织 Org",
+          "backend": [
+            "org(12)",
+            "staff(2)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/org(1)"
+            ]
+          },
+          "mustRead": [
+            "01-角色权限模型.md#7 角色体系（必须严格区分）",
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）"
+          ],
+          "conclusions": [
+            "C19"
+          ],
+          "implemented": true,
+          "status": "active"
+        },
+        {
+          "id": "auth",
+          "name": "鉴权与上下文 Auth",
+          "backend": [
+            "auth(4)",
+            "context(3)",
+            "infrastructure(10)",
+            "infrastructure/interceptor(1)"
+          ],
+          "frontend": {
+            "mini": [
+              "store/user.js",
+              "api/*"
+            ],
+            "web": [
+              "router",
+              "api 层"
+            ]
+          },
+          "mustRead": [
+            "01-角色权限模型.md#角色推导（resolveRole）",
+            "04-后端 API 契约.md#鉴权 / 用户",
+            "05-前端工程要点.md#store/user.js 关键状态"
+          ],
+          "conclusions": [
+            "C17"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "`AdminAuthInterceptor` 实际位于 `infrastructure/interceptor/`（F4），不在空的 `interceptor/` 包。角色推导唯一权威链路：`/api/mini/me` → `roleInfo`（F8）。"
+        },
+        {
+          "id": "config",
+          "name": "配置与字典 Config",
+          "backend": [
+            "config(14)",
+            "dict(3)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/config(1)"
+            ]
+          },
+          "mustRead": [
+            "02-业务红线与编码规范.md#编码规范",
+            "04-后端 API 契约.md#通用约定",
+            "03-数据模型（DB schema 索引）.md#关键业务表"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active",
+          "note": "`dict(3)` 是字典实际实现；枚举常量另见 `engine/enums/`。"
+        }
+      ]
+    },
+    {
+      "id": "G7",
+      "name": "运营与激励域",
+      "domains": [
+        {
+          "id": "sms",
+          "name": "短信 Sms",
+          "backend": [
+            "sms(8)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/sms(1)"
+            ]
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#通用约定",
+            "07-沟通-上线-测试-部署清单.md#上线配置（必填真实值）",
+            "02-业务红线与编码规范.md#用户明示红线（不可破）"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active"
+        },
+        {
+          "id": "notification",
+          "name": "通知 Notification",
+          "backend": [
+            "notification(5)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#通用约定",
+            "09-业务流程知识图谱.md#3. 模块节点（12）与主线流程（FLOW_SEQ）"
+          ],
+          "conclusions": [
+            "C22"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "后端驱动，无独立前端页面。"
+        },
+        {
+          "id": "reward",
+          "name": "奖励 Reward",
+          "backend": [
+            "reward(6)"
+          ],
+          "frontend": {
+            "mini": [
+              "pages/mine/mine（奖励汇总）"
+            ],
+            "web": [
+              "views/reward(2)"
+            ]
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#奖励（reward）",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active"
+        },
+        {
+          "id": "audit",
+          "name": "审计 Audit",
+          "backend": [
+            "audit(6)",
+            "log(4)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/audit(1)"
+            ]
+          },
+          "mustRead": [
+            "02-业务红线与编码规范.md#用户明示红线（不可破）",
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active",
+          "note": "匹配留痕 `MatchRuleLog` / `MatchTrace` 也在本域（跨 G2）。"
+        },
+        {
+          "id": "plan",
+          "name": "计划与策略 Plan",
+          "backend": [
+            "plan(27)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/plan(6)"
+            ]
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#通用约定",
+            "00-项目结构与代码地图.md#模块地图（阶段四规划）"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active",
+          "note": "Web 端文件数最多的视图目录（6 个）。"
+        },
+        {
+          "id": "dashboard",
+          "name": "仪表盘 Dashboard",
+          "backend": [
+            "dashboard(2)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "Workbench.vue（工作台）"
+            ]
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#通用约定",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "G8",
+      "name": "⚠️ 空包 / 位置不一致域（动手前必读）",
+      "domains": [
+        {
+          "id": "vip",
+          "name": "VIP",
+          "backend": [
+            "vip(0)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "00-项目结构与代码地图.md#模块地图（阶段四规划）"
+          ],
+          "conclusions": [],
+          "implemented": false,
+          "status": "empty-package",
+          "note": "① 真空包：全仓零相关类（F3）。属阶段四规划，尚未开始。"
+        },
+        {
+          "id": "stats",
+          "name": "统计 Stats",
+          "backend": [
+            "stats(0)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "02-业务红线与编码规范.md#编码规范",
+            "03-数据模型（DB schema 索引）.md#建表规范"
+          ],
+          "conclusions": [],
+          "implemented": false,
+          "status": "empty-package",
+          "note": "① 真空包：全仓零相关类（F3）。设计文档原写 `02#数据库优化`，该标题不存在，已改指 `02#编码规范` + `03#建表规范`（报表聚合约束）。"
+        },
+        {
+          "id": "crm",
+          "name": "CRM",
+          "backend": [
+            "crm(0)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "00-项目结构与代码地图.md#模块地图（阶段四规划）"
+          ],
+          "conclusions": [],
+          "implemented": false,
+          "status": "empty-package",
+          "note": "① 真空包：全仓零相关类（F3）。属阶段四规划。"
+        },
+        {
+          "id": "job",
+          "name": "定时任务 Job",
+          "backend": [
+            "job(0)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "02-业务红线与编码规范.md#用户明示红线（不可破）",
+            "00-项目结构与代码地图.md#关键命令"
+          ],
+          "conclusions": [],
+          "implemented": "relocated:lead/job/LeadRecycleJobHandler.java + partner/job/PartnerProductExpireJob.java",
+          "status": "relocated",
+          "note": "② 位置不一致：`com.loan.job` 是空目录，但**两个 JobHandler 已实现**（`lead/job/LeadRecycleJobHandler`、`partner/job/PartnerProductExpireJob`，均用 `@XxlJob`）。执行器配置在 `config/XxlJobConfig.java`。红线：定时任务必须 XXL-Job，**禁用 `@Scheduled`**（D0-1）。"
+        },
+        {
+          "id": "oss",
+          "name": "对象存储 OSS",
+          "backend": [
+            "oss(0)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表",
+            "04-后端 API 契约.md#材料上传（G3 · 2026-08-30 新增）"
+          ],
+          "conclusions": [
+            "C21"
+          ],
+          "implemented": "relocated:attachment/service/AttachmentService.java + approval/entity/AttachmentDownloadApproval.java",
+          "status": "relocated",
+          "note": "② 位置不一致：`com.loan.oss` 空目录，文件能力实现在 `attachment`（上传/落盘）与 `approval`（下载审批）。**当前仍是本地磁盘模式**，阿里云 OSS 客户端标注「后续迭代接入」（`AttachmentService.java:15`）—— 即：包空 ≠ 无实现，但 **OSS 客户端本身确未接入**，两者不可混淆。"
+        },
+        {
+          "id": "match-package",
+          "name": "匹配包 com.loan.match",
+          "backend": [
+            "match(0)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#匹配（C15）"
+          ],
+          "conclusions": [
+            "C1"
+          ],
+          "implemented": "relocated:mini/service/MiniMatchService.java + engine/service/MatchService.java + facade/impl/MatchFacadeImpl.java + screening/",
+          "status": "relocated",
+          "note": "② 位置不一致：包空但功能已实现，完整实现清单见 **G2 · 智能匹配 Match** 行。**本行与 G2 的 match 行是同一业务域的两种视角**（包视角 / 能力视角），改动时两行都要回写。"
+        },
+        {
+          "id": "enums",
+          "name": "枚举 Enums",
+          "backend": [
+            "enums(0)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "03-数据模型（DB schema 索引）.md#关键业务表"
+          ],
+          "conclusions": [],
+          "implemented": "relocated:engine/enums/（Grade / StepResult / TotalResult / CustomerGroup）+ dict(3)",
+          "status": "relocated",
+          "note": "② 位置不一致：`com.loan.enums` 空目录，4 个枚举类实际在 `engine/enums/`；业务字典另看 `dict(3)`。"
+        },
+        {
+          "id": "interceptor",
+          "name": "拦截器 Interceptor",
+          "backend": [
+            "interceptor(0)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#鉴权 / 用户"
+          ],
+          "conclusions": [
+            "C17"
+          ],
+          "implemented": "relocated:infrastructure/interceptor/AdminAuthInterceptor.java",
+          "status": "relocated",
+          "note": "② 位置不一致（F4）：`AdminAuthInterceptor` 实际在 `infrastructure/interceptor/`，索引「鉴权」域必须指向 `infrastructure`。"
+        }
+      ]
+    },
+    {
+      "id": "G9",
+      "name": "工程与交付域",
+      "domains": [
+        {
+          "id": "mini-api",
+          "name": "小程序接口层",
+          "backend": [
+            "mini(22)"
+          ],
+          "frontend": {
+            "mini": [
+              "loan-mini/ 全部 13 条路由（pages.json）",
+              "components/TabBar.vue"
+            ],
+            "web": []
+          },
+          "mustRead": [
+            "04-后端 API 契约.md#关键接口索引",
+            "05-前端工程要点.md#自绘 TabBar（C17，**禁用原生**）",
+            "08-小程序角色功能矩阵.md#08 · 小程序角色功能矩阵（现状 vs 规划）"
+          ],
+          "conclusions": [
+            "C1",
+            "C17",
+            "C18",
+            "C22"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "tabBar 真值：`components/TabBar.vue:47-54` 渠道 **4 tab**；`:55-61` 其余角色 **5 tab**（F9 / D13）。`01-角色权限模型.md` 的「3 tab」为文档错误，待修正。"
+        },
+        {
+          "id": "web-admin",
+          "name": "Web 管理端",
+          "backend": [],
+          "frontend": {
+            "mini": [],
+            "web": [
+              "views/* （18 个视图目录 + Login.vue + Workbench.vue）"
+            ]
+          },
+          "mustRead": [
+            "05-前端工程要点.md#常用组件 API",
+            "05-前端工程要点.md#Token 体系（设计系统 v1.0，全在 App.vue 注入）",
+            "00-项目结构与代码地图.md#活跃项目根（必读）"
+          ],
+          "conclusions": [
+            "C17",
+            "C18"
+          ],
+          "implemented": true,
+          "status": "active",
+          "note": "工程规范另见项目级技能 `.workbuddy/skills/loan-web-*`（loan-web-ui / loan-web-components / loan-web-dev）。"
+        },
+        {
+          "id": "common",
+          "name": "后端公共层",
+          "backend": [
+            "common(5)",
+            "facade(3)",
+            "exception(2)",
+            "utils(1)"
+          ],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "02-业务红线与编码规范.md#编码规范",
+            "02-业务红线与编码规范.md#业务唯一 ID（强制）",
+            "04-后端 API 契约.md#通用约定"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active",
+          "note": "设计文档 §A.4 未覆盖这 4 个包（共 11 个类），本索引补齐，避免它们成为「无域可归」的盲区。"
+        },
+        {
+          "id": "ops",
+          "name": "服务运维",
+          "backend": [],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "07-沟通-上线-测试-部署清单.md#沟通纪律（用户 2026-08-30 明示）",
+            "07-沟通-上线-测试-部署清单.md#本地联调环境（后端不在本地 docker，直连 prd 服务器配置）",
+            "00-项目结构与代码地图.md#关键命令"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active",
+          "note": "运维动作走技能 `.workbuddy/skills/loan-service-ops/`。"
+        },
+        {
+          "id": "deploy",
+          "name": "上线与部署",
+          "backend": [],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "07-沟通-上线-测试-部署清单.md#上线配置（必填真实值）",
+            "07-沟通-上线-测试-部署清单.md#部署步骤",
+            "07-沟通-上线-测试-部署清单.md#沙盒踩坑（高频）"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active",
+          "note": "沙盒环境高频拦截见 `07#沙盒踩坑（高频）` 与 `00#沙盒常见拦截`（后者为 `00` 中已存在标题）。"
+        },
+        {
+          "id": "knowledge",
+          "name": "知识治理",
+          "backend": [],
+          "frontend": {
+            "mini": [],
+            "web": []
+          },
+          "mustRead": [
+            "README.md#使用规则",
+            "10-历史结论与决策日志.md#结论台账",
+            "11-业务域文档索引.md#锚点核验与维护",
+            "artifacts/小程序模块结论沉淀.md",
+            "artifacts/loan-mini-设计系统规范.md",
+            "artifacts/小程序功能方案-渠道合作方补充.md"
+          ],
+          "conclusions": [],
+          "implemented": true,
+          "status": "active",
+          "note": "**本域是 10-历史结论与决策日志.md 的第三个强制入口（E-3）**：任何修改/调整请求执行前，先读 `10-历史结论与决策日志.md`（D8 起倒序，最新在上）。`artifacts/`（9 个文件，F18 归档缺口已修复）为 C 系列结论、设计系统规范、UI 审计清单的外部真源。"
+        }
+      ]
+    }
+  ]
+}

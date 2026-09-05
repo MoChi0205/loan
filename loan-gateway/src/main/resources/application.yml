@@ -1,0 +1,46 @@
+# ============================================================
+# 网关配置（本地联调版）：直连本地 loan-service(8080)，从远程 Redis 读鉴权规则
+# 生产环境：uri 改 lb://loan-service，Redis 走 Nacos 配置
+# ============================================================
+server:
+  port: 8088
+
+spring:
+  application:
+    name: loan-gateway
+  cloud:
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+    gateway:
+      routes:
+        - id: loan-service
+          uri: http://127.0.0.1:8080
+          predicates:
+            - Path=/loan/**
+  redis:
+    host: 124.221.116.28
+    port: 9379
+    password: CHANGE_ME_REDIS
+    database: 0
+    timeout: 3000ms
+
+# JWT 密钥（必须与 loan-service 一致，否则网关无法解析登录令牌）
+jwt:
+  secret: CHANGE_ME_JWT_SECRET
+  expire: 86400000
+
+# 内部接口令牌（与服务端 internal.api.token 一致，兜底拉取规则用）
+internal:
+  api:
+    token: loan-internal-token
+
+loan:
+  service:
+    base-url: http://127.0.0.1:8080/loan
+
+logging:
+  level:
+    com.loan.gateway: info

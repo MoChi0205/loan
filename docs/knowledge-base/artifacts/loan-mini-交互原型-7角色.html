@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企融通 · 小程序可交互高保真原型（7 角色）</title>
+<style>
+/* ============================================================
+   企融通 loan-mini 高保真原型 — 7 角色
+   视觉语言继承自 designs/loan-mini-高保真原型.html
+   深海军蓝 #0B1D3A × 暖金 #C8A96E · 暗画布 + 亮手机屏
+   ============================================================ */
+:root{
+  --br-deep:#0B1D3A;
+  --br-mid:#132D56;
+  --br-bright:#1A3A6E;
+  --gold:#C8A96E;
+  --gold-bg:#F5E6C4;
+  --bg-page:#F8FAFC;
+  --bg-card:#FFFFFF;
+  --bg-input:#F1F5F9;
+  --line:#E2E8F0;
+  --text-primary:#1E293B;
+  --text-body:#475569;
+  --text-secondary:#64748B;
+  --text-placeholder:#CBD5E1;
+  --text-invert:#FFFFFF;
+  --success:#10B981;
+  --warning:#F59E0B;
+  --danger:#EF4444;
+  --info:#06B6D4;
+  --fs-xs:12px;
+  --fs-sm:14px;
+  --fs-md:16px;
+  --fs-lg:18px;
+  --fs-xl:20px;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.04);
+  --shadow-md:0 4px 12px rgba(15,23,42,.06);
+  --shadow-lg:0 8px 24px rgba(15,23,42,.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei","HarmonyOS Sans",sans-serif;
+  background:#0a0f1e;
+  color:var(--text-body);
+  line-height:1.7;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:28px 16px 40px;
+}
+.page-title{color:#e8ecf4;font-size:15px;letter-spacing:.5px;margin-bottom:4px}
+.page-sub{color:#7c89a8;font-size:12px;margin-bottom:20px;text-align:center;max-width:780px}
+
+.stage{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+.controls{width:300px;background:#141b30;border:1px solid #232c47;border-radius:16px;padding:20px;position:sticky;top:24px}
+.controls h3{color:#e8ecf4;font-size:13px;font-weight:600;margin-bottom:14px;letter-spacing:.4px}
+.ctrl-group{margin-bottom:18px}
+.ctrl-label{color:#8d99b8;font-size:11px;margin-bottom:8px;letter-spacing:.3px}
+.role-chips{display:flex;flex-wrap:wrap;gap:8px}
+.role-chip{flex:1;min-width:72px;padding:8px 6px;border-radius:10px;border:1px solid #2c3857;background:#1a2340;color:#aab6d4;font-size:11px;text-align:center;cursor:pointer;transition:all .2s}
+.role-chip:hover{border-color:#3d4d7d}
+.role-chip.active{background:var(--br-deep);border-color:var(--gold);color:#fff;box-shadow:0 0 0 1px rgba(200,169,110,.4)}
+.ctrl-note{color:#5d6b8c;font-size:10px;line-height:1.6;margin-top:4px}
+.btn-logout{margin-top:10px;width:100%;font-size:13px;padding:10px;border:none;border-radius:12px;cursor:pointer;background:#1a2340;color:#aab6d4;border:1px solid #2c3857}
+
+.phone{width:407px;height:844px;background:#05070f;border-radius:56px;padding:14px;box-shadow:0 30px 80px rgba(0,0,0,.55),inset 0 0 0 2px #2a2f45;position:relative;flex-shrink:0}
+.phone-side{position:absolute;background:#2a2f45;border-radius:3px}
+.side-right{right:-3px;top:180px;width:3px;height:90px}
+.side-right2{right:-3px;top:290px;width:3px;height:60px}
+.side-left{left:-3px;top:220px;width:3px;height:70px}
+.screen{width:100%;height:100%;background:var(--bg-page);border-radius:44px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:126px;height:30px;background:#05070f;border-radius:20px;z-index:60}
+.screen-body{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;inset:0;overflow-y:auto;background:var(--bg-page);display:none;padding-bottom:64px}
+.page.active{display:block;animation:fadeIn .28s ease}
+@keyframes fadeIn{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.hero{background:linear-gradient(145deg,var(--br-deep) 0%,var(--br-mid) 55%,var(--br-bright) 100%);padding:44px 20px 22px;color:#fff;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;right:-46px;top:-52px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.05)}
+.hero-row{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
+.avatar{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0}
+.hero-name{font-size:19px;font-weight:700;color:#fff;line-height:1.3}
+.hero-meta{font-size:12px;color:rgba(255,255,255,.72);margin-top: 2px}
+.hero-right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.role-badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;color:#fff;letter-spacing:.3px;display:inline-flex;align-items:center;white-space:nowrap;flex-shrink:0;line-height:1.4}
+.role-customer{background:var(--br-deep);border:1px solid rgba(255,255,255,.35)}
+.role-channel{background:var(--info)}
+.role-adviser{background:var(--gold)}
+.role-deptmgr{background:var(--info)}
+.role-boss{background:var(--danger)}
+.role-operator{background:#3A2E12;color:#C8A96E;border:1px solid rgba(200,169,110,.5)}
+.role-super{background:linear-gradient(135deg,#3A2E12,#1b2742);color:#C8A96E;border:1px solid rgba(200,169,110,.6)}
+.status-line{display:flex;align-items:center;gap:6px;margin-top:14px;font-size:12.5px;color:rgba(255,255,255,.85)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot-ok{background:var(--success);box-shadow:0 0 6px rgba(16,185,129,.8)}
+.dot-todo{background:var(--warning)}
+
+.auth-tip{display:flex;align-items:center;gap:8px;margin:14px 16px 0;padding:10px 14px;border-radius:12px;font-size:13px;border:1px solid rgba(200,169,110,.4);background:rgba(254,230,138,.1);color:var(--gold);cursor:pointer;transition:background .2s}
+.auth-tip.ok{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.4);color:var(--success)}
+.auth-tip .arrow{margin-left:auto}
+
+.content{padding:16px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--bg-card);border-radius:16px;padding:16px;box-shadow:var(--shadow-md)}
+.card-title{font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-title .badge-count{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.quick{background:var(--bg-card);border-radius:16px;padding:16px 12px;box-shadow:var(--shadow-md);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:transform .15s}
+.quick:active{transform:scale(.96)}
+.quick-ic{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center}
+.qi-blue{background:rgba(11,29,58,.1)}.qi-blue svg{stroke:var(--br-deep)}
+.qi-gold{background:var(--gold-bg)}.qi-gold svg{stroke:#8a6d3a}
+.qi-green{background:rgba(16,185,129,.1)}.qi-green svg{stroke:var(--success)}
+.qi-cyan{background:rgba(6,182,212,.1)}.qi-cyan svg{stroke:var(--info)}
+.quick-name{font-size:13px;font-weight:600;color:var(--text-primary)}
+.quick-desc{font-size:11px;color:var(--text-secondary)}
+.quick svg{width:22px;height:22px}
+.stat-line{display:flex;justify-content:space-between;padding:8px 0;font-size:13px}
+.stat-line:not(:last-child){border-bottom:1px solid var(--bg-input)}
+.stat-line .k{color:var(--text-secondary)}
+.stat-line .v{font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.list-item{display:flex;align-items:center;gap:12px;padding:13px 0}
+.list-item:not(:last-child){border-bottom:1px solid var(--bg-input)}
+.li-ic{width:40px;height:40px;border-radius:12px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.li-main{flex:1;min-width:0}
+.li-title{font-size:14px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-desc{font-size:12px;color:var(--text-secondary)}
+.li-arrow{color:var(--text-placeholder);font-size:16px}
+
+.form-group{margin-bottom:14px}
+.form-label{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:6px;display:block}
+.form-input{width:100%;background:var(--bg-input);border:1px solid transparent;border-radius:12px;padding:12px 14px;font-size:14px;color:var(--text-primary);font-family:inherit}
+.form-input:focus{outline:none;border-color:var(--gold);background:#fff}
+.form-input::placeholder{color:var(--text-placeholder)}
+select.form-input{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 12px center}
+.form-textarea{width:100%;background:var(--bg-input);border:1px solid transparent;border-radius:12px;padding:12px;font-size:13px;color:var(--text-primary);min-height:84px;font-family:inherit;resize:none}
+.form-textarea:focus{outline:none;border-color:var(--gold);background:#fff}
+.form-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+
+.btn{border:none;border-radius:14px;font-size:15px;font-weight:700;font-family:inherit;padding:14px;cursor:pointer;transition:transform .15s,opacity .15s;text-align:center}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--br-deep);color:#fff}
+.btn-gold{background:var(--gold);color:#1b2742}
+.btn-secondary{background:#fff;color:var(--br-deep);border:1px solid var(--br-deep)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-text{background:transparent;color:var(--br-deep);font-weight:600}
+.btn-block{width:100%}
+
+.login-hero{background:linear-gradient(160deg,var(--br-deep) 0%,var(--br-mid) 60%,#16345f 100%);padding:70px 24px 40px;color:#fff;text-align:center;position:relative;overflow:hidden}
+.login-hero::before{content:"";position:absolute;left:-70px;top:-40px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,.05)}
+.login-hero::after{content:"";position:absolute;right:-36px;bottom:-80px;width:180px;height:180px;border-radius:50%;background:rgba(200,169,110,.12)}
+.logo-mark{width:68px;height:68px;border-radius:22px;margin:0 auto 18px;background:linear-gradient(135deg,var(--gold),#a8874e);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.3);position:relative;z-index:1}
+.logo-mark svg{width:34px;height:34px;stroke:#0B1D3A}
+.login-title{font-size:26px;font-weight:800;color:#fff;letter-spacing:2px;position:relative;z-index:1}
+.login-sub{font-size:13px;color:rgba(255,255,255,.65);margin-top:6px;position:relative;z-index:1}
+.login-body{padding:24px}
+.flow-steps{display:flex;flex-direction:column;gap:14px;margin-bottom:22px}
+.flow-step{display:flex;gap:14px;align-items:flex-start}
+.flow-num{width:28px;height:28px;border-radius:50%;background:var(--br-deep);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.flow-title{font-size:15px;font-weight:700;color:var(--text-primary);line-height:1.4}
+.flow-desc{font-size:12.5px;color:var(--text-secondary);margin-top:2px}
+.consent-row{display:flex;align-items:flex-start;gap:10px;margin:4px 0 16px;cursor:pointer;user-select:none}
+.consent-box{width:20px;height:20px;border-radius:6px;border:2px solid var(--text-placeholder);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-top:2px}
+.consent-box.checked{background:var(--br-deep);border-color:var(--br-deep)}
+.consent-box.checked svg{display:block}
+.consent-box svg{width:12px;height:12px;stroke:#fff;display:none}
+.consent-text{font-size:12.5px;color:var(--text-body);line-height:1.7}
+.consent-text a{color:var(--br-deep);font-weight:600;text-decoration:none;border-bottom:1px solid rgba(11,29,58,.3)}
+
+.subbar{display:flex;align-items:center;gap:8px;padding:42px 12px 12px;background:linear-gradient(145deg,var(--br-deep),var(--br-mid));color:#fff;min-height:64px}
+.subbar .back{font-size:13px;opacity:.85;cursor:pointer;display:flex;align-items:center;gap:3px;min-width:60px;white-space:nowrap;padding:0 4px;flex-shrink:0}
+.subbar .st{font-size:16px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subbar .st-sub{font-size:10px;color:rgba(255,255,255,.7);margin-left:6px;white-space:nowrap}
+
+.status-tag{font-size:10px;font-weight:700;padding:2px 9px;border-radius:999px}
+.st-draft{background:var(--bg-input);color:var(--text-secondary)}
+.st-pending{background:rgba(245,158,11,.14);color:#b45309}
+.st-ok{background:rgba(16,185,129,.14);color:var(--success)}
+.st-reject{background:rgba(239,68,68,.14);color:var(--danger)}
+.st-info{background:rgba(6,182,212,.14);color:var(--info)}
+.prod-card{background:#fff;border-radius:16px;padding:14px;box-shadow:var(--shadow-md);margin-bottom:12px}
+.prod-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.prod-name{font-size:15px;font-weight:700;color:var(--text-primary)}
+.prod-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-secondary);padding:3px 0}
+.reject-box{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:9px 12px;font-size:12px;color:var(--danger);margin-top:8px;line-height:1.6}
+.prod-actions{display:flex;gap:8px;margin-top:10px}
+.mini-btn{border:none;border-radius:10px;font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer}
+.mb-gold{background:var(--gold);color:#1b2742}
+.mb-danger{background:rgba(239,68,68,.12);color:var(--danger)}
+.mb-ghost{background:var(--bg-input);color:var(--text-body)}
+.parse-preview{background:var(--bg-input);border-radius:12px;padding:12px;font-size:12px;color:var(--text-body);margin-top:12px;line-height:1.7}
+
+.flowing{display:flex;flex-direction:column}
+.fm{display:flex;gap:12px;position:relative;padding-bottom:18px}
+.fm-dot{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;background:#cbd5e1;color:#fff}
+.fm-dot.done{background:var(--success)}
+.fm-dot.active{background:var(--gold);box-shadow:0 0 0 4px rgba(200,169,110,.22)}
+.fm-line{position:absolute;left:15px;top:30px;bottom:6px;width:2px;background:var(--line)}
+.fm-line.done{background:var(--success)}
+.fm-title{font-size:13.5px;font-weight:700;color:var(--text-primary)}
+
+.tool-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:2px 0;align-items:stretch}
+.tool-item{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 1px;cursor:pointer;width:100%}
+.tool-item:active{transform:scale(.94)}
+.tool-ic{width:40px;height:40px;border-radius:13px;background:var(--bg-input);display:flex;align-items:center;justify-content:center}
+.tool-name{font-size:10.5px;color:var(--text-body);text-align:center;line-height:1.25;min-height:2.5em;display:flex;align-items:center;justify-content:center;letter-spacing:-.2px}
+.tool-ic svg{width:19px;height:19px;stroke:var(--br-deep)}
+.tool-ic.gold{background:var(--gold-bg)}.tool-ic.gold svg{stroke:#8a6d3a}
+.tool-ic.cyan{background:rgba(6,182,212,.1)}.tool-ic.cyan svg{stroke:var(--info)}
+
+.empty{display:flex;flex-direction:column;align-items:center;padding:52px 24px;text-align:center}
+.empty-ic{width:72px;height:72px;border-radius:24px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.empty-title{font-size:16px;font-weight:700;color:var(--text-primary)}
+.empty-desc{font-size:13px;color:var(--text-secondary);margin:6px 0 18px}
+.compliance{font-size:11.5px;color:var(--text-secondary);padding:12px 16px;line-height:1.6}
+
+.gate-note{background:rgba(11,29,58,.06);border:1px solid rgba(11,29,58,.12);border-radius:12px;padding:12px 14px;font-size:12px;color:#33415c;line-height:1.6}
+.gate-note b{color:var(--br-deep)}
+
+.tabbar{position:absolute;bottom:0;left:0;right:0;background:rgba(255,255,255,.97);border-top:1px solid var(--line);display:flex;z-index:50;backdrop-filter:blur(10px)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 12px;cursor:pointer;color:var(--text-secondary);transition:color .2s;position:relative}
+.tab svg{width:22px;height:22px;stroke:currentColor}
+.tab span{font-size:10.5px}
+.tab.active{color:var(--br-deep)}
+.tab.active .tab-pip{position:absolute;width:22px;height:3px;border-radius:2px;background:var(--gold);margin-top:-8px}
+.seg{display:flex;gap:6px;background:var(--bg-input);padding:4px;border-radius:12px}
+.seg-item{flex:1;text-align:center;font-size:12.5px;padding:8px 4px;border-radius:9px;color:var(--text-secondary);cursor:pointer;transition:.18s}
+.seg-item.on{background:#fff;color:var(--br-deep);font-weight:700;box-shadow:0 1px 3px rgba(11,29,58,.12)}
+.btn-outline{background:#fff;border:1.5px solid var(--br-deep);color:var(--br-deep);border-radius:24px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;width:100%}
+.btn-outline:active{transform:scale(.98)}
+.toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(11,29,58,.92);color:#fff;font-size:13px;padding:12px 20px;border-radius:12px;z-index:99;display:none;text-align:center;max-width:80%}
+
+/* ===== 步骤条（match 页用） ===== */
+.steps{display:flex;align-items:center;padding:18px 16px 14px;background:#fff;border-radius:14px;margin:0 0 12px;box-shadow:0 1px 3px rgba(11,29,58,.04)}
+.step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;font-size:11.5px;color:var(--text-secondary);line-height:1.2}
+.step-dot{width:26px;height:26px;border-radius:50%;background:#fff;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:5px;transition:.18s}
+.step.done .step-dot{background:var(--br-deep);border-color:var(--br-deep);color:#fff}
+.step.done .step-dot::before{content:'\2713';font-size:13px;line-height:1}
+.step.done .step-dot{font-size:0}
+.step.active .step-dot{background:var(--gold);border-color:var(--gold);color:#fff;box-shadow:0 0 0 4px rgba(200,169,110,.18)}
+.step.active{color:var(--br-deep);font-weight:600}
+.step-name{text-align:center;max-width:64px}
+.step-line{position:absolute;left:50%;right:-50%;top:13px;height:1.5px;background:var(--line);z-index:-1}
+.step.done .step-line{background:var(--br-deep)}
+
+/* 步骤化卡片：只显示当前步内容 */
+.step-card{background:#fff;border-radius:14px;padding:18px 16px;box-shadow:0 1px 3px rgba(11,29,58,.04);margin-bottom:12px}
+.step-card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.step-card-t{font-size:15px;font-weight:700;color:var(--text-primary)}
+.step-card-n{font-size:11px;color:var(--text-secondary);background:var(--bg-input);padding:3px 8px;border-radius:6px}
+
+/* 步骤摘要（已完成折叠） */
+.step-summary{background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 2px rgba(11,29,58,.04);cursor:pointer}
+.sum-ic{width:22px;height:22px;border-radius:50%;background:var(--success);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.sum-t{font-size:13px;color:var(--text-primary);font-weight:500;flex:1}
+.sum-m{font-size:11px;color:var(--text-secondary)}
+
+/* 底部固定操作栏（match） */
+.match-actions{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(247,250,255,0) 0%,#f7faff 30%);padding:12px 0 4px;display:flex;gap:10px;margin-top:8px}
+.match-actions .btn{flex:1}
+.match-actions .btn-ghost{background:#fff;border:1.5px solid var(--line);color:var(--text-secondary);border-radius:24px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer}
+.match-actions .btn-ghost:active{transform:scale(.98)}
+
+/* ===== 日期 chip（报告页客户视图用） ===== */
+.date-chips{display:flex;gap:8px;padding:14px 16px;background:#fff;border-radius:12px;box-shadow:0 1px 2px rgba(11,29,58,.04)}
+.date-chip{flex:1;text-align:center;font-size:13px;padding:9px 4px;border-radius:8px;background:var(--bg-input);color:var(--text-secondary);cursor:pointer;transition:.18s;font-weight:500}
+.date-chip.on{background:var(--br-deep);color:#fff;font-weight:600}
+.date-chip:active{transform:scale(.96)}
+
+/* ===== 报告卡（新设计） ===== */
+.report-card{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;box-shadow:0 1px 2px rgba(11,29,58,.04);transition:.15s;display:flex;align-items:center;gap:12px}
+.report-card:active{transform:scale(.99);background:#fafbfc}
+.rep-grade{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;color:#fff;background:var(--br-deep)}
+.rep-grade.a{background:linear-gradient(135deg,#0B1D3A,#1A3A6E)}
+.rep-grade.b{background:linear-gradient(135deg,#1A3A6E,#2E5293)}
+.rep-grade.c{background:linear-gradient(135deg,#7A8BAB,#9AAAC2)}
+.rep-main{flex:1;min-width:0}
+.rep-id{font-size:11px;color:var(--text-secondary);font-family:ui-monospace,monospace;letter-spacing:.2px}
+.rep-title{font-size:14px;font-weight:600;color:var(--text-primary);margin:2px 0 4px;line-height:1.3}
+.rep-meta{font-size:11.5px;color:var(--text-secondary);display:flex;gap:8px;flex-wrap:wrap}
+.rep-meta b{color:var(--br-deep);font-weight:600}
+.rep-arrow{color:var(--text-secondary);flex-shrink:0}
+
+/* ===== 报告空态 ===== */
+.report-empty{background:#fff;border-radius:14px;padding:48px 24px;text-align:center;color:var(--text-secondary)}
+.report-empty-ic{width:56px;height:56px;border-radius:16px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--text-secondary)}
+.report-empty-t{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px}
+.report-empty-d{font-size:12px;color:var(--text-secondary);line-height:1.5}
+
+/* ===== 自动查重命中提示卡（C10） ===== */
+.dup-card{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:14px;display:flex;gap:12px;margin-top:8px}
+.dup-ic{width:32px;height:32px;border-radius:50%;background:rgba(245,158,11,.18);color:#b45309;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dup-ic svg{width:18px;height:18px;stroke:currentColor}
+.dup-body{flex:1;min-width:0}
+.dup-t{font-size:13.5px;font-weight:600;color:var(--text-primary);margin-bottom:4px}
+.dup-d{font-size:12px;color:var(--text-secondary);line-height:1.55}
+
+/* ===== 经营诊断详情页专业 UI（C6） ===== */
+.diag-header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;background:linear-gradient(135deg,var(--br-deep),var(--br-bright));color:#fff;padding:18px 18px 16px;border-radius:14px;margin-bottom:12px}
+.diag-header-l{flex:1;min-width:0}
+.diag-id{font-family:ui-monospace,monospace;font-size:16px;font-weight:700;letter-spacing:.4px;color:var(--gold)}
+.diag-time{font-size:11.5px;color:rgba(255,255,255,.7);margin-top:3px}
+.diag-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.diag-kpi-item{background:#fff;border-radius:12px;padding:14px 12px;text-align:center;box-shadow:0 1px 2px rgba(11,29,58,.04)}
+.diag-kpi-l{font-size:11.5px;color:var(--text-secondary);margin-bottom:6px}
+.diag-kpi-v{font-size:22px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.diag-kpi-u{font-size:13px;color:var(--text-secondary);font-weight:500;margin-left:2px}
+.diag-kpi-d{font-size:11px;color:var(--text-secondary);margin-top:4px}
+.sugg-tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;margin-right:8px;font-weight:600;flex-shrink:0;line-height:1.5}
+.tag-expand{background:rgba(16,185,129,.14);color:var(--success)}
+.tag-optimize{background:rgba(6,182,212,.14);color:var(--info)}
+.tag-supplement{background:rgba(245,158,11,.14);color:#b45309}
+.tag-warn{background:rgba(239,68,68,.14);color:var(--danger)}
+.sugg-item{display:flex;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--bg-input)}
+.sugg-item:last-child{border-bottom:0}
+.sugg-body{font-size:13px;color:var(--text-primary);line-height:1.6;flex:1}
+.risk-block{padding:8px 0}
+.risk-block-t{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;letter-spacing:.3px}
+.risk-block+.risk-block{border-top:1px solid var(--bg-input);padding-top:12px;margin-top:6px}
+.risk-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;flex-shrink:0;margin-top:6px}
+.risk-dot.mid{background:#b45309}
+.risk-dot.low{background:var(--info)}
+.risk-dot.high{background:var(--danger)}
+.sparkline-block{margin-top:12px;padding:8px 0 0;border-top:1px solid var(--bg-input)}
+.sparkline-t{font-size:12px;color:var(--text-secondary);margin-bottom:6px}
+.sparkline{display:block;width:100%;height:36px;margin:4px 0}
+.sparkline-axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-secondary);padding:0 2px}
+.bar-avg{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed rgba(11,29,58,.4);pointer-events:none}
+.bar-row{position:relative}
+.bar-legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);margin-top:8px}
+.bar-legend-dot{display:inline-block;width:14px;height:0;border-top:1.5px dashed rgba(11,29,58,.4)}
+.diag-footer{font-size:11px;color:var(--text-secondary);text-align:center;padding:14px 12px;line-height:1.65;background:var(--bg-input);border-radius:10px;margin-top:6px}
+
+/* ===== 经营诊断详情页 — C5 遗留样式（仅保留 C6 仍在复用的部分） =====
+   说明：C6 重构后 .sugg-item / .risk-block 等已在第 302-336 行重新定义，
+   此处删除被覆盖的旧 .sugg-item（会造成 padding 与分隔线丢失）与未再使用的
+   .diag-banner / .sugg-dot / .risk-tag 系列，避免后定义覆盖前定义的样式冲突。 */
+.sugg-list{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.sugg-item b{color:var(--text-primary)}
+.risk-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.risk-item:last-child{border-bottom:none}
+.risk-txt{font-size:12.5px;color:var(--text-body);line-height:1.55}
+.risk-txt b{color:var(--text-primary)}
+.yr-table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:2px}
+.yr-table th{background:var(--bg-input);color:var(--text-secondary);font-weight:600;padding:7px 6px;text-align:right}
+.yr-table th:first-child,.yr-table td:first-child{text-align:left}
+.yr-table td{padding:7px 6px;text-align:right;border-bottom:1px solid var(--line);color:var(--text-body)}
+.yr-table tr:last-child td{border-bottom:none}
+.bar-block{display:flex;flex-direction:column;gap:11px;margin-top:4px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-label{font-size:12px;color:var(--text-body);width:64px;flex-shrink:0}
+.bar-track{flex:1;height:9px;border-radius:6px;background:var(--bg-input);overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--br-bright),var(--gold))}
+.bar-val{font-size:11.5px;font-weight:700;color:var(--text-primary);width:34px;text-align:right;flex-shrink:0}
+
+/* ===== 上传材料 & 核验（智能匹配） ===== */
+.upload-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:4px 0 2px}
+.upload-tile{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:14px 6px 10px;text-align:center;cursor:pointer;transition:.15s}
+.upload-tile.solid{border-style:solid;border-color:var(--line)}
+.upload-tile:active{transform:scale(.97)}
+.upload-ic{width:36px;height:36px;border-radius:10px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;color:var(--text-secondary)}
+.upload-ic svg{width:20px;height:20px;stroke:currentColor}
+.upload-name{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:5px;line-height:1.3}
+.upload-status{font-size:11px;display:inline-block;padding:2px 8px;border-radius:999px;font-weight:500;letter-spacing:0}
+.upload-status.ok{background:rgba(16,185,129,.12);color:var(--success)}
+.upload-status.fail{background:rgba(239,68,68,.12);color:var(--danger)}
+.upload-status.pending{background:rgba(245,158,11,.12);color:var(--warning)}
+.upload-status.empty{background:rgba(100,116,139,.14);color:var(--text-secondary)}
+.upload-tip{font-size:11.5px;color:var(--text-secondary);margin-top:8px;line-height:1.6}
+.verify-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.verify-row:last-child{border-bottom:none}
+.verify-ic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.verify-ic svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.verify-ic.ok{background:rgba(16,185,129,.15);color:var(--success)}
+.verify-ic.fail{background:rgba(239,68,68,.15);color:var(--danger)}
+.verify-ic.warn{background:rgba(245,158,11,.15);color:var(--warning)}
+.verify-title{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:2px}
+.verify-desc{font-size:12px;color:var(--text-secondary);line-height:1.55}
+</style>
+</head>
+<body>
+<div class="page-title">企融通 · 企业贷款咨询小程序</div>
+<div class="page-sub">可交互高保真原型 · 7 角色（客户 / 渠道合作方 / 顾问 / 部门经理 / 老板 / 运营管理员 / 超级管理员）· 深海军蓝 × 暖金 · 沿用参考原型视觉语言</div>
+
+<div class="stage">
+  <div class="controls">
+    <h3>角色切换（体验）</h3>
+    <div class="ctrl-group">
+      <div class="ctrl-label">登录身份</div>
+      <div class="role-chips" id="roleChips">
+        <div class="role-chip active" data-role="customer">客户</div>
+        <div class="role-chip" data-role="channel">渠道合作方</div>
+        <div class="role-chip" data-role="adviser">顾问</div>
+        <div class="role-chip" data-role="deptmgr">部门经理</div>
+        <div class="role-chip" data-role="boss">老板</div>
+        <div class="role-chip" data-role="operator">运营管理员</div>
+        <div class="role-chip" data-role="super">超级管理员</div>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">客户认证（仅客户角色）</div>
+      <div class="ctrl-note">客户「去认证」触发 AI 审批 + 人工核验状态机；员工/渠道天然内部可信。切换角色自动适配视图与 tabBar（方案 B）。</div>
+    </div>
+    <button class="btn-logout" id="logoutBtn">退出登录 → 落地页</button>
+  </div>
+
+  <div class="phone">
+    <div class="phone-side side-right"></div>
+    <div class="phone-side side-right2"></div>
+    <div class="phone-side side-left"></div>
+    <div class="screen" id="screen">
+      <div class="notch"></div>
+      <div class="screen-body" id="screenBody"></div>
+      <div class="tabbar" id="tabbar"></div>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const I = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg>',
+  match:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7a5 5 0 1 0 5 5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>',
+  report:'<svg viewBox="0 0 24 24" fill="none" stroke-width=" 1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 12h6M9 15.5h6M9 8.5h2"/></svg>',
+  order:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v15H4z"/><path d="M8 3v4M16 3v4"/><path d="M8 11h8M8 15h8"/></svg>',
+  mine:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  chevron:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+  bolt:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M3 20c1.2-3 3.4-4.5 6-4.5s4.8 1.5 6 4.5"/><path d="M16 4.6a3.4 3.4 0 0 1 0 6.8"/><path d="M18.5 15.6c1.3.8 2.2 2.1 2.5 4.4"/></svg>',
+  wallet:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h16a2 2 0 0 1 2 2v10H5a2 2 0 0 1-2-2z"/><path d="M3 7l1.5-3h14L21 7"/><path d="M16 13h2"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="m9 12 2 2 4-4"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
+  trend:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+  alert:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 20h19z"/><path d="M12 10v4.5"/><path d="M12 17.5v.2"/></svg>',
+  gift:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16v11H4z"/><path d="M2.5 5h19v4h-19z"/><path d="M12 5v15"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.3.9-4.5 4.4 1 6.1-5.5-3-5.5 3 1-6.1-4.5-4.4 6.3-.9z"/></svg>',
+  setting:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4l.4-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.06-.4.1-.8.1-1.2z"/></svg>',
+  headset:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v5a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H4zm16 0v5a2 2 0 0 1-2 2h-1a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3z"/></svg>',
+  lock:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+  bank:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 12 4l9 5"/><path d="M5 9v10h14V9"/><path d="M9 19v-5h6v5"/></svg>',
+  send:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>',
+  doc:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+  upload:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg>',
+  photo:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="m8 6 1.5-2h5L16 6"/></svg>',
+  file:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 14h6M9 17h4"/></svg>',
+  refresh:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 4v4h-4"/><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><path d="M3 20v-4h4"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg>'
+};
+
+const state = {
+  role:'customer',
+  tab:'home',
+  sub:null,
+  arg:'',
+  editIdx:null,
+  loggedIn:true,
+  authed:false,
+  authStep:0,
+  consentChecked:true,
+  matchStep:0,            // 智能匹配步骤：0 选/录企业(员工) / 1 经营事实 / 2 上传材料 / 3 核验&匹配
+  targetQuery:'',         // C10 查重输入
+  dupState:'',            // C10 查重状态：'' | 'checking' | 'hit' | 'miss'
+  dupClient:null,         // C10 命中的客户对象
+  applyPending:false,     // C10 无归宿分配申请待审批
+  targetName:'',          // 已确定归属的目标企业名
+  diagTab:'product',      // 报告详情 tab：product(命中产品) | diagnosis(经营诊断)
+  curReport:null,         // 当前查看的报告对象（C4 用于关联命中产品）
+  reportFilter:{date:'all', query:'', credit:'', owner:'all'}, // 报告筛选（客户只用 date；员工可全维）
+  orderFilter:{client:'', phone:'', status:'all', date:'all'}, // C7 服务单/工单四维筛选
+  products:[
+    {name:'税贷A产品',group:'企业',amount:'100万-500万',status:'OK',reason:''},
+    {name:'发票贷B产品',group:'企业',amount:'50万-300万',status:'PENDING',reason:''},
+    {name:'经营贷C',group:'企业',amount:'200万-800万',status:'REJECTED',reason:'额度上限超出渠道准入标准，请下调至 600 万内重新提交'},
+    {name:'信用贷D产品',group:'个人',amount:'10万-50万',status:'PENDING_DELETE',reason:''}
+  ],
+  leads:[{name:'赵*雷',contact:'138****6677',group:'企业',from:'CHANNEL'}]
+};
+
+const ROLE_META = {
+  customer:{name:'客户',badge:'role-customer',badgeText:'客户'},
+  channel:{name:'渠道合作方',badge:'role-channel',badgeText:'渠道合作方'},
+  adviser:{name:'顾问',badge:'role-adviser',badgeText:'顾问'},
+  deptmgr:{name:'部门经理',badge:'role-deptmgr',badgeText:'部门经理'},
+  boss:{name:'老板',badge:'role-boss',badgeText:'老板'},
+  operator:{name:'运营管理员',badge:'role-operator',badgeText:'运营管理员'},
+  super:{name:'超级管理员',badge:'role-super',badgeText:'超级管理员'}
+};
+
+function tabsFor(role){
+  if(role==='channel') return [{k:'home',label:'首页',ic:'home'},{k:'myProduct',label:'我的产品',ic:'bank'},{k:'enterCustomer',label:'录入客户',ic:'users'},{k:'mine',label:'我的',ic:'mine'}];
+  // C1/C3/C4：运营/超管拥有智能匹配资格 + 全量报告 + 全量产品可见 → 补齐入口（原仅 3 tab 导致有权限无入口）
+  if(role==='operator'||role==='super') return [
+    {k:'workbench',label:'工作台',ic:'shield'},
+    {k:'match',label:'智能匹配',ic:'match'},
+    {k:'report',label:'全部报告',ic:'report'},
+    {k:'approve',label:'审批中心',ic:'check'},
+    {k:'mine',label:'我的',ic:'mine'}
+  ];
+  return [{k:'home',label:'首页',ic:'home'},{k:'match',label:'智能匹配',ic:'match'},{k:'report',label:'我的报告',ic:'report'},{k:'order',label:'服务单',ic:'order'},{k:'mine',label:'我的',ic:'mine'}];
+}
+
+const STATUS_LABEL = {OK:'已上架',PENDING:'待审批',REJECTED:'已驳回',DRAFT:'草稿',PENDING_DELETE:'待删除'};
+const STATUS_CLS = {OK:'st-ok',PENDING:'st-pending',REJECTED:'st-reject',DRAFT:'st-draft',PENDING_DELETE:'st-reject'};
+
+/* ===== C10 客户查重库（mock，对应 t_client + t_lead） =====
+   owner=null 表示无归宿（公海/无主）→ 分配需上级/运营审批 */
+const CLIENT_DB = [
+  {name:'上海*明科技有限公司', phone:'13800000001', credit:'91110000MA1K35Q2X', owner:'陈顾问', hasOwner:true},
+  {name:'深圳*华贸易有限公司', phone:'13900005566', credit:'91440300MA5EF2H8K', owner:'刘经理', hasOwner:true},
+  {name:'苏州*军电子有限公司', phone:'13700009988', credit:'91320500MA1MWQ7T', owner:null, hasOwner:false},
+  {name:'广州*锋制造有限公司', phone:'13500003344', credit:'91440101MA9UYD2P', owner:null, hasOwner:false}
+];
+/** C10 查重：按企业名(模糊) / 手机号(精确) / 统一社会信用代码(精确) 任一命中 */
+function searchClient(keyword){
+  const kw=(keyword||'').trim();
+  if(kw.length<2) return null;
+  return CLIENT_DB.find(function(c){
+    return c.name.indexOf(kw)>=0 || c.phone===kw || c.credit===kw;
+  })||null;
+}
+
+/* ===== 报告数据源（真实筛选用；ts 为绝对时间戳，供日期区间筛选） ===== */
+const REPORTS = [
+  {id:'rep-2026-0829-001', client:'王*明', phone:'138****0001', entName:'上海*明科技有限公司', credit:'91110000MA1K35Q2X',
+   grade:'B+', gradeCls:'b', productCount:3, bankCount:2, date:'2026-08-29', ts:new Date('2026-08-29T14:20:00').getTime(), owner:'陈顾问', ownerKey:'me', products:[0,1,2]},
+  {id:'rep-2026-0825-006', client:'李*华', phone:'139****5566', entName:'深圳*华贸易有限公司', credit:'91440300MA5EF2H8K',
+   grade:'A-', gradeCls:'a', productCount:5, bankCount:3, date:'2026-08-25', ts:new Date('2026-08-25T10:30:00').getTime(), owner:'刘经理', ownerKey:'staff', products:[0,1,2,3,4]},
+  {id:'rep-2026-0820-009', client:'张*军', phone:'137****9988', entName:'苏州*军电子有限公司', credit:'91320500MA1MWQ7T',
+   grade:'C+', gradeCls:'c', productCount:1, bankCount:1, date:'2026-08-20', ts:new Date('2026-08-20T09:15:00').getTime(), owner:'公海', ownerKey:'staff', products:[3]},
+  {id:'rep-2026-0830-002', client:'陈*锋', phone:'135****3344', entName:'广州*锋制造有限公司', credit:'91440101MA9UYD2P',
+   grade:'B+', gradeCls:'b', productCount:2, bankCount:2, date:'2026-08-30', ts:new Date('2026-08-30T08:05:00').getTime(), owner:'陈顾问', ownerKey:'me', products:[1,4]}
+];
+/* ===== C4 匹配命中银行产品库（供报告详情「命中产品」tab 使用） ===== */
+const MATCH_PRODUCTS = [
+  {name:'税贷A产品', bank:'中国工商银行', amount:'100万-500万', rate:'3.85% 起', term:'12-36 期', match:92, tags:['税贷','信用'], req:'纳税等级 A/B/M，年纳税 ≥ 10 万'},
+  {name:'发票贷B产品', bank:'中国建设银行', amount:'50万-300万', rate:'4.15% 起', term:'6-24 期', match:85, tags:['发票贷','信用'], req:'年开票 ≥ 500 万，连续开票 24 个月'},
+  {name:'经营贷C产品', bank:'招商银行', amount:'200万-800万', rate:'3.95% 起', term:'12-60 期', match:78, tags:['经营贷','抵押'], req:'成立满 2 年，可提供经营性流水'},
+  {name:'科创贷D产品', bank:'中国银行', amount:'30万-200万', rate:'3.65% 起', term:'12-24 期', match:71, tags:['科创','信用'], req:'高新技术企业或科技型中小企业'},
+  {name:'设备融资E', bank:'交通银行', amount:'80万-500万', rate:'4.35% 起', term:'24-48 期', match:64, tags:['设备','抵押'], req:'设备发票齐全，可办理抵押登记'}
+];
+/** 日期区间筛选：today / 7d / 30d / all（基于绝对时间戳） */
+function inDateRange(ts, range){
+  if(range==='all') return true;
+  const now=new Date('2026-08-30T12:00:00').getTime();
+  if(range==='today') return ts>=now-24*3600*1000;
+  if(range==='7d') return ts>=now-7*24*3600*1000;
+  if(range==='30d') return ts>=now-30*24*3600*1000;
+  return true;
+}
+
+const $ = (id)=>document.getElementById(id);
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.style.display='block';
+  clearTimeout(t._t); t._t=setTimeout(()=>{t.style.display='none';},1600);
+}
+function roleBadge(){
+  const m=ROLE_META[state.role];
+  return '<span class="role-badge '+m.badge+'">'+m.badgeText+'</span>';
+}
+
+/* ==================== 渲染入口 ==================== */
+function render(){
+  if(!state.loggedIn){ renderLogin(); $('tabbar').innerHTML=''; return; }
+  if(state.sub){ renderSub(); $('tabbar').innerHTML=''; return; }
+  renderTabbar();
+  renderScreen();
+}
+function renderTabbar(){
+  const tb=$('tabbar');
+  const tabs=tabsFor(state.role);
+  tb.innerHTML=tabs.map(function(t){
+    return '<div class="tab '+(state.tab===t.k?'active':'')+'" data-tab="'+t.k+'">'+
+      (state.tab===t.k?'<div class="tab-pip"></div>':'')+
+      (I[t.ic]||I.home)+
+      '<span>'+t.label+'</span></div>';
+  }).join('');
+  tb.querySelectorAll('.tab').forEach(function(el){
+    el.addEventListener('click',function(){ state.tab=el.dataset.tab; render(); });
+  });
+}
+function renderScreen(){
+  const map={
+    home:renderHome, match:renderMatch, report:renderReport, order:renderOrder,
+    mine:renderMine, myProduct:renderMyProduct, enterCustomer:renderEnterCustomer,
+    workbench:renderWorkbench, approve:renderApprove
+  };
+  $('screenBody').innerHTML='<div class="page active">'+(map[state.tab]||renderHome)()+'</div>';
+  bindScreen();
+}
+
+/* ==================== 登录 / 准入 ==================== */
+function renderLogin(){
+  $('screenBody').innerHTML=
+    '<div class="page active">'+
+      '<div class="login-hero">'+
+        '<div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 12 3l9 5.5v7L12 21l-9-5.5z"/><path d="M8.5 12h7M12 8.5v7"/></svg></div>'+
+        '<div class="login-title">企 融 通</div>'+
+        '<div class="login-sub">多银行产品智能匹配 · 经营数据驱动准入分析</div>'+
+      '</div>'+
+      '<div class="login-body">'+
+        '<div class="flow-steps">'+
+          '<div class="flow-step"><div class="flow-num">1</div><div><div class="flow-title">微信一键登录</div><div class="flow-desc">授权 openid，自动创建档案</div></div></div>'+
+          '<div class="flow-step"><div class="flow-num">2</div><div><div class="flow-title">身份认证（客户）</div><div class="flow-desc">AI 审批 → 人工核验 → 通知审批人</div></div></div>'+
+          '<div class="flow-step"><div class="flow-num">3</div><div><div class="flow-title">智能匹配 / 产品录入</div></div></div>'+
+        '</div>'+
+        '<div style="height:8px"></div>'+
+        '<div class="consent-row" id="consentRow">'+
+          '<div class="consent-box '+(state.consentChecked?'checked':'')+'" id="consentBox">'+I.check+'</div>'+
+          '<div class="consent-text">我已阅读并同意 <a href="javascript:void(0)" id="privacyLink">《用户协议》</a> 与 <a href="javascript:void(0)" id="privacyLink2">《隐私政策》</a></div>'+
+        '</div>'+
+        '<button class="btn btn-primary btn-block" id="loginBtn" '+(state.consentChecked?'':'disabled')+'>'+(state.consentChecked?'微信一键登录':'请先勾选协议')+'</button>'+
+      '</div>'+
+    '</div>';
+  $('consentRow').addEventListener('click',function(){ state.consentChecked=!state.consentChecked; renderLogin(); });
+  $('privacyLink').addEventListener('click',function(e){ e.stopPropagation(); toast('《隐私政策》已在「我的-隐私政策」展示'); });
+  $('privacyLink2').addEventListener('click',function(e){ e.stopPropagation(); toast('《用户协议》已在「我的-隐私政策」展示'); });
+  $('loginBtn').addEventListener('click',function(){ if(!state.consentChecked) return; state.loggedIn=true; if(state.role!=='customer'){ state.authed=true; } state.tab='home'; render(); });
+}
+
+/* ==================== 首页 ==================== */
+function renderHome(){
+  if(state.role==='customer') return renderHomeCustomer();
+  if(state.role==='channel') return renderHomeChannel();
+  if(state.role==='adviser') return renderHomeAdviser();
+  if(state.role==='deptmgr') return renderHomeManager('部门经理');
+  if(state.role==='boss') return renderHomeManager('老板');
+  if(state.role==='operator'||state.role==='super') return renderHomeOperator();
+  return '';
+}
+function heroHead(name,meta,subLine){
+  const avatar = state.role==='customer' ? '微' : (state.role==='channel'?'银':'陈');
+  return '<div class="hero"><div class="hero-row">'+
+    '<div class="avatar">'+avatar+'</div>'+
+    '<div><div class="hero-name">'+name+'</div><div class="hero-meta">'+meta+'</div></div>'+
+    '<div class="hero-right">'+roleBadge()+'</div></div>'+
+    '<div class="status-line"><span class="dot '+(state.authed?'dot-ok':'dot-todo')+'"></span>'+subLine+'</div></div>';
+}
+function renderHomeCustomer(){
+  const authed=state.authed;
+  const authTip = authed
+    ? '<div class="auth-tip ok"><span>'+I.check+'</span>已实名认证 · 解锁全部匹配能力<span class="arrow">'+I.chevron+'</span></div>'
+    : '<div class="auth-tip" id="gotoAuth"><span>'+I.bolt+'</span>完成身份认证（AI+人工核验）解锁智能匹配<span class="arrow">'+I.chevron+'</span></div>';
+  return heroHead('晚上好，微信客户','微信一键登录 · 实名认证用户','8月29日 周六 · 经营数据准入就绪')+
+    authTip+
+    '<div class="content">'+
+      '<div class="grid-2">'+
+        '<div class="quick" data-goto="match"><div class="quick-ic qi-blue">'+I.match+'</div><div class="quick-name">智能匹配</div><div class="quick-desc">提交经营事实</div></div>'+
+        '<div class="quick" data-goto="report"><div class="quick-ic qi-gold">'+I.report+'</div><div class="quick-name">我的报告</div><div class="quick-desc">查看历史评级</div></div>'+
+        '<div class="quick" data-goto="order"><div class="quick-ic qi-green">'+I.order+'</div><div class="quick-name">服务单</div><div class="quick-desc">跟进融资进度</div></div>'+
+        '<div class="quick"><div class="quick-ic qi-cyan">'+I.gift+'</div><div class="quick-name">邀请绑定</div><div class="quick-desc">专属顾问服务</div></div>'+
+      '</div>'+
+      '<div class="card"><div class="card-title">业务概览</div>'+
+        '<div class="stat-line"><span class="k">合作机构</span><span class="v">在售 2 款</span></div>'+
+        '<div class="stat-line"><span class="k">我的报告</span><span class="v">'+(authed?'1 份':'0 份')+'</span></div>'+
+      '</div>'+
+      '<div class="compliance">合规声明：匹配程度分析不构成银行通过承诺；具体额度与利率以顾问跟进为准。客户报告固定免责声明已随报告展示。</div>'+
+    '</div>';
+}
+function renderHomeChannel(){
+  const ok=state.products.filter(function(p){return p.status==='OK';}).length;
+  const pend=state.products.filter(function(p){return p.status==='PENDING';}).length;
+  return heroHead('上午好，银行客户经理','中国工商银行 · 渠道编码 ICBC-X3','仅可见本行录入产品 · 不可见客户匹配结果')+
+    '<div class="content">'+
+      '<div class="card"><div class="card-title">今日概览</div>'+
+        '<div class="stat-line"><span class="k">我的产品</span><span class="v">'+state.products.length+' 款（上架 '+ok+'）</span></div>'+
+        '<div class="stat-line"><span class="k">待审批</span><span class="v" style="color:var(--warning)">'+pend+' 条</span></div>'+
+      '</div>'+
+      '<div class="grid-2">'+
+        '<div class="quick" data-sub="myProduct"><div class="quick-ic qi-blue">'+I.bank+'</div><div class="quick-name">我的产品</div><div class="quick-desc">上架/待审/驳回</div></div>'+
+        '<div class="quick" data-sub="enterProduct"><div class="quick-ic qi-gold">'+I.doc+'</div><div class="quick-name">录入产品</div><div class="quick-desc">进件要求结构化</div></div>'+
+        '<div class="quick" data-sub="enterCustomer"><div class="quick-ic qi-green">'+I.users+'</div><div class="quick-name">录入客户</div><div class="quick-desc">客户线索进公海</div></div>'+
+        '<div class="quick" data-sub="approvalProgress"><div class="quick-ic qi-cyan">'+I.clock+'</div><div class="quick-name">审批进度</div><div class="quick-desc">实时可见</div></div>'+
+      '</div>'+
+      '<div class="gate-note">您录入的产品将经我司运营 / 超级管理员审批后上架，驳回会显示原因并可编辑重提。渠道账号按银行渠道数据沙箱隔离。</div>'+
+    '</div>';
+}
+function renderHomeAdviser(){
+  return heroHead('上午好，陈顾问','工号 AD-1024 · 华南渠道部','今日 3 项待办 · 保持跟进节奏')+
+    '<div class="content">'+
+      '<div class="card"><div class="card-title">今日待办 <span class="badge-count">5</span></div>'+
+        '<div class="list-item"><div class="li-ic" style="background:var(--warning)">'+I.clock+'</div><div class="li-main"><div class="li-title">待跟进客户</div><div class="li-desc">超 3 天未跟进</div></div><div style="font-weight:700">3 位</div></div>'+
+        '<div class="list-item"><div class="li-ic" style="background:var(--info)">'+I.order+'</div><div class="li-main"><div class="li-title">待处理工单</div><div class="li-desc">需补料 / 待回访</div></div><div style="font-weight:700">2 条</div></div>'+
+      '</div>'+
+      '<div class="card"><div class="card-title">快捷入口</div><div class="grid-2">'+
+        '<div class="quick" data-sub="enterLead"><div class="quick-ic qi-green">'+I.users+'</div><div class="quick-name">录入线索</div><div class="quick-desc">归属本人</div></div>'+
+        '<div class="quick" data-sub="enterProduct"><div class="quick-ic qi-gold">'+I.bank+'</div><div class="quick-name">录入银行产品</div><div class="quick-desc">走审批上架</div></div>'+
+      '</div></div>'+
+      '<div class="card"><div class="card-title">本月业绩</div>'+
+        '<div class="stat-line"><span class="k">成交单数</span><span class="v">4 单</span></div>'+
+        '<div class="stat-line"><span class="k">预估收益</span><span class="v" style="color:var(--gold)">¥8,600</span></div>'+
+      '</div>'+
+    '</div>';
+}
+function renderHomeManager(title){
+  const pend=state.products.filter(function(p){return p.status==='PENDING';}).length;
+  return heroHead('上午好，陈经理','华南渠道部 · 团队客户视角','审批 5 条待处理 · 渠道健康')+
+    '<div class="content">'+
+      '<div class="card"><div class="card-title">审批中心 <span class="badge-count">5</span></div>'+
+        '<div class="list-item"><div class="li-ic" style="background:var(--danger)">'+I.order+'</div><div class="li-main"><div class="li-title">待审批工单</div><div class="li-desc">资料下载 / 额度确认</div></div><div style="font-weight:700">5 条</div></div>'+
+        '<div class="list-item"><div class="li-ic" style="background:var(--gold)">'+I.bank+'</div><div class="li-main"><div class="li-title">待审核产品</div><div class="li-desc">渠道录入待准入</div></div><div style="font-weight:700">'+pend+' 条</div></div>'+
+      '</div>'+
+      '<div class="grid-2">'+
+        '<div class="quick" data-sub="enterLead"><div class="quick-ic qi-green">'+I.users+'</div><div class="quick-name">录入线索</div></div>'+
+        '<div class="quick" data-sub="enterProduct"><div class="quick-ic qi-gold">'+I.bank+'</div><div class="quick-name">录入银行产品</div></div>'+
+      '</div>'+
+      '<div class="card"><div class="card-title">渠道健康度</div>'+
+        '<div class="stat-line"><span class="k">合作银行</span><span class="v">3 家</span></div>'+
+        '<div class="stat-line"><span class="k">在售产品</span><span class="v">2 款</span></div>'+
+      '</div>'+
+    '</div>';
+}
+function renderHomeOperator(){
+  const title = state.role==='super'?'超级管理员':'运营管理员';
+  const pend=state.products.filter(function(p){return p.status==='PENDING';}).length;
+  return heroHead('上午好，'+title,'全量运营口径 · 审批权限','小程序侧轻量视图 · 完整能力在 Web 管理端')+
+    '<div class="content">'+
+      '<div class="card"><div class="card-title">待我审批 <span class="badge-count">'+pend+'</span></div>'+
+        '<div class="list-item"><div class="li-ic" style="background:var(--gold)">'+I.bank+'</div><div class="li-main"><div class="li-title">银行产品准入</div><div class="li-desc">渠道录入待终审</div></div><div style="color:var(--danger);font-weight:700;font-size:12px">待批</div></div>'+
+        '<div class="list-item"><div class="li-ic" style="background:var(--info)">'+I.order+'</div><div class="li-main"><div class="li-title">服务单审批</div><div class="li-desc">资料下载 / 额度确认</div></div><div style="color:var(--danger);font-weight:700;font-size:12px">5 条</div></div>'+
+      '</div>'+
+      '<div class="gate-note">运营 / 超级管理员拥有银行合作产品、线索查询、审批、短信、基础运营等能力，主要在 Web 管理端。小程序侧仅展示「审批结果回写」「通知」与前往 Web 的入口。</div>'+
+      '<div class="grid-2">'+
+        '<div class="quick" data-tab="approve"><div class="quick-ic qi-gold">'+I.shield+'</div><div class="quick-name">审批中心</div></div>'+
+        '<div class="quick" data-sub="generic" data-arg="sms"><div class="quick-ic qi-cyan">'+I.send+'</div><div class="quick-name">短信中心</div></div>'+
+      '</div>'+
+    '</div>';
+}
+
+/* ==================== 智能匹配（步骤化 UI · C1+C2） ==================== */
+function renderMatch(){
+  // 渠道合作方：不可操作智能匹配（C1）
+  if(state.role==='channel'){
+    return '<div class="empty" style="padding-top:90px"><div class="empty-ic" style="background:rgba(239,68,68,.1)">'+I.lock+'</div>'+
+      '<div class="empty-title">渠道不可操作智能匹配</div><div class="empty-desc">渠道合作方定位为产品供给方与线索录入方，匹配由客户与企业员工发起</div></div>';
+  }
+  const isSelf = state.role==='customer';
+  // 客户未认证 → 引导去认证
+  if(isSelf && !state.authed){
+    return '<div class="empty" style="padding-top:90px"><div class="empty-ic" style="background:var(--gold-bg)">'+I.bolt+'</div>'+
+      '<div class="empty-title">完成身份认证后即可发起匹配</div><div class="empty-desc">企业营业执照或个人实名认证，二选一即可</div>'+
+      '<button class="btn btn-gold" style="width:200px" id="gotoAuth2">去认证</button></div>';
+  }
+  // 步骤元信息
+  const STEPS=[
+    {k:'target',  t:'目标企业', sub:'选/录或本人'},
+    {k:'facts',   t:'经营事实', sub:'纳税/开票/年限'},
+    {k:'mats',    t:'上传材料', sub:'材料核验'},
+    {k:'verify',  t:'核验匹配', sub:'生成报告'}
+  ];
+  const stepHtml=STEPS.map(function(s,i){
+    const cls = i<state.matchStep?'done':(i===state.matchStep?'active':'');
+    const line = i<STEPS.length-1?'<div class="step-line"></div>':'';
+    return '<div class="step '+cls+'" data-step="'+i+'"><div class="step-dot">'+(i+1)+'</div>'+line+'<div class="step-name">'+s.t+'</div></div>';
+  }).join('');
+  const heroTitle=isSelf?'智能匹配':'替客户匹配';
+  const heroSub=isSelf?'提交经营事实 · 上传材料 · 获取准入评级':'选/录企业 → 填事实 → 上传材料 → 匹配';
+  const head='<div class="hero" style="padding:32px 20px 14px"><div class="hero-row"><div><div class="hero-name" style="font-size:18px">'+heroTitle+'</div><div class="hero-meta">'+heroSub+'</div></div><div class="hero-right">'+roleBadge()+'</div></div></div>';
+  // 当前步骤内容
+  let body='';
+  if(state.matchStep===0){
+    // 步骤 0：目标企业
+    if(isSelf){
+      body='<div class="step-card"><div class="step-card-h"><div class="step-card-t">我的认证企业</div><span class="step-card-n">已确认</span></div>'+
+        '<div class="form-group"><label class="form-label">企业名称</label><input class="form-input" value="上海*明科技有限公司" disabled></div>'+
+        '<div class="form-group"><label class="form-label">统一社会信用代码</label><input class="form-input" value="91110000********2X" disabled></div>'+
+        '<div class="upload-tip">目标企业来自您的实名认证，匹配将基于此企业生成报告</div></div>';
+    } else {
+      // C10 自动查重分流：输入即查重 → 命中渲染 dup-card / 未命中渲染录入表单 / 空值只显示提示（已移除手动 seg）
+      const ds=state.dupState;           // '' | 'checking' | 'hit' | 'miss'
+      const hitClient=state.dupClient;
+      let branch='';
+      if(ds==='checking'){
+        branch='<div class="dup-card" style="background:var(--bg-input);border-color:var(--line)">'+
+          '<div class="dup-ic" style="background:rgba(11,29,58,.08);color:var(--br-deep)">'+I.refresh+'</div>'+
+          '<div class="dup-body"><div class="dup-t">正在查重…</div><div class="dup-d">按企业名称 / 手机号 / 统一社会信用代码 检索系统中已有客户</div></div>'+
+        '</div>';
+      } else if(ds==='hit' && hitClient){
+        const ownerTxt = hitClient.hasOwner
+          ? ('归属人：<b>'+hitClient.owner+'</b> · 状态：已归属。申请后<b>自动归属</b>给你（无需审批）')
+          : ('归属人：<b>无（公海 / 无主）</b> · 申请后需<b>上级 / 运营审批</b>，通过后通知你');
+        branch='<div class="dup-card">'+
+          '<div class="dup-ic">'+I.alert+'</div>'+
+          '<div class="dup-body"><div class="dup-t">该企业已在系统中</div>'+
+            '<div class="dup-d">'+hitClient.name+' · '+hitClient.phone+'<br>'+ownerTxt+'</div>'+
+            (state.applyPending
+              ? '<div class="reject-box" style="background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.25);color:#b45309;margin-top:10px">分配申请已提交，等待上级 / 运营审批，通过后通知你（未获归属前不可发起匹配）</div>'
+              : '<button class="btn btn-primary btn-block" id="applyAssign" style="margin-top:10px">申请分配给当前用户</button>')+
+          '</div>'+
+        '</div>';
+      } else if(ds==='miss'){
+        branch='<div class="form-group"><label class="form-label">企业名称</label><input class="form-input" id="ncName" value="'+state.targetQuery+'" placeholder="如 某某科技有限公司"></div>'+
+          '<div class="form-group"><label class="form-label">联系人</label><input class="form-input" id="ncContact" placeholder="如 王经理"></div>'+
+          '<div class="form-group"><label class="form-label">手机号</label><input class="form-input" id="ncPhone" placeholder="如 138****0000"></div>'+
+          '<div class="form-group"><label class="form-label">统一社会信用代码</label><input class="form-input" id="ncCredit" placeholder="选填，18 位"></div>'+
+          '<div class="form-group"><label class="form-label">客群</label><input class="form-input" id="ncGroup" placeholder="如 制造业"></div>'+
+          '<button class="btn btn-primary btn-block" id="createClient" style="margin-top:8px">创建客户并归属给我</button>'+
+          '<div class="upload-tip">系统无该企业数据，录入后将自动新增并把归属（owner）分配给你</div>';
+      } else {
+        branch='<div class="upload-tip" style="text-align:center;padding:18px 0;background:var(--bg-input);border-radius:10px">输入企业名称 / 手机号 / 统一社会信用代码，系统自动查重后分流</div>';
+      }
+      body='<div class="step-card"><div class="step-card-h"><div class="step-card-t">目标企业</div><span class="step-card-n">自动查重</span></div>'+
+        '<div class="form-group"><label class="form-label">企业名称 / 手机号 / 信用代码</label><input class="form-input" id="targetQuery" value="'+state.targetQuery+'" placeholder="输入后自动查重（≥2 字）"></div>'+
+        branch+
+      '</div>';
+    }
+  } else if(state.matchStep===1){
+    // 步骤 1：经营事实
+    body='<div class="step-card"><div class="step-card-h"><div class="step-card-t">企业经营事实</div><span class="step-card-n">必填</span></div>'+
+      '<div class="form-group"><label class="form-label">年纳税额（元）</label><input class="form-input" placeholder="如 120000"></div>'+
+      '<div class="form-group"><label class="form-label">年开票额（元）</label><input class="form-input" placeholder="如 800000"></div>'+
+      '<div class="form-group"><label class="form-label">成立年限</label><input class="form-input" placeholder="如 3"></div>'+
+      '<div class="form-group"><label class="form-label">所属行业</label><input class="form-input" placeholder="如 制造业"></div>'+
+    '</div>';
+  } else if(state.matchStep===2){
+    // 步骤 2：上传材料
+    const tile=function(ic,name,status,statusText){
+      return '<div class="upload-tile solid" data-act="upload">'+
+        '<div class="upload-ic">'+ic+'</div>'+
+        '<div class="upload-name">'+name+'</div>'+
+        '<span class="upload-status '+status+'">'+statusText+'</span>'+
+      '</div>';
+    };
+    body='<div class="step-card"><div class="step-card-h"><div class="step-card-t">上传经营材料</div><span class="step-card-n" style="background:rgba(239,68,68,.12);color:var(--danger)">1 项需补充</span></div>'+
+      '<div class="upload-grid">'+
+        tile(I.trend,'经营数据','ok','已核验')+
+        tile(I.doc,'企业年报','fail','需补充')+
+        tile(I.file,'附件','pending','待核验')+
+        tile(I.photo,'照片','empty','未上传')+
+      '</div>'+
+      '<div class="upload-tip">支持 PDF / Excel / 图片，单文件 ≤ 20MB；系统将自动核验企业编码与一致性</div>'+
+      '<div style="margin-top:12px"><button class="btn btn-gold" id="supplementBtn">'+I.upload+'&nbsp;上传补充材料</button></div>'+
+    '</div>';
+  } else {
+    // 步骤 3：核验&匹配
+    const vrow=function(cls,svg,title,desc){
+      return '<div class="verify-row"><div class="verify-ic '+cls+'">'+svg+'</div>'+
+        '<div><div class="verify-title">'+title+'</div><div class="verify-desc">'+desc+'</div></div></div>';
+    };
+    body='<div class="step-card"><div class="step-card-h"><div class="step-card-t">材料核验</div><span class="step-card-n">匹配前最后一步</span></div>'+
+      vrow('ok',I.check,'企业编码核验通过','与认证 91110000…2X 一致')+
+      vrow('ok',I.check,'经营数据核验通过','流水 / 发票 / 申报表完整')+
+      vrow('fail',I.x,'企业年报（2024）核验未通过','年报中企业编码与认证不一致，请补充材料后再发起匹配')+
+      '<button class="btn btn-gold btn-block" id="startMatch" style="margin-top:14px">开始匹配 · 生成报告</button>'+
+      '<div class="upload-tip" style="text-align:center;margin-top:8px">基于核验后的材料生成匹配报告 + 经营诊断</div>'+
+    '</div>';
+  }
+  // 已完成步骤的摘要（可点跳回）
+  let summary='';
+  for(let i=0;i<state.matchStep;i++){
+    const s=STEPS[i];
+    const txt = i===0?(isSelf?'本人认证企业 · 已确认':(state.targetExists==='existing'?'已申请分配老客户':'已创建并归属客户')):
+                i===1?'经营事实 · 已填写':
+                i===2?'材料 · 3/4 已上传' :
+                '核验完成';
+    summary+='<div class="step-summary" data-step="'+i+'"><div class="sum-ic">'+I.check+'</div><div class="sum-t">'+s.t+'</div><div class="sum-m">'+txt+'</div></div>';
+  }
+  // 底部上一步/下一步：第 4 步（核验匹配）只显示「上一步」——主操作「开始匹配·生成报告」已在 step-card 内，避免重复与位置冲突
+  const isLast = state.matchStep===STEPS.length-1;
+  const prevBtn = (!isLast && state.matchStep>0) ? '<button class="btn btn-ghost" id="stepPrev">上一步</button>' : '';
+  const nextText = isLast ? '' : '下一步';
+  const nextBtn = isLast ? '' : '<button class="btn btn-primary" id="stepNext">'+nextText+'</button>';
+  const actions = (isLast || state.matchStep===0) ? '' : '<div class="match-actions">'+prevBtn+nextBtn+'</div>';
+  return head+'<div class="content">'+
+    '<div class="steps">'+stepHtml+'</div>'+
+    summary+body+actions+
+  '</div>';
+}
+
+/* ==================== 我的报告（C3 角色二分） ==================== */
+function renderReport(){
+  // 渠道：tab 隐藏（继承），不展示
+  if(state.role==='channel'){
+    return '<div class="empty" style="padding-top:90px"><div class="empty-ic" style="background:rgba(239,68,68,.1)">'+I.lock+'</div>'+
+      '<div class="empty-title">该功能不可用</div><div class="empty-desc">渠道角色按沙箱隔离不可见客户匹配报告</div></div>';
+  }
+  // 客户：仅按日期筛自己的报告（无搜索框、无归属筛选）
+  if(state.role==='customer'){
+    if(!state.authed){
+      return '<div class="empty" style="padding-top:90px"><div class="empty-ic" style="background:var(--bg-input)">'+I.report+'</div><div class="empty-title">暂无可匹配报告</div><div class="empty-desc">完成实名认证并提交匹配后，报告将展示在这里</div><button class="btn btn-primary" style="width:200px" id="gotoAuth3">去认证</button></div>';
+    }
+    // C3：客户仅按日期筛选自己的报告（无搜索框 / 无归属筛选）
+    const myList=REPORTS.filter(function(r){
+      return r.ownerKey==='me' && inDateRange(r.ts, state.reportFilter.date);
+    });
+    const myCard=function(r){
+      return '<div class="report-card" data-report="'+r.id+'" style="cursor:pointer">'+
+        '<div class="rep-grade '+r.gradeCls+'">'+r.grade+'</div>'+
+        '<div class="rep-main"><div class="rep-id">'+r.id+'</div>'+
+          '<div class="rep-title">综合匹配报告</div>'+
+          '<div class="rep-meta"><span>命中 <b>'+r.productCount+' 款</b></span><span>银行覆盖 <b>'+r.bankCount+' 家</b></span><span>'+r.date+'</span></div>'+
+        '</div>'+
+        '<span class="rep-arrow">'+I.chevron+'</span>'+
+      '</div>';
+    };
+    const myEmpty='<div class="report-empty"><div class="report-empty-ic">'+I.report+'</div>'+
+      '<div class="report-empty-t">该时间段暂无报告</div>'+
+      '<div class="report-empty-d">换个时间范围看看，或到「智能匹配」发起一次新的匹配</div></div>';
+    return '<div class="hero" style="padding:36px 20px 16px"><div class="hero-row"><div><div class="hero-name" style="font-size:18px">我的报告</div></div><div class="hero-right">'+roleBadge()+'</div></div></div>'+
+      '<div class="content">'+
+        '<div class="date-chips">'+
+          '<div class="date-chip '+(state.reportFilter.date==='today'?'on':'')+'" data-date="today">今日</div>'+
+          '<div class="date-chip '+(state.reportFilter.date==='7d'?'on':'')+'" data-date="7d">7 天</div>'+
+          '<div class="date-chip '+(state.reportFilter.date==='30d'?'on':'')+'" data-date="30d">30 天</div>'+
+          '<div class="date-chip '+(state.reportFilter.date==='all'?'on':'')+'" data-date="all">全部</div>'+
+        '</div>'+
+        '<div style="height:12px"></div>'+
+        (myList.length? myList.map(myCard).join('') : myEmpty)+
+      '</div>';
+  }
+  // 企业员工：全量检索（C11 4 维：手机号 / 客户姓名 / 统一社会信用代码 / 日期 + 归属）
+  const canAll = (state.role==='boss'||state.role==='operator'||state.role==='super'||state.role==='adviser');
+  const ownerDef = canAll?'all':(state.reportFilter.owner||'all');
+  const queryBar='<div class="card" style="padding:14px 16px">'+
+    '<div class="form-group" style="margin-bottom:10px"><input class="form-input" id="repQuery" placeholder="手机号 / 客户姓名" value="'+(state.reportFilter.query||'')+'"></div>'+
+    '<div class="form-group" style="margin-bottom:10px"><input class="form-input" id="repCredit" placeholder="公司名称 / 统一社会信用代码" value="'+(state.reportFilter.credit||'')+'"></div>'+
+    '<div class="seg" style="margin-bottom:0">'+
+      '<div class="seg-item '+(ownerDef==='me'?'on':'')+'" data-owner="me">归属到我</div>'+
+      '<div class="seg-item '+(ownerDef==='staff'?'on':'')+'" data-owner="staff">归属到员工</div>'+
+      '<div class="seg-item '+(ownerDef==='all'?'on':'')+'" data-owner="all">全量</div>'+
+    '</div>'+
+  '</div>';
+  const dateBar='<div class="date-chips">'+
+    '<div class="date-chip '+(state.reportFilter.date==='today'?'on':'')+'" data-date="today">今日</div>'+
+    '<div class="date-chip '+(state.reportFilter.date==='7d'?'on':'')+'" data-date="7d">7 天</div>'+
+    '<div class="date-chip '+(state.reportFilter.date==='30d'?'on':'')+'" data-date="30d">30 天</div>'+
+    '<div class="date-chip '+(state.reportFilter.date==='all'?'on':'')+'" data-date="all">全部</div>'+
+  '</div>';
+  // 真实筛选（C3 客户仅按日期；C11 员工四维）
+  const q=(state.reportFilter.query||'').trim();
+  const cr=(state.reportFilter.credit||'').trim();
+  const owner=state.reportFilter.owner||'all';
+  const list=REPORTS.filter(function(r){
+    if(!inDateRange(r.ts, state.reportFilter.date)) return false;
+    if(q && !(r.client.indexOf(q)>=0 || r.phone.indexOf(q)>=0)) return false;
+    if(cr && !(r.entName.indexOf(cr)>=0 || r.credit.indexOf(cr)>=0)) return false;
+    if(state.role!=='customer' && owner!=='all'){
+      if(owner==='me' && r.ownerKey!=='me') return false;
+      if(owner==='staff' && r.ownerKey!=='staff') return false;
+    }
+    return true;
+  });
+  const card=function(r){
+    return '<div class="report-card" data-report="'+r.id+'" style="cursor:pointer">'+
+      '<div class="rep-grade '+r.gradeCls+'">'+r.grade+'</div>'+
+      '<div class="rep-main"><div class="rep-id">'+r.id+'</div>'+
+        '<div class="rep-title">'+r.client+' · '+r.entName+'</div>'+
+        '<div class="rep-meta">'+
+          '<span>归属 <b>'+r.owner+'</b></span><span>'+r.phone+'</span>'+
+          '<span>命中 <b>'+r.productCount+' 款</b></span><span>'+r.date+'</span>'+
+        '</div></div>'+
+      '<span class="rep-arrow">'+I.chevron+'</span>'+
+    '</div>';
+  };
+  const empty='<div class="report-empty"><div class="report-empty-ic">'+I.report+'</div>'+
+    '<div class="report-empty-t">无匹配的报告</div>'+
+    '<div class="report-empty-d">当前筛选条件下没有找到报告，试试放宽条件或重置筛选</div>'+
+    '<button class="btn btn-ghost" id="repReset" style="margin-top:12px;padding:8px 18px">重置筛选</button></div>';
+  return '<div class="hero" style="padding:36px 20px 16px"><div class="hero-row"><div><div class="hero-name" style="font-size:18px">'+(canAll?'全部报告':'团队报告')+'</div></div><div class="hero-right">'+roleBadge()+'</div></div></div>'+
+    '<div class="content">'+
+      queryBar+
+      '<div style="height:10px"></div>'+dateBar+
+      '<div style="height:12px"></div>'+
+      (list.length? list.map(card).join('') : empty)+
+    '</div>';
+}
+
+/* ==================== 报告详情（C4 命中产品 + C5 经营诊断 双 tab） ==================== */
+function renderReportDetail(){
+  const r=state.curReport||REPORTS[0];
+  const isProd=state.diagTab==='product';
+  const tab='<div class="seg" style="margin:0 0 12px">'+
+    '<div class="seg-item '+(isProd?'on':'')+'" data-dtab="product">命中产品 '+r.productCount+'</div>'+
+    '<div class="seg-item '+(!isProd?'on':'')+'" data-dtab="diagnosis">经营诊断</div>'+
+  '</div>';
+  const head='<div class="diag-header">'+
+    '<div class="diag-header-l"><div class="diag-id">'+r.id+'</div>'+
+      '<div class="diag-time">'+r.entName+' · '+r.date+' · 综合评级 '+r.grade+'</div></div>'+
+    '<div class="rep-grade '+r.gradeCls+'" style="width:44px;height:44px;font-size:15px">'+r.grade+'</div>'+
+  '</div>';
+  // C4 命中银行产品列表（企业员工可见；渠道由 C1 已禁入，不会到达此页）
+  const prodHtml=r.products.map(function(idx){
+    const p=MATCH_PRODUCTS[idx];
+    if(!p) return '';
+    const tags=p.tags.map(function(t){ return '<span class="upload-status empty" style="margin-right:6px">'+t+'</span>'; }).join('');
+    return '<div class="prod-card">'+
+      '<div class="prod-top"><div class="prod-name">'+p.name+'</div>'+
+        '<span class="status-tag st-ok">匹配度 '+p.match+'</span></div>'+
+      '<div class="prod-row"><span>所属银行</span><span>'+p.bank+'</span></div>'+
+      '<div class="prod-row"><span>额度区间</span><span>'+p.amount+'</span></div>'+
+      '<div class="prod-row"><span>参考利率</span><span>'+p.rate+' · '+p.term+'</span></div>'+
+      '<div class="bar-row" style="margin-top:8px">'+
+        '<span class="bar-label" style="width:56px">匹配度</span>'+
+        '<div class="bar-track"><div class="bar-fill" style="width:'+p.match+'%"></div></div>'+
+        '<span class="bar-val">'+p.match+'</span>'+
+      '</div>'+
+      '<div style="margin-top:8px">'+tags+'</div>'+
+      '<div class="upload-tip">准入要求：'+p.req+'</div>'+
+    '</div>';
+  }).join('');
+  const body=isProd
+    ? (prodHtml||'<div class="report-empty"><div class="report-empty-t">暂无命中产品</div></div>')
+    : renderDiagnosisBody(r);
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">报告详情<span class="st-sub">'+ROLE_META[state.role].name+'</span></div></div>'+
+    '<div class="content">'+head+tab+body+'</div>';
+}
+
+/* ==================== 经营诊断详情页（C5 + C6 专业 UI 重构） ==================== */
+function renderDiagnosis(){
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">经营诊断<span class="st-sub">'+ROLE_META[state.role].name+'</span></div></div>'+
+    '<div class="content">'+renderDiagnosisBody(state.curReport||REPORTS[0])+'</div>';
+}
+/** 诊断正文（供报告详情 tab 与独立诊断页复用），按报告关联数据 */
+function renderDiagnosisBody(r){
+  // C6 顶部页头：报告 ID + 生成时间 + 上传最新材料 CTA（右对齐）
+  const header='<div class="diag-header">'+
+    '<div class="diag-header-l"><div class="diag-id">DIAG-'+r.id.replace('rep-','')+'</div><div class="diag-time">生成于 '+r.date+' · 基于「'+r.entName+'」上传材料</div></div>'+
+    '<button class="btn btn-gold" id="diagUpload" style="font-size:12.5px;padding:8px 14px">'+I.upload+'&nbsp;上传最新材料</button>'+
+  '</div>';
+  // C6 核心指标卡：3 列 KPI
+  const kpi='<div class="diag-kpi">'+
+    '<div class="diag-kpi-item"><div class="diag-kpi-l">综合健康分</div><div class="diag-kpi-v" style="color:var(--success)">78<span class="diag-kpi-u">/100</span></div><div class="diag-kpi-d">行业前 24%</div></div>'+
+    '<div class="diag-kpi-item"><div class="diag-kpi-l">风险等级</div><div class="diag-kpi-v" style="color:#b45309">中</div><div class="diag-kpi-d">2 项中风险</div></div>'+
+    '<div class="diag-kpi-item"><div class="diag-kpi-l">营收同比</div><div class="diag-kpi-v" style="color:var(--success)">+22.3%</div><div class="diag-kpi-d">优于行业</div></div>'+
+  '</div>';
+  // C6 经营建议卡：每条带「建议类型」标签
+  const sugg='<div class="card"><div class="card-title">经营建议</div><div class="sugg-list">'+
+    '<div class="sugg-item"><span class="sugg-tag tag-expand">扩张</span><div class="sugg-body"><b>营收增长稳健</b>，建议优先对接<b>税贷类</b>产品，匹配度更高的先息后本方案可提升额度利用率。</div></div>'+
+    '<div class="sugg-item"><span class="sugg-tag tag-optimize">优化</span><div class="sugg-body">现金流季节性波动明显，建议保留 <b>3 个月</b>经营性备用额度，避免短贷长用。</div></div>'+
+    '<div class="sugg-item"><span class="sugg-tag tag-supplement">补料</span><div class="sugg-body">开票额与纳税额比值偏低，补充<b>增值税申报表</b>可提升银行采信度。</div></div>'+
+  '</div></div>';
+  // C6 风险提示卡：按高/中/低分区，只展示存在项
+  const risks='<div class="card"><div class="card-title">风险提示</div>'+
+    '<div class="risk-block"><div class="risk-block-t">高风险（0）</div></div>'+
+    '<div class="risk-block mid"><div class="risk-block-t">中风险（2）</div>'+
+      '<div class="risk-item"><span class="risk-dot mid"></span><div class="risk-txt"><b>负债率偏高</b>：近期短期借款增长 38%，需关注偿债压力。</div></div>'+
+      '<div class="risk-item"><span class="risk-dot mid"></span><div class="risk-txt"><b>流水波动</b>：近 6 月入账波动 ±25%，建议补充稳定性证明。</div></div>'+
+    '</div>'+
+    '<div class="risk-block low"><div class="risk-block-t">低风险（1）</div>'+
+      '<div class="risk-item"><span class="risk-dot low"></span><div class="risk-txt"><b>行业正常</b>：所属制造业属银行鼓励类，无明显政策风险。</div></div>'+
+    '</div>'+
+  '</div>';
+  // C6 历年数据表（年份 × 指标 + sparkline 趋势）
+  const sparkline = '<svg class="sparkline" viewBox="0 0 100 24" preserveAspectRatio="none"><polyline points="0,18 25,15 50,11 75,7 100,3" fill="none" stroke="var(--br-deep)" stroke-width="1.5"/></svg>';
+  const years='<div class="card"><div class="card-title">企业历年营业数据</div>'+
+    '<table class="yr-table"><thead><tr><th>年份</th><th>营收</th><th>纳税</th><th>开票</th><th>利润</th></tr></thead><tbody>'+
+      '<tr><td>2022</td><td>¥820万</td><td>¥26万</td><td>¥760万</td><td>¥95万</td></tr>'+
+      '<tr><td>2023</td><td>¥1,040万</td><td>¥35万</td><td>¥980万</td><td>¥132万</td></tr>'+
+      '<tr><td>2024</td><td>¥1,210万</td><td>¥41万</td><td>¥1,150万</td><td>¥156万</td></tr>'+
+      '<tr><td>2025</td><td>¥1,480万</td><td>¥52万</td><td>¥1,390万</td><td>¥201万</td></tr>'+
+    '</tbody></table>'+
+    '<div class="sparkline-block"><div class="sparkline-t">营收趋势</div>'+sparkline+
+      '<div class="sparkline-axis"><span>2022</span><span>2023</span><span>2024</span><span>2025</span></div></div>'+
+  '</div>';
+  // C6 多维统计：横向进度条 + 行业均值对比
+  const dims='<div class="card"><div class="card-title">多维数据统计</div>'+
+    '<div class="bar-block">'+
+      '<div class="bar-row"><span class="bar-label">成长性</span><div class="bar-track"><div class="bar-fill" style="width:82%"></div><div class="bar-avg" style="left:55%"></div></div><span class="bar-val">82</span></div>'+
+      '<div class="bar-row"><span class="bar-label">稳定性</span><div class="bar-track"><div class="bar-fill" style="width:64%"></div><div class="bar-avg" style="left:60%"></div></div><span class="bar-val">64</span></div>'+
+      '<div class="bar-row"><span class="bar-label">合规性</span><div class="bar-track"><div class="bar-fill" style="width:90%"></div><div class="bar-avg" style="left:70%"></div></div><span class="bar-val">90</span></div>'+
+      '<div class="bar-row"><span class="bar-label">盈利性</span><div class="bar-track"><div class="bar-fill" style="width:71%"></div><div class="bar-avg" style="left:50%"></div></div><span class="bar-val">71</span></div>'+
+    '</div>'+
+    '<div class="bar-legend"><span class="bar-legend-dot"></span>灰色虚线 = 行业均值</div>'+
+  '</div>';
+  // C6 底部页脚：免责声明 + 重新生成时间
+  const footer='<div class="diag-footer">本报告基于经营数据驱动的诊断参考，不构成任何投资或经营承诺。<br>重新生成时间：'+r.date+' · 报告版本 v3.2 · 数据源 4 份</div>';
+  return header+kpi+sugg+risks+years+dims+footer;
+}
+
+/* ==================== 服务单 / 工单（C7 四维筛选 + 多张工单卡） ==================== */
+function renderOrder(){
+  // 客户 / 员工：四维筛选 + 多张工单卡；运营/超管：审批列表；渠道：tab 隐藏（继承）
+  const isC = state.role==='customer';
+  const isStaff = state.role==='adviser'||state.role==='deptmgr'||state.role==='boss'||state.role==='operator'||state.role==='super';
+  const titleMap = {customer:'我的服务单',adviser:'我的工单',deptmgr:'团队工单',boss:'全部工单',operator:'待审批',super:'全部工单',channel:'服务单'};
+  const title = titleMap[state.role]||'服务单';
+  // 工单数据源（C7）：ts 为绝对时间戳，供日期区间真实筛选；age 仅用于展示
+  const ORDERS = [
+    {id:'wo-2026-0830-004', client:'陈*锋', phone:'135****3344', type:'融资', status:'待处理', owner:'陈顾问', created:'2026-08-30 08:05', ts:new Date('2026-08-30T08:05:00').getTime(), age:'4h'},
+    {id:'wo-2026-0829-001', client:'王*明', phone:'138****0001', type:'融资', status:'待处理', owner:'陈顾问', created:'2026-08-29 09:12', ts:new Date('2026-08-29T09:12:00').getTime(), age:'1d'},
+    {id:'wo-2026-0828-003', client:'李*华', phone:'139****5566', type:'资料下载', status:'进行中', owner:'陈顾问', created:'2026-08-28 14:08', ts:new Date('2026-08-28T14:08:00').getTime(), age:'2d'},
+    {id:'wo-2026-0825-006', client:'张*军', phone:'137****9988', type:'额度确认', status:'待补充', owner:'陈顾问', created:'2026-08-25 10:30', ts:new Date('2026-08-25T10:30:00').getTime(), age:'5d'},
+    {id:'wo-2026-0820-002', client:'赵*雷', phone:'138****6677', type:'融资', status:'已完成', owner:'陈顾问', created:'2026-08-20 16:42', ts:new Date('2026-08-20T16:42:00').getTime(), age:'10d'},
+    {id:'wo-2026-0818-001', client:'钱*芳', phone:'135****3344', type:'投诉建议', status:'已取消', owner:'陈顾问', created:'2026-08-18 11:00', ts:new Date('2026-08-18T11:00:00').getTime(), age:'12d'}
+  ];
+  const STATUS_CLS = {'待处理':'st-pending','进行中':'st-info','待补充':'st-pending','已完成':'st-ok','已取消':'st-reject'};
+  const STATUS_BG = {'待处理':'rgba(245,158,11,.14)','进行中':'rgba(6,182,212,.14)','待补充':'rgba(245,158,11,.18)','已完成':'rgba(16,185,129,.14)','已取消':'rgba(239,68,68,.14)'};
+  const STATUS_COLOR = {'待处理':'#b45309','进行中':'var(--info)','待补充':'#b45309','已完成':'var(--success)','已取消':'var(--danger)'};
+  // 客户：仅状态+时间筛选（无客户姓名/手机号/归属）；员工：全四维
+  const filterBar = '<div class="card" style="padding:14px 16px">'+
+    (isC ? '' :
+      '<div class="form-group" style="margin-bottom:10px"><input class="form-input" id="orderClient" placeholder="客户姓名" value="'+(state.orderFilter.client||'')+'"></div>'+
+      '<div class="form-group" style="margin-bottom:10px"><input class="form-input" id="orderPhone" placeholder="手机号" value="'+(state.orderFilter.phone||'')+'"></div>'
+    )+
+    '<div class="form-group" style="margin-bottom:10px">'+
+      '<select class="form-input" id="orderStatus" style="appearance:none">'+
+        '<option value="all" '+(state.orderFilter.status==='all'?'selected':'')+'>工单状态（全部）</option>'+
+        '<option value="待处理" '+(state.orderFilter.status==='待处理'?'selected':'')+'>待处理</option>'+
+        '<option value="进行中" '+(state.orderFilter.status==='进行中'?'selected':'')+'>进行中</option>'+
+        '<option value="待补充" '+(state.orderFilter.status==='待补充'?'selected':'')+'>待补充</option>'+
+        '<option value="已完成" '+(state.orderFilter.status==='已完成'?'selected':'')+'>已完成</option>'+
+        '<option value="已取消" '+(state.orderFilter.status==='已取消'?'selected':'')+'>已取消</option>'+
+      '</select>'+
+    '</div>'+
+    '<div class="date-chips" style="padding:0;box-shadow:none">'+
+      '<div class="date-chip '+(state.orderFilter.date==='today'?'on':'')+'" data-odate="today">今日</div>'+
+      '<div class="date-chip '+(state.orderFilter.date==='7d'?'on':'')+'" data-odate="7d">7 天</div>'+
+      '<div class="date-chip '+(state.orderFilter.date==='30d'?'on':'')+'" data-odate="30d">30 天</div>'+
+      '<div class="date-chip '+(state.orderFilter.date==='all'?'on':'')+'" data-odate="all">全部</div>'+
+    '</div>'+
+  '</div>';
+  // 工单卡列表：C7 真实四维筛选（客户姓名 / 手机号 / 状态 / 时间区间，基于绝对时间戳 ts）
+  const oc=(state.orderFilter.client||'').trim();
+  const op=(state.orderFilter.phone||'').trim();
+  const cards = ORDERS.filter(function(o){
+    if(state.orderFilter.status!=='all' && o.status!==state.orderFilter.status) return false;
+    if(!inDateRange(o.ts, state.orderFilter.date)) return false;
+    if(oc && o.client.indexOf(oc)<0) return false;
+    if(op && o.phone.indexOf(op)<0) return false;
+    return true;
+  }).map(function(o,i){
+    return '<div class="report-card" style="cursor:pointer">'+
+      '<div class="li-ic" style="background:'+STATUS_BG[o.status]+';color:'+STATUS_COLOR[o.status]+';width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center">'+I.order+'</div>'+
+      '<div class="rep-main"><div class="rep-id">'+o.id+'</div><div class="rep-title">'+o.type+' · '+o.client+'</div><div class="rep-meta"><span>'+o.phone+'</span><span>归属 <b>'+o.owner+'</b></span><span>'+o.created+'</span><span>'+o.age+'</span></div></div>'+
+      '<span class="status-tag '+STATUS_CLS[o.status]+'">'+o.status+'</span>'+
+    '</div>';
+  }).join('');
+  const oEmpty='<div class="report-empty"><div class="report-empty-ic">'+I.order+'</div>'+
+    '<div class="report-empty-t">无匹配的工单</div>'+
+    '<div class="report-empty-d">当前筛选条件下没有找到工单，试试放宽条件或重置筛选</div>'+
+    '<button class="btn btn-ghost" id="orderReset" style="margin-top:12px;padding:8px 18px">重置筛选</button></div>';
+  return '<div class="hero" style="padding:36px 20px 16px"><div class="hero-row"><div><div class="hero-name" style="font-size:18px">'+title+'</div></div><div class="hero-right">'+roleBadge()+'</div></div></div>'+
+    '<div class="content">'+filterBar+'<div style="height:12px"></div>'+(cards||oEmpty)+'</div>';
+}
+
+/* ==================== 我的 ==================== */
+function renderMine(){
+  const isC = state.role==='customer';
+  let tools;
+  if(isC){
+    tools=[['report','我的报告',''],['order','我的服务单',''],['gift','邀请奖励',''],['star','我的收藏',''],['headset','联系客服',''],['setting','设置','']];
+  } else if(state.role==='channel'){
+    tools=[['bank','我的产品','myProduct'],['doc','录入产品','enterProduct'],['users','录入客户','enterCustomer'],['clock','审批进度','approvalProgress'],['bank','合作银行信息','generic|bank'],['headset','联系客服',''],['setting','设置','']];
+  } else if(state.role==='adviser'||state.role==='deptmgr'||state.role==='boss'){
+    tools=[['users',(state.role==='adviser'?'我的客户':'客户管理'),'generic|customers'],['order',(state.role==='adviser'?'我的工单':'审批中心'),'generic|approve'],['wallet',(state.role==='adviser'?'我的收益':'佣金结算'),'generic|commission'],['trend',(state.role==='boss'?'经营报表':'渠道报表'),'generic|reportC'],['shield',(state.role==='boss'?'审计中心':'风控黑名单'),'generic|risk'],['send','录入线索','enterLead'],['doc','录入银行产品','enterProduct'],['setting','设置','']];
+  } else {
+    tools=[['shield','审批中心','approve'],['bank','渠道管理','generic|channel'],['users','客户管理','generic|customers'],['trend','报表中心','generic|reportC'],['send','短信中心','generic|sms'],['alert','风控黑名单','generic|risk'],['setting','基础运营 / 系统','generic|settings']];
+  }
+  const toolHtml=tools.map(function(t){
+    const sub=t[2];
+    const arg=sub&&sub.indexOf('|')>=0?sub.split('|')[1]:'';
+    const cls=t[0]==='bank'?'cyan':(t[0]==='doc'||t[0]==='send'||t[0]==='wallet'?'gold':'');
+    return '<div class="tool-item" data-sub="'+sub+'" data-arg="'+arg+'"><div class="tool-ic '+cls+'">'+I[t[0]]+'</div><div class="tool-name">'+t[1]+'</div></div>';
+  }).join('');
+  let statHtml;
+  if(isC){
+    // C8 客户账户：去客户编号，改显示基础信息
+    statHtml='<div class="stat-line"><span class="k">实名状态</span><span class="v" style="color:'+(state.authed?'var(--success)':'var(--warning)')+'">'+(state.authed?'已认证':'未认证')+'</span></div>'+
+      '<div class="stat-line"><span class="k">绑定手机号</span><span class="v">138****0000</span></div>'+
+      '<div class="stat-line"><span class="k">性别</span><span class="v">男</span></div>'+
+      '<div class="stat-line"><span class="k">注册时间</span><span class="v">2026-08-12</span></div>'+
+      '<div class="stat-line"><span class="k">邀请人</span><span class="v">自然注册</span></div>';
+  } else if(state.role==='channel'){
+    // C8 渠道账户
+    statHtml='<div class="stat-line"><span class="k">所属银行</span><span class="v">中国工商银行</span></div>'+
+      '<div class="stat-line"><span class="k">合作开始</span><span class="v">2025-06-15</span></div>'+
+      '<div class="stat-line"><span class="k">银行联系人</span><span class="v">王经理</span></div>'+
+      '<div class="stat-line"><span class="k">银行编码</span><span class="v" style="font-family:ui-monospace,monospace;font-size:12px">BCH-3301-ICBC</span></div>';
+  } else if(state.role==='adviser'||state.role==='deptmgr'||state.role==='boss'||state.role==='operator'||state.role==='super'){
+    // C8 员工账户
+    const roleLabel = state.role==='adviser'?'顾问':(state.role==='deptmgr'?'部门经理':(state.role==='boss'?'老板':(state.role==='operator'?'运营管理员':'超级管理员')));
+    statHtml='<div class="stat-line"><span class="k">工号</span><span class="v" style="font-family:ui-monospace,monospace;font-size:12px">AD-1024</span></div>'+
+      '<div class="stat-line"><span class="k">部门</span><span class="v">华南业务部</span></div>'+
+      '<div class="stat-line"><span class="k">角色</span><span class="v">'+roleLabel+'</span></div>'+
+      '<div class="stat-line"><span class="k">入职时间</span><span class="v">2024-03-15</span></div>';
+  }
+  const heroName = isC?'微信客户':(state.role==='channel'?'银行客户经理':'陈'+(state.role==='adviser'?'顾问':(state.role==='deptmgr'?'经理':'总监')));
+  const heroSub = isC?'微信一键登录 · 实名认证用户':(state.role==='channel'?'渠道合作方 · 银行产品供给':'企业员工 · 业务团队成员');
+  return '<div class="hero"><div class="hero-row">'+
+      '<div class="avatar" style="width:60px;height:60px;font-size:24px">'+(isC?'微':(state.role==='channel'?'银':'陈'))+'</div>'+
+      '<div><div class="hero-name">'+heroName+'</div><div class="hero-meta">'+heroSub+'</div></div>'+
+      '<div class="hero-right">'+roleBadge()+'</div></div></div>'+
+    '<div class="content">'+
+      '<div class="card"><div class="card-title">'+(isC?'账户信息':(state.role==='channel'?'渠道信息':'员工信息'))+'</div>'+statHtml+'</div>'+
+      '<div class="card"><div class="card-title">快捷入口</div><div class="tool-grid">'+toolHtml+'</div></div>'+
+      '<div class="card" style="font-size:12.5px">'+
+        '<div class="list-item"><div class="li-ic">'+I.lock+'</div><div class="li-main"><div class="li-title">隐私政策与协议</div><div class="li-desc">v2026-08-29</div></div><span class="li-arrow">'+I.chevron+'</span></div>'+
+        '<div class="list-item"><div class="li-ic">'+I.headset+'</div><div class="li-main"><div class="li-title">联系客服</div><div class="li-desc">服务时间 9:00-21:00</div></div><span class="li-arrow">'+I.chevron+'</span></div>'+
+        '<div class="list-item" style="cursor:pointer" id="mineLogout"><div class="li-ic" style="background:rgba(239,68,68,.08)">'+I.lock+'</div><div class="li-main"><div class="li-title" style="color:var(--danger)">退出登录</div></div><span class="li-arrow">'+I.chevron+'</span></div>'+
+      '</div>'+
+    '</div>';
+}
+
+/* ==================== 渠道：我的产品（C9 撤销/删除） ==================== */
+function renderMyProduct(){
+  const cards=state.products.map(function(p,i){
+    let extra='';
+    // C9 撤销审批：待审批状态可撤销
+    if(p.status==='PENDING'){
+      extra='<div class="prod-actions"><div class="mini-btn" data-revoke="'+i+'">撤销审批</div></div>';
+    }
+    // C9 申请删除：已上架（OK）状态可申请删除
+    if(p.status==='OK'){
+      extra='<div class="prod-actions"><div class="mini-btn" data-delete="'+i+'">申请删除</div></div>';
+    }
+    // 撤销删除：待删除（PENDING_DELETE）状态可撤回
+    if(p.status==='PENDING_DELETE'){
+      extra='<div class="prod-actions"><div class="mini-btn" data-undelete="'+i+'">撤销删除</div></div>'+
+        '<div class="reject-box" style="background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2)">待我司终审删除 · 审批通过将从我司全量库中移除</div>';
+    }
+    if(p.status==='REJECTED'&&p.reason){ extra+='<div class="reject-box">驳回原因：'+p.reason+'</div>'; }
+    if(p.status==='DRAFT'){ extra+='<div class="prod-actions"><div class="mini-btn mb-gold" data-edit="'+i+'">编辑重提</div></div>'; }
+    return '<div class="prod-card"><div class="prod-top"><div class="prod-name">'+p.name+'</div><span class="status-tag '+STATUS_CLS[p.status]+'">'+STATUS_LABEL[p.status]+'</span></div>'+
+      '<div class="prod-row"><span>客群</span><span>'+p.group+'</span></div>'+
+      '<div class="prod-row"><span>额度区间</span><span>'+p.amount+'</span></div>'+
+      extra+'</div>';
+  }).join('');
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">我的产品<span class="st-sub">沙箱：仅本行可见</span></div></div>'+
+    '<div class="content"><div class="card" style="padding:8px 14px;margin-bottom:12px"><div class="card-title" style="margin-bottom:6px">状态说明</div>'+
+      '<div class="stat-line"><span class="k">已上架</span><span class="v" style="color:var(--success)">合作库展示</span></div>'+
+      '<div class="stat-line"><span class="k">待审批</span><span class="v" style="color:var(--warning)">可撤销审批</span></div>'+
+      '<div class="stat-line"><span class="k">待删除</span><span class="v" style="color:var(--danger)">我司终审中</span></div>'+
+      '<div class="stat-line"><span class="k">已驳回</span><span class="v" style="color:var(--danger)">可编辑重提</span></div></div>'+
+    (cards||'<div class="empty"><div class="empty-title">暂无产品</div><div class="empty-desc">去「录入产品」提交第一笔</div></div>')+
+    '</div>';
+}
+function renderEnterProduct(editIdx){
+  const ed = (editIdx!=null)?state.products[editIdx]:null;
+  const val=function(k,d){ return ed?ed[k]:d; };
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">'+(ed?'编辑重提':'录入产品')+'<span class="st-sub">进件要求结构化 · 后端解析</span></div></div>'+
+    '<div class="content"><div class="card"><div class="card-title">产品信息</div>'+
+      '<div class="form-group"><label class="form-label">产品名称</label><input class="form-input" id="pName" value="'+val('name','')+'" placeholder="如 税贷A产品"></div>'+
+      '<div class="grid-2">'+
+        '<div class="form-group"><label class="form-label">客群</label><select class="form-input" id="pGroup"><option '+(ed&&ed.group==='企业'?'selected':'')+'>企业</option><option '+(ed&&ed.group==='个人'?'selected':'')+'>个人</option></select></div>'+
+        '<div class="form-group"><label class="form-label">合作有效期至</label><input class="form-input" id="pValid" placeholder="默认 +1 年"></div>'+
+      '</div>'+
+      '<div class="grid-2">'+
+        '<div class="form-group"><label class="form-label">额度下限(万)</label><input class="form-input" id="pAmtMin" placeholder="如 100"></div>'+
+        '<div class="form-group"><label class="form-label">额度上限(万)</label><input class="form-input" id="pAmtMax" placeholder="如 500"></div>'+
+      '</div>'+
+      '<div class="form-group"><label class="form-label">进件要求（结构化 JSON，后端解析校验）</label><textarea class="form-textarea" id="pBiz">{ "准入条件":"纳税≥10万", "担保方式":"信用", "材料清单":["营业执照","近一年流水"] }</textarea></div>'+
+      '<div class="form-actions"><button class="btn btn-secondary" id="parseBtn">解析预览</button>'+
+        '<button class="btn btn-primary" id="submitProduct">提交审核（走运营/超管审批）</button></div>'+
+      '<div id="parseBox"></div>'+
+    '</div></div>';
+}
+function renderEnterCustomer(){
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">录入客户<span class="st-sub">渠道合作方 · 进公海</span></div></div>'+
+    '<div class="content"><div class="card"><div class="card-title">客户线索</div>'+
+      '<div class="form-group"><label class="form-label">企业名称</label><input class="form-input" id="cName" placeholder="如 深圳市××贸易有限公司"></div>'+
+      '<div class="form-group"><label class="form-label">联系人</label><input class="form-input" id="cContact" placeholder="如 赵先生"></div>'+
+      '<div class="form-group"><label class="form-label">手机号</label><input class="form-input" id="cPhone" placeholder="如 138****6677"></div>'+
+      '<div class="form-group"><label class="form-label">客群</label><select class="form-input" id="cGroup"><option>企业</option><option>个人</option></select></div>'+
+      '<div class="form-group"><label class="form-label">意向产品</label><input class="form-input" id="cIntent" placeholder="如 税贷A产品"></div>'+
+      '<div class="form-actions"><button class="btn btn-primary" id="submitCustomer">提交录入</button></div>'+
+    '</div></div>';
+}
+function renderApprovalProgress(){
+  const cards=state.products.map(function(p){
+    let extra='';
+    if(p.status==='REJECTED'&&p.reason){ extra='<div class="reject-box">驳回：'+p.reason+'</div>'; }
+    return '<div class="prod-card"><div class="prod-top"><div class="prod-name">'+p.name+'</div><span class="status-tag '+STATUS_CLS[p.status]+'">'+STATUS_LABEL[p.status]+'</span></div>'+
+      '<div class="prod-row"><span>提交渠道</span><span>工商银行 ICBC-X3</span></div>'+extra+'</div>';
+  }).join('');
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">审批进度<span class="st-sub">实时可见 · 我司终审</span></div></div><div class="content">'+cards+'</div>';
+}
+function renderEnterLead(){
+  const who = state.role==='adviser'?'顾问':(state.role==='deptmgr'?'经理':(state.role==='boss'?'老板':'员工'));
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">录入线索<span class="st-sub">由 '+who+' 录入 · 归属本人</span></div></div>'+
+    '<div class="content"><div class="card"><div class="card-title">客户线索</div>'+
+      '<div class="form-group"><label class="form-label">企业名称</label><input class="form-input" id="lName" placeholder="如 广州市××制造有限公司"></div>'+
+      '<div class="form-group"><label class="form-label">联系人</label><input class="form-input" id="lContact" placeholder="如 钱女士"></div>'+
+      '<div class="form-group"><label class="form-label">手机号</label><input class="form-input" id="lPhone" placeholder="如 139****8899"></div>'+
+      '<div class="form-group"><label class="form-label">客群</label><select class="form-input" id="lGroup"><option>企业</option><option>个人</option></select></div>'+
+      '<div class="form-actions"><button class="btn btn-primary" id="submitLead">提交录入</button></div>'+
+    '</div></div>';
+}
+
+/* ==================== 运营：审批中心 ==================== */
+function renderApprove(){
+  // C9：删除审批流闭环 —— 上架审批(PENDING/REJECTED) + 删除审批(PENDING_DELETE) 都要可被运营/超管处理
+  const pending=state.products.filter(function(p){
+    return p.status==='PENDING'||p.status==='REJECTED'||p.status==='PENDING_DELETE';
+  });
+  const cards=pending.map(function(p,i){
+    let actions='';
+    const isDel = p.status==='PENDING_DELETE';
+    const isUp  = p.status==='PENDING';
+    if(p.status==='REJECTED'&&p.reason){ actions='<div class="reject-box">历史驳回：'+p.reason+'</div>'; }
+    if(isUp){
+      actions='<div class="prod-actions"><div class="mini-btn mb-gold" data-approve="'+i+'">通过并上架</div><div class="mini-btn mb-danger" data-reject="'+i+'">驳回</div></div>'+
+        '<div class="reject-input" data-bind="'+i+'" style="display:none;margin-top:8px"><textarea class="form-textarea" placeholder="填写驳回原因（reject_reason）"></textarea><button class="mini-btn mb-danger" data-confirm-reject="'+i+'" style="margin-top:8px">确认驳回</button></div>';
+    }
+    if(isDel){
+      actions='<div class="reject-box" style="background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.25)">渠道申请删除该产品，审批通过后将<b>从我司全量库物理删除</b>（操作留痕至审计日志）</div>'+
+        '<div class="prod-actions"><div class="mini-btn mb-danger" data-approve-del="'+i+'">批准删除</div><div class="mini-btn mb-ghost" data-reject-del="'+i+'">驳回删除</div></div>';
+    }
+    return '<div class="prod-card"><div class="prod-top"><div class="prod-name">'+p.name+'</div><span class="status-tag '+STATUS_CLS[p.status]+'">'+STATUS_LABEL[p.status]+'</span></div>'+
+      '<div class="prod-row"><span>'+(isDel?'申请类型':'录入渠道')+'</span><span>'+(isDel?'<b style="color:var(--danger)">删除申请</b>':'工商银行 ICBC-X3')+'</span></div>'+
+      '<div class="prod-row"><span>额度</span><span>'+p.amount+'</span></div>'+actions+'</div>';
+  }).join('');
+  return '<div class="subbar" style="background:linear-gradient(145deg,var(--br-deep),var(--br-mid))"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">审批中心<span class="st-sub">'+ROLE_META[state.role].name+' · 终审权限</span></div></div>'+
+    '<div class="content"><div class="gate-note" style="margin-bottom:12px">审批分两类：<b>上架审批</b>（渠道录入产品，通过即上架）与<b>删除审批</b>（渠道申请删除在售产品，通过即从全量库移除）。驳回均需填写原因，渠道侧可见。</div>'+
+    (cards||'<div class="empty"><div class="empty-title">暂无待审批事项</div><div class="empty-desc">上架申请与删除申请都会出现在这里</div></div>')+
+    '</div>';
+}
+function renderWorkbench(){ return renderHomeOperator(); }
+
+/* ==================== 认证核验状态机（客户） ==================== */
+const AUTH_FLOW=[
+  {t:'提交资料'},
+  {t:'AI 审批'},
+  {t:'人工核验'},
+  {t:'认证生效'}
+];
+function renderAuthFlow(){
+  let html='';
+  AUTH_FLOW.forEach(function(s,i){
+    const cls = i<state.authStep?'done':(i===state.authStep?'active':'');
+    const line = i<AUTH_FLOW.length-1?'<div class="fm-line '+(i<state.authStep?'done':'')+'"></div>':'';
+    html+='<div class="fm"><div class="fm-dot '+cls+'">'+(i<state.authStep?I.check:'')+''+(i+1)+'</div>'+line+
+      '<div><div class="fm-title">'+s.t+'</div></div></div>';
+  });
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">身份认证核验<span class="st-sub">AI + 人工</span></div></div>'+
+    '<div class="content"><div class="card"><div class="card-title">认证流程（强制）</div><div class="flowing">'+html+'</div>'+
+      (state.authStep<AUTH_FLOW.length?'<button class="btn btn-primary btn-block" id="authNext" style="margin-top:10px">'+(state.authStep===0?'提交资料':(state.authStep<3?'下一步':'完成认证'))+'</button>':'')+
+      (state.authStep>=AUTH_FLOW.length?'<div class="auth-tip ok" style="margin:10px 0 0"><span>'+I.check+'</span>认证已生效，已通知您与审批人</div>':'')+
+    '</div></div>';
+}
+
+/* ==================== 通用详情占位 ==================== */
+const GENERIC={
+  bank:{t:'合作银行信息',d:'展示渠道所属银行、合作有效期、准入状态（Web 管理端可配置有效期与到期预警）。'},
+  customers:{t:'客户管理',d:'按角色视角查看客户：客户仅自身；顾问为授权客户；经理为团队客户；老板/运营/超管为全量。'},
+  approve:{t:'审批中心',d:'产品审批、服务单审批、资料下载审批。最终由运营管理员 / 超级管理员终审。'},
+  commission:{t:'佣金结算',d:'顾问 / 渠道业绩与佣金结算明细（Web 端报表中心）。'},
+  reportC:{t:'报表中心',d:'经营报表 / 渠道报表 / 匹配转化分析。'},
+  risk:{t:'风控黑名单',d:'敏感授权、黑名单、风控规则管理（Web 端）。'},
+  sms:{t:'短信中心',d:'营销短信群发（含退订机制）、验证码频次控制。'},
+  channel:{t:'渠道管理',d:'银行合作、渠道准入策略、合作有效期配置。'},
+  settings:{t:'基础运营 / 系统配置',d:'字典、系统参数、权限与角色、用户审核准入。'}
+};
+function renderGeneric(key){
+  const g=GENERIC[key]||{t:'功能详情',d:'该功能在 Web 管理端完整实现，小程序侧提供轻量视图与前往 Web 入口。'};
+  return '<div class="subbar"><div class="back" data-back>'+I.chevron+' 返回</div><div class="st">'+g.t+'</div></div>'+
+    '<div class="content"><div class="card"><div class="card-title">'+g.t+'</div><div class="compliance">'+g.d+'</div></div>'+
+    '<div class="gate-note">完整能力在 Web 管理端（运营 / 超级管理员）。小程序侧重移动端轻量视图与审批结果回写。</div></div>';
+}
+
+/* ==================== 子页分发 ==================== */
+function renderSub(){
+  let html='';
+  switch(state.sub){
+    case 'myProduct': html=renderMyProduct(); break;
+    case 'enterProduct': html=renderEnterProduct(state.editIdx); break;
+    case 'enterCustomer': html=renderEnterCustomer(); break;
+    case 'approvalProgress': html=renderApprovalProgress(); break;
+    case 'enterLead': html=renderEnterLead(); break;
+    case 'authFlow': html=renderAuthFlow(); break;
+    case 'generic': html=renderGeneric(state.arg); break;
+    case 'approve': html=renderApprove(); break;
+    case 'diagnosis': html=renderDiagnosis(); break;
+    case 'reportDetail': html=renderReportDetail(); break;
+    default: html=renderMyProduct();
+  }
+  $('screenBody').innerHTML='<div class="page active">'+html+'</div>';
+  bindSub();
+}
+
+/* ==================== 事件绑定 ==================== */
+function bindScreen(){
+  document.querySelectorAll('[data-goto]').forEach(function(el){
+    el.addEventListener('click',function(){ state.tab=el.dataset.goto; render(); });
+  });
+  const ga=$('gotoAuth'); if(ga)ga.addEventListener('click',function(){ state.sub='authFlow'; state.authStep=0; render(); });
+  ['gotoAuth2','gotoAuth3'].forEach(function(id){ const e=$(id); if(e)e.addEventListener('click',function(){ state.sub='authFlow'; state.authStep=0; render(); }); });
+  const ml=$('mineLogout'); if(ml)ml.addEventListener('click',function(){ state.loggedIn=false; render(); });
+  document.querySelectorAll('[data-act="upload"]').forEach(function(el){
+    el.addEventListener('click',function(){
+      const name=el.querySelector('.upload-name');
+      toast('打开文件选择器 · '+ (name?name.textContent:'材料'));
+    });
+  });
+  const sp=$('supplementBtn'); if(sp)sp.addEventListener('click',function(){ toast('打开补充材料上传（支持附件 / 照片）'); });
+  const sm=$('startMatch'); if(sm)sm.addEventListener('click',function(){ toast('已发起匹配，预计 1 分钟内出报告'); });
+  document.querySelectorAll('[data-tgt]').forEach(function(el){
+    el.addEventListener('click',function(){ state.targetExists=el.dataset.tgt; render(); });
+  });
+  // C2：创建客户 → 自动归属当前用户 → 进入步骤 1（经营事实）
+  const cc=$('createClient'); if(cc)cc.addEventListener('click',function(){
+    state.targetName=state.targetQuery||'新客户';
+    state.matchStep=1; toast('已创建客户并归属给你，继续填写经营事实'); render();
+  });
+  // C2：申请分配 → 有归属人自动归属（前进）；无归宿需上级/运营审批（停留并提示）
+  const aa=$('applyAssign'); if(aa)aa.addEventListener('click',function(){
+    const c=state.dupClient;
+    state.targetName=c?c.name:'该企业';
+    if(c&&c.hasOwner){ state.matchStep=1; toast('已自动归属给你（原归属人流转），继续填写经营事实'); }
+    else { state.applyPending=true; toast('已提交申请：无归宿（公海/无主）需上级/运营审批，通过后通知你'); }
+    render();
+  });
+  // C10 自动查重：输入防抖 300ms → checking → hit / miss
+  const tq=$('targetQuery');
+  if(tq){
+    tq.addEventListener('input',function(){
+      const v=tq.value;
+      state.targetQuery=v; state.dupClient=null; state.applyPending=false;
+      if(v.trim().length<2){ state.dupState=''; render(); return; }
+      state.dupState='checking'; render();
+      clearTimeout(tq._t);
+      tq._t=setTimeout(function(){
+        const hit=searchClient(v);
+        state.dupClient=hit;
+        state.dupState=hit?'hit':'miss';
+        render();
+        // 重渲染后把焦点与光标还给输入框
+        const el=$('targetQuery');
+        if(el){ el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length); }catch(e){} }
+      },300);
+    });
+  }
+  const rq=$('repQuery'); if(rq)rq.addEventListener('input',function(){ state.reportFilter.query=rq.value; });
+  const rc=$('repCredit'); if(rc)rc.addEventListener('input',function(){ state.reportFilter.credit=rc.value; });
+  const oc=$('orderClient'); if(oc)oc.addEventListener('input',function(){ state.orderFilter.client=oc.value; });
+  const op=$('orderPhone'); if(op)op.addEventListener('input',function(){ state.orderFilter.phone=op.value; });
+  const os=$('orderStatus'); if(os)os.addEventListener('change',function(){ state.orderFilter.status=os.value; render(); });
+  document.querySelectorAll('[data-odate]').forEach(function(el){
+    el.addEventListener('click',function(){ state.orderFilter.date=el.dataset.odate; render(); });
+  });
+  document.querySelectorAll('[data-owner]').forEach(function(el){
+    el.addEventListener('click',function(){ state.reportFilter.owner=el.dataset.owner; render(); });
+  });
+  document.querySelectorAll('[data-date]').forEach(function(el){
+    el.addEventListener('click',function(){ state.reportFilter.date=el.dataset.date; render(); });
+  });
+  document.querySelectorAll('[data-step]').forEach(function(el){
+    el.addEventListener('click',function(){ state.matchStep=parseInt(el.dataset.step,10); render(); });
+  });
+  const sp2=$('stepPrev'); if(sp2)sp2.addEventListener('click',function(){ if(state.matchStep>0){state.matchStep--; render();} });
+  const sn=$('stepNext'); if(sn)sn.addEventListener('click',function(){ if(state.matchStep<3){state.matchStep++; render();} });
+  // C4：点击报告卡 → 进报告详情（命中产品 + 经营诊断 双 tab）
+  document.querySelectorAll('[data-report]').forEach(function(el){
+    el.addEventListener('click',function(){
+      const id=el.dataset.report;
+      state.curReport=REPORTS.find(function(r){return r.id===id;})||REPORTS[0];
+      state.diagTab='product'; state.sub='reportDetail'; render();
+    });
+  });
+  // 报告详情 tab 切换（命中产品 / 经营诊断）
+  document.querySelectorAll('[data-dtab]').forEach(function(el){
+    el.addEventListener('click',function(){ state.diagTab=el.dataset.dtab; render(); });
+  });
+  // 筛选重置
+  const rr=$('repReset'); if(rr)rr.addEventListener('click',function(){
+    state.reportFilter={date:'all',query:'',credit:'',owner:(state.role==='adviser'||state.role==='boss'||state.role==='operator'||state.role==='super')?'all':'me'};
+    toast('已重置筛选'); render();
+  });
+  const orr=$('orderReset'); if(orr)orr.addEventListener('click',function(){
+    state.orderFilter={client:'',phone:'',status:'all',date:'all'}; toast('已重置筛选'); render();
+  });
+  document.querySelectorAll('[data-sub="diagnosis"]').forEach(function(el){
+    el.addEventListener('click',function(){ state.sub='diagnosis'; render(); });
+  });
+}
+function bindSub(){
+  document.querySelectorAll('[data-back]').forEach(function(el){
+    el.addEventListener('click',function(){ state.sub=null; state.editIdx=null; render(); });
+  });
+  document.querySelectorAll('[data-sub]').forEach(function(el){
+    el.addEventListener('click',function(){
+      const sub=el.dataset.sub;
+      if(sub==='myProduct'||sub==='enterProduct'||sub==='enterCustomer'||sub==='approvalProgress'||sub==='enterLead'||sub==='authFlow'){
+        state.sub=sub; if(sub==='enterProduct'){ state.editIdx=null; } render();
+      } else if(sub==='approve'){ state.tab='approve'; state.sub='approve'; $('tabbar').innerHTML=''; $('screenBody').innerHTML='<div class="page active">'+renderApprove()+'</div>'; bindSub(); }
+      else if(sub.indexOf('|')>=0||sub==='generic'){ state.sub='generic'; state.arg=el.dataset.arg||(sub.indexOf('|')>=0?sub.split('|')[1]:''); render(); }
+    });
+  });
+  document.querySelectorAll('[data-edit]').forEach(function(el){
+    el.addEventListener('click',function(){ state.editIdx=parseInt(el.dataset.edit,10); state.sub='enterProduct'; render(); });
+  });
+  // C9 渠道产品：撤销审批 / 申请删除 / 撤销删除
+  document.querySelectorAll('[data-revoke]').forEach(function(el){
+    el.addEventListener('click',function(){ const i=parseInt(el.dataset.revoke,10); const p=state.products[i]; if(p){ p.status='DRAFT'; } toast('已撤销审批，回到草稿状态'); render(); });
+  });
+  document.querySelectorAll('[data-delete]').forEach(function(el){
+    el.addEventListener('click',function(){ const i=parseInt(el.dataset.delete,10); const p=state.products[i]; if(p){ p.status='PENDING_DELETE'; } toast('已申请删除，通知我司终审 · 审批通过将从我司全量库中删除'); render(); });
+  });
+  document.querySelectorAll('[data-undelete]').forEach(function(el){
+    el.addEventListener('click',function(){ const i=parseInt(el.dataset.undelete,10); const p=state.products[i]; if(p){ p.status='OK'; } toast('已撤销删除申请，产品回到已上架状态'); render(); });
+  });
+  const parseBtn=$('parseBtn');
+  if(parseBtn)parseBtn.addEventListener('click',function(){
+    const name=$('pName').value, min=$('pAmtMin').value, max=$('pAmtMax').value, biz=$('pBiz').value;
+    if(!name.trim()){ toast('请填写产品名称'); return; }
+    let bizOk=true; try{ JSON.parse(biz); }catch(e){ bizOk=false; }
+    if(!bizOk){ toast('进件要求不是合法 JSON'); $('parseBox').innerHTML=''; return; }
+    $('parseBox').innerHTML='<div class="parse-preview">✓ 解析成功：名称「'+name+'」· 额度 '+min+'-'+max+' 万 · 客群 '+$('pGroup').value+'<br>进件要求结构校验通过，可提交审核。</div>';
+    toast('解析成功，可提交');
+  });
+  const submitProduct=$('submitProduct');
+  if(submitProduct)submitProduct.addEventListener('click',function(){
+    const name=$('pName').value||'未命名产品';
+    const grp=$('pGroup').value;
+    const amt=($('pAmtMin').value||'?')+'-'+($('pAmtMax').value||'?')+'万';
+    if(state.editIdx!=null){ state.products[state.editIdx]={name:name,group:grp,amount:amt,status:'PENDING',reason:''}; }
+    else { state.products.unshift({name:name,group:grp,amount:amt,status:'PENDING',reason:''}); }
+    state.editIdx=null; state.sub='myProduct'; toast('已提交，进入待审批'); render();
+  });
+  const sc=$('submitCustomer');
+  if(sc)sc.addEventListener('click',function(){ const n=$('cName').value||'未知企业'; state.leads.unshift({name:n,contact:$('cContact').value,group:$('cGroup').value,from:'CHANNEL'}); toast('客户已录入（进公海）'); state.sub='mine'; render(); });
+  const sl=$('submitLead');
+  if(sl)sl.addEventListener('click',function(){ const n=$('lName').value||'未知企业'; state.leads.unshift({name:n,contact:$('lPhone').value,group:$('lGroup').value,from:state.role}); toast('线索已录入（归属本人）'); state.sub='mine'; render(); });
+  const an=$('authNext');
+  if(an)an.addEventListener('click',function(){ state.authStep++; if(state.authStep>=AUTH_FLOW.length){ state.authed=true; state.sub=null; state.tab='match'; toast('认证已生效，进入智能匹配'); } render(); });
+  const du=$('diagUpload');
+  if(du)du.addEventListener('click',function(){ toast('打开最新材料上传（支持附件 / 照片），上传后重新生成诊断'); });
+  document.querySelectorAll('[data-approve]').forEach(function(el){
+    el.addEventListener('click',function(){ const i=parseInt(el.dataset.approve,10); const p=state.products.filter(function(x){return x.status==='PENDING'||x.status==='REJECTED';})[i]; if(p){ p.status='OK'; p.reason=''; } toast('已通过并上架'); render(); });
+  });
+  document.querySelectorAll('[data-reject]').forEach(function(el){
+    el.addEventListener('click',function(){ const i=parseInt(el.dataset.reject,10); document.querySelector('[data-bind="'+i+'"]').style.display='block'; });
+  });
+  document.querySelectorAll('[data-confirm-reject]').forEach(function(el){
+    el.addEventListener('click',function(){ const i=parseInt(el.dataset.confirmReject,10); const p=state.products.filter(function(x){return x.status==='PENDING'||x.status==='REJECTED';})[i]; const ta=document.querySelector('[data-bind="'+i+'\"] textarea'); const reason=ta?ta.value:''; if(p){ p.status='REJECTED'; p.reason=reason||'不符合渠道准入标准'; } toast('已驳回'); render(); });
+  });
+  // C9 删除审批闭环：批准删除（物理移除 + 留痕）/ 驳回删除（回 OK + 回填原因）
+  document.querySelectorAll('[data-approve-del]').forEach(function(el){
+    el.addEventListener('click',function(){
+      const i=parseInt(el.dataset.approveDel,10);
+      const p=state.products.filter(function(x){return x.status==='PENDING_DELETE';})[i];
+      if(p){ state.products=state.products.filter(function(x){return x!==p;}); }
+      toast('已批准删除 · 产品从我司全量库移除（已留痕至审计日志）'); render();
+    });
+  });
+  document.querySelectorAll('[data-reject-del]').forEach(function(el){
+    el.addEventListener('click',function(){
+      const i=parseInt(el.dataset.rejectDel,10);
+      const p=state.products.filter(function(x){return x.status==='PENDING_DELETE';})[i];
+      if(p){ p.status='OK'; p.reason='删除申请被驳回：产品仍在售，如需下架请联系运营'; }
+      toast('已驳回删除申请，产品回到已上架状态'); render();
+    });
+  });
+}
+
+/* ==================== 初始化 ==================== */
+function init(){
+  document.querySelectorAll('#roleChips .role-chip').forEach(function(el){
+    el.addEventListener('click',function(){
+      document.querySelectorAll('#roleChips .role-chip').forEach(function(c){ c.classList.remove('active'); });
+      el.classList.add('active');
+      state.role=el.dataset.role;
+      state.sub=null; state.editIdx=null; state.targetExists=null;
+      state.matchStep=(state.role==='customer')?1:0;
+      state.targetQuery=''; state.dupState=''; state.dupClient=null; state.applyPending=false; state.targetName='';
+      state.curReport=null; state.diagTab='product';
+      state.reportFilter={date:'all', query:'', credit:'', owner:(state.role==='adviser'||state.role==='boss'||state.role==='operator'||state.role==='super')?'all':'me'};
+      state.orderFilter={client:'',phone:'',status:'all',date:'all'};
+      state.tab = (state.role==='operator'||state.role==='super')?'workbench':'home';
+      state.authed = (state.role!=='customer');
+      render();
+    });
+  });
+  $('logoutBtn').addEventListener('click',function(){ state.loggedIn=false; render(); });
+  render();
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>企融通小程序 · 业务流程全景图（交互版）</title>
+<style>
+  :root{
+    --bg:#f5f7fb; --card:#ffffff; --ink:#1f2937; --sub:#5b6472;
+    --line:#cbd5e1; --arrow:#64748b;
+    --customer:#2563eb; --channel:#d97706; --staff:#4f46e5; --approve:#b91c1c; --neutral:#475569;
+    --ok:#16a34a; --warn:#d97706; --soft:#eef2ff;
+    --shadow:0 6px 22px rgba(15,23,42,.08);
+    --hl-ok:#16a34a; --hl-no:#dc2626; --hl-self:#2563eb; --hl-appr:#7c3aed;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.55;}
+  header{padding:22px 22px 8px;max-width:1320px;margin:0 auto;}
+  header h1{margin:0 0 6px;font-size:23px;}
+  header p{margin:0;color:var(--sub);font-size:13.5px;}
+
+  /* role filter bar */
+  .toolbar{max-width:1320px;margin:8px auto 0;padding:0 22px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+  .toolbar .lab{font-size:13px;color:var(--sub);font-weight:600;}
+  .chip{padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:13px;color:var(--sub);cursor:pointer;transition:.15s;user-select:none;}
+  .chip:hover{border-color:var(--staff);color:var(--staff);}
+  .chip.active{background:var(--staff);color:#fff;border-color:var(--staff);}
+  .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+  .reset{margin-left:auto;font-size:12.5px;color:var(--sub);text-decoration:underline;cursor:pointer;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px auto 4px;max-width:1320px;padding:0 22px;}
+  .legend span{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--sub);}
+  .legend i{width:13px;height:13px;border-radius:4px;display:inline-block;}
+
+  .layout{max-width:1320px;margin:0 auto;padding:12px 22px 60px;display:flex;gap:18px;align-items:flex-start;}
+  .side{width:218px;flex:none;}
+  .side h3{font-size:13px;color:var(--sub);margin:0 0 8px;padding-left:4px;}
+  .nav-item{padding:9px 12px;border-radius:10px;font-size:13px;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;transition:.12s;}
+  .nav-item:hover{background:var(--soft);}
+  .nav-item .ni-dot{width:9px;height:9px;border-radius:3px;flex:none;}
+  .nav-item small{margin-left:auto;color:var(--sub);font-size:11px;}
+
+  .main{flex:1;min-width:0;}
+  .panel{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px 18px 8px;margin-bottom:20px;scroll-margin-top:14px;}
+  .panel h2{margin:0 0 2px;font-size:16px;display:flex;align-items:center;gap:10px;}
+  .panel h2 .pinfo{font-size:11px;color:#fff;background:var(--neutral);padding:2px 9px;border-radius:10px;cursor:pointer;}
+  .panel .desc{margin:0 0 10px;color:var(--sub);font-size:12.5px;}
+  svg{width:100%;height:auto;display:block;}
+
+  .detail{width:332px;flex:none;position:sticky;top:14px;align-self:flex-start;}
+  .detail-card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px 18px;min-height:240px;}
+  .detail-card h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px;}
+  .detail-card .dtype{font-size:11px;color:#fff;background:var(--staff);padding:2px 9px;border-radius:10px;}
+  .detail-card .dmeta{font-size:12px;color:var(--sub);margin:2px 0 10px;}
+  .detail-card .row{display:flex;gap:8px;padding:7px 0;border-top:1px solid #eef0f4;font-size:12.5px;}
+  .detail-card .row .k{color:var(--sub);flex:none;width:78px;}
+  .detail-card .row .v{flex:1;word-break:break-all;}
+  .badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:8px;margin:2px 4px 2px 0;}
+  .b-get{background:#e0f2fe;color:#0369a1;} .b-post{background:#dcfce7;color:#15803d;}
+  .b-put{background:#fef9c3;color:#a16207;} .b-del{background:#fee2e2;color:#b91c1c;}
+  .b-perm{background:#eef2ff;color:#4338ca;} .b-tbl{background:#f1f5f9;color:#475569;}
+  .b-ok{background:#dcfce7;color:#15803d;} .b-no{background:#fee2e2;color:#b91c1c;} .b-self{background:#dbeafe;color:#1d4ed8;}
+  .b-view{background:#fef3c7;color:#92400e;} .b-appr{background:#f3e8ff;color:#7c3aed;}
+  .empty-tip{color:var(--sub);font-size:13px;line-height:1.7;}
+  .empty-tip code{background:#eef2f7;padding:1px 6px;border-radius:5px;}
+  .detail .hint{font-size:11.5px;color:var(--sub);margin-top:10px;}
+
+  /* SVG node interactivity */
+  .box{fill:#fff;stroke:var(--line);stroke-width:1.6;rx:10;}
+  .box-hd{rx:10;stroke-width:1.6;}
+  .t{font-size:13px;font-weight:600;fill:var(--ink);}
+  .ts{font-size:10.5px;fill:var(--sub);}
+  .edge{stroke:var(--arrow);stroke-width:1.8;fill:none;}
+  text.edge-l{font-size:10.5px;fill:var(--arrow);}
+  .node{cursor:pointer;}
+  .node:hover{filter:brightness(1.05);}
+  .node.hl-ok>rect{stroke:var(--hl-ok)!important;stroke-width:3!important;}
+  .node.hl-no>rect{stroke:var(--hl-no)!important;stroke-width:3!important;}
+  .node.hl-self>rect{stroke:var(--hl-self)!important;stroke-width:3!important;}
+  .node.hl-appr>rect{stroke:var(--hl-appr)!important;stroke-width:3!important;}
+  .node.hl-dim{opacity:.28;}
+  .node.selected>rect{stroke:#0f172a!important;stroke-width:3.4!important;}
+
+  footer{max-width:1320px;margin:0 auto;padding:0 22px 50px;color:var(--sub);font-size:12px;}
+  footer code{background:#eef2f7;padding:1px 6px;border-radius:5px;}
+
+  @media(max-width:1180px){
+    .layout{flex-wrap:wrap;}
+    .side{width:100%;}
+    .side .nav-grid{display:flex;flex-wrap:wrap;gap:6px;}
+    .nav-item{width:auto;}
+    .detail{width:100%;position:static;}
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="var(--arrow)"></path>
+    </marker>
+  </defs>
+</svg>
+
+<header>
+  <h1>企融通小程序 · 业务流程全景图（交互版）</h1>
+  <p>点击任意节点查看知识图谱详情；用顶部角色芯片筛选可见/禁入模块。数据真源：<code>09-业务流程知识图谱.json</code> · 后端源码 · 逻辑设计文档 §1–§14。</p>
+</header>
+
+<div class="toolbar">
+  <span class="lab">角色筛选：</span>
+  <span id="roleChips"></span>
+  <span class="reset" id="resetBtn">重置高亮</span>
+</div>
+
+<div class="legend">
+  <span><i style="background:var(--customer)"></i>客户 CUSTOMER</span>
+  <span><i style="background:var(--channel)"></i>渠道 CHANNEL</span>
+  <span><i style="background:var(--staff)"></i>企业员工 STAFF</span>
+  <span><i style="background:var(--approve)"></i>运营/老板/超管（审批）</span>
+  <span><i style="background:var(--neutral)"></i>通用模块</span>
+  <span><i style="background:var(--hl-ok)"></i>可访问</span>
+  <span><i style="background:var(--hl-no)"></i>禁入</span>
+</div>
+
+<div class="layout">
+  <!-- 左侧模块导航 -->
+  <aside class="side">
+    <h3>模块导航（点击查看）</h3>
+    <div class="nav-grid" id="navGrid"></div>
+  </aside>
+
+  <!-- 中间流程图 -->
+  <main class="main">
+
+    <!-- Panel 1 -->
+    <section class="panel" id="p1">
+      <h2>① 端到端业务全景（泳道主线）<span class="pinfo" data-id="M_AUTH">图谱</span></h2>
+      <p class="desc">登录 → 角色化导航 → 首页分流；客户/员工走匹配主线，渠道走产品主线，管理侧负责审批闭环。点击任一色块查看模块详情。</p>
+      <svg viewBox="0 0 1000 420" role="img" aria-label="业务全景">
+        <path class="edge" marker-end="url(#ar)" d="M180,87 L228,87"></path>
+        <path class="edge" marker-end="url(#ar)" d="M380,87 L428,87"></path>
+        <path class="edge" marker-end="url(#ar)" d="M580,87 L628,87"></path>
+        <path class="edge" marker-end="url(#ar)" d="M780,87 L828,87"></path>
+        <path class="edge" marker-end="url(#ar)" d="M880,114 L880,150"></path>
+        <path class="edge" marker-end="url(#ar)" d="M880,184 L880,220"></path>
+        <path class="edge" marker-end="url(#ar)" d="M880,254 L880,290"></path>
+        <path class="edge" marker-end="url(#ar)" d="M580,114 L580,150"></path>
+        <path class="edge" marker-end="url(#ar)" d="M580,184 L580,220"></path>
+        <path class="edge" marker-end="url(#ar)" d="M480,114 L480,150"></path>
+        <path class="edge" marker-end="url(#ar)" d="M480,184 L480,220"></path>
+        <path class="edge" marker-end="url(#ar)" d="M80,114 L80,150"></path>
+        <path class="edge" marker-end="url(#ar)" d="M80,184 L80,220"></path>
+        <text class="edge-l" x="492" y="104">员工替客</text>
+        <text class="edge-l" x="392" y="170">渠道</text>
+        <text class="edge-l" x="22" y="170">支线</text>
+
+        <g class="node" data-id="M_AUTH" data-module="M_AUTH"><rect class="box-hd" x="30" y="60" width="150" height="54" fill="var(--customer)"></rect>
+          <text class="t" x="105" y="84" text-anchor="middle" fill="#fff">登录 / 认证</text>
+          <text class="ts" x="105" y="102" text-anchor="middle" fill="#eaf0ff">A1/A2/A3/A4</text></g>
+        <g class="node" data-id="M_NAV" data-module="M_NAV"><rect class="box-hd" x="230" y="60" width="150" height="54" fill="var(--neutral)"></rect>
+          <text class="t" x="305" y="84" text-anchor="middle" fill="#fff">角色化导航</text>
+          <text class="ts" x="305" y="102" text-anchor="middle" fill="#e7ecf3">store.role 驱动</text></g>
+        <g class="node" data-id="M_HOME" data-module="M_HOME"><rect class="box-hd" x="430" y="60" width="150" height="54" fill="var(--neutral)"></rect>
+          <text class="t" x="505" y="84" text-anchor="middle" fill="#fff">首页分流</text>
+          <text class="ts" x="505" y="102" text-anchor="middle" fill="#e7ecf3">按角色差异化</text></g>
+        <g class="node" data-id="M_MATCH" data-module="M_MATCH"><rect class="box-hd" x="630" y="60" width="150" height="54" fill="var(--staff)"></rect>
+          <text class="t" x="705" y="84" text-anchor="middle" fill="#fff">智能匹配</text>
+          <text class="ts" x="705" y="102" text-anchor="middle" fill="#e9e7ff">M1/M3/M4</text></g>
+        <g class="node" data-id="M_REPORT" data-module="M_REPORT"><rect class="box-hd" x="830" y="60" width="150" height="54" fill="var(--neutral)"></rect>
+          <text class="t" x="905" y="84" text-anchor="middle" fill="#fff">我的报告</text>
+          <text class="ts" x="905" y="102" text-anchor="middle" fill="#e7ecf3">R1i/R2i</text></g>
+        <g class="node" data-id="M_PRODUCTS" data-module="M_PRODUCTS"><rect class="box" x="830" y="150" width="150" height="54"></rect>
+          <rect x="830" y="150" width="6" height="54" fill="var(--staff)"></rect>
+          <text class="t" x="907" y="174" text-anchor="middle">命中产品</text>
+          <text class="ts" x="907" y="192" text-anchor="middle">R3i · 仅员工</text></g>
+        <g class="node" data-id="M_DIAG" data-module="M_DIAG"><rect class="box" x="830" y="220" width="150" height="54"></rect>
+          <text class="t" x="905" y="244" text-anchor="middle">经营诊断</text>
+          <text class="ts" x="905" y="262" text-anchor="middle">R4i · C5</text></g>
+        <g class="node" data-id="M_ORDER" data-module="M_ORDER"><rect class="box" x="830" y="290" width="150" height="54"></rect>
+          <text class="t" x="905" y="314" text-anchor="middle">服务单</text>
+          <text class="ts" x="905" y="332" text-anchor="middle">O1/O2 · C7</text></g>
+        <g class="node" data-id="M_ALLOC" data-module="M_ALLOC"><rect class="box-hd" x="580" y="150" width="150" height="54" fill="var(--staff)"></rect>
+          <text class="t" x="655" y="174" text-anchor="middle" fill="#fff">查重→归属流转</text>
+          <text class="ts" x="655" y="192" text-anchor="middle" fill="#e9e7ff">C2/C10/C19</text></g>
+        <g class="node" data-id="M_ALLOC" data-module="M_ALLOC"><rect class="box-hd" x="580" y="220" width="150" height="54" fill="var(--approve)"></rect>
+          <text class="t" x="655" y="244" text-anchor="middle" fill="#fff">分配审批</text>
+          <text class="ts" x="655" y="262" text-anchor="middle" fill="#ffe1e1">M7/M8/M9</text></g>
+        <g class="node" data-id="M_CHANPROD" data-module="M_CHANPROD"><rect class="box-hd" x="430" y="180" width="150" height="54" fill="var(--channel)"></rect>
+          <text class="t" x="505" y="204" text-anchor="middle" fill="#fff">我的产品</text>
+          <text class="ts" x="505" y="222" text-anchor="middle" fill="#fff3df">P1–P8 · C9</text></g>
+        <g class="node" data-id="M_CHANPROD" data-module="M_CHANPROD"><rect class="box-hd" x="430" y="300" width="150" height="54" fill="var(--approve)"></rect>
+          <text class="t" x="505" y="324" text-anchor="middle" fill="#fff">删除终审</text>
+          <text class="ts" x="505" y="342" text-anchor="middle" fill="#ffe1e1">P9/P10</text></g>
+        <g class="node" data-id="M_INVITE" data-module="M_INVITE"><rect class="box-hd" x="30" y="180" width="150" height="54" fill="var(--customer)"></rect>
+          <text class="t" x="105" y="204" text-anchor="middle" fill="#fff">邀请 / 奖励</text>
+          <text class="ts" x="105" y="222" text-anchor="middle" fill="#eaf0ff">I1–I3/W1/W2</text></g>
+        <g class="node" data-id="M_LEAD" data-module="M_LEAD"><rect class="box" x="30" y="300" width="150" height="54"></rect>
+          <text class="t" x="105" y="324" text-anchor="middle">线索录入</text>
+          <text class="ts" x="105" y="342" text-anchor="middle">L1</text></g>
+      </svg>
+    </section>
+
+    <!-- Panel 2 -->
+    <section class="panel" id="p2">
+      <h2>② 智能匹配 4 步流程 + 员工替客分支<span class="pinfo" data-id="M_MATCH">图谱</span></h2>
+      <p class="desc">客户仅对自己企业；员工先查重/归属流转再匹配。M1 发起匹配，返回 MiniMatchResult（对客脱敏）。点击步骤/分支框查看接口。</p>
+      <svg viewBox="0 0 1000 320" role="img" aria-label="智能匹配流程">
+        <path class="edge" marker-end="url(#ar)" d="M188,80 L236,80"></path>
+        <path class="edge" marker-end="url(#ar)" d="M388,80 L436,80"></path>
+        <path class="edge" marker-end="url(#ar)" d="M588,80 L636,80"></path>
+        <path class="edge" marker-end="url(#ar)" d="M788,80 L836,80"></path>
+        <path class="edge" marker-end="url(#ar)" d="M905,107 L905,150"></path>
+        <path class="edge" marker-end="url(#ar)" d="M180,150 L180,210"></path>
+        <path class="edge" marker-end="url(#ar)" d="M180,250 L320,250"></path>
+        <path class="edge" marker-end="url(#ar)" d="M470,250 L470,210"></path>
+        <text class="edge-l" x="740" y="70">POST /match/run</text>
+
+        <g class="node" data-id="M_MATCH" data-module="M_MATCH"><rect class="box-hd" x="40" y="54" width="148" height="52" fill="var(--staff)"></rect>
+          <text class="t" x="114" y="78" text-anchor="middle" fill="#fff">步骤0 选企业</text><text class="ts" x="114" y="95" text-anchor="middle" fill="#e9e7ff">查重 C10</text></g>
+        <g class="node" data-id="M_MATCH" data-module="M_MATCH"><rect class="box" x="240" y="54" width="148" height="52"></rect>
+          <text class="t" x="314" y="78" text-anchor="middle">步骤1 经营事实</text><text class="ts" x="314" y="95" text-anchor="middle">纳税/开票/行业</text></g>
+        <g class="node" data-id="M_MATCH" data-module="M_MATCH"><rect class="box" x="440" y="54" width="148" height="52"></rect>
+          <text class="t" x="514" y="78" text-anchor="middle">步骤2 上传材料</text><text class="ts" x="514" y="95" text-anchor="middle">OSS 直传</text></g>
+        <g class="node" data-id="M_MATCH" data-module="M_MATCH"><rect class="box" x="640" y="54" width="148" height="52"></rect>
+          <text class="t" x="714" y="78" text-anchor="middle">步骤3 确认条件</text><text class="ts" x="714" y="95" text-anchor="middle">城市/偏好</text></g>
+        <g class="node" data-id="M1" data-module="M_MATCH"><rect class="box-hd" x="840" y="54" width="148" height="52" fill="var(--neutral)"></rect>
+          <text class="t" x="914" y="78" text-anchor="middle" fill="#fff">步骤4 发起匹配</text><text class="ts" x="914" y="95" text-anchor="middle" fill="#e7ecf3">生成报告</text></g>
+        <g class="node" data-id="M_REPORT" data-module="M_REPORT"><rect class="box" x="840" y="150" width="148" height="52"></rect>
+          <text class="t" x="914" y="174" text-anchor="middle">我的报告</text><text class="ts" x="914" y="191" text-anchor="middle">{reportNo,grade}</text></g>
+
+        <g class="node" data-id="M3" data-module="M_MATCH"><rect class="box-hd" x="40" y="210" width="140" height="80" fill="var(--staff)"></rect>
+          <text class="t" x="110" y="234" text-anchor="middle" fill="#fff">查重结果</text>
+          <text class="ts" x="110" y="252" text-anchor="middle" fill="#e9e7ff">命中？≥2字</text>
+          <text class="ts" x="110" y="270" text-anchor="middle" fill="#e9e7ff">M3 search</text></g>
+        <g class="node" data-id="M4" data-module="M_MATCH"><rect class="box" x="320" y="210" width="150" height="80"></rect>
+          <text class="t" x="395" y="234" text-anchor="middle">未命中→录新客户</text>
+          <text class="ts" x="395" y="252" text-anchor="middle">M4 自动归属当前用户</text>
+          <text class="ts" x="395" y="270" text-anchor="middle">AUTO_CLAIMED</text></g>
+        <g class="node" data-id="M5" data-module="M_ALLOC"><rect class="box" x="470" y="210" width="260" height="80"></rect>
+          <text class="t" x="600" y="234" text-anchor="middle">命中→申请分配</text>
+          <text class="ts" x="600" y="252" text-anchor="middle">有归属人：自动归属(无审批)</text>
+          <text class="ts" x="600" y="270" text-anchor="middle">无归宿：M5→审批 M7-M9</text></g>
+      </svg>
+    </section>
+
+    <!-- Panel 3 -->
+    <section class="panel" id="p3">
+      <h2>③ 客户归属流转状态机（C2 / C19）<span class="pinfo" data-id="SM_ALLOC">图谱</span></h2>
+      <p class="desc">匹配只能在「我归属的客户」上发起。新客户录入即归属；老客户有归属人自动归属，无归宿走审批。点击任一框查看状态机。</p>
+      <svg viewBox="0 0 1000 300" role="img" aria-label="归属流转状态机">
+        <path class="edge" marker-end="url(#ar)" d="M250,80 L330,80"></path>
+        <path class="edge" marker-end="url(#ar)" d="M250,150 L330,150"></path>
+        <path class="edge" marker-end="url(#ar)" d="M560,150 L640,150"></path>
+        <path class="edge" marker-end="url(#ar)" d="M560,210 L640,210"></path>
+        <path class="edge" marker-end="url(#ar)" d="M560,260 L640,260"></path>
+
+        <g class="node" data-id="SM_ALLOC" data-module="M_ALLOC"><rect class="box" x="40" y="64" width="210" height="32"></rect><text class="t" x="145" y="85" text-anchor="middle">情形A 系统中无该企业</text></g>
+        <g class="node" data-id="SM_ALLOC" data-module="M_ALLOC"><rect class="box" x="40" y="134" width="210" height="32"></rect><text class="t" x="145" y="155" text-anchor="middle">情形B 已有该企业</text></g>
+        <g class="node" data-id="SM_ALLOC" data-module="M_ALLOC"><rect class="box-hd" x="330" y="64" width="230" height="32" fill="var(--staff)"></rect><text class="t" x="445" y="85" text-anchor="middle" fill="#fff">录入基础数据 → 自动归属(M4)</text></g>
+        <g class="node" data-id="SM_ALLOC" data-module="M_ALLOC"><rect class="box" x="330" y="134" width="230" height="32"></rect><text class="t" x="445" y="155" text-anchor="middle">有归属人？→ 自动归属</text></g>
+        <g class="node" data-id="SM_ALLOC" data-module="M_ALLOC"><rect class="box-hd" x="640" y="134" width="230" height="32" fill="var(--ok)"></rect><text class="t" x="755" y="155" text-anchor="middle" fill="#fff">AUTO_CLAIMED</text></g>
+        <g class="node" data-id="SM_ALLOC" data-module="M_ALLOC"><rect class="box-hd" x="330" y="244" width="230" height="32" fill="var(--approve)"></rect><text class="t" x="445" y="265" text-anchor="middle" fill="#fff">无归宿 → PENDING_APPROVAL(M5)</text></g>
+        <g class="node" data-id="SM_ALLOC" data-module="M_ALLOC"><rect class="box-hd" x="640" y="194" width="230" height="32" fill="var(--ok)"></rect><text class="t" x="755" y="215" text-anchor="middle" fill="#fff">APPROVED → 归属流转</text></g>
+        <g class="node" data-id="SM_ALLOC" data-module="M_ALLOC"><rect class="box-hd" x="640" y="244" width="230" height="32" fill="var(--warn)"></rect><text class="t" x="755" y="265" text-anchor="middle" fill="#fff">REJECTED(M9,opinion)</text></g>
+        <text class="edge-l" x="340" y="128">情形A</text>
+        <text class="edge-l" x="340" y="198">情形B</text>
+      </svg>
+    </section>
+
+    <!-- Panel 4 -->
+    <section class="panel" id="p4">
+      <h2>④ 渠道产品状态机（C9，复用 t_product_approval）<span class="pinfo" data-id="SM_PRODUCT">图谱</span></h2>
+      <p class="desc">渠道自有产品沙箱：录入→审批→上架；删除需运营/超管终审。撤销/撤回即时回退，无需审批。点击任一框查看状态机。</p>
+      <svg viewBox="0 0 1000 300" role="img" aria-label="产品状态机">
+        <path class="edge" marker-end="url(#ar)" d="M170,90 L250,90"></path>
+        <path class="edge" marker-end="url(#ar)" d="M420,90 L500,90"></path>
+        <path class="edge" marker-end="url(#ar)" d="M280,120 L280,160"></path>
+        <path class="edge" marker-end="url(#ar)" d="M600,90 L600,150"></path>
+        <path class="edge" marker-end="url(#ar)" d="M600,200 L600,250"></path>
+        <path class="edge" marker-end="url(#ar)" d="M600,280 L500,280 L500,120 L420,120"></path>
+        <path class="edge" marker-end="url(#ar)" d="M750,180 L830,180"></path>
+
+        <g class="node" data-id="SM_PRODUCT" data-module="M_CHANPROD"><rect class="box-hd" x="40" y="64" width="130" height="52" fill="var(--channel)"></rect><text class="t" x="105" y="88" text-anchor="middle" fill="#fff">DRAFT</text><text class="ts" x="105" y="105" text-anchor="middle" fill="#fff3df">草稿</text></g>
+        <g class="node" data-id="SM_PRODUCT" data-module="M_CHANPROD"><rect class="box-hd" x="250" y="64" width="170" height="52" fill="var(--channel)"></rect><text class="t" x="335" y="88" text-anchor="middle" fill="#fff">PENDING</text><text class="ts" x="335" y="105" text-anchor="middle" fill="#fff3df">待审批 submit</text></g>
+        <g class="node" data-id="SM_PRODUCT" data-module="M_CHANPROD"><rect class="box-hd" x="500" y="64" width="170" height="52" fill="var(--ok)"></rect><text class="t" x="585" y="88" text-anchor="middle" fill="#fff">OK</text><text class="ts" x="585" y="105" text-anchor="middle" fill="#e7ffe9">已上架</text></g>
+        <g class="node" data-id="SM_PRODUCT" data-module="M_CHANPROD"><rect class="box-hd" x="430" y="120" width="170" height="52" fill="var(--warn)"></rect><text class="t" x="515" y="144" text-anchor="middle" fill="#fff">DRAFT</text><text class="ts" x="515" y="161" text-anchor="middle" fill="#fff3df">←revoke 撤销审批</text></g>
+        <g class="node" data-id="SM_PRODUCT" data-module="M_CHANPROD"><rect class="box-hd" x="500" y="150" width="200" height="52" fill="var(--approve)"></rect><text class="t" x="600" y="174" text-anchor="middle" fill="#fff">PENDING_DELETE</text><text class="ts" x="600" y="191" text-anchor="middle" fill="#ffe1e1">delete-apply</text></g>
+        <g class="node" data-id="SM_PRODUCT" data-module="M_CHANPROD"><rect class="box-hd" x="500" y="250" width="200" height="52" fill="var(--ok)"></rect><text class="t" x="600" y="274" text-anchor="middle" fill="#fff">OK</text><text class="ts" x="600" y="291" text-anchor="middle" fill="#e7ffe9">←audit(reject)/cancel</text></g>
+        <g class="node" data-id="SM_PRODUCT" data-module="M_CHANPROD"><rect class="box-hd" x="830" y="154" width="150" height="52" fill="var(--neutral)"></rect><text class="t" x="905" y="178" text-anchor="middle" fill="#fff">物理删除</text><text class="ts" x="905" y="195" text-anchor="middle" fill="#e7ecf3">audit(approve)</text></g>
+        <text class="edge-l" x="300" y="58">submit</text>
+        <text class="edge-l" x="560" y="58">终审通过</text>
+      </svg>
+    </section>
+
+    <!-- Panel 5 -->
+    <section class="panel" id="p5">
+      <h2>⑤ 分配审批闭环（C19，运营/老板/超管）<span class="pinfo" data-id="M_ALLOC">图谱</span></h2>
+      <p class="desc">员工替客匹配遇「无归宿」客户时发起分配审批；审批人在小程序入口通过/驳回，通过后归属流转。点击框查看接口。</p>
+      <svg viewBox="0 0 1000 230" role="img" aria-label="分配审批闭环">
+        <path class="edge" marker-end="url(#ar)" d="M250,80 L330,80"></path>
+        <path class="edge" marker-end="url(#ar)" d="M560,80 L640,80"></path>
+        <path class="edge" marker-end="url(#ar)" d="M870,80 L870,140"></path>
+        <path class="edge" marker-end="url(#ar)" d="M870,170 L640,170"></path>
+        <path class="edge" marker-end="url(#ar)" d="M560,170 L330,170"></path>
+        <path class="edge" marker-end="url(#ar)" d="M250,140 L250,80"></path>
+
+        <g class="node" data-id="M5" data-module="M_ALLOC"><rect class="box-hd" x="40" y="64" width="210" height="52" fill="var(--staff)"></rect><text class="t" x="145" y="88" text-anchor="middle" fill="#fff">员工申请分配(M5)</text><text class="ts" x="145" y="105" text-anchor="middle" fill="#e9e7ff">无归宿客户</text></g>
+        <g class="node" data-id="M7" data-module="M_ALLOC"><rect class="box-hd" x="330" y="64" width="230" height="52" fill="var(--neutral)"></rect><text class="t" x="445" y="88" text-anchor="middle" fill="#fff">生成审批单(M7 待审)</text><text class="ts" x="445" y="105" text-anchor="middle" fill="#e7ecf3">t_client_allocation_approval</text></g>
+        <g class="node" data-id="M8" data-module="M_ALLOC"><rect class="box-hd" x="640" y="64" width="230" height="52" fill="var(--approve)"></rect><text class="t" x="755" y="88" text-anchor="middle" fill="#fff">审批人通过/驳回</text><text class="ts" x="755" y="105" text-anchor="middle" fill="#ffe1e1">M8 approve / M9 reject</text></g>
+        <g class="node" data-id="M_ALLOC" data-module="M_ALLOC"><rect class="box" x="640" y="144" width="230" height="52"></rect><text class="t" x="755" y="168" text-anchor="middle">APPROVED → 归属流转</text><text class="ts" x="755" y="185" text-anchor="middle">可发起匹配</text></g>
+        <g class="node" data-id="M9" data-module="M_ALLOC"><rect class="box" x="330" y="144" width="230" height="52"></rect><text class="t" x="445" y="168" text-anchor="middle">REJECTED（opinion）</text><text class="ts" x="445" y="185" text-anchor="middle">退回重新申请</text></g>
+      </svg>
+    </section>
+
+  </main>
+
+  <!-- 右侧详情抽屉 -->
+  <aside class="detail">
+    <div class="detail-card" id="detailCard">
+      <div class="empty-tip">
+        <b>交互说明</b><br/>
+        · 点击中间任一<code>色块 / 步骤 / 状态</code>，此处显示该节点的知识图谱详情（接口、权限、数据表、状态机）。<br/>
+        · 顶部<code>角色芯片</code>可一键高亮该角色「可访问 / 禁入」的模块。<br/>
+        · 左侧<code>模块导航</code>直接定位模块。<br/><br/>
+        所有数据来自 <code>09-业务流程知识图谱.json</code>，以来源代码为准。
+      </div>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  配套文档：<code>artifacts/小程序分模块交互逻辑与接口设计.md</code>（§1–§14）·
+  <code>docs/knowledge-base/09-业务流程知识图谱.md</code> + <code>09-业务流程知识图谱.json</code>·
+  <code>docs/knowledge-base/04-后端 API 契约.md</code>（接口真源，2026-08-30 已校正）。
+</footer>
+
+<script>
+/* ============ 内嵌知识图谱（与 09-业务流程知识图谱.json 同步） ============ */
+const KG = {
+  roles: [
+    { id:"R1", name:"客户", userType:"CUSTOMER", tabCount:5, canMatch:"仅自己", reportVisible:"仅自己+仅日期", productVisible:false },
+    { id:"R2", name:"渠道", userType:"CHANNEL", tabCount:3, canMatch:false, reportVisible:"隐藏", productVisible:false },
+    { id:"R3", name:"顾问", userType:"STAFF", roleCode:"ADVISER", tabCount:5, canMatch:true, reportVisible:"全量四维", productVisible:true },
+    { id:"R4", name:"部门经理", userType:"STAFF", roleCode:"DEPT_MANAGER", tabCount:5, canMatch:true, reportVisible:"全量", productVisible:true },
+    { id:"R5", name:"老板", userType:"STAFF", roleCode:"BOSS", tabCount:5, canMatch:true, reportVisible:"全量", productVisible:true, canApproveAlloc:true },
+    { id:"R6", name:"运营", userType:"STAFF", roleCode:"OPERATOR", tabCount:5, canMatch:true, reportVisible:"全量", productVisible:true, canApproveAlloc:true },
+    { id:"R7", name:"超管", userType:"STAFF", roleCode:"SUPER_ADMIN", tabCount:5, canMatch:true, reportVisible:"全量", productVisible:true, canApproveAlloc:true }
+  ],
+  modules: [
+    { id:"M_AUTH", name:"登录/认证/企业认证", doc:"§1", entry:true },
+    { id:"M_NAV", name:"角色化导航(TabBar)", doc:"§2", entry:true },
+    { id:"M_HOME", name:"首页(角色化分流)", doc:"§3" },
+    { id:"M_MATCH", name:"智能匹配(含替客/归属流转)", doc:"§4" },
+    { id:"M_REPORT", name:"我的报告(角色二分查询)", doc:"§5" },
+    { id:"M_PRODUCTS", name:"报告命中产品明细(C4)", doc:"§6" },
+    { id:"M_DIAG", name:"经营诊断(C5)", doc:"§7" },
+    { id:"M_ORDER", name:"服务单/工单(C7)", doc:"§8" },
+    { id:"M_CHANPROD", name:"渠道产品管理(C9状态机)", doc:"§9" },
+    { id:"M_INVITE", name:"邀请绑定/推荐奖励", doc:"§10" },
+    { id:"M_LEAD", name:"线索录入", doc:"§11" },
+    { id:"M_ALLOC", name:"无归宿分配审批(C19)", doc:"§4.3/§13" }
+  ],
+  interfaces: [
+    { id:"A1", method:"POST", path:"/api/mini/auth/login", module:"M_AUTH", perm:"PUBLIC", note:"微信code主通道；兼容开关开时{phone,code}短信登录；inviteCode绑定" },
+    { id:"A2", method:"GET", path:"/api/mini/me", module:"M_AUTH", perm:"LOGIN", note:"返回profile+roleInfo{userType,roleCode,role}" },
+    { id:"A3", method:"POST", path:"/api/mini/auth/enterprise", module:"M_AUTH", perm:"CUSTOMER", note:"企业/个人认证" },
+    { id:"A4", method:"GET", path:"/api/mini/wecom/qrcode", module:"M_AUTH", perm:"PUBLIC", note:"企微客服活码" },
+    { id:"M1", method:"POST", path:"/api/mini/match/run", module:"M_MATCH", perm:"CUSTOMER/STAFF;CHANNEL禁", note:"发起匹配；员工必传clientCode" },
+    { id:"M2", method:"GET", path:"/api/mini/match/history", module:"M_MATCH", perm:"CUSTOMER", note:"我的匹配历史" },
+    { id:"M3", method:"GET", path:"/api/mini/client/search", module:"M_MATCH", perm:"STAFF;CHANNEL禁", note:"查重≥2字" },
+    { id:"M4", method:"POST", path:"/api/mini/client", module:"M_MATCH", perm:"STAFF", note:"录入新客户自动归属" },
+    { id:"M5", method:"POST", path:"/api/mini/client/{clientCode}/claim", module:"M_ALLOC", perm:"STAFF", note:"申请分配 AUTO_CLAIMED/PENDING_APPROVAL" },
+    { id:"M6", method:"GET", path:"/api/mini/client/{clientCode}/claim-status", module:"M_ALLOC", perm:"STAFF", note:"审批状态轮询" },
+    { id:"M7", method:"GET", path:"/api/mini/client/allocation-approvals/pending", module:"M_ALLOC", perm:"OPERATOR/SUPER/BOSS", note:"待审列表" },
+    { id:"M8", method:"POST", path:"/api/mini/client/allocation-approvals/{approvalNo}/approve", module:"M_ALLOC", perm:"OPERATOR/SUPER/BOSS", note:"通过→归属流转" },
+    { id:"M9", method:"POST", path:"/api/mini/client/allocation-approvals/{approvalNo}/reject", module:"M_ALLOC", perm:"OPERATOR/SUPER/BOSS", note:"驳回opinion必填" },
+    { id:"R1i", method:"GET", path:"/api/mini/report/list", module:"M_REPORT", perm:"角色二分", note:"四维筛选（客户仅日期）" },
+    { id:"R2i", method:"GET", path:"/api/mini/report/{reportNo}", module:"M_REPORT", perm:"CUSTOMER校验归属/STAFF全量", note:"报告详情" },
+    { id:"R3i", method:"GET", path:"/api/mini/report/{reportNo}/products", module:"M_PRODUCTS", perm:"仅STAFF", note:"命中产品明细(C4)" },
+    { id:"R4i", method:"GET", path:"/api/mini/report/{reportNo}/diagnosis", module:"M_DIAG", perm:"CUSTOMER(own)/STAFF", note:"经营诊断(C5)" },
+    { id:"O1", method:"GET", path:"/api/mini/order/list", module:"M_ORDER", perm:"角色二分", note:"四维筛选(C7)" },
+    { id:"O2", method:"GET", path:"/api/mini/order/{orderNo}", module:"M_ORDER", perm:"CUSTOMER(own)/STAFF", note:"工单详情" },
+    { id:"P1", method:"GET", path:"/api/mini/product/list", module:"M_CHANPROD", perm:"CHANNEL", note:"我的产品(沙箱自有)" },
+    { id:"P2", method:"POST", path:"/api/mini/product", module:"M_CHANPROD", perm:"CHANNEL", note:"保存草稿" },
+    { id:"P3", method:"GET", path:"/api/mini/product/{code}", module:"M_CHANPROD", perm:"CHANNEL", note:"详情" },
+    { id:"P4", method:"PUT", path:"/api/mini/product/{code}", module:"M_CHANPROD", perm:"CHANNEL", note:"编辑" },
+    { id:"P5", method:"POST", path:"/api/mini/product/{code}/submit", module:"M_CHANPROD", perm:"CHANNEL", note:"提交审批" },
+    { id:"P6", method:"POST", path:"/api/mini/product/{code}/revoke", module:"M_CHANPROD", perm:"CHANNEL", note:"撤销审批→DRAFT" },
+    { id:"P7", method:"POST", path:"/api/mini/product/{code}/delete-apply", module:"M_CHANPROD", perm:"CHANNEL", note:"申请删除" },
+    { id:"P8", method:"POST", path:"/api/mini/product/{code}/delete-cancel", module:"M_CHANPROD", perm:"CHANNEL", note:"撤销删除" },
+    { id:"P9", method:"GET", path:"/api/mini/partner-product/delete/pending", module:"M_CHANPROD", perm:"OPERATOR/SUPER/BOSS", note:"待删列表" },
+    { id:"P10", method:"POST", path:"/api/mini/partner-product/delete/{approvalNo}/audit", module:"M_CHANPROD", perm:"OPERATOR/SUPER/BOSS", note:"终审删除" },
+    { id:"I1", method:"POST", path:"/api/mini/invitation/bind", module:"M_INVITE", perm:"CUSTOMER", note:"补绑邀请码" },
+    { id:"I2", method:"GET", path:"/api/mini/invitation/mine", module:"M_INVITE", perm:"CUSTOMER", note:"我的邀请码" },
+    { id:"I3", method:"GET", path:"/api/mini/invitation/records", module:"M_INVITE", perm:"CUSTOMER", note:"邀请记录" },
+    { id:"W1", method:"GET", path:"/api/mini/reward/mine/summary", module:"M_INVITE", perm:"CUSTOMER", note:"奖励汇总" },
+    { id:"W2", method:"GET", path:"/api/mini/reward/mine", module:"M_INVITE", perm:"CUSTOMER", note:"奖励记录" },
+    { id:"L1", method:"POST", path:"/api/mini/lead/submit", module:"M_LEAD", perm:"LOGIN", note:"线索录入" }
+  ],
+  tables: [
+    { id:"T_CLIENT", name:"t_client", module:"M_MATCH", fields:"client_code(PK), owner_staff_code, contact_name, ent_name" },
+    { id:"T_SUB", name:"t_client_submission", module:"M_MATCH", fields:"data_json(经营事实), client_submit_id(幂等)" },
+    { id:"T_SCREEN", name:"t_client_screening", module:"M_MATCH", fields:"report_no, total_result, grade" },
+    { id:"T_SP", name:"t_screening_product", module:"M_PRODUCTS", fields:"report_no, product_code, hit_result, match_score(B1落地)" },
+    { id:"T_ALLOC", name:"t_client_allocation_approval", module:"M_ALLOC", fields:"approval_no, client_code, status PENDING/APPROVED/REJECTED(B3落地)" },
+    { id:"T_PA", name:"t_product_approval", module:"M_CHANPROD", fields:"apply_type CREATE/DELETE, approve_status DRAFT/PENDING/OK/REJECTED/PENDING_DELETE(C9复用不新增表)" },
+    { id:"T_LEAD", name:"t_lead", module:"M_LEAD", fields:"owner_staff_id, recorder_staff_id" },
+    { id:"T_STAFF", name:"t_staff", module:"M_REPORT", fields:"staff_code, staff_name(B4 staffName来源)" },
+    { id:"T_BP", name:"t_bank_product", module:"M_PRODUCTS", fields:"product_code, product_name, bank_name" },
+    { id:"T_BC", name:"t_bank_channel", module:"M_PRODUCTS", fields:"channel银行渠道关联" }
+  ],
+  statemachines: [
+    { id:"SM_MATCH", name:"匹配结果态(totalResult)", states:["PASS","CONDITION","REJECT","SKIP_SEGMENT_MISMATCH","ERROR"] },
+    { id:"SM_PRODUCT", name:"渠道产品状态机(C9)", transitions:[
+        { from:"DRAFT", to:"PENDING", action:"submit" },
+        { from:"PENDING", to:"DRAFT", action:"revoke(即时)" },
+        { from:"PENDING", to:"OK", action:"运营终审通过" },
+        { from:"OK", to:"PENDING_DELETE", action:"delete-apply" },
+        { from:"PENDING_DELETE", to:"OK", action:"audit(reject)/delete-cancel" },
+        { from:"PENDING_DELETE", to:"DELETED", action:"audit(approve)物理删除+审计" }
+    ] },
+    { id:"SM_ALLOC", name:"客户归属流转(C2/C19)", transitions:[
+        { from:"NONE", to:"AUTO_CLAIMED", action:"情形A:录入即归属/情形B有归属人自动归属" },
+        { from:"NONE", to:"PENDING_APPROVAL", action:"情形B无归宿申请分配" },
+        { from:"PENDING_APPROVAL", to:"APPROVED", action:"M8审批通过→归属流转" },
+        { from:"PENDING_APPROVAL", to:"REJECTED", action:"M9驳回(opinion必填)" }
+    ] }
+  ],
+  edges: [
+    { type:"HAS_API", from:"M_AUTH", to:"A1" },{ type:"HAS_API", from:"M_AUTH", to:"A2" },{ type:"HAS_API", from:"M_AUTH", to:"A3" },{ type:"HAS_API", from:"M_AUTH", to:"A4" },
+    { type:"HAS_API", from:"M_MATCH", to:"M1" },{ type:"HAS_API", from:"M_MATCH", to:"M3" },{ type:"HAS_API", from:"M_MATCH", to:"M4" },
+    { type:"HAS_API", from:"M_ALLOC", to:"M5" },{ type:"HAS_API", from:"M_ALLOC", to:"M7" },{ type:"HAS_API", from:"M_ALLOC", to:"M8" },{ type:"HAS_API", from:"M_ALLOC", to:"M9" },
+    { type:"HAS_API", from:"M_REPORT", to:"R1i" },{ type:"HAS_API", from:"M_REPORT", to:"R2i" },
+    { type:"HAS_API", from:"M_PRODUCTS", to:"R3i" },{ type:"HAS_API", from:"M_DIAG", to:"R4i" },
+    { type:"HAS_API", from:"M_ORDER", to:"O1" },{ type:"HAS_API", from:"M_ORDER", to:"O2" },
+    { type:"HAS_API", from:"M_CHANPROD", to:"P1" },{ type:"HAS_API", from:"M_CHANPROD", to:"P2" },{ type:"HAS_API", from:"M_CHANPROD", to:"P5" },{ type:"HAS_API", from:"M_CHANPROD", to:"P7" },{ type:"HAS_API", from:"M_CHANPROD", to:"P9" },{ type:"HAS_API", from:"M_CHANPROD", to:"P10" },
+    { type:"HAS_API", from:"M_INVITE", to:"I1" },{ type:"HAS_API", from:"M_INVITE", to:"I2" },{ type:"HAS_API", from:"M_INVITE", to:"W1" },{ type:"HAS_API", from:"M_LEAD", to:"L1" },
+    { type:"READS", from:"R3i", to:"T_SP" },{ type:"READS", from:"R3i", to:"T_BP" },{ type:"READS", from:"R4i", to:"T_SUB" },{ type:"READS", from:"R4i", to:"T_SCREEN" },
+    { type:"WRITES", from:"M1", to:"T_SCREEN" },{ type:"WRITES", from:"M1", to:"T_SP" },{ type:"WRITES", from:"M4", to:"T_CLIENT" },{ type:"WRITES", from:"M5", to:"T_ALLOC" },{ type:"READS", from:"M8", to:"T_ALLOC" },
+    { type:"WRITES", from:"P5", to:"T_PA" },{ type:"WRITES", from:"P7", to:"T_PA" },{ type:"READS", from:"O1", to:"T_STAFF" },
+    { type:"CAN_ACCESS", from:"R1", to:"M_MATCH", label:"仅自己" },{ type:"CAN_ACCESS", from:"R2", to:"M_MATCH", label:"FORBIDDEN" },{ type:"CAN_ACCESS", from:"R3", to:"M_MATCH", label:"可" },
+    { type:"CAN_ACCESS", from:"R5", to:"M_ALLOC", label:"审批入口" },{ type:"CAN_ACCESS", from:"R6", to:"M_ALLOC", label:"审批入口" },{ type:"CAN_ACCESS", from:"R7", to:"M_ALLOC", label:"审批入口" },
+    { type:"CAN_ACCESS", from:"R2", to:"M_CHANPROD", label:"自有产品" },{ type:"CAN_ACCESS", from:"R1", to:"M_PRODUCTS", label:"FORBIDDEN(脱敏)" },{ type:"CAN_ACCESS", from:"R2", to:"M_REPORT", label:"FORBIDDEN" },{ type:"CAN_ACCESS", from:"R2", to:"M_ORDER", label:"FORBIDDEN" }
+  ]
+};
+
+/* 角色×模块可见性矩阵（依据结论 C1–C19 与 role 定义推导；''=无入口） */
+const ACCESS = {
+  R1:{M_AUTH:"yes",M_NAV:"yes",M_HOME:"yes",M_MATCH:"self",M_REPORT:"self",M_PRODUCTS:"no",M_DIAG:"self",M_ORDER:"own",M_CHANPROD:"no",M_INVITE:"yes",M_LEAD:"yes",M_ALLOC:"no"},
+  R2:{M_AUTH:"yes",M_NAV:"yes",M_HOME:"yes",M_MATCH:"no",M_REPORT:"no",M_PRODUCTS:"no",M_DIAG:"no",M_ORDER:"no",M_CHANPROD:"yes",M_INVITE:"no",M_LEAD:"no",M_ALLOC:"no"},
+  R3:{M_AUTH:"yes",M_NAV:"yes",M_HOME:"yes",M_MATCH:"yes",M_REPORT:"yes",M_PRODUCTS:"yes",M_DIAG:"yes",M_ORDER:"yes",M_CHANPROD:"no",M_INVITE:"no",M_LEAD:"yes",M_ALLOC:"view"},
+  R4:{M_AUTH:"yes",M_NAV:"yes",M_HOME:"yes",M_MATCH:"yes",M_REPORT:"yes",M_PRODUCTS:"yes",M_DIAG:"yes",M_ORDER:"yes",M_CHANPROD:"no",M_INVITE:"no",M_LEAD:"yes",M_ALLOC:"view"},
+  R5:{M_AUTH:"yes",M_NAV:"yes",M_HOME:"yes",M_MATCH:"yes",M_REPORT:"yes",M_PRODUCTS:"yes",M_DIAG:"yes",M_ORDER:"yes",M_CHANPROD:"no",M_INVITE:"no",M_LEAD:"yes",M_ALLOC:"approve"},
+  R6:{M_AUTH:"yes",M_NAV:"yes",M_HOME:"yes",M_MATCH:"yes",M_REPORT:"yes",M_PRODUCTS:"yes",M_DIAG:"yes",M_ORDER:"yes",M_CHANPROD:"no",M_INVITE:"no",M_LEAD:"yes",M_ALLOC:"approve"},
+  R7:{M_AUTH:"yes",M_NAV:"yes",M_HOME:"yes",M_MATCH:"yes",M_REPORT:"yes",M_PRODUCTS:"yes",M_DIAG:"yes",M_ORDER:"yes",M_CHANPROD:"no",M_INVITE:"no",M_LEAD:"yes",M_ALLOC:"approve"}
+};
+
+/* ============ 索引 ============ */
+const byId = {};
+[...KG.roles, ...KG.modules, ...KG.interfaces, ...KG.tables, ...KG.statemachines].forEach(o => byId[o.id] = o);
+const mColor = { M_AUTH:"var(--customer)", M_NAV:"var(--neutral)", M_HOME:"var(--neutral)", M_MATCH:"var(--staff)", M_REPORT:"var(--neutral)", M_PRODUCTS:"var(--staff)", M_DIAG:"var(--neutral)", M_ORDER:"var(--neutral)", M_CHANPROD:"var(--channel)", M_INVITE:"var(--customer)", M_LEAD:"var(--neutral)", M_ALLOC:"var(--approve)" };
+
+/* ============ 详情渲染 ============ */
+const card = document.getElementById('detailCard');
+const methodBadge = m => ({GET:"b-get",POST:"b-post",PUT:"b-put",DELETE:"b-del"}[m] || "b-perm");
+
+function showDetail(id){
+  const o = byId[id];
+  if(!o){ card.innerHTML = `<div class="empty-tip">未找到节点 <code>${id}</code></div>`; return; }
+  let html = "";
+  if(KG.modules.includes(o)){
+    const apis = KG.edges.filter(e=>e.type==="HAS_API" && e.from===id).map(e=>byId[e.to]).filter(Boolean);
+    const tbls = KG.tables.filter(t=>t.module===id);
+    html = `<h3>${o.name} <span class="dtype">模块</span></h3>
+      <div class="dmeta">文档章节 ${o.doc}${o.entry?' · 入口模块':''}</div>
+      <div class="row"><span class="k">接口(${apis.length})</span><span class="v">${
+        apis.map(a=>`<span class="badge ${methodBadge(a.method)}">${a.method}</span> <code style="font-size:11px">${a.path}</code>`).join('<br/>') || '—'
+      }</span></div>
+      <div class="row"><span class="k">数据表</span><span class="v">${tbls.map(t=>`<span class="badge b-tbl">${t.name}</span>`).join(' ') || '—'}</span></div>
+      <div class="row"><span class="k">可见角色</span><span class="v">${roleAccessLabels(id)}</span></div>`;
+  } else if(KG.interfaces.includes(o)){
+    const mod = byId[o.module];
+    const rel = KG.edges.filter(e=>(e.type==="READS"||e.type==="WRITES") && e.from===id);
+    const relTbls = rel.map(e=>byId[e.to]).filter(Boolean);
+    html = `<h3>${o.id} <span class="dtype">接口</span></h3>
+      <div class="dmeta">${mod?mod.name:o.module}</div>
+      <div class="row"><span class="k">方法</span><span class="v"><span class="badge ${methodBadge(o.method)}">${o.method}</span></span></div>
+      <div class="row"><span class="k">路径</span><span class="v"><code>${o.path}</code></span></div>
+      <div class="row"><span class="k">权限</span><span class="v"><span class="badge b-perm">${o.perm}</span></span></div>
+      <div class="row"><span class="k">说明</span><span class="v">${o.note}</span></div>
+      ${relTbls.length?`<div class="row"><span class="k">数据表</span><span class="v">${relTbls.map(t=>`<span class="badge b-tbl">${t.name}</span>`).join(' ')}</span></div>`:''}`;
+  } else if(KG.statemachines.includes(o)){
+    if(o.states){
+      html = `<h3>${o.name} <span class="dtype">状态机</span></h3>
+        <div class="row"><span class="k">状态集</span><span class="v">${o.states.map(s=>`<span class="badge b-perm">${s}</span>`).join(' ')}</span></div>`;
+    } else {
+      html = `<h3>${o.name} <span class="dtype">状态机</span></h3>
+        <div class="row"><span class="k">流转</span><span class="v">${
+          o.transitions.map(t=>`${t.from} <b>—${t.action}→</b> ${t.to}`).join('<br/>')
+        }</span></div>`;
+    }
+  } else if(KG.roles.includes(o)){
+    html = `<h3>${o.name} <span class="dtype">角色</span></h3>
+      <div class="dmeta">${o.userType}${o.roleCode?' · '+o.roleCode:''}</div>
+      <div class="row"><span class="k">Tab数</span><span class="v">${o.tabCount}</span></div>
+      <div class="row"><span class="k">可匹配</span><span class="v">${o.canMatch?o.canMatch:'否'}</span></div>
+      <div class="row"><span class="k">报告可见</span><span class="v">${o.reportVisible}</span></div>
+      <div class="row"><span class="k">审批分配</span><span class="v">${o.canApproveAlloc?'<span class="badge b-appr">可审批</span>':'否'}</span></div>
+      <div class="row"><span class="k">可访问模块</span><span class="v">${Object.entries(ACCESS[o.id]||{}).filter(([k,v])=>v&&v!=='no').map(([k])=>`<span class="badge b-ok">${byId[k].name}</span>`).join(' ')||'—'}</span></div>`;
+  }
+  card.innerHTML = html;
+  // 高亮选中节点
+  document.querySelectorAll('g.node.selected').forEach(n=>n.classList.remove('selected'));
+  document.querySelectorAll(`g.node[data-id="${id}"]`).forEach(n=>n.classList.add('selected'));
+}
+
+function roleAccessLabels(modId){
+  const labels = KG.edges.filter(e=>e.type==="CAN_ACCESS" && e.to===modId);
+  if(labels.length) return labels.map(e=>`<span class="badge ${e.label.includes('FORBIDDEN')?'b-no':'b-ok'}">${byId[e.from].name}:${e.label}</span>`).join(' ');
+  return '<span class="badge b-perm">见角色筛选</span>';
+}
+
+/* ============ 角色筛选 ============ */
+let activeRole = null;
+function applyRole(roleId){
+  activeRole = roleId;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active', c.dataset.id===roleId));
+  const m = ACCESS[roleId];
+  document.querySelectorAll('g.node[data-module]').forEach(g=>{
+    g.classList.remove('hl-ok','hl-no','hl-self','hl-appr','hl-dim');
+    const v = m[g.dataset.module];
+    if(v==='no') g.classList.add('hl-no');
+    else if(v==='self'||v==='own') g.classList.add('hl-self');
+    else if(v==='approve') g.classList.add('hl-appr');
+    else if(v==='yes'||v==='view') g.classList.add('hl-ok');
+    else if(!v) g.classList.add('hl-dim');
+  });
+  const r = byId[roleId];
+  showDetail(roleId);
+  card.insertAdjacentHTML('beforeend', `<div class="hint">已高亮「${r.name}」可见模块：绿/蓝=可访问，红=禁入，灰=无入口。点击任意节点查看明细。</div>`);
+}
+function resetRole(){
+  activeRole = null;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('g.node').forEach(g=>g.classList.remove('hl-ok','hl-no','hl-self','hl-appr','hl-dim','selected'));
+  card.innerHTML = `<div class="empty-tip">已重置高亮。点击中间任一节点查看知识图谱详情，或选择顶部角色芯片筛选可见模块。</div>`;
+}
+
+/* ============ 初始化 ============ */
+// 角色芯片
+const chipWrap = document.getElementById('roleChips');
+KG.roles.forEach(r=>{
+  const c = document.createElement('span');
+  c.className='chip'; c.dataset.id=r.id;
+  const col = r.userType==='CUSTOMER'?'var(--customer)':r.userType==='CHANNEL'?'var(--channel)':'var(--staff)';
+  c.innerHTML = `<span class="dot" style="background:${col}"></span>${r.name}`;
+  c.onclick = ()=>applyRole(r.id);
+  chipWrap.appendChild(c);
+});
+// 模块导航
+const navGrid = document.getElementById('navGrid');
+KG.modules.forEach(m=>{
+  const a = document.createElement('div');
+  a.className='nav-item';
+  a.innerHTML = `<span class="ni-dot" style="background:${mColor[m.id]}"></span>${m.name}<small>${m.doc}</small>`;
+  a.onclick = ()=>{ showDetail(m.id); const sec=document.querySelector(`g.node[data-id="${m.id}"]`); if(sec) sec.scrollIntoView({behavior:'smooth',block:'center'}); };
+  navGrid.appendChild(a);
+});
+// 节点点击
+document.querySelectorAll('g.node').forEach(g=> g.onclick = ()=>showDetail(g.dataset.id));
+// 面板标题"图谱"按钮
+document.querySelectorAll('.pinfo').forEach(b=> b.onclick = ()=>showDetail(b.dataset.id));
+document.getElementById('resetBtn').onclick = resetRole;
+</script>
+</body>
+</html>

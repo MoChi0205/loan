@@ -1,0 +1,49 @@
+# =============================================================================
+# loan-main L3 集成（手动触发，只读接生产库）
+# -----------------------------------------------------------------------------
+# ⚠️ 安全须知：
+#   1) 仅人工在 Actions 页面「Run workflow」触发，绝不随 PR 自动跑；
+#   2) 全程只读（CoreLinkIntegrationTest 只做 SELECT / GET / 纯逻辑断言）；
+#   3) 凭证通过 GitHub Secrets 注入，绝不落库；
+#   4) 运行环境必须能访问云上 MySQL/Redis（110.42.219.5:9306、124.221.116.28:9379）。
+#      默认 ubuntu-latest Runner 通常不在白名单内——请改用「自托管 Runner」（位于云 VPC 内）
+#      或先将该 Runner 出网 IP 加入云库白名单。
+# 必填 Secrets：LOAN_PRD_DB_PASSWORD、LOAN_PRD_REDIS_PASSWORD
+# 可选 Secrets：LOAN_PRD_DB_USER（默认 erp_user；若已建 erp_ro 只读账号则设为 erp_ro）
+# =============================================================================
+name: L3 Integration (manual, prod-readonly)
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner（需能访问云库，自托管建议 self-hosted）'
+        required: true
+        default: 'self-hosted'
+
+jobs:
+  l3:
+    name: L3 core-link (read-only vs prod)
+    runs-on: ${{ github.event.inputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Build dependency loan-api
+        run: mvn -B -q install -DskipTests -pl loan-api
+
+      - name: Run L3 read-only integration (prod)
+        env:
+          LOAN_PRD_DB_PASSWORD: ${{ secrets.LOAN_PRD_DB_PASSWORD }}
+          LOAN_PRD_REDIS_PASSWORD: ${{ secrets.LOAN_PRD_REDIS_PASSWORD }}
+          LOAN_PRD_DB_USER: ${{ secrets.LOAN_PRD_DB_USER }}
+        run: >
+          mvn -B test -pl loan-service -DskipTests=false
+          -Dloan.l3.enabled=true -Dl3.excludedGroups=
+          -Dtest=CoreLinkIntegrationTest
