@@ -7,12 +7,13 @@
       </div>
     </div>
 
-    <!-- 客群切换 Tab -->
-    <div class="cg-tabs-wrapper">
-      <el-segmented v-model="activeCustomerGroup" :options="cgOptions" size="default" block @change="onCustomerGroupChange" />
+    <!-- 客群切换（与策略模板页保持一致） -->
+    <div class="cg-switch">
+      <el-segmented v-model="activeCustomerGroup" :options="cgOptions" size="default" @change="onCustomerGroupChange" />
+      <span class="cg-switch__hint">执行计划按客群分开维护，切换后自动过滤（URL ?cg= 同步）</span>
     </div>
 
-    <!-- 计划选择（参考 widek-web：搜索栏 + 查询/重置按钮） -->
+    <!-- 计划列表 -->
     <div class="loan-card">
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
         <el-input v-model="query.keyword" placeholder="计划编码 / 名称" clearable style="width: 260px" @keyup.enter="onSearch" />
@@ -22,122 +23,55 @@
             新建计划
           </el-button>
           <el-button v-if="planId" @click="openPlanDialog(currentPlan)">编辑计划</el-button>
-          <el-button v-if="planId" @click="onCopyPlan">复制计划</el-button>
-          <el-button v-if="planId" @click="onSaveAsTemplate">另存为模版</el-button>
-          <el-button v-if="planId" type="danger" plain @click="onDeletePlan">删除计划</el-button>
+          <el-button v-if="planId" @click="onCopyPlan(currentPlan)">复制计划</el-button>
+          <el-button v-if="planId" @click="onSaveAsTemplate(currentPlan)">另存为模版</el-button>
+          <el-button v-if="planId" type="danger" plain @click="onDeletePlan(currentPlan)">删除计划</el-button>
         </template>
       </AppSearchBar>
 
-      <!-- 计划列表（选中高亮） -->
-      <div v-if="!planId || showPlanList" class="plan-list">
-        <div
-          v-for="p in filteredPlans"
-          :key="p.id"
-          class="plan-list-item"
-          :class="{ active: planId === p.planCode }"
-          @click="selectPlan(p)"
+      <el-table
+        ref="planTableRef"
+        :data="filteredPlans"
+        v-loading="loading"
+        highlight-current-row
+        :row-key="rowKey"
+        @row-click="onRowClick"
+        @sort-change="handleSortChange"
+        class="plan-table"
+        style="height: calc(100vh - 320px); min-height: 360px"
+      >
+        <el-table-column
+          v-for="col in columns"
+          :key="col.key"
+          :prop="col.key"
+          :label="col.label"
+          :width="col.width"
+          :sortable="col.sortable"
         >
-          <span class="plan-list-name">{{ p.planName }}</span>
-          <span class="plan-list-code">{{ p.planCode }}</span>
-          <span class="plan-list-ver">v{{ p.version }}</span>
-          <span class="plan-list-cg" :class="p.customerGroup === 'PERSONAL' ? 'cg-personal' : 'cg-enterprise'">
-            {{ p.customerGroup === 'PERSONAL' ? '个贷' : '企业' }}
-          </span>
-        </div>
-        <AppEmpty v-if="!filteredPlans.length" title="暂无执行计划" desc="点击「新建计划」创建第一个执行计划" />
-      </div>
-    </div>
-
-    <!-- 编排树（重构：专业卡片式布局） -->
-    <div v-if="planId" class="orchestration-wrapper">
-      <!-- 空状态引导 -->
-      <div v-if="!modules.length" class="orch-empty">
-        <AppIcon name="empty" :size="48" color="var(--loan-border)" />
-        <p class="orch-empty-title">暂无编排内容</p>
-        <p class="orch-empty-desc">点击下方按钮添加模块和步骤，构建执行计划</p>
-      </div>
-
-      <!-- 模块列表 -->
-      <div v-for="(m, mi) in modules" :key="m.moduleBizCode" class="module-card-v2">
-        <!-- 模块头 -->
-        <div class="mod-head">
-          <div class="mod-head-left">
-            <span class="mod-index">M{{ mi + 1 }}</span>
-            <span class="mod-name">{{ m.moduleName || m.moduleCode }}</span>
-            <span class="mod-code">{{ m.moduleCode }}</span>
-          </div>
-          <div class="mod-head-right">
-            <span class="mod-tag" :class="m.logicType === 'OR' ? 'tag-warn' : 'tag-info'">{{ m.logicType }}</span>
-            <span v-if="m.joinWithNextModule === 'OR'" class="mod-tag tag-warn">↓ OR</span>
-            <span v-else class="mod-tag tag-info">↓ AND</span>
-            <span v-if="m.isGlobalPre" class="mod-tag tag-danger">全局风控</span>
-            <el-button link type="primary" size="small" @click="openModuleDialog(m)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="onDeleteModule(m)">删除</el-button>
-          </div>
-        </div>
-
-        <!-- 步骤列表（表格） -->
-        <div v-if="m.steps && m.steps.length" class="step-table-wrap">
-          <table class="step-table">
-            <thead>
-              <tr>
-                <th style="width:50px">#</th>
-                <th>规则名称</th>
-                <th style="width:180px">规则编码</th>
-                <th style="width:70px">连接</th>
-                <th style="width:60px">空跑</th>
-                <th style="width:220px">前置条件</th>
-                <th style="width:120px">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(s, si) in m.steps" :key="s.stepCode">
-                <td class="col-num">{{ s.stepSort ?? si + 1 }}</td>
-                <td class="col-rule-name">{{ s.ruleName || s.ruleCode || '—' }}</td>
-                <td class="col-code"><code>{{ s.ruleCode || '—' }}</code></td>
-                <td>
-                  <span v-if="s.joinWithNext === 'OR'" class="mod-tag tag-warn tag-sm">OR</span>
-                  <span v-else-if="s.joinWithNext === 'AND'" class="mod-tag tag-info tag-sm">AND</span>
-                  <span v-else class="text-muted">—</span>
-                </td>
-                <td>
-                  <span v-if="s.isDryRun === 1" class="mod-tag tag-danger tag-sm">空跑</span>
-                  <span v-else class="text-muted">—</span>
-                </td>
-                <td class="col-condition">
-                  <span v-if="s.conditionOperator" class="condition-chip">
-                    {{ s.conditionField }} <b>{{ s.conditionOperator }}</b> {{ s.conditionValue || '' }}
-                  </span>
-                  <span v-else class="text-muted">—</span>
-                </td>
-                <td class="col-actions">
-                  <el-button link type="primary" size="small" @click="openStepDialog(m, s)">编辑</el-button>
-                  <el-button link type="danger" size="small" @click="onDeleteStep(m, s)">删除</el-button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 添加步骤（内联按钮） -->
-        <div class="add-step-bar">
-          <el-button size="small" @click="openStepDialog(m)">
-            <AppIcon name="add" :size="12" />
-            添加步骤
-          </el-button>
-        </div>
-      </div>
-
-      <!-- 底部添加模块 -->
-      <div class="add-module-bar">
-        <el-button size="small" @click="openModuleDialog()">
-          <AppIcon name="add" :size="12" />
-          添加模块
-        </el-button>
-      </div>
-    </div>
-    <div v-else class="loan-card">
-      <AppEmpty :title="plans.length ? '请选择执行计划' : '暂无执行计划'" :desc="plans.length ? '在上方搜索或点击列表中选择计划' : '点击「新建计划」创建第一个执行计划'" />
+          <template #default="{ row }">
+            <span v-if="col.key === 'customerGroup'">
+              <span class="loan-tag" :class="row.customerGroup === 'PERSONAL' ? 'loan-tag-warning' : 'loan-tag-primary'">
+                {{ row.customerGroup === 'PERSONAL' ? '个贷' : '企业' }}
+              </span>
+            </span>
+            <span v-else-if="col.key === 'createdAt' || col.key === 'updatedAt'">
+              {{ formatDateTime(row[col.key]) }}
+            </span>
+            <span v-else>{{ row[col.key] }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="260" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click.stop="openPlanDialog(row)">编辑</el-button>
+            <el-button link type="primary" size="small" @click.stop="onCopyPlan(row)">复制</el-button>
+            <el-button link type="primary" size="small" @click.stop="onSaveAsTemplate(row)">另存为模板</el-button>
+            <el-button link type="danger" size="small" @click.stop="onDeletePlan(row)">删除</el-button>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <AppEmpty title="暂无执行计划" desc="点击「新建计划」创建第一个执行计划" />
+        </template>
+      </el-table>
     </div>
 
     <!-- 计划弹窗 -->
@@ -241,19 +175,137 @@
         <p class="condition-hint">运行时若条件不满足，该步骤将标记为 SKIP（跳过）并继续后续步骤，不会阻断链路。</p>
       </el-form>
     </AppDialog>
+
+    <!-- 计划详情弹窗：左模块列表 + 右步骤详情 -->
+    <AppDialog v-model:visible="detailDialog.visible" title="计划编排详情" width="960px">
+      <template #footer>
+        <el-button @click="detailDialog.visible = false">关闭</el-button>
+      </template>
+      <div class="detail-dialog-body">
+        <div class="detail-header">
+          <span class="detail-title">{{ currentPlan?.planName }}</span>
+          <span class="detail-code">{{ currentPlan?.planCode }}</span>
+          <span class="detail-ver">v{{ currentPlan?.version }}</span>
+          <span class="loan-tag" :class="currentPlan?.customerGroup === 'PERSONAL' ? 'loan-tag-warning' : 'loan-tag-primary'">
+            {{ currentPlan?.customerGroup === 'PERSONAL' ? '个贷' : '企业' }}
+          </span>
+        </div>
+        <div class="detail-layout">
+          <!-- 左侧模块列表 -->
+          <div class="module-sidebar">
+            <div
+              v-for="(m, mi) in modules"
+              :key="m.moduleBizCode"
+              class="module-item"
+              :class="{ active: detailDialog.activeModuleCode === m.moduleBizCode }"
+              @click="detailDialog.activeModuleCode = m.moduleBizCode"
+            >
+              <span class="mod-index">M{{ mi + 1 }}</span>
+              <div class="module-item-info">
+                <div class="module-item-name">{{ m.moduleName || m.moduleCode }}</div>
+                <div class="module-item-code">{{ m.moduleCode }}</div>
+              </div>
+            </div>
+            <AppEmpty v-if="!modules.length" title="暂无模块" desc="该计划下未配置任何模块" />
+          </div>
+
+          <!-- 右侧步骤详情 -->
+          <div class="module-content">
+            <div v-if="activeModule" class="module-content-inner">
+              <div class="mod-head">
+                <div class="mod-head-left">
+                  <span class="mod-index">M{{ activeModuleIndex + 1 }}</span>
+                  <span class="mod-name">{{ activeModule.moduleName || activeModule.moduleCode }}</span>
+                  <span class="mod-code">{{ activeModule.moduleCode }}</span>
+                </div>
+                <div class="mod-head-right">
+                  <span class="mod-tag" :class="activeModule.logicType === 'OR' ? 'tag-warn' : 'tag-info'">{{ activeModule.logicType }}</span>
+                  <span v-if="activeModule.joinWithNextModule === 'OR'" class="mod-tag tag-warn">↓ OR</span>
+                  <span v-else class="mod-tag tag-info">↓ AND</span>
+                  <span v-if="activeModule.isGlobalPre" class="mod-tag tag-danger">全局风控</span>
+                  <el-button link type="primary" size="small" @click="openModuleDialog(activeModule)">编辑</el-button>
+                  <el-button link type="danger" size="small" @click="onDeleteModule(activeModule)">删除</el-button>
+                </div>
+              </div>
+
+              <div v-if="activeModule.steps && activeModule.steps.length" class="step-table-wrap">
+                <table class="step-table">
+                  <thead>
+                    <tr>
+                      <th style="width:50px">#</th>
+                      <th>规则名称</th>
+                      <th style="width:180px">规则编码</th>
+                      <th style="width:70px">连接</th>
+                      <th style="width:60px">空跑</th>
+                      <th style="width:220px">前置条件</th>
+                      <th style="width:120px">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(s, si) in activeModule.steps" :key="s.stepCode">
+                      <td class="col-num">{{ s.stepSort ?? si + 1 }}</td>
+                      <td class="col-rule-name">{{ s.ruleName || s.ruleCode || '—' }}</td>
+                      <td class="col-code"><code>{{ s.ruleCode || '—' }}</code></td>
+                      <td>
+                        <span v-if="s.joinWithNext === 'OR'" class="mod-tag tag-warn tag-sm">OR</span>
+                        <span v-else-if="s.joinWithNext === 'AND'" class="mod-tag tag-info tag-sm">AND</span>
+                        <span v-else class="text-muted">—</span>
+                      </td>
+                      <td>
+                        <span v-if="s.isDryRun === 1" class="mod-tag tag-danger tag-sm">空跑</span>
+                        <span v-else class="text-muted">—</span>
+                      </td>
+                      <td class="col-condition">
+                        <span v-if="s.conditionOperator" class="condition-chip">
+                          {{ s.conditionField }} <b>{{ s.conditionOperator }}</b> {{ s.conditionValue || '' }}
+                        </span>
+                        <span v-else class="text-muted">—</span>
+                      </td>
+                      <td class="col-actions">
+                        <el-button link type="primary" size="small" @click="openStepDialog(activeModule, s)">编辑</el-button>
+                        <el-button link type="danger" size="small" @click="onDeleteStep(activeModule, s)">删除</el-button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-else class="orch-empty">
+                <AppIcon name="empty" :size="48" color="var(--loan-border)" />
+                <p class="orch-empty-title">暂无步骤</p>
+                <p class="orch-empty-desc">点击下方按钮添加步骤</p>
+              </div>
+
+              <div class="add-step-bar">
+                <el-button size="small" @click="openStepDialog(activeModule)">
+                  <AppIcon name="add" :size="12" />
+                  添加步骤
+                </el-button>
+              </div>
+            </div>
+            <div v-else class="orch-empty">
+              <AppIcon name="empty" :size="48" color="var(--loan-border)" />
+              <p class="orch-empty-title">请选择模块</p>
+              <p class="orch-empty-desc">在左侧选择要查看的模块</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </AppDialog>
   </div>
 </template>
 
 <script setup>
 defineOptions({ name: '_plan_edit' });
-import { ref, reactive, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import Sortable from 'sortablejs';
 import AppDialog from '@/components/AppDialog.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { appConfirm } from '@/utils/confirm';
+import { formatDateTime } from '@/utils/format';
 import {
   listPlans, planDetail, createPlan, updatePlan, deletePlan,
   createModule, updateModule, deleteModule, createStep, updateStep, deleteStep,
@@ -263,6 +315,7 @@ import { listRules } from '@/api/rule';
 import { strategyExistsByPlan } from '@/api/channelStrategy';
 
 const route = useRoute();
+const router = useRouter();
 
 /** 客群选项（el-segmented） */
 const cgOptions = [
@@ -295,25 +348,38 @@ const planId = ref(null);
 const modules = ref([]);
 const currentPlan = ref(null);
 const loading = ref(false);
-const showPlanList = ref(true);
 
-/** 搜索关键字 */
-const query = reactive({ keyword: '' });
+/** 搜索关键字 + 排序参数（跨页后端排序） */
+const query = reactive({ keyword: '', sortBy: '', sortDir: '' });
+
+/** 列表表格实例 */
+const planTableRef = ref();
+
+/** 列配置（支持拖拽排序；操作列固定在最右，不参与拖拽） */
+const columns = ref([
+  { key: 'planName', label: '计划名称', width: 200, sortable: false },
+  { key: 'planCode', label: '计划编码', width: 260, sortable: false },
+  { key: 'version', label: '版本', width: 80, sortable: false },
+  { key: 'customerGroup', label: '客群', width: 90, sortable: false },
+  { key: 'createdAt', label: '创建时间', width: 170, sortable: 'custom' },
+  { key: 'updatedAt', label: '更新时间', width: 170, sortable: 'custom' },
+]);
 
 /** 过滤后的计划列表 */
 const filteredPlans = computed(() => {
   if (!query.keyword) return plans.value;
   const kw = query.keyword.toLowerCase();
   return plans.value.filter((p) =>
-    p.planName.toLowerCase().includes(kw) || p.planCode.toLowerCase().includes(kw),
+    p.planName?.toLowerCase().includes(kw) || p.planCode?.toLowerCase().includes(kw),
   );
 });
 
-/** 切换客群时：清空选中、重新加载计划和规则 */
+/** 切换客群时：清空选中、重新加载计划和规则（URL ?cg= 同步） */
 function onCustomerGroupChange(val) {
   planId.value = null;
   modules.value = [];
   currentPlan.value = null;
+  router.replace({ query: { ...route.query, cg: val } });
   loadPlans();
   loadRulesByCG(val);
 }
@@ -326,19 +392,62 @@ async function loadRulesByCG(customerGroup) {
   } catch { rules.value = []; }
 }
 
+const rowKey = (row) => row.planCode;
+
+/** 点击行：选中计划并打开详情弹窗 */
+async function onRowClick(p) {
+  selectPlan(p);
+  detailDialog.visible = true;
+  await loadDetail();
+  detailDialog.activeModuleCode = modules.value[0]?.moduleBizCode || null;
+}
+
 function selectPlan(p) {
   planId.value = p.planCode;
-  loadDetail();
+  currentPlan.value = p;
 }
 
 function onSearch() {
-  // 搜索已通过 computed 实时过滤，此处仅确保列表展开
-  showPlanList.value = true;
+  // 搜索已通过 computed 实时过滤
 }
 
 function onReset() {
   query.keyword = '';
-  showPlanList.value = true;
+}
+
+/** 列头排序（时间列走后端跨页排序：sortBy/sortDir 传 list 接口） */
+function handleSortChange({ prop, order }) {
+  if (!prop || !order) {
+    // 清除排序：恢复后端默认 id 倒序
+    query.sortBy = '';
+    query.sortDir = '';
+    loadPlans();
+    return;
+  }
+  query.sortBy = prop;
+  query.sortDir = order === 'ascending' ? 'asc' : 'desc';
+  loadPlans();
+}
+
+/** 初始化表头列拖拽（操作列固定不参与） */
+function initColumnDrag() {
+  const headerRow = planTableRef.value?.$el.querySelector('.el-table__header-wrapper tr');
+  if (!headerRow) return;
+  Sortable.create(headerRow, {
+    animation: 150,
+    filter: '.el-table__cell:last-child',
+    preventOnFilter: false,
+    onEnd: (evt) => {
+      let { newIndex, oldIndex } = evt;
+      if (oldIndex == null || newIndex == null) return;
+      // 操作列固定在最右侧，拖拽目标限制在数据列范围内
+      if (oldIndex >= columns.value.length) return;
+      if (newIndex >= columns.value.length) newIndex = columns.value.length - 1;
+      if (newIndex === oldIndex) return;
+      const item = columns.value.splice(oldIndex, 1)[0];
+      columns.value.splice(newIndex, 0, item);
+    },
+  });
 }
 
 /** 条件字段候选：来自规则库 fieldCode（去重）+ 可输入自定义 fact 字段码 */
@@ -378,6 +487,19 @@ async function loadDetail() {
     modules.value = res.data?.modules || [];
   } catch (e) { /* 拦截器已提示 */ }
 }
+
+// ============================================================
+// 详情弹窗
+// ============================================================
+const detailDialog = reactive({ visible: false, activeModuleCode: null });
+
+const activeModule = computed(() =>
+  modules.value.find((m) => m.moduleBizCode === detailDialog.activeModuleCode) || null,
+);
+
+const activeModuleIndex = computed(() =>
+  modules.value.findIndex((m) => m.moduleBizCode === detailDialog.activeModuleCode),
+);
 
 // 计划弹窗
 const planDialog = reactive({ visible: false, title: '', saving: false, editing: false, form: { customerGroup: 'ENTERPRISE', planCode: '', planName: '', version: 1 } });
@@ -426,9 +548,11 @@ async function checkPlanReferenced(planCode) {
     return false;
   }
 }
-async function onDeletePlan() {
+async function onDeletePlan(plan) {
+  const target = plan || currentPlan.value;
+  if (!target) return;
   // 删除保护：被策略引用时禁止删除，避免线上渠道准入失效
-  const planCode = currentPlan.value?.planCode;
+  const planCode = target.planCode;
   if (planCode) {
     const referenced = await checkPlanReferenced(planCode);
     if (referenced) {
@@ -437,31 +561,36 @@ async function onDeletePlan() {
     }
   }
   try {
-    await appConfirm(`确认删除计划「${currentPlan.value?.planName}」？（将级联删除模块/步骤）`);
+    await appConfirm(`确认删除计划「${target.planName}」？（将级联删除模块/步骤）`);
   } catch { return; }
-  await deletePlan(currentPlan.value.planCode);
+  await deletePlan(planCode);
   ElMessage.success('已删除');
-  planId.value = null;
-  modules.value = [];
+  if (planId.value === planCode) {
+    planId.value = null;
+    modules.value = [];
+    currentPlan.value = null;
+  }
   loadPlans();
 }
 
 /** 复制计划为草稿（对齐 mds v2 copy） */
-async function onCopyPlan() {
-  if (!currentPlan.value) return;
+async function onCopyPlan(plan) {
+  const target = plan || currentPlan.value;
+  if (!target) return;
   try {
-    await appConfirm(`确认复制计划「${currentPlan.value.planName}」为新的草稿计划？`);
+    await appConfirm(`确认复制计划「${target.planName}」为新的草稿计划？`);
   } catch { return; }
   try {
-    await copyPlan({ planCode: planId.value });
+    await copyPlan({ planCode: target.planCode });
     ElMessage.success('已复制为新草稿计划');
     loadPlans();
   } catch { /* 拦截器已提示 */ }
 }
 
 /** 另存为模版（对齐 mds v2 save-as-template） */
-async function onSaveAsTemplate() {
-  if (!currentPlan.value) return;
+async function onSaveAsTemplate(plan) {
+  const target = plan || currentPlan.value;
+  if (!target) return;
   try {
     const { value } = await ElMessageBox.prompt(
       '输入模版编码（需唯一）与名称，将当前计划保存为策略模版草稿',
@@ -474,9 +603,9 @@ async function onSaveAsTemplate() {
       },
     );
     await saveAsTemplate({
-      planCode: planId.value,
+      planCode: target.planCode,
       templateCode: value.trim(),
-      templateName: `${currentPlan.value.planName}-模版`,
+      templateName: `${target.planName}-模版`,
     });
     ElMessage.success('已另存为模版草稿');
   } catch { /* 取消或拦截器已提示 */ }
@@ -661,7 +790,12 @@ async function onDeleteStep(m, s) {
 async function loadPlans() {
   loading.value = true;
   try {
-    const res = await listPlans();
+    const params = { customerGroup: activeCustomerGroup.value };
+    if (query.sortBy) {
+      params.orderBy = query.sortBy;
+      params.orderDir = query.sortDir || 'desc';
+    }
+    const res = await listPlans(params);
     plans.value = res.data || [];
     // 不再自动选中第一个，由用户点击选择
   } catch { plans.value = []; } finally {
@@ -671,126 +805,161 @@ async function loadPlans() {
 
 onMounted(async () => {
   loadPlans();
-  // 根据路由 query ?cg= 或默认 ENTERPRISE 加载对应客群的规则
   await loadRulesByCG(activeCustomerGroup.value);
+  nextTick(initColumnDrag);
 });
 </script>
 
 <style scoped>
-/* 客群切换 Tab */
-.cg-tabs-wrapper {
-  margin-bottom: 16px;
+/* 客群切换（与策略模板页保持一致） */
+.cg-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
 }
-.cg-tabs-wrapper :deep(.el-segmented) {
+.cg-switch__hint {
+  font-size: 12px;
+  color: var(--loan-text-muted);
+}
+.cg-switch :deep(.el-segmented) {
   background: var(--loan-surface, #f8fafc);
   padding: 3px;
   border-radius: var(--loan-radius);
 }
-.cg-tabs-wrapper :deep(.el-segmented__item) {
+.cg-switch :deep(.el-segmented__item) {
   font-weight: 500;
   padding: 8px 24px;
 }
 
 .plan-bar { display: flex; align-items: center; gap: 12px; }
 
-/* 计划列表（参考 widek-web 风格） */
-.plan-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* 计划列表表格 */
+.plan-table {
   margin-top: 12px;
-  max-height: 240px;
-  overflow-y: auto;
 }
-.plan-list-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 1px solid var(--loan-border);
-  border-radius: var(--loan-radius);
-  cursor: pointer;
-  transition: all var(--loan-transition);
-  color: var(--loan-text);
+.plan-table :deep(.el-table__header-wrapper th.el-table__cell) {
+  cursor: grab;
 }
-.plan-list-item:hover {
-  border-color: var(--loan-primary);
-  background: var(--loan-surface);
+.plan-table :deep(.el-table__header-wrapper th.el-table__cell:last-child) {
+  cursor: default;
 }
-.plan-list-item.active {
-  border-color: var(--loan-primary);
-  background: var(--loan-primary-soft);
-  font-weight: 600;
-}
-.plan-list-name { flex: 1; }
-.plan-list-code {
-  font-family: "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12px;
-  color: var(--loan-text-secondary);
-}
-.plan-list-ver {
-  font-size: 11px;
-  color: var(--loan-text-muted);
-  background: var(--loan-surface);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-.plan-list-cg {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 8px;
-  border-radius: 4px;
-  letter-spacing: 0.3px;
-}
-.cg-enterprise {
-  background: #e8f4fd;
-  color: #1677ff;
-}
-.cg-personal {
-  background: #fff7e6;
-  color: #fa8c16;
+.plan-table :deep(.el-table__header-wrapper th.el-table__cell:active) {
+  cursor: grabbing;
 }
 
-/* ==================== 编排树（重构版：专业表格布局） ==================== */
-.orchestration-wrapper {
+/* 详情弹窗 */
+.detail-dialog-body {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-
-/* 空状态 */
-.orch-empty {
+.detail-header {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 48px 20px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--loan-surface, #f8fafc);
+  border: 1px solid var(--loan-border);
+  border-radius: var(--loan-radius);
+}
+.detail-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--loan-text);
+}
+.detail-code {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--loan-text-secondary);
+  background: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.detail-ver {
+  font-size: 12px;
   color: var(--loan-text-muted);
 }
-.orch-empty-title {
-  margin-top: 16px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--loan-text-secondary);
-}
-.orch-empty-desc {
-  margin-top: 4px;
-  font-size: 13px;
-}
 
-/* 模块卡片 V2 */
-.module-card-v2 {
+.detail-layout {
+  display: flex;
+  gap: 16px;
+  min-height: 420px;
   border: 1px solid var(--loan-border);
   border-radius: var(--loan-radius);
   overflow: hidden;
+}
+
+/* 左侧模块列表 */
+.module-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--loan-surface, #f8fafc);
+  border-right: 1px solid var(--loan-border);
+  padding: 12px;
+  overflow-y: auto;
+  max-height: 560px;
+}
+.module-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--loan-radius);
+  cursor: pointer;
+  transition: all var(--loan-transition);
+  margin-bottom: 6px;
+}
+.module-item:hover {
+  background: var(--loan-primary-soft, #f0f7ff);
+}
+.module-item.active {
+  background: var(--loan-primary-soft, #f0f7ff);
+  border: 1px solid var(--loan-primary);
+}
+.module-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.module-item-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--loan-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.module-item-code {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--loan-text-muted);
+}
+
+/* 右侧内容 */
+.module-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  max-height: 560px;
   background: var(--loan-card-bg, #fff);
 }
+.module-content-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 模块标签与表格（复用原编排树样式） */
 .mod-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
   background: var(--loan-surface, #f8fafc);
-  border-bottom: 1px solid var(--loan-border);
+  border: 1px solid var(--loan-border);
+  border-radius: var(--loan-radius);
 }
 .mod-head-left {
   display: flex;
@@ -828,7 +997,6 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
-/* 模块标签 */
 .mod-tag {
   display: inline-block;
   padding: 2px 8px;
@@ -850,6 +1018,8 @@ onMounted(async () => {
 /* 步骤表格 */
 .step-table-wrap {
   overflow-x: auto;
+  border: 1px solid var(--loan-border);
+  border-radius: var(--loan-radius);
 }
 .step-table {
   width: 100%;
@@ -898,25 +1068,39 @@ onMounted(async () => {
 .condition-chip b { color: var(--loan-primary); margin: 0 3px; }
 .col-actions { white-space: nowrap; }
 
-/* 添加步骤/模块按钮栏 */
+/* 添加步骤按钮栏 */
 .add-step-bar {
   padding: 10px 16px;
-  border-top: 1px dashed var(--loan-border);
+  border: 1px dashed var(--loan-border);
+  border-radius: var(--loan-radius);
 }
-.add-module-bar {
-  display: flex;
-  justify-content: center;
-  padding: 16px;
-}
-.add-step-bar .el-button,
-.add-module-bar .el-button {
+.add-step-bar .el-button {
   border-style: dashed;
   color: var(--loan-text-secondary);
 }
-.add-step-bar .el-button:hover,
-.add-module-bar .el-button:hover {
+.add-step-bar .el-button:hover {
   color: var(--loan-primary);
   border-color: var(--loan-primary);
+}
+
+/* 空状态 */
+.orch-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  color: var(--loan-text-muted);
+}
+.orch-empty-title {
+  margin-top: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--loan-text-secondary);
+}
+.orch-empty-desc {
+  margin-top: 4px;
+  font-size: 13px;
 }
 
 .condition-hint { margin: 0; font-size: 12px; color: var(--loan-text-muted); }

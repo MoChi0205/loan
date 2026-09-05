@@ -4,8 +4,8 @@ import request from '@/utils/request';
  * 执行计划接口（对接 loan-service /api/admin/execution-plan）。
  * 计划 + 模块 + 步骤编排。
  */
-export function listPlans() {
-  return request({ url: '/api/admin/execution-plan/list', method: 'get' });
+export function listPlans(params) {
+  return request({ url: '/api/admin/execution-plan/list', method: 'get', params });
 }
 
 export function planDetail(planCode) {

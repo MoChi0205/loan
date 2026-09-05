@@ -13,8 +13,10 @@
       @keydown.enter="onTap(item)"
       @keydown.space.prevent="onTap(item)"
     >
-      <view class="tab-icon">
-        <AppIcon :name="item.icon" size="md" :color="item.key === current ? 'var(--brand-deep)' : 'var(--text-placeholder)'" />
+      <!-- 选中态顶部指示条 -->
+      <view class="tab-indicator" v-if="item.key === current" />
+      <view class="tab-icon-wrap" :class="{ 'icon-active': item.key === current }">
+        <AppIcon :name="item.icon" size="md" :color="item.key === current ? 'var(--brand-deep)' : 'var(--text-secondary)'" />
       </view>
       <text class="tab-label">{{ item.label }}</text>
     </view>
@@ -85,18 +87,19 @@ function onTap(item) {
   align-items: stretch;
   background: var(--text-invert);
   border-top: 1rpx solid var(--line);
-  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -4rpx 24rpx rgba(0, 0, 0, 0.06);
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
 .tab-item {
   flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 14rpx 0 12rpx;
+  padding: 16rpx 0 14rpx;
   transition: opacity 0.15s;
 }
 
@@ -104,18 +107,39 @@ function onTap(item) {
   opacity: 0.7;
 }
 
-.tab-icon {
-  height: 48rpx;
+/* 选中态顶部指示条（电商风格：3px 主色圆角条） */
+.tab-indicator {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48rpx;
+  height: 6rpx;
+  border-radius: 0 0 6rpx 6rpx;
+  background: var(--brand-deep);
+}
+
+/* 图标容器：选中态加柔和背景药丸（电商风格） */
+.tab-icon-wrap {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.2s;
+}
+
+.tab-icon-wrap.icon-active {
+  background: rgba(11, 29, 58, 0.08);
 }
 
 .tab-label {
   margin-top: 6rpx;
   font-size: var(--fs-xs);
   line-height: 1;
-  color: var(--text-placeholder);
+  color: var(--text-secondary);
+  font-weight: 500;
   transition: color 0.15s;
 }
 

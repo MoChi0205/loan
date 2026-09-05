@@ -109,7 +109,7 @@
         <el-table-column :prop="activeTab === 'clients' ? 'registeredAt' : 'createdAt'" :label="activeTab === 'clients' ? '注册时间' : '录入时间'" width="170" sortable>
           <template #default="{ row }">{{ formatDateTime(row.registeredAt || row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" min-width="150" fixed="right">
+        <el-table-column label="操作" min-width="120" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="rowActions(row)" />
           </template>

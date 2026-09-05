@@ -294,13 +294,14 @@
       </el-form>
     </AppDialog>
 
-    <!-- 步骤弹窗（选规则 + 连接 + 空跑 + 前置条件） -->
+    <!-- 步骤弹窗（选规则 + 连接 + 空跑 + 自动带出的前置条件） -->
     <AppDialog v-model:visible="stepDialog.visible" :title="stepDialog.title" :loading="stepDialog.saving" @confirm="onSaveStep">
       <el-form ref="stepFormRef" :model="stepDialog.form" :rules="stepRules" label-width="100px">
         <el-form-item label="规则" prop="ruleId">
-          <el-select v-model="stepDialog.form.ruleId" placeholder="选择规则" filterable style="width: 100%">
-            <el-option v-for="r in rules" :key="r.ruleId" :label="`${r.ruleName}（${r.ruleCode}）`" :value="r.ruleId" />
+          <el-select v-model="stepDialog.form.ruleId" placeholder="选择规则（必选）" filterable :disabled="!!stepDialog.editingId" style="width: 100%" @change="onRuleChange">
+            <el-option v-for="r in availableRules" :key="r.id" :label="`${r.ruleName}（${r.ruleCode}）`" :value="r.id" />
           </el-select>
+          <p v-if="stepDialog.editingId" class="step-edit-hint">编辑模式下不可更换规则；如需替换请新建步骤</p>
         </el-form-item>
         <el-row :gutter="12">
           <el-col :span="8">
@@ -320,29 +321,25 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-divider content-position="left">步骤前置条件（选填；字段 + 运算符非空时生效）</el-divider>
+        <el-divider content-position="left">步骤前置条件（自动继承所选规则的条件，无需手动配置）</el-divider>
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item label="条件字段">
-              <el-select v-model="stepDialog.form.conditionField" filterable allow-create default-first-option clearable placeholder="fact 字段码" style="width: 100%">
-                <el-option v-for="f in conditionFieldOptions" :key="f.value" :label="f.label" :value="f.value" />
-              </el-select>
+              <el-input v-model="stepDialog.form.conditionField" disabled placeholder="选择规则后自动带出" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="运算符">
-              <el-select v-model="stepDialog.form.conditionOperator" clearable placeholder="如 EQ" style="width: 100%">
-                <el-option v-for="o in OPERATORS" :key="o.value" :label="o.label" :value="o.value" />
-              </el-select>
+              <el-input v-model="stepDialog.form.conditionOperator" disabled placeholder="选择规则后自动带出" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="条件值">
-              <el-input v-model="stepDialog.form.conditionValue" :disabled="valueDisabled" placeholder="IS_BLANK 可不填" />
+              <el-input v-model="stepDialog.form.conditionValue" disabled placeholder="选择规则后自动带出" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
-        <p class="condition-hint">运行时若条件不满足，该步骤将标记为 SKIP（跳过）并继续后续步骤，不会阻断链路。</p>
+        <p class="condition-hint">条件字段 / 运算符 / 条件值 由所选规则自动带出（只读），运行时条件不满足将标记为 SKIP 并继续后续步骤。</p>
       </el-form>
     </AppDialog>
 
@@ -423,14 +420,16 @@ const selectedTemplate = ref(null);
 const loading = ref(false);
 const validateMap = ref({});
 
-const OPERATORS = [
-  { value: 'EQ', label: '= 等于' },
-  { value: 'NE', label: '≠ 不等于' },
-  { value: 'IN', label: 'IN 属于' },
-  { value: 'NOT_IN', label: 'NOT IN 不属于' },
-  { value: 'IS_BLANK', label: 'IS BLANK 为空' },
-  { value: 'IS_NOT_BLANK', label: 'IS NOT BLANK 非空' },
-];
+/** 规则 operator（==/!=/in/not_in/is_null/not_null）→ 步骤前置条件 conditionOperator 映射 */
+const OP_MAP = {
+  '==': 'EQ',
+  '=': 'EQ',
+  '!=': 'NE',
+  'in': 'IN',
+  'not_in': 'NOT_IN',
+  'is_null': 'IS_BLANK',
+  'not_null': 'IS_NOT_BLANK',
+};
 
 const currentChannelName = computed(() => channels.value.find((c) => c.channelCode === channelCode.value)?.bankName || '');
 
@@ -829,22 +828,31 @@ const stepRules = {
   ruleId: [{ required: true, message: '请选择规则', trigger: 'change' }],
 };
 
-/** 条件字段候选：来自规则库 fieldCode（去重）+ 可输入自定义 fact 字段码 */
-const conditionFieldOptions = computed(() => {
-  const seen = new Set();
-  const opts = [];
-  (rules.value || []).forEach((r) => {
-    const code = r.fieldCode;
-    if (code && !seen.has(code)) {
-      seen.add(code);
-      opts.push({ value: code, label: code });
+/** 可选规则：排除当前模块已配置的规则（编辑模式保留当前规则自身） */
+const availableRules = computed(() => {
+  const module = modules.value.find((m) => m.moduleBizCode === stepDialog.moduleId);
+  const used = new Set();
+  (module?.steps || []).forEach((s) => {
+    if (s.stepCode !== stepDialog.editingId && s.ruleId != null) {
+      used.add(s.ruleId);
     }
   });
-  return opts;
+  return (rules.value || []).filter((r) => r.id != null && !used.has(r.id));
 });
 
-const valueDisabled = computed(() =>
-  ['IS_BLANK', 'IS_NOT_BLANK'].includes(stepDialog.form.conditionOperator));
+/** 选择规则后自动带出步骤前置条件（字段 / 运算符 / 条件值），无需手动配置 */
+function onRuleChange(ruleId) {
+  const r = (rules.value || []).find((x) => String(x.id) === String(ruleId));
+  if (!r) {
+    stepDialog.form.conditionField = '';
+    stepDialog.form.conditionOperator = '';
+    stepDialog.form.conditionValue = '';
+    return;
+  }
+  stepDialog.form.conditionField = r.fieldCode || '';
+  stepDialog.form.conditionOperator = OP_MAP[r.operator] || '';
+  stepDialog.form.conditionValue = r.valueText || '';
+}
 
 function openStepDialog(m, s) {
   stepDialog.moduleId = m.moduleBizCode;
@@ -865,9 +873,10 @@ async function onSaveStep() {
   stepDialog.saving = true;
   try {
     const form = { ...stepDialog.form };
-    // 运算符为空时清空条件字段/值，避免脏数据
-    if (!form.conditionOperator) {
+    // 条件字段由所选规则自动带出；未选规则时清空条件三件套避免脏数据
+    if (!form.ruleId) {
       form.conditionField = '';
+      form.conditionOperator = '';
       form.conditionValue = '';
     }
     if (stepDialog.editingId) {
@@ -1105,4 +1114,5 @@ onMounted(async () => {
 .step-condition { color: var(--loan-text-muted); font-size: 12px; background: var(--loan-surface); padding: 0 6px; border-radius: 4px; font-family: monospace; }
 .step-actions { margin-left: auto; display: flex; gap: 4px; }
 .condition-hint { margin: 0; font-size: 12px; color: var(--loan-text-muted); }
+.step-edit-hint { margin: 4px 0 0; font-size: 12px; color: var(--loan-text-muted); }
 </style>

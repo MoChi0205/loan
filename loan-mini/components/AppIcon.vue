@@ -1,10 +1,10 @@
 <template>
   <view class="app-icon" :class="[`icon-${size}`]" :style="{ color }">
-    <!-- 靶心：智能匹配 -->
-    <view v-if="name === 'match'" class="ico ico-match">
-      <view class="ring ring-out" />
-      <view class="ring ring-in" />
-      <view class="dot-center" />
+    <!-- 指南针：智能匹配（替代原靶心图标，小尺寸下形似喇叭令人迷惑） -->
+    <view v-if="name === 'match'" class="ico ico-compass">
+      <view class="compass-ring" />
+      <view class="compass-needle" />
+      <view class="compass-hub" />
     </view>
 
     <!-- 柱状图：报告 -->
@@ -182,13 +182,20 @@
       <view class="share-node share-node-bottom" />
     </view>
 
+    <!-- 搜索：放大镜 -->
+    <view v-if="name === 'search'" class="ico ico-search">
+      <view class="search-ring" />
+      <view class="search-handle" />
+    </view>
+
     <!-- 兜底：圆点 -->
     <view v-if="name !== 'match' && name !== 'chart' && name !== 'bolt' && name !== 'lock'
               && name !== 'list' && name !== 'check' && name !== 'alert' && name !== 'arrow'
               && name !== 'wechat' && name !== 'home' && name !== 'mine' && name !== 'bank'
               && name !== 'order' && name !== 'refresh' && name !== 'workbench' && name !== 'users'
               && name !== 'trend' && name !== 'doc' && name !== 'file' && name !== 'photo'
-              && name !== 'support' && name !== 'share' && name !== 'enterprise' && name !== 'person'"
+              && name !== 'support' && name !== 'share' && name !== 'enterprise' && name !== 'person'
+              && name !== 'search'"
          class="ico ico-default" />
   </view>
 </template>
@@ -238,36 +245,40 @@ defineProps({
   justify-content: center;
 }
 
-/* ====== 靶心 match ====== */
-.ico-match {
+/* ====== 指南针 compass（智能匹配） ====== */
+.ico-compass {
   display: block;
-  align-items: center;
-  justify-content: center;
 }
-.ring {
+.compass-ring {
   position: absolute;
+  width: 92%;
+  height: 92%;
+  border: 4rpx solid currentColor;
   border-radius: 50%;
-  border-style: solid;
+  box-sizing: border-box;
+  top: 4%;
+  left: 4%;
 }
-.ring-out {
-  width: 100%;
-  height: 100%;
-  border-width: 4rpx;
-  border-color: currentColor;
+.compass-needle {
+  position: absolute;
+  width: 16%;
+  height: 50%;
+  left: 42%;
+  top: 25%;
+  background: currentColor;
+  clip-path: polygon(50% 0%, 100% 100%, 50% 78%, 0% 100%);
   opacity: 0.9;
 }
-.ring-in {
-  width: 52%;
-  height: 52%;
-  border-width: 4rpx;
-  border-color: currentColor;
-  opacity: 0.55;
-}
-.dot-center {
-  width: 20%;
-  height: 20%;
+.compass-hub {
+  position: absolute;
+  width: 18%;
+  height: 18%;
+  left: 41%;
+  top: 41%;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--bg-card, #fff);
+  border: 3rpx solid currentColor;
+  box-sizing: border-box;
 }
 
 /* ====== 柱状图 chart ====== */
@@ -832,6 +843,30 @@ defineProps({
 .share-node-left { left: 4%; top: 38%; }
 .share-node-top { right: 4%; top: 4%; }
 .share-node-bottom { right: 4%; bottom: 4%; }
+
+/* ====== 搜索 search（放大镜） ====== */
+.ico-search { position: relative; }
+.search-ring {
+  position: absolute;
+  width: 60%;
+  height: 60%;
+  left: 4%;
+  top: 4%;
+  border: 4rpx solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.search-handle {
+  position: absolute;
+  width: 30%;
+  height: 5rpx;
+  background: currentColor;
+  border-radius: 3rpx;
+  right: 2%;
+  bottom: 12%;
+  transform: rotate(-45deg);
+  transform-origin: right center;
+}
 
 /* ====== 兜底圆点 ====== */
 .ico-default {

@@ -1,5 +1,14 @@
 <template>
   <view class="product-page" :class="{ 'u-shell': store.isTablet }">
+    <!-- 电商风格搜索栏 -->
+    <AppSearchBar
+      v-model="keyword"
+      placeholder="搜索产品名称 / 银行"
+      inputable
+      show-button
+      @search="onSearch"
+    />
+
     <!-- 状态说明：让渠道理解每个状态的含义与可做操作（C9） -->
     <view class="card legend-card">
       <text class="card-title">{{ isChannel ? '合作产品状态' : '银行产品状态' }}</text>
@@ -23,9 +32,15 @@
       <AppButton variant="primary" size="md" @click="goEdit()">{{ isChannel ? '录入合作产品' : '录入银行产品' }}</AppButton>
     </AppEmpty>
 
+    <!-- 搜索无结果 -->
+    <AppEmpty v-else-if="!loading && products.length && !filteredProducts.length" title="未找到匹配产品"
+      desc="试试其他关键词，或清除搜索查看全部">
+      <AppButton variant="secondary" size="md" @click="keyword = ''">清除搜索</AppButton>
+    </AppEmpty>
+
     <!-- 产品列表 -->
     <view v-else class="stack">
-      <view v-for="p in products" :key="p.code" class="card prod-card u-hover">
+      <view v-for="p in filteredProducts" :key="p.code" class="card prod-card u-hover">
         <view class="prod-top">
           <text class="prod-name u-ellipsis">{{ p.productName || p.bankProductCode }}</text>
           <AppTag :type="statusTagType(p.status)" size="sm">{{ statusLabel(p.status) }}</AppTag>
@@ -93,12 +108,25 @@
 import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import TabBar from '../../components/TabBar.vue';
+import AppSearchBar from '../../components/AppSearchBar.vue';
 import { myProducts, submitProduct, revokeApproval, applyDelete, cancelDelete, PRODUCT_STATUS } from '../../api/product';
 import { useUserStore } from '../../store/user';
 
 const loading = ref(true);
 const products = ref([]);
 const hasError = ref(false);
+/** 搜索关键词 */
+const keyword = ref('');
+/** 搜索后过滤的产品列表 */
+const filteredProducts = computed(() => {
+  if (!keyword.value.trim()) return products.value;
+  const kw = keyword.value.trim().toLowerCase();
+  return products.value.filter(p =>
+    (p.productName || '').toLowerCase().includes(kw) ||
+    (p.bankName || '').toLowerCase().includes(kw) ||
+    (p.bankProductCode || '').toLowerCase().includes(kw)
+  );
+});
 /** 正在执行的操作（产品编码 + 操作 key），用于按钮级 loading */
 const acting = ref('');
 /** 用户状态（T3 · C 类：平板限宽标记 isTablet 驱动 u-shell） */
@@ -211,6 +239,11 @@ async function load() {
   }
 }
 
+/** 搜索：本地过滤（产品列表量小，前端过滤即可） */
+function onSearch(kw) {
+  keyword.value = kw || '';
+}
+
 onShow(() => {
   uni.setNavigationBarTitle({ title: isChannel.value ? '我的产品' : '产品中心' });
   load();
@@ -225,6 +258,11 @@ onShow(() => {
   box-sizing: border-box;
   /* P2-7：底部留白 ≥ 吸底按钮高度 + 安全区 */
   padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom));
+}
+
+/* 搜索栏间距 */
+.product-page > .search-bar-wrap {
+  margin-bottom: var(--space-3);
 }
 
 .stack view { margin-top: var(--space-3); }

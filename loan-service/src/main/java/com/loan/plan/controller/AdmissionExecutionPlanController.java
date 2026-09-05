@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,13 +38,45 @@ public class AdmissionExecutionPlanController {
     private final PlanOrchestrationService orchestrationService;
     private final StrategyTemplateService templateService;
 
+    /** 排序字段白名单（防 SQL 注入；仅时间列允许后端排序） */
+    private static final java.util.Set<String> SORTABLE_FIELDS =
+            new java.util.HashSet<>(java.util.Arrays.asList("createdAt", "updatedAt", "id"));
+
     /**
-     * 计划列表（供策略绑定下拉）。
+     * 计划列表（按客群过滤；为空返回全部；支持时间列后端排序）。
      */
     @GetMapping("/list")
-    public Result<List<AdmissionExecutionPlan>> list() {
-        return Result.ok(planMapper.selectList(
-                new LambdaQueryWrapper<AdmissionExecutionPlan>().orderByDesc(AdmissionExecutionPlan::getId)));
+    public Result<List<AdmissionExecutionPlan>> list(
+            @RequestParam(value = "customerGroup", required = false) String customerGroup,
+            @RequestParam(value = "orderBy", required = false) String orderBy,
+            @RequestParam(value = "orderDir", required = false) String orderDir) {
+        LambdaQueryWrapper<AdmissionExecutionPlan> wrapper = new LambdaQueryWrapper<>();
+        if (org.springframework.util.StringUtils.hasText(customerGroup) && !"COMMON".equalsIgnoreCase(customerGroup)) {
+            wrapper.and(w -> w.eq(AdmissionExecutionPlan::getCustomerGroup, customerGroup)
+                    .or().eq(AdmissionExecutionPlan::getCustomerGroup, "COMMON"));
+        }
+        // 后端排序：白名单校验后按方向排序；未指定时默认 id 倒序
+        if (org.springframework.util.StringUtils.hasText(orderBy) && SORTABLE_FIELDS.contains(orderBy)) {
+            boolean asc = "asc".equalsIgnoreCase(orderDir);
+            if (asc) {
+                wrapper.orderByAsc(safeColumn(orderBy));
+            } else {
+                wrapper.orderByDesc(safeColumn(orderBy));
+            }
+        } else {
+            wrapper.orderByDesc(AdmissionExecutionPlan::getId);
+        }
+        return Result.ok(planMapper.selectList(wrapper));
+    }
+
+    /** 将字符串列名映射为实体 getter 引用（白名单已校验） */
+    @SuppressWarnings("unchecked")
+    private com.baomidou.mybatisplus.core.toolkit.support.SFunction<AdmissionExecutionPlan, ?> safeColumn(String col) {
+        switch (col) {
+            case "createdAt": return AdmissionExecutionPlan::getCreatedAt;
+            case "updatedAt": return AdmissionExecutionPlan::getUpdatedAt;
+            default: return AdmissionExecutionPlan::getId;
+        }
     }
 
     /**

@@ -244,7 +244,7 @@ function onStart() {
 .hero{
   position:relative;
   margin:0;
-  padding:100rpx 40rpx 60rpx;
+  padding:120rpx 48rpx 72rpx;
   background:linear-gradient(145deg,var(--brand-deep),var(--brand-mid),var(--brand-bright));
   overflow:hidden
 }
@@ -275,11 +275,11 @@ function onStart() {
   align-items:center
 }
 .brand-badge{
-  padding:12rpx 32rpx;
+  padding:14rpx 36rpx;
   background:rgba(255,255,255,.12);
   border:1rpx solid rgba(255,255,255,.18);
   border-radius:40rpx;
-  margin-bottom:28rpx
+  margin-bottom:32rpx
 }
 .badge-text{
   font-size:22rpx;
@@ -288,29 +288,29 @@ function onStart() {
   font-weight:500
 }
 .hero-title{
-  font-size:44rpx;
+  font-size:48rpx;
   font-weight:800;
   color:var(--bg-card);
   letter-spacing:2rpx;
   line-height:1.3
 }
 .hero-sub{
-  margin-top:16rpx;
+  margin-top:20rpx;
   font-size:26rpx;
   color:rgba(255,255,255,.65);
-  line-height:1.5
+  line-height:1.6
 }
 .main-body{
-  padding:0 32rpx 48rpx;
-  margin-top:24rpx;
+  padding:0 40rpx 56rpx;
+  margin-top:32rpx;
   position:relative;
   z-index:2
 }
 .card{
   background:var(--bg-card);
   border-radius: var(--radius-md);
-  padding:36rpx 32rpx;
-  margin-bottom:24rpx;
+  padding:40rpx 36rpx;
+  margin-bottom:28rpx;
   box-shadow: var(--shadow-md)
 }
 .card-label{
@@ -322,12 +322,12 @@ function onStart() {
   display:flex;
   flex-direction:column;
   gap:0;
-  margin-top:8rpx
+  margin-top:12rpx
 }
 .tl-step{
   display:flex;
   align-items:flex-start;
-  gap:24rpx;
+  gap:28rpx;
   position:relative
 }
 .tl-node{
@@ -363,15 +363,15 @@ function onStart() {
 .tl-line{
   width:2rpx;
   flex:1;
-  min-height:32rpx;
+  min-height:40rpx;
   background:var(--line);
-  margin:8rpx 0
+  margin:10rpx 0
 }
 .tl-body{
   display:flex;
   flex-direction:column;
-  padding-top:8rpx;
-  padding-bottom:16rpx;
+  padding-top:10rpx;
+  padding-bottom:24rpx;
   border-bottom:1rpx solid var(--line)
 }
 .tl-step:last-child .tl-body{
@@ -387,12 +387,12 @@ function onStart() {
   color:var(--text-primary)
 }
 .tl-desc{
-  margin-top:6rpx;
+  margin-top:8rpx;
   font-size:24rpx;
   color:var(--text-secondary);
   line-height:1.5
 }
-.cta-btn{ margin-top:8rpx; }
+.cta-btn{ margin-top:16rpx; }
 .cta-icon{
   font-size:36rpx
 }
@@ -401,7 +401,7 @@ function onStart() {
 }
 .foot-note{
   display:block;
-  margin-top:28rpx;
+  margin-top:36rpx;
   text-align:center;
   font-size:22rpx;
   color:var(--text-secondary);

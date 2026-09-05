@@ -352,7 +352,7 @@ onMounted(() => {
 .login-card {
   width: 420px;
   max-width: 100%;
-  padding: 40px;
+  padding: 48px 44px;
   background: var(--loan-card-bg);
   border: 1px solid var(--loan-border);
   border-radius: 16px;
@@ -362,8 +362,8 @@ onMounted(() => {
 .login-tabs {
   display: inline-flex;
   gap: 4px;
-  padding: 3px;
-  margin-bottom: 18px;
+  padding: 4px;
+  margin-bottom: 28px;
   background: var(--loan-surface);
   border: 1px solid var(--loan-border);
   border-radius: 10px;
@@ -372,7 +372,7 @@ onMounted(() => {
 .login-tab {
   border: none;
   background: transparent;
-  padding: 6px 16px;
+  padding: 8px 20px;
   border-radius: 8px;
   font-size: 13px;
   color: var(--loan-text-secondary);
@@ -387,31 +387,32 @@ onMounted(() => {
 }
 
 .login-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
   color: var(--loan-text);
-  margin: 0 0 6px;
+  margin: 0 0 8px;
 }
 
 .login-sub {
   font-size: 13px;
   color: var(--loan-text-secondary);
-  margin: 0 0 24px;
+  margin: 0 0 28px;
 }
 
 .login-btn {
   width: 100%;
   font-weight: 500;
   letter-spacing: 2px;
+  margin-top: 8px;
 }
 
 .login-demo {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 18px;
-  padding-top: 16px;
+  gap: 10px;
+  margin-top: 28px;
+  padding-top: 20px;
   border-top: 1px dashed var(--loan-border);
   font-size: 12px;
   color: var(--loan-text-secondary);
@@ -443,6 +444,15 @@ onMounted(() => {
 .demo-role {
   color: var(--loan-text-muted);
   font-size: 11px;
+}
+
+/* 表单项间距优化 */
+.login-card :deep(.el-form-item) {
+  margin-bottom: 22px;
+}
+
+.login-card :deep(.el-input__wrapper) {
+  padding: 6px 12px;
 }
 
 /* 响应式：窄屏隐藏品牌区 */

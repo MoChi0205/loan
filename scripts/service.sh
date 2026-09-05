@@ -23,9 +23,10 @@ mkdir -p "$LOG_DIR"
 # 可通过 LOAN_JAVA_HOME 显式覆盖，但不接受 JDK 17 等非 Java 8 版本。
 source "$BASE_DIR/scripts/lib/java8.sh"
 JAVA_HOME="$(loan_detect_java8)" || exit 1
-MVN="/Users/admin/Documents/developer/apache-maven-3.8.8/bin/mvn"
-NODE="/Users/admin/.workbuddy/binaries/node/versions/22.22.2/bin/node"
-NPM="/Users/admin/.workbuddy/binaries/node/versions/22.22.2/bin/npm"
+# 路径可用环境变量覆盖以适配不同机器（LOAN_MVN / LOAN_NODE / LOAN_NPM），默认保留原路径。
+MVN="${LOAN_MVN:-/Users/admin/Documents/developer/apache-maven-3.8.8/bin/mvn}"
+NODE="${LOAN_NODE:-/Users/admin/.workbuddy/binaries/node/versions/22.22.2/bin/node}"
+NPM="${LOAN_NPM:-/Users/admin/.workbuddy/binaries/node/versions/22.22.2/bin/npm}"
 GATEWAY_RUN_JAR="/tmp/loan-gateway-dev.jar"
 GATEWAY_RUN_LOG="/tmp/loan-gateway-dev.log"
 BACKEND_RUN_JAR="/tmp/loan-service-dev.jar"
@@ -39,16 +40,45 @@ mkdir -p "$BACKEND_LOG_DIR"
 # macOS 用户级服务标签（仅当前登录用户，不安装系统守护项）
 LABEL_PREFIX="com.loan.dev"
 
+# 保活实现：macOS 10.15+ 起 `launchctl submit` 已被废弃（在 macOS 15 上静默空操作，
+# 既不注册标签也不产生日志），故改用 LaunchAgent plist + `launchctl bootstrap` 注册到
+# 当前登录用户 gui 域：调用会话结束后进程仍存活，与原先 submit 的语义保持一致。
+LAUNCH_AGENTS_DIR="${HOME}/Library/LaunchAgents"
+
 launch_job() { # $1=label $2=log $3...=command
   local label="$1"
   local log_file="$2"
   shift 2
-  launchctl remove "$label" >/dev/null 2>&1 || true
-  launchctl submit -l "$label" -o "$log_file" -e "$log_file" -- "$@"
+  local plist="${LAUNCH_AGENTS_DIR}/${label}.plist"
+  remove_job "$label"
+  mkdir -p "$LAUNCH_AGENTS_DIR"
+  {
+    printf '<?xml version="1.0" encoding="UTF-8"?>\n'
+    printf '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+    printf '<plist version="1.0"><dict>\n'
+    printf '  <key>Label</key><string>%s</string>\n' "$label"
+    printf '  <key>ProgramArguments</key><array>\n'
+    local arg
+    for arg in "$@"; do
+      printf '    <string>%s</string>\n' "$arg"
+    done
+    printf '  </array>\n'
+    printf '  <key>StandardOutPath</key><string>%s</string>\n' "$log_file"
+    printf '  <key>StandardErrorPath</key><string>%s</string>\n' "$log_file"
+    printf '  <key>RunAtLoad</key><true/>\n'
+    printf '  <key>KeepAlive</key><false/>\n'
+    printf '</dict></plist>\n'
+  } > "$plist"
+  if ! launchctl bootstrap "gui/${UID}" "$plist" 2>/dev/null; then
+    # 已注册过同名服务时先注销再重试
+    launchctl bootout "gui/${UID}/${label}" >/dev/null 2>&1 || true
+    launchctl bootstrap "gui/${UID}" "$plist"
+  fi
 }
 
 remove_job() { # $1=label
-  launchctl remove "$1" >/dev/null 2>&1 || true
+  launchctl bootout "gui/${UID}/$1" >/dev/null 2>&1 || true
+  rm -f "${LAUNCH_AGENTS_DIR}/$1.plist"
 }
 
 # 端口探测：curl 同时支持 IPv4/IPv6（vite 只监听 ::1 时 nc 127.0.0.1 会误判）
@@ -94,7 +124,8 @@ start_gateway() {
     --server.port=8088 \
     --spring.redis.host=124.221.116.28 \
     --spring.redis.port=9379 \
-    --spring.redis.password=CHANGE_ME_REDIS
+    --spring.redis.password="${LOAN_REDIS_PASSWORD:-CHANGE_ME_REDIS}" \
+    --jwt.secret="${LOAN_JWT_SECRET:-CHANGE_ME_JWT_SECRET}"
   echo "[gateway] 启动中 (日志: $GATEWAY_RUN_LOG)"
 }
 

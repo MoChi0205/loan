@@ -69,11 +69,14 @@ public class RuleQueryService {
      */
     private RuleDTO toDTO(Rule r) {
         RuleDTO dto = new RuleDTO();
+        dto.setId(r.getId());
         dto.setRuleCode(r.getRuleCode());
         dto.setRuleName(r.getRuleName());
         dto.setFieldCode(r.getFieldCode());
+        dto.setFieldName(r.getFieldName());
         dto.setOperator(r.getOperator());
         dto.setValueText(r.getValueText());
+        dto.setValueType(r.getValueType());
         dto.setExpression(r.getFieldCode() + " " + r.getOperator() + " " + (r.getValueText() == null ? "" : r.getValueText()));
         dto.setCustomerGroup(r.getCustomerGroup());
         dto.setDescription(r.getDescription());

@@ -14,6 +14,9 @@ public class RuleDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** 主键 ID（步骤表 ruleId 外键引用） */
+    private Long id;
+
     /** 规则编码（业务唯一ID，规则身份标识） */
     private String ruleCode;
 
@@ -22,6 +25,9 @@ public class RuleDTO implements Serializable {
 
     /** 字段编码 */
     private String fieldCode;
+
+    /** 字段名称 */
+    private String fieldName;
 
     /** 运算符（==/!=/>/</>=/<=/in/not_in/contains/not_contains/between/is_null/not_null） */
     private String operator;
