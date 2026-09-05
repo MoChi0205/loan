@@ -429,7 +429,7 @@ function goBack() { uni.navigateBack(); }
 .stack view { margin-top: var(--space-3); }
 .stack view:first-child { margin-top: 0; }
 
-/* ===== 结果卡 ===== */
+/* ===== 结果卡（扁平化，去除渐变，对齐设计系统） ===== */
 .result-card {
   margin-top: var(--space-3);
   border-radius: var(--radius-lg);
@@ -437,9 +437,9 @@ function goBack() { uni.navigateBack(); }
   color: var(--text-invert);
   text-align: center;
 }
-.rc-pass { background: linear-gradient(135deg, var(--success-text), var(--success)); }
-.rc-condition { background: linear-gradient(135deg, var(--warning-text), var(--warning)); }
-.rc-reject { background: linear-gradient(135deg, var(--text-secondary), var(--text-secondary)); }
+.rc-pass { background: var(--success); }
+.rc-condition { background: var(--warning); }
+.rc-reject { background: var(--text-secondary); }
 .result-label { font-size: var(--fs-xl); font-weight: 800; }
 .result-metrics {
   display: flex; align-items: center; justify-content: center;
@@ -483,9 +483,9 @@ function goBack() { uni.navigateBack(); }
   display: flex; align-items: center; justify-content: center;
   font-size: var(--fs-lg); font-weight: 700; color: var(--text-invert);
 }
-.sc-high { background: linear-gradient(135deg, var(--brand-deep), var(--brand-bright)); }
-.sc-mid { background: linear-gradient(135deg, var(--role-adviser), var(--gold)); }
-.sc-low { background: linear-gradient(135deg, var(--text-secondary), var(--text-placeholder)); }
+.sc-high { background: var(--brand-deep); }
+.sc-mid { background: var(--gold); }
+.sc-low { background: var(--text-secondary); }
 
 .meta-text { font-size: var(--fs-sm); color: var(--text-secondary); }
 
@@ -496,7 +496,7 @@ function goBack() { uni.navigateBack(); }
 }
 .score-fill {
   height: 100%; border-radius: 6rpx;
-  background: linear-gradient(90deg, var(--brand-bright), var(--gold));
+  background: var(--brand-deep);
 }
 
 .tag-row { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-2); }
@@ -533,8 +533,17 @@ function goBack() { uni.navigateBack(); }
 .rule-code { font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); flex-shrink: 0; }
 .rule-expr { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
 
-.tip-card { background: var(--bg-input); box-shadow: var(--shadow-sm); }
-.tip-text { font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base); }
+.tip-card {
+  background: var(--warning-bg);
+  border: 1rpx solid var(--warning-line);
+  box-shadow: none;
+  border-radius: var(--radius-md);
+}
+.tip-text {
+  font-size: var(--fs-sm);
+  color: var(--warning-text);
+  line-height: var(--lh-base);
+}
 
 /* ===== 经营诊断 ===== */
 .diag-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }
@@ -587,7 +596,7 @@ function goBack() { uni.navigateBack(); }
   flex: 1; height: 16rpx; border-radius: 8rpx;
   background: var(--bg-input); position: relative; overflow: hidden;
 }
-.dim-fill { height: 100%; border-radius: 8rpx; background: linear-gradient(90deg, var(--brand-bright), var(--gold)); }
+.dim-fill { height: 100%; border-radius: 8rpx; background: var(--brand-deep); }
 .dim-avg { position: absolute; top: 0; bottom: 0; width: 0; border-left: 3rpx dashed rgba(11, 29, 58, .4); }
 .dim-val { width: 60rpx; flex-shrink: 0; text-align: right; font-size: var(--fs-sm); font-weight: 700; color: var(--text-primary); }
 .dim-legend { display: block; font-size: var(--fs-xs); color: var(--text-secondary); margin-top: var(--space-2); }

@@ -219,8 +219,8 @@ onLoad(async () => {
   padding: 0 8rpx;
   border-radius: 16rpx;
   background: var(--danger);
-  color: #fff;
-  font-size: 20rpx;
+  color: var(--text-invert);
+  font-size: var(--fs-xxs);
   font-weight: 700;
   line-height: 32rpx;
   text-align: center;

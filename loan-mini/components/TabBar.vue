@@ -5,6 +5,7 @@
       :key="item.key"
       class="tab-item"
       :class="{ 'tab-active': item.key === current }"
+      :style="{ '--tab-color': item.color }"
       role="tab"
       :aria-selected="item.key === current"
       :aria-label="item.label"
@@ -16,7 +17,7 @@
       <!-- 选中态顶部指示条 -->
       <view class="tab-indicator" v-if="item.key === current" />
       <view class="tab-icon-wrap" :class="{ 'icon-active': item.key === current }">
-        <AppIcon :name="item.icon" size="md" :color="item.key === current ? 'var(--brand-deep)' : 'var(--text-secondary)'" />
+        <AppIcon :name="item.icon" size="md" :color="iconColor(item)" />
       </view>
       <text class="tab-label">{{ item.label }}</text>
     </view>
@@ -38,6 +39,14 @@ import { useUserStore } from '../store/user';
  * - 客户 / 企业员工（顾问/经理/老板/运营/超管）：首页 · 智能匹配 · 我的报告 · 服务单 · 我的
  * - 渠道合作方（沙箱隔离）：首页 · 我的产品 · 录入客户 · 我的（隐藏匹配/报告/服务单）
  *
+ * 配色：每个 tab 使用各自的语义色（不再是死灰），与首页色彩体系一致：
+ * - 首页：主色 brand-deep
+ * - 智能匹配：蓝紫（匹配/连接）
+ * - 我的报告：暖金（数据/报告）
+ * - 服务单：绿色（服务/进行）
+ * - 我的：青色（个人中心）
+ * - 渠道「我的产品」：暖金；「录入客户」：绿色
+ *
  * 用法（tab 页面底部）：
  *   <TabBar current="home" />
  * current 取值：home / match / report / order / mine / product / client
@@ -51,24 +60,44 @@ const props = defineProps({
 
 const store = useUserStore();
 
+/** TabBar 语义色（基于设计令牌，5 色不重复） */
+const COLOR = {
+  HOME: 'var(--brand-deep)',     // #0B1D3A 深海军蓝
+  MATCH: '#534AB7',               // 蓝紫（匹配/连接）
+  REPORT: 'var(--gold)',          // #C8A96E 暖金（数据/报告）
+  ORDER: 'var(--success)',        // #10B981 绿色（服务/进行）
+  MINE: '#0E7490',                // 青色（个人中心）
+  PRODUCT: 'var(--gold)',         // #C8A96E 暖金（产品）
+  CLIENT: 'var(--success)',       // #10B981 绿色（客户/录入）
+};
+
 const tabList = computed(() => {
   if (store.isChannel) {
     return [
-      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home' },
-      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list' },
-      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create' },
-      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine' },
+      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME },
+      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: COLOR.PRODUCT },
+      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: COLOR.CLIENT },
+      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE },
     ];
   }
   const isManager = ['deptmgr', 'boss', 'operator', 'super'].includes(store.role);
   return [
-    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home' },
-    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match' },
-    { key: 'report', label: isManager ? '报告中心' : store.role === 'adviser' ? '客户报告' : '我的报告', icon: 'chart', url: '/pages/report/list' },
-    { key: 'order', label: isManager ? '工单中心' : store.role === 'adviser' ? '客户工单' : '服务单', icon: 'order', url: '/pages/order/list' },
-    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine' },
+    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME },
+    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH },
+    { key: 'report', label: isManager ? '报告中心' : store.role === 'adviser' ? '客户报告' : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT },
+    { key: 'order', label: isManager ? '工单中心' : store.role === 'adviser' ? '客户工单' : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER },
+    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE },
   ];
 });
+
+/**
+ * 图标颜色：未选中用 tab 自身的语义色，选中态用主色 brand-deep。
+ * 通过 CSS 自定义属性 --tab-color 传递，样式表中可统一引用。
+ */
+function iconColor(item) {
+  if (item.key === props.current) return COLOR.HOME;
+  return item.color;
+}
 
 function onTap(item) {
   if (item.key === props.current) return;
@@ -119,7 +148,8 @@ function onTap(item) {
   background: var(--brand-deep);
 }
 
-/* 图标容器：选中态加柔和背景药丸（电商风格） */
+/* 图标容器：选中态加柔和背景药丸（电商风格）
+   注意：微信 wxss 不支持 color-mix()，用静态 rgba 替代 */
 .tab-icon-wrap {
   width: 56rpx;
   height: 56rpx;
@@ -138,7 +168,8 @@ function onTap(item) {
   margin-top: 6rpx;
   font-size: var(--fs-xs);
   line-height: 1;
-  color: var(--text-secondary);
+  /* 未选中用 tab 自身语义色（不再灰！） */
+  color: var(--tab-color, var(--text-secondary));
   font-weight: 500;
   transition: color 0.15s;
 }

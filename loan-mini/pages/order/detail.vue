@@ -151,7 +151,7 @@ function goBack() {
   margin-top: 24rpx;
   border-radius: 20rpx;
   padding: 44rpx 32rpx;
-  background: linear-gradient(135deg, var(--brand-bright), var(--role-deptmgr), var(--info));
+  background: var(--brand-deep);
   color: var(--text-invert);
   display: flex;
   flex-direction: column;
@@ -167,7 +167,7 @@ function goBack() {
 }
 
 .sl-pass {
-  background: rgba(34, 197, 94, 0.9);
+  background: rgba(16, 185, 129, 0.9);
 }
 
 .sl-reject {

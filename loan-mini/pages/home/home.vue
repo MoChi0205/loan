@@ -346,7 +346,7 @@ function onMine() {
 .top-banner{
   position:relative;
   margin:0;
-  padding:48rpx 40rpx 36rpx;
+  padding:48rpx 40rpx 56rpx;
   background:linear-gradient(145deg,var(--brand-deep),var(--brand-mid),var(--brand-bright));
   overflow:hidden
 }
@@ -459,7 +459,7 @@ function onMine() {
 }
 .content{
   padding:0 32rpx 32rpx;
-  margin-top:24rpx;
+  margin-top:32rpx;
   position:relative;
   z-index:2
 }
@@ -474,16 +474,19 @@ function onMine() {
   display:flex;
   align-items:center;
   justify-content:space-between;
-  margin-bottom:24rpx
+  margin-bottom:32rpx;
+  min-height:44rpx
 }
 .sec-title{
   font-size:var(--fs-lg);
   font-weight:700;
-  color:var(--text-primary)
+  color:var(--text-primary);
+  line-height:1.2
 }
 .sec-sub{
-  font-size:22rpx;
-  color:var(--text-secondary)
+  font-size:var(--fs-xs);
+  color:var(--text-secondary);
+  line-height:1.2
 }
 /* ===== 认证引导卡 ===== */
 .promo-card{
@@ -531,7 +534,8 @@ function onMine() {
 }
 /* ===== 动态数据卡片（横向滚动，电商风格） ===== */
 .stat-section{
-  margin-bottom:32rpx
+  margin-bottom:32rpx;
+  padding-top:8rpx
 }
 .stat-scroll{
   width:100%;
@@ -540,7 +544,7 @@ function onMine() {
 .stat-track{
   display:flex;
   gap:20rpx;
-  padding:4rpx 0
+  padding:8rpx 0 12rpx
 }
 .stat-card{
   display:inline-flex;
@@ -605,7 +609,8 @@ function onMine() {
 
 /* ===== 宫格功能导航（电商风格） ===== */
 .nav-section{
-  margin-bottom:32rpx
+  margin-bottom:32rpx;
+  padding-top:8rpx
 }
 .nav-grid{
   display:grid;

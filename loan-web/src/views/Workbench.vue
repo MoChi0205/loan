@@ -241,9 +241,15 @@ const metrics = computed(() => {
 const todos = computed(() => {
   const t = todo.value || {};
   return [
-    { name: '待审核产品', count: t.pendingProductApproval ?? 0, desc: '渠道提交的产品审核工单', path: '/approval' },
-    { name: '待审批下载', count: t.pendingDownloadApproval ?? 0, desc: '无水印下载申请', path: '/approval' },
+    // 待我审批 X（仅当前用户作为审批人时显示非零；ADVISER 通常为 0）
+    { name: '待我审批产品', count: t.pendingProductApproval ?? 0, desc: '渠道产品入全量库审核', path: '/approval' },
+    { name: '待我审批下载', count: t.pendingDownloadApproval ?? 0, desc: '无水印下载申请审批', path: '/approval' },
+    { name: '待我审批分配', count: t.pendingAllocationApproval ?? 0, desc: '客户归属流转审批', path: '/approval' },
     { name: '待审核奖励', count: t.pendingReward ?? 0, desc: '成交自动结算待发放', path: '/reward' },
+    // 我的 X 申请（申请人视角：提交后等待审批的工单）
+    { name: '我的下载申请', count: t.myDownloadApply ?? 0, desc: '我提交的无水印下载申请', path: '/approval?tab=download' },
+    { name: '我的分配申请', count: t.myAllocationApply ?? 0, desc: '我提交的客户归属申请', path: '/approval?tab=allocation' },
+    // 我的 X（owner 视角）
     { name: '我的工单', count: t.myOrderCount ?? 0, desc: '服务中工单', path: '/order' },
     { name: '我的线索', count: t.myLeadCount ?? 0, desc: '跟进中线索', path: '/lead' },
   ];

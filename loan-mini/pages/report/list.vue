@@ -417,9 +417,9 @@ onPullDownRefresh(async () => {
   font-weight: 700;
   color: var(--text-invert);
 }
-.gb-high { background: linear-gradient(135deg, var(--brand-deep), var(--brand-bright)); }
-.gb-middle { background: linear-gradient(135deg, var(--brand-bright), var(--brand-bright)); }
-.gb-low { background: linear-gradient(135deg, var(--text-secondary), var(--text-placeholder)); }
+.gb-high { background: var(--brand-deep); }
+.gb-middle { background: var(--brand-bright); }
+.gb-low { background: var(--text-secondary); }
 
 .meta-text { font-size: var(--fs-sm); color: var(--text-secondary); }
 .meta-strong { color: var(--brand-deep); font-weight: 600; }

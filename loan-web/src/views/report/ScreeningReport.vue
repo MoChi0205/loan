@@ -77,24 +77,56 @@
       <AppPagination v-model:page="queryS.page" v-model:size="queryS.size" :total="totalS" @change="loadS" />
     </div>
 
-    <el-drawer v-model="detailVisible" title="初筛报告详情" size="480px">
+    <el-drawer v-model="detailVisible" title="合规分析报告详情" size="520px">
       <template v-if="detail">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item v-if="!isChannel" label="报告编号">{{ detail.reportNo }}</el-descriptions-item>
-          <el-descriptions-item v-if="!isChannel" label="来源">
-            <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="客户">{{ detail.clientName || detail.enterpriseName || detail.contactName || '—' }}<template v-if="detail.phone"><br><span class="cell-sub">{{ desensitizePhone(detail.phone) }}</span></template></el-descriptions-item>
-          <el-descriptions-item v-if="isChannel" label="归属顾问">{{ detail.ownerStaffName || '待分配' }}</el-descriptions-item>
-          <el-descriptions-item label="档位">{{ gradeText[detail.grade] || detail.grade }}</el-descriptions-item>
-          <el-descriptions-item label="可进件银行">{{ detail.bankCount }}</el-descriptions-item>
-          <el-descriptions-item label="命中产品">{{ detail.productCount }}</el-descriptions-item>
-          <el-descriptions-item label="PASS / CONDITION / REJECT">{{ detail.passCount }} / {{ detail.conditionCount }} / {{ detail.rejectCount }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ detail.status === 'VIEWED' ? '已查看' : '已生成' }}</el-descriptions-item>
-          <el-descriptions-item label="建议清单">
-            <pre class="advice">{{ prettyJson(detail.adviceJson) }}</pre>
-          </el-descriptions-item>
-        </el-descriptions>
+        <!-- 结果横幅 -->
+        <div class="report-banner" :class="`rb-${detailGradeClass}`">
+          <span class="rb-label">{{ gradeText[detail.grade] || detail.grade }} · {{ detailStarLabel }}</span>
+          <div class="rb-metrics">
+            <div class="rb-metric">
+              <span class="rb-num">{{ detail.productCount || 0 }}</span>
+              <span class="rb-name">命中产品</span>
+            </div>
+            <div class="rb-divider" />
+            <div class="rb-metric">
+              <span class="rb-num">{{ detail.bankCount || 0 }}</span>
+              <span class="rb-name">可进件银行</span>
+            </div>
+            <div class="rb-divider" />
+            <div class="rb-metric">
+              <span class="rb-num">{{ detail.passCount || 0 }}/{{ detail.conditionCount || 0 }}/{{ detail.rejectCount || 0 }}</span>
+              <span class="rb-name">通过/有条件/拒绝</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 基础信息卡 -->
+        <div class="report-section">
+          <div class="report-section-title">基础信息</div>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item v-if="!isChannel" label="报告编号">{{ detail.reportNo }}</el-descriptions-item>
+            <el-descriptions-item label="来源">
+              <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="客户">{{ detail.clientName || detail.enterpriseName || detail.contactName || '—' }}</el-descriptions-item>
+            <el-descriptions-item v-if="detail.phone" label="手机号">{{ desensitizePhone(detail.phone) }}</el-descriptions-item>
+            <el-descriptions-item v-if="isChannel" label="归属顾问">{{ detail.ownerStaffName || '待分配' }}</el-descriptions-item>
+            <el-descriptions-item label="档位">{{ gradeText[detail.grade] || detail.grade }}</el-descriptions-item>
+            <el-descriptions-item label="状态">{{ detail.status === 'VIEWED' ? '已查看' : '已生成' }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <!-- 建议清单 -->
+        <div class="report-section" v-if="detail.adviceJson">
+          <div class="report-section-title">匹配建议</div>
+          <div class="advice-box">{{ prettyJson(detail.adviceJson) }}</div>
+        </div>
+
+        <!-- 合规声明 -->
+        <div class="report-compliance">
+          <AppIcon name="success" :size="16" />
+          <span>本报告仅供融资参考，不构成任何银行通过承诺；具体产品额度与利率以顾问跟进为准。</span>
+        </div>
       </template>
     </el-drawer>
   </div>
@@ -133,6 +165,17 @@ function prettyJson(s) {
   if (!s) return '—';
   try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s; }
 }
+
+/** 详情档位样式类 */
+const detailGradeClass = computed(() => {
+  const g = detail.value && detail.value.grade;
+  return { HIGH: 'high', MIDDLE: 'middle', LOW: 'low' }[g] || 'low';
+});
+/** 详情星级标签 */
+const detailStarLabel = computed(() => {
+  const g = detail.value && detail.value.grade;
+  return gradeStar(g);
+});
 
 const { loading: loadingS, data: dataS, total: totalS, query: queryS, load: loadS, onSearch: searchS, onReset: resetS } =
   useTable(pageScreenings, { grade: '', status: '', source: '', keyword: '' });
@@ -186,8 +229,64 @@ onMounted(async () => {
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 .cell-main { font-weight: 500; }
 .cell-sub { font-size: 12px; color: var(--loan-text-secondary, #8a94a6); }
-.pass-cnt { color: #34d399; margin-right: 8px; }
-.cond-cnt { color: #fbbf24; margin-right: 8px; }
-.rej-cnt  { color: #f87171; }
+.pass-cnt { color: var(--loan-success, #10b981); margin-right: 8px; }
+.cond-cnt { color: var(--loan-warning, #f59e0b); margin-right: 8px; }
+.rej-cnt  { color: var(--loan-danger, #ef4444); }
 .advice { white-space: pre-wrap; font-size: 12px; margin: 0; color: var(--loan-text, #1c2433); }
+
+/* ===== 报告详情抽屉 ===== */
+.report-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 20px;
+  border-radius: 12px;
+  color: #fff;
+  margin-bottom: 16px;
+}
+.rb-high { background: var(--loan-primary, #3b82f6); }
+.rb-middle { background: var(--loan-warning, #f59e0b); }
+.rb-low { background: var(--loan-text-secondary, #94a3b8); }
+.rb-label { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+.rb-metrics { display: flex; align-items: center; width: 100%; }
+.rb-metric { flex: 1; text-align: center; }
+.rb-num { display: block; font-size: 20px; font-weight: 700; }
+.rb-name { display: block; font-size: 11px; opacity: 0.85; margin-top: 4px; }
+.rb-divider { width: 1px; height: 36px; background: rgba(255, 255, 255, 0.25); }
+
+.report-section { margin-bottom: 16px; }
+.report-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--loan-text);
+  margin-bottom: 8px;
+  padding-left: 8px;
+  border-left: 3px solid var(--loan-primary, #3b82f6);
+}
+
+.advice-box {
+  background: var(--loan-surface, #f8fafc);
+  border: 1px solid var(--loan-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--loan-text);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.report-compliance {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--loan-warning-bg, #fffbeb);
+  border: 1px solid var(--loan-warning-line, #fde68a);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--loan-warning-text, #b45309);
+  line-height: 1.6;
+  margin-top: 8px;
+}
 </style>

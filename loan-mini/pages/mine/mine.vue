@@ -512,7 +512,7 @@ function onLogout() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 18rpx;
-  background: linear-gradient(135deg, var(--bg-card), var(--bg-input));
+  background: var(--bg-input);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -531,7 +531,7 @@ function onLogout() {
   border-radius: 16rpx;
   background: var(--danger);
   color: var(--text-invert);
-  font-size: 20rpx;
+  font-size: var(--fs-xxs);
   font-weight: 700;
   line-height: 32rpx;
   text-align: center;

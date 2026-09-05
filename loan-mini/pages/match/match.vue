@@ -875,7 +875,7 @@ onShow(() => {
 }
 .shield-bg {
   position: absolute; inset: 0;
-  background: linear-gradient(160deg, var(--gold-bg) 0%, var(--gold) 100%);
+  background: var(--gold);
   clip-path: path('M100 8 L185 38 L185 112 Q185 168 100 192 Q15 168 15 112 L15 38 Z');
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.18);
 }
@@ -974,9 +974,9 @@ onShow(() => {
   background: rgba(255, 255, 255, 0.06);
 }
 .result-inner { position: relative; z-index: 1; }
-.rc-pass { background: linear-gradient(135deg, var(--brand-deep), var(--brand-bright)); }
-.rc-condition { background: linear-gradient(135deg, var(--role-adviser), var(--gold)); }
-.rc-reject { background: linear-gradient(135deg, var(--text-secondary), var(--text-secondary)); }
+.rc-pass { background: var(--success); }
+.rc-condition { background: var(--warning); }
+.rc-reject { background: var(--text-secondary); }
 .result-badge { display: inline-block; margin-bottom: var(--space-3); }
 .result-label {
   font-size: var(--fs-xl); font-weight: 800; letter-spacing: 2rpx;

@@ -1,76 +1,57 @@
-# H5 + 小程序端 UI/UX 排版优化
+# 合规分析报告 UI 优化（三端联动）
 
-## 页面风格样式
+## 设计风格
 
-### 设计语言：瑞幸风（loan-mini）+ 企业蓝（loan-web）
+### 小程序端（瑞幸风）
+- 主色 `#0B1D3A`（深海军蓝），点缀 `#C8A96E`（暖金）
+- **扁平化设计**：结果卡、分数块、进度条、维度条全部用扁平色，去除装饰性渐变
+- 合规声明使用 `--warning-bg` + `--warning-line` 突出显示
 
-小程序端遵循**瑞幸风格**，管理端遵循**企业蓝风格**，两侧品牌色**故意不统一**（用户确认决策），互不套用。
+### Web 管理端（企业蓝）
+- 主色 `#3b82f6`（蓝色），辅助色 `#10b981`（绿）/`#f59e0b`（橙）
+- 详情抽屉从纯 el-descriptions → 结果横幅 + 分段信息卡 + 合规声明
 
-**小程序端色彩体系（全部定义在 App.vue `page` 选择器中）：**
+## 本次优化改动
 
-| 令牌 | 值 | 用途 |
+### 小程序端
+
+**`pages/report/detail.vue`**（报告详情）：
+| 元素 | 改前 | 改后 |
 |---|---|---|
-| `--brand-deep` | `#0B1D3A` | 深海军蓝，主按钮/顶栏/选中态 |
-| `--brand-mid` | `#132D56` | 渐变次色 |
-| `--brand-bright` | `#1A3A6E` | 渐变亮色 |
-| `--gold` | `#C8A96E` | 暖金点缀，金额/等级金标 |
-| `--gold-bg` | `#F5E6C4` | 暖金浅底 |
-| `--bg-page` | `#F8FAFC` | 页面底色 |
-| `--bg-card` | `#FFFFFF` | 卡片底色 |
-| `--bg-input` | `#F1F5F9` | 输入框/浅底 |
-| `--text-primary` | `#1E293B` | 主文字 |
-| `--text-secondary` | `#64748B` | 次级文字（TabBar 未选中态） |
-| `--text-placeholder` | `#CBD5E1` | 占位文字 |
-| `--success` / `--success-bg` | `#10B981` / `#ECFDF5` | 成功语义 |
-| `--warning` / `--warning-bg` | `#F59E0B` / `#FFFBEB` | 警告语义 |
-| `--danger` | `#EF4444` | 危险语义 |
+| 结果卡 rc-pass | `linear-gradient(135deg, success-text, success)` | `var(--success)` 扁平绿 |
+| 结果卡 rc-condition | `linear-gradient(135deg, role-adviser, gold)` | `var(--warning)` 扁平橙 |
+| 结果卡 rc-reject | `linear-gradient(135deg, text-secondary, text-secondary)` | `var(--text-secondary)` 扁平灰 |
+| 分数块 sc-high | `linear-gradient(brand-deep, brand-bright)` | `var(--brand-deep)` 扁平深蓝 |
+| 分数块 sc-mid | `linear-gradient(role-adviser, gold)` | `var(--gold)` 扁平暖金 |
+| 分数块 sc-low | `linear-gradient(text-secondary, placeholder)` | `var(--text-secondary)` 扁平灰 |
+| 进度条 score-fill | `linear-gradient(90deg, brand-bright, gold)` | `var(--brand-deep)` 扁平深蓝 |
+| 维度条 dim-fill | `linear-gradient(90deg, brand-bright, gold)` | `var(--brand-deep)` 扁平深蓝 |
+| 合规提示 tip-card | `bg-input` 次级底 | `var(--warning-bg)` + `var(--warning-line)` 警告色突出 |
 
-**字号体系（7 级 rpx）：** `--fs-2xl`(44) / `--fs-xl`(36) / `--fs-lg`(30) / `--fs-md`(26) / `--fs-sm`(24) / `--fs-xs`(22) / `--fs-xxs`(22)
+**`pages/report/list.vue`**（报告列表）：
+| 元素 | 改前 | 改后 |
+|---|---|---|
+| 评级块 gb-high | `linear-gradient(brand-deep, brand-bright)` | `var(--brand-deep)` 扁平 |
+| 评级块 gb-middle | `linear-gradient(brand-bright, brand-bright)` | `var(--brand-bright)` 扁平 |
+| 评级块 gb-low | `linear-gradient(text-secondary, placeholder)` | `var(--text-secondary)` 扁平 |
 
-**圆角（4 级）：** `--radius-sm`(16) / `--radius-md`(24) / `--radius-lg`(32) / `--radius-full`(999)
+**`pages/match/match.vue`**（匹配页）：
+| 元素 | 改前 | 改后 |
+|---|---|---|
+| 结果卡 rc-pass | `linear-gradient(brand-deep, brand-bright)` | `var(--success)` 扁平绿 |
+| 结果卡 rc-condition | `linear-gradient(role-adviser, gold)` | `var(--warning)` 扁平橙 |
+| 结果卡 rc-reject | `linear-gradient(text-secondary, text-secondary)` | `var(--text-secondary)` 扁平灰 |
 
-**阴影（3 级）：** `--shadow-sm` / `--shadow-md` / `--shadow-lg`
+### Web 管理端
 
-## 本次优化改动清单
-
-### 1. TabBar 重构（`components/TabBar.vue`）
-- 未选中态图标色：`--text-placeholder` → `--text-secondary`（可见度提升）
-- 选中态：顶部 6rpx 主色指示条 + 图标背景药丸（rgba(11,29,58,.08)，替代不兼容的 color-mix）
-- 阴影增强：`0 -4rpx 24rpx rgba(0,0,0,.06)`
-
-### 2. AppIcon 图标修正（`components/AppIcon.vue`）
-- 靶心(match)图标 → **指南针(compass)**图标（圆环+指针+中心轴，语义更清晰）
-- 新增 search 放大镜图标
-
-### 3. 首页重写（`pages/home/home.vue`）
-- 顶部电商风格搜索栏（`--bg-card` + `--radius-full` + `--shadow-md`）
-- 横向滚动动态数据卡片（3~4 张，角色化，顶部色条+图标底用设计令牌）
-- 四宫格功能导航（4~6 项，角色化，色调区分：`rgba(11,29,58,.08)`/`--gold-bg`/`--success-bg`/`rgba(239,68,68,.08)`/`--bg-input`）
-
-### 4. 落地页间距优化（`pages/index/index.vue`）
-- hero padding 全面放大，时间线/CTA/底部声明间距增加
-
-### 5. H5 登录页排版优化（`loan-web/src/views/Login.vue`）
-- 卡片 padding 加大，tab/表单/按钮/演示区间距全面优化
-
-### 6. 电商风格搜索栏组件（`components/AppSearchBar.vue`，新建）
-- 圆角胶囊 + 放大镜 + 占位文字 + 可选搜索按钮
-- 支持入口模式（点击跳转）和输入模式（实时搜索）
-- 全部引用设计令牌：`--bg-input`/`--radius-full`/`--brand-deep`/`--fs-md`/`--fs-sm`
-
-### 7. 产品列表页搜索接入（`pages/product/list.vue`）
-- 接入 AppSearchBar + 实时本地搜索过滤 + 搜索无结果空状态
-
-## 设计令牌合规检查
-
-| 检查项 | 状态 |
-|---|---|
-| 裸色值（rgba 硬编码非令牌色） | 已清除（stat/nav 色调改用 `--gold-bg`/`--success-bg`/`rgba(11,29,58,.08)`） |
-| `color-mix()` 微信不兼容 | 已替换为静态 `rgba(11,29,58,.08)` |
-| 字号低于 `--fs-xxs`(22rpx) 下限 | 已修正（20rpx → `--fs-xxs`） |
-| 圆角裸值 | 已替换（36rpx → `--radius-full`） |
-| 单位混用 px | 无（全部 rpx） |
-| App 组件复用 | TabBar/AppIcon/AppButton/AppEmpty/AppTag/AppSkeleton 全用组件 |
+**`views/report/ScreeningReport.vue`**（初筛报告）：
+- 详情抽屉从纯 `el-descriptions` → 结构化布局：
+  1. **结果横幅**（report-banner）：按档位着色（rb-high=蓝/rb-middle=橙/rb-low=灰），展示命中产品/可进件银行/通过条件拒绝三项指标
+  2. **基础信息卡**：2 列 el-descriptions，含报告编号/来源/客户/手机号/档位/状态
+  3. **匹配建议**：独立 section + advice-box（代码块风格）
+  4. **合规声明**：report-compliance（warning-bg 底色 + 警告文字色）
+- 表格中 pass/cond/rej 计数色值从硬编码 → 设计令牌 `var(--loan-success)` / `var(--loan-warning)` / `var(--loan-danger)`
 
 ## 编译验证
-- `loan-mini` H5 构建 `npm run build:h5` ✅ 成功通过
+- `loan-mini` H5 构建 ✅
+- `loan-web` Vite 构建 ✅
