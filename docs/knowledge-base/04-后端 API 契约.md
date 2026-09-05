@@ -151,13 +151,13 @@
 
 ### 审批中心（统一，T5）
 
-> 方案 A：**无统一审批表**，采用「视图层统一 + 入口统一」（不建表、不迁移数据）。`type=ALL` 为**分段分页**语义：各类型各取一页后内存归并、按 `createdAt` 倒序、截断 `size`，`total` 为三类型 PENDING 之和；前端仅概览、不深翻页。白名单 `loan.mini.approval.types=ALLOCATION`（产品/下载待阶段四）。
+> 方案 A：**无统一审批表**，采用「视图层统一 + 入口统一」（不建表、不迁移数据）。`type=ALL` 为**分段分页**语义：各类型各取一页后内存归并、按 `createdAt` 倒序、截断 `size`；前端仅概览、不深翻页。当前白名单为 `loan.mini.approval.types=ALLOCATION,MATERIAL_REVIEW,PRODUCT,DOWNLOAD`，四类审批均已开放。材料复核记录原始动作编号为 `reviewNo`，小程序适配为统一的 `approvalNo` 后再调用审核接口。
 
 | 接口 | 说明 | 权限 |
 |------|------|------|
-| `GET /api/mini/approval/counts` | 待审计数 `{PRODUCT, DOWNLOAD, ALLOCATION, TOTAL}` | 运营/超管/老板（OPERATOR/SUPER_ADMIN/SUPER/BOSS） |
-| `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可见本人团队；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
-| `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可审批本人团队；PRODUCT/DOWNLOAD 可含 DEPT_MANAGER |
+| `GET /api/mini/approval/counts` | 待审计数 `{PRODUCT, DOWNLOAD, ALLOCATION, MATERIAL_REVIEW, TOTAL}` | 管理角色；实际开放类型由白名单控制 |
+| `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION\|MATERIAL_REVIEW&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}`；材料复核记录返回 `reviewNo` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可见本人团队；其他审批类型可含 DEPT_MANAGER |
+| `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}`；`MATERIAL_REVIEW` 时路径参数传其 `reviewNo` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可审批本人团队；其他审批类型可含 DEPT_MANAGER |
 | `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER_ADMIN/SUPER/BOSS 全量；DEPT_MANAGER 仅本团队 |
 | `POST /api/admin/approval/allocation/{approvalNo}/approve` | 管理端 allocation 通过（`ApprovalController`，非 `/audit`） | 同上 |
 | `POST /api/admin/approval/allocation/{approvalNo}/reject` | 管理端 allocation 驳回 | 同上 |

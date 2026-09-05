@@ -1,6 +1,6 @@
 <template>
   <view class="approval-page">
-    <!-- 类型分段 tab（审批中心统一：ALL / PRODUCT / DOWNLOAD / ALLOCATION） -->
+    <!-- 类型分段 tab（审批中心统一：ALL / PRODUCT / DOWNLOAD / ALLOCATION / MATERIAL_REVIEW） -->
     <view class="seg-tabs">
       <view
         v-for="t in segTabs" :key="t.value"
@@ -23,21 +23,23 @@
 
     <!-- 空态 -->
     <AppEmpty v-else-if="!items.length" title="暂无待审批"
-      desc="无归宿客户的分配申请会显示在这里" />
+      desc="分配申请与材料复核会显示在这里" />
 
     <!-- 待审列表 -->
     <view v-else class="list">
       <view v-for="it in items" :key="it.approvalNo" class="card item">
         <view class="item-head">
-          <text class="item-ent">{{ it.entName || it.contactName || '未命名客户' }}</text>
+          <text class="item-ent">{{ approvalTitle(it) }}</text>
           <view class="head-tags">
             <AppTag type="muted" size="sm">{{ it.type }}</AppTag>
             <AppTag type="warning" size="sm">待审批</AppTag>
           </view>
         </view>
         <view class="item-meta">
-          <text class="meta-line">申请人：{{ it.applicantName || '待补充姓名' }}</text>
+          <text class="meta-line">申请人：{{ applicantName(it) }}</text>
           <text v-if="it.contactName" class="meta-line">联系人：{{ it.contactName }} {{ it.contactPhone || '' }}</text>
+          <text v-if="it.reportNo" class="meta-line">关联报告：{{ it.reportNo }}</text>
+          <text v-if="it.purpose" class="meta-line">申请用途：{{ it.purpose }}</text>
           <text class="meta-line">申请时间：{{ formatTime(it.createdAt) }}</text>
         </view>
         <view class="item-actions">
@@ -57,21 +59,24 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { pendingApprovals, auditApproval, approvalCounts } from '../../api/approval';
+import {
+  pendingApprovals, auditApproval, approvalCounts, normalizeApprovalItem,
+} from '../../api/approval';
 
-/** 类型分段 tab 定义（白名单当前仅 ALLOCATION 开放，其余计数为 0） */
+/** 类型分段 tab 定义（当前四类审批均开放） */
 const segTabs = [
   { value: 'ALL', label: '全部' },
   { value: 'PRODUCT', label: '产品' },
   { value: 'DOWNLOAD', label: '渠道产品' },
   { value: 'ALLOCATION', label: '分配' },
+  { value: 'MATERIAL_REVIEW', label: '材料复核' },
 ];
 
-/** 当前选中类型（默认 ALLOCATION：当前唯一有数据的白名单项） */
+/** 当前选中类型（默认分配，其他审批可按类型查看） */
 const activeType = ref('ALLOCATION');
 
 /** 各类型待审数（来自 approvalCounts） */
-const counts = ref({ PRODUCT: 0, DOWNLOAD: 0, ALLOCATION: 0, TOTAL: 0 });
+const counts = ref({ PRODUCT: 0, DOWNLOAD: 0, ALLOCATION: 0, MATERIAL_REVIEW: 0, TOTAL: 0 });
 
 /** 角标映射：ALL→TOTAL，其余→各自计数 */
 const countMap = computed(() => {
@@ -81,6 +86,7 @@ const countMap = computed(() => {
     PRODUCT: c.PRODUCT || 0,
     DOWNLOAD: c.DOWNLOAD || 0,
     ALLOCATION: c.ALLOCATION || 0,
+    MATERIAL_REVIEW: c.MATERIAL_REVIEW || 0,
   };
 });
 
@@ -102,7 +108,7 @@ async function loadCounts() {
   try {
     counts.value = await approvalCounts();
   } catch (e) {
-    counts.value = { PRODUCT: 0, DOWNLOAD: 0, ALLOCATION: 0, TOTAL: 0 };
+    counts.value = { PRODUCT: 0, DOWNLOAD: 0, ALLOCATION: 0, MATERIAL_REVIEW: 0, TOTAL: 0 };
   }
 }
 
@@ -113,7 +119,7 @@ async function load(type) {
   try {
     const data = await pendingApprovals(t, 1, 20);
     const records = (data && data.records) || [];
-    items.value = records;
+    items.value = records.map(normalizeApprovalItem);
     paginationHint.value = (data && data.paginationHint) || '';
     // ALL 为概览，仅取前 20 条；其余类型按返回长度判定是否到底
     finished.value = t === 'ALL' ? true : records.length < 20;
@@ -122,6 +128,19 @@ async function load(type) {
   } finally {
     loading.value = false;
   }
+}
+
+/** 审批记录主标题：优先中文业务信息，材料复核退回到可理解的业务描述。 */
+function approvalTitle(item) {
+  if (item.entName || item.contactName) return item.entName || item.contactName;
+  if (item.type === 'MATERIAL_REVIEW') return item.reportNo ? '报告材料复核' : '上传材料复核';
+  if (item.type === 'PRODUCT') return item.bankProductName || '产品审核申请';
+  if (item.type === 'DOWNLOAD') return '资料下载申请';
+  return '待审批申请';
+}
+
+function applicantName(item) {
+  return item.applicantName || item.applicantStaffName || item.createdBy || '待补充姓名';
 }
 
 function switchType(v) {
@@ -134,7 +153,7 @@ async function onApprove(it) {
   acting.value = it.approvalNo;
   try {
     await auditApproval(it.type, it.approvalNo, true);
-    uni.showToast({ title: '已通过，归属已流转', icon: 'success' });
+    uni.showToast({ title: '审批已通过', icon: 'success' });
     items.value = items.value.filter(x => x.approvalNo !== it.approvalNo);
     await load(activeType.value); // 重新拉取当前类型
     await loadCounts();           // 刷新角标

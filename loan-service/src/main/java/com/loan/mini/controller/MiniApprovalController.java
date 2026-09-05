@@ -19,11 +19,12 @@ import java.util.Map;
 /**
  * 小程序端：审批中心统一入口（C4c）。
  *
- * <p>聚合无归宿客户分配（ALLOCATION）、产品审核（PRODUCT）、附件下载（DOWNLOAD）三类审批，
+ * <p>聚合无归宿客户分配（ALLOCATION）、产品审核（PRODUCT）、附件下载（DOWNLOAD）、材料复核
+ * （MATERIAL_REVIEW）四类审批，
  * 对外提供「待审计数 → 待审列表 → 审批动作」三段式统一接口，替代原先分散在
  * {@link MiniClientController} 的 {@code /allocation-approvals/*} 接口。</p>
  *
- * <p><b>类型白名单：</b>由配置 {@code loan.mini.approval.types} 控制（当前为 {@code ALLOCATION}），
+ * <p><b>类型白名单：</b>由配置 {@code loan.mini.approval.types} 控制（当前四类均开放），
  * 白名单外类型不会出现在待审列表 / 计数中，审批动作亦被拒绝。</p>
  *
  * <p><b>权限：</b>统一走 {@link MiniRoleGuard}；ALLOCATION 需运营 / 超管 / 老板，
@@ -43,7 +44,7 @@ public class MiniApprovalController {
      * 各类型待审计数（审批中心角标）。
      *
      * @param user 当前用户（需审批权限）
-     * @return { PRODUCT, DOWNLOAD, ALLOCATION, TOTAL }
+     * @return { PRODUCT, DOWNLOAD, ALLOCATION, MATERIAL_REVIEW, TOTAL }
      */
     @GetMapping("/counts")
     public Result<Map<String, Object>> counts(@CurrentUser LoanUser user) {
@@ -54,10 +55,10 @@ public class MiniApprovalController {
     /**
      * 统一待审列表。
      *
-     * <p>{@code type=ALL} 时按 {@code ALLOCATION} 校验权限——当前白名单仅开放 ALLOCATION，
-     * 合并结果不会含其他类型数据，故以最严口径校验即可。</p>
+     * <p>{@code type=ALL} 时按 {@code ALLOCATION} 校验权限；其余已开放类型的普通审批角色
+     * 集合包含该守卫允许的管理角色，单类型请求仍按真实类型执行权限校验。</p>
      *
-     * @param type 审批类型（ALL / PRODUCT / DOWNLOAD / ALLOCATION）
+     * @param type 审批类型（ALL / PRODUCT / DOWNLOAD / ALLOCATION / MATERIAL_REVIEW）
      * @param page 页码
      * @param size 每页大小
      * @param user 当前用户
@@ -77,7 +78,7 @@ public class MiniApprovalController {
     /**
      * 统一审批动作（通过 / 驳回）。
      *
-     * @param type       审批类型（PRODUCT / DOWNLOAD / ALLOCATION）
+     * @param type       审批类型（PRODUCT / DOWNLOAD / ALLOCATION / MATERIAL_REVIEW）
      * @param approvalNo 审批单号
      * @param body       { approve: Boolean（默认 true）, opinion: String（驳回必填） }
      * @param user       当前用户

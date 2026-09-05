@@ -14,7 +14,7 @@
     ],
     "tabBar": "loan-mini/components/TabBar.vue (L47-54 渠道分支 / L55-61 默认分支)",
     "approvalEntryGuard": "loan-mini/pages/mine/mine.vue#isApproverRole (L183-185)",
-    "approvalTypeWhitelist": "loan-service/src/main/resources/application.properties:98 (loan.mini.approval.types=ALLOCATION)",
+    "approvalTypeWhitelist": "loan-service/src/main/resources/application.properties (loan.mini.approval.types=ALLOCATION,MATERIAL_REVIEW,PRODUCT,DOWNLOAD)",
     "apiContract": "docs/knowledge-base/04-后端 API 契约.md",
     "note": "本文件不写死历史结论编号的最大序号；取号前必须实时 grep docs/knowledge-base/10-历史结论与决策日志.md"
   },
@@ -631,7 +631,7 @@
     "ALLOCATION": "MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS] —— 不含 DEPT_MANAGER / ADVISER",
     "PRODUCT": "MiniRoleGuard.APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]",
     "DOWNLOAD": "同上 APPROVAL_ROLES",
-    "runtimeRestriction": "application.properties loan.mini.approval.types=ALLOCATION —— 当前仅开放 ALLOCATION，PRODUCT/DOWNLOAD 为前瞻能力（不可达）",
+    "runtimeRestriction": "application.properties loan.mini.approval.types=ALLOCATION,MATERIAL_REVIEW,PRODUCT,DOWNLOAD —— 当前四类审批均已开放",
     "docConflict": "04-后端 API 契约.md 第 90-91 行写「ALLOCATION 含 DEPT_MANAGER」，与代码冲突，以代码 + D0-4 为准"
   },
   "counts": {

@@ -423,9 +423,9 @@ public class ApprovalService {
      * （page/size/total/records），前端可复用同一套解析。</p>
      *
      * <p><b>白名单：</b>仅 {@link #typeEnabled(String)} 为真的类型参与合并，
-     * 因此当 {@code loan.mini.approval.types=ALLOCATION} 时，PRODUCT / DOWNLOAD 不会出现在结果中。</p>
+     * 当前配置显式开放四类审批；环境可通过该白名单收紧可见和可审核类型。</p>
      *
-     * @param type 审批类型（{@code ALL} / {@code PRODUCT} / {@code DOWNLOAD} / {@code ALLOCATION}，空视为 ALL）
+     * @param type 审批类型（{@code ALL} / {@code PRODUCT} / {@code DOWNLOAD} / {@code ALLOCATION} / {@code MATERIAL_REVIEW}，空视为 ALL）
      * @param page 页码
      * @param size 每页大小
      * @return { page, size, total, records（每条含 type 字段）, paginationHint }
@@ -474,7 +474,7 @@ public class ApprovalService {
      * <p>白名单外的类型固定返回 0，与 {@link #unifiedPending} 口径保持一致；
      * 额外返回 {@code TOTAL} 汇总，便于前端一次取数。</p>
      *
-     * @return { PRODUCT, DOWNLOAD, ALLOCATION, TOTAL }
+     * @return { PRODUCT, DOWNLOAD, ALLOCATION, MATERIAL_REVIEW, TOTAL }
      */
     public Map<String, Object> pendingCounts() {
         Map<String, Object> counts = new LinkedHashMap<>();
