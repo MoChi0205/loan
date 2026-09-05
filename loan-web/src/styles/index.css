@@ -1088,6 +1088,13 @@ body {
 [class$="-page"] .el-table {
   overflow: clip !important;
 }
+/* 操作列（fixed-right）防裁切：fixed 列内部的 cell 允许内容溢出显示，
+   避免 width 偏窄时文字被 overflow:clip 截断（如"查看档案 · 申请认领"）。
+   仅影响 fixed-right 列的内部 cell，不影响表头吸顶和整体布局。 */
+[class$="-page"] .el-table__fixed-right .cell,
+[class$="-page"] .el-table__fixed-right .el-table__cell {
+  overflow: visible;
+}
 /* 表头吸顶：滚动 .content 时表头贴住内容区顶部（topbar 下缘）
    注：top: -20px 对应 .content 的 padding-top(20px)——sticky 偏移量以
    content 内容盒顶缘(80px)为基准，-20px 使其吸在顶栏下缘(60px)无缝贴合。 */

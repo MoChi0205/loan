@@ -155,6 +155,9 @@ const gradeText = { HIGH: '高', MIDDLE: '中', LOW: '低' };
 const gradeTag = (g) => ({ HIGH: 'loan-tag-success', MIDDLE: 'loan-tag-warning', LOW: 'loan-tag-muted' }[g] || 'loan-tag-muted');
 const gradeStar = (g) => ({ HIGH: 'A · 优质', MIDDLE: 'B · 良好', LOW: 'C · 一般', D: 'D · 暂不推荐' }[g] || (g ? `${g} · 未评级` : 'D · 暂不推荐'));
 const starTag = (g) => ({ HIGH: 'loan-tag-success', MIDDLE: 'loan-tag-info', LOW: 'loan-tag-warning', D: 'loan-tag-muted' }[g] || 'loan-tag-muted');
+/** 来源标签样式（后端 screeningPage 当前未返回 source，待对接时自动生效） */
+const sourceText = (s) => ({ MINI: '小程序', CHANNEL: '渠道', WEB: 'Web 端', MINI_STAFF_CREATE: '员工建档' }[s] || (s ? s : '—'));
+const sourceTag = (s) => ({ MINI: 'loan-tag-info', CHANNEL: 'loan-tag-success', WEB: 'loan-tag-muted', MINI_STAFF_CREATE: 'loan-tag-warning' }[s] || 'loan-tag-muted');
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

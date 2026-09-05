@@ -39,8 +39,10 @@ export function upsertTab(tabs, tab, currentPath = '', max = MAX_OPEN_TABS) {
   const list = sanitizeTabs(tabs, Number.MAX_SAFE_INTEGER);
   if (!item) return sanitizeTabs(list, max);
   const exists = list.find((entry) => entry.path === item.path);
-  if (exists) exists.title = item.title;
-  else list.push(item);
+  if (exists) {
+    // HOME_TAB 是 Object.freeze 冻结对象，不可赋值；且其 title 已是最终值，跳过
+    if (exists !== HOME_TAB) exists.title = item.title;
+  } else list.push(item);
   const limit = Math.max(1, Number(max) || MAX_OPEN_TABS);
   while (list.length > limit) {
     const removable = list.findIndex((entry, index) => index > 0 && entry.path !== currentPath && entry.path !== item.path);

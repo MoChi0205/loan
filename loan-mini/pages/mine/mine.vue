@@ -111,18 +111,18 @@
         <text class="share-desc">分享链接或小程序码会自动携带引荐码，对方在有效期内登录即可建立邀请关系。</text>
         <view class="share-actions" v-if="inviteCode">
           <!-- #ifdef MP-WEIXIN -->
-          <button class="share-btn" open-type="share">
+          <AppButton class="share-btn" variant="secondary" size="sm" open-type="share">
             <AppIcon name="share" size="sm" />
             <text>分享给好友</text>
-          </button>
+          </AppButton>
           <!-- #endif -->
           <!-- #ifdef H5 -->
-          <button class="share-btn" @click="onCopyShareLink">
+          <AppButton class="share-btn" variant="secondary" size="sm" @click="onCopyShareLink">
             <AppIcon name="share" size="sm" />
             <text>复制分享链接</text>
-          </button>
+          </AppButton>
           <!-- #endif -->
-          <button class="copy-btn" size="mini" @click="onCopyCode">复制引荐码</button>
+          <AppButton class="copy-btn" variant="text" size="sm" @click="onCopyCode">复制引荐码</AppButton>
         </view>
         <view class="code-empty" v-else>
           <text class="code-empty-text">分享信息生成中…</text>
@@ -149,7 +149,7 @@
         </view>
       </view>
 
-      <button class="logout-btn" @click="onLogout">退出登录</button>
+      <AppButton class="logout-btn" variant="ghost" size="md" block @click="onLogout">退出登录</AppButton>
     </view>
   </view>
 
@@ -541,21 +541,9 @@ function onLogout() {
 
 .share-desc { display: block; color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-base); }
 .share-actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
-.share-btn { flex: 1; height: 72rpx; padding: 0 var(--space-3); border-radius: var(--radius-sm); background: var(--brand-deep); color: var(--text-invert); display: flex; align-items: center; justify-content: center; gap: var(--space-1); font-size: var(--fs-sm); font-weight: 600; }
+.share-btn { flex: 1; }
 
-.copy-btn {
-  margin: 0;
-  background: var(--bg-input);
-  color: var(--brand-deep);
-  font-size: 25rpx;
-  font-weight: 600;
-  padding: 0 28rpx;
-  height: 72rpx;
-  line-height: 72rpx;
-  border-radius: 14rpx;
-}
-
-.copy-btn::after { border: none; }
+.copy-btn { margin: 0; }
 .code-empty-text { font-size: 25rpx; color: var(--text-placeholder); }
 
 .reward-card { padding: 28rpx 0; }
@@ -565,18 +553,5 @@ function onLogout() {
 .reward-name { margin-top: 10rpx; font-size: 22rpx; color: var(--text-placeholder); }
 .reward-divider { width: 2rpx; height: 56rpx; background: var(--line); }
 
-.logout-btn {
-  /* 与上方卡片保持同一节奏（原 12rpx 靠 margin 折叠取 max，语义不清且过窄） */
-  margin-top: 32rpx;
-  height: 92rpx;
-  line-height: 92rpx;
-  background: var(--text-invert);
-  color: var(--danger);
-  font-size: 30rpx;
-  font-weight: 600;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
-}
-
-.logout-btn::after { border: none; }
+.logout-btn { margin-top: 32rpx; color: var(--danger); }
 </style>

@@ -107,9 +107,9 @@
       <text class="compliance-text">我已阅读并同意《用户授权与隐私协议》，授权平台使用上述信息进行贷款匹配分析</text>
     </view>
 
-    <button class="submit-btn" :loading="submitting" :disabled="submitting" @click="onSubmit">
+    <AppButton class="submit-btn" variant="primary" size="lg" block :loading="submitting" @click="onSubmit">
       {{ submitting ? '提交中…' : '提交认证' }}
-    </button>
+    </AppButton>
 
     <text class="foot-note">三要素认证为模拟核验（开发环境），上线前接入真实服务商</text>
   </view>
@@ -395,20 +395,7 @@ async function onSubmit() {
   color:var(--text-body);
   line-height:1.6
 }
-.submit-btn{
-  height:96rpx;
-  line-height:96rpx;
-  background:var(--brand-deep);
-  color:var(--bg-card);
-  font-size:32rpx;
-  font-weight:700;
-  border-radius:20rpx;
-  letter-spacing:2rpx;
-  box-shadow:0 8rpx 24rpx rgba(11,29,58,.25)
-}
-.submit-btn:after{
-  border:none
-}
+.submit-btn{ letter-spacing:2rpx; }
 .foot-note{
   display:block;
   margin-top:28rpx;

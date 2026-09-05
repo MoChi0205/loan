@@ -28,6 +28,17 @@ const LANDING_PAGE = '/pages/index/index';
 
 /** 防重复跳转标记 */
 let redirecting = false;
+/** GET 请求短时合并：页面 onShow/重绘可能同时触发同一读请求，避免重复打库。 */
+const inflightGets = new Map();
+
+/** 将查询参数按 key 排序，保证同一组参数不同对象构造顺序也能合并。 */
+function stableSerialize(value) {
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
 
 /**
  * 读取本地 token。
@@ -108,7 +119,7 @@ export function getDevRole() {
   }
 }
 
-function request({ url, method = 'GET', data = {}, header = {}, showError = true, timeout = 15000 }) {
+function request({ url, method = 'GET', data = {}, header = {}, showError = true, timeout = 15000, dedupe = true }) {
   const token = getToken();
   const devRole = getDevRole();
   const headers = {
@@ -120,7 +131,12 @@ function request({ url, method = 'GET', data = {}, header = {}, showError = true
     ...header,
   };
 
-  return new Promise((resolve, reject) => {
+  const dedupeKey = method.toUpperCase() === 'GET' && dedupe
+    ? `${url}?${stableSerialize(data || {})}`
+    : '';
+  if (dedupeKey && inflightGets.has(dedupeKey)) return inflightGets.get(dedupeKey);
+
+  const promise = new Promise((resolve, reject) => {
     uni.request({
       url: buildUrl(url),
       method,
@@ -183,6 +199,11 @@ function request({ url, method = 'GET', data = {}, header = {}, showError = true
       },
     });
   });
+  if (dedupeKey) {
+    inflightGets.set(dedupeKey, promise);
+    promise.then(() => inflightGets.delete(dedupeKey), () => inflightGets.delete(dedupeKey));
+  }
+  return promise;
 }
 
 /**

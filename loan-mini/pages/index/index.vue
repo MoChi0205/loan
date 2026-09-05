@@ -35,10 +35,10 @@
       </view>
 
       <!-- 主 CTA -->
-      <button class="cta-btn" :loading="loggingIn" :disabled="loggingIn" @click="onStart">
+      <AppButton class="cta-btn" variant="primary" size="lg" block :loading="loggingIn" @click="onStart">
         <AppIcon name="wechat" size="md" />
         <text class="cta-text">{{ loggingIn ? '正在登录…' : '微信一键登录' }}</text>
-      </button>
+      </AppButton>
 
       <!-- 合规声明 -->
       <text class="foot-note">合规声明：匹配程度分析不构成任何银行通过承诺</text>
@@ -392,24 +392,7 @@ function onStart() {
   color:var(--text-secondary);
   line-height:1.5
 }
-.cta-btn{
-  margin-top:8rpx;
-  height:96rpx;
-  line-height:96rpx;
-  background:var(--brand-deep);
-  color:var(--bg-card);
-  font-size:32rpx;
-  font-weight:700;
-  border-radius:20rpx;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:12rpx;
-  box-shadow:0 8rpx 24rpx rgba(11,29,58,.3)
-}
-.cta-btn:after{
-  border:none
-}
+.cta-btn{ margin-top:8rpx; }
 .cta-icon{
   font-size:36rpx
 }

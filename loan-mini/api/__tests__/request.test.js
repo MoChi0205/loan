@@ -35,6 +35,57 @@ beforeEach(() => {
 });
 
 describe('loan-mini request 调用层', () => {
+  it('相同 GET URL 与参数并发时只发起一次请求', async () => {
+    const p1 = requestGet('/api/items', { page: 1, size: 10 });
+    const p2 = requestGet('/api/items', { page: 1, size: 10 });
+    expect(p1).toBe(p2);
+    expect(uni.request).toHaveBeenCalledTimes(1);
+    uniRequestOpts.success({
+      statusCode: 200,
+      data: { code: 0, data: { records: [{ id: 'a' }] } },
+    });
+    await expect(p1).resolves.toEqual({ records: [{ id: 'a' }] });
+    await expect(p2).resolves.toEqual({ records: [{ id: 'a' }] });
+  });
+
+  it('GET 请求完成后可再次发起，不同参数不合并', async () => {
+    const first = requestGet('/api/items', { page: 1 });
+    expect(uni.request).toHaveBeenCalledTimes(1);
+    uniRequestOpts.success({ statusCode: 200, data: { code: 0, data: [] } });
+    await first;
+
+    const second = requestGet('/api/items', { page: 1 });
+    const third = requestGet('/api/items', { page: 2 });
+    expect(uni.request).toHaveBeenCalledTimes(3);
+    const opts = uni.request.mock.calls[2][0];
+    opts.success({ statusCode: 200, data: { code: 0, data: ['page-2'] } });
+    const opts2 = uni.request.mock.calls[1][0];
+    opts2.success({ statusCode: 200, data: { code: 0, data: ['page-1'] } });
+    await expect(second).resolves.toEqual(['page-1']);
+    await expect(third).resolves.toEqual(['page-2']);
+  });
+
+  it('POST 请求即使参数相同也不合并', async () => {
+    const first = requestPost('/api/items', { name: 'x' });
+    const second = requestPost('/api/items', { name: 'x' });
+    expect(first).not.toBe(second);
+    expect(uni.request).toHaveBeenCalledTimes(2);
+    uni.request.mock.calls[0][0].success({ statusCode: 200, data: { code: 0, data: 1 } });
+    uni.request.mock.calls[1][0].success({ statusCode: 200, data: { code: 0, data: 2 } });
+    await expect(first).resolves.toBe(1);
+    await expect(second).resolves.toBe(2);
+  });
+
+  it('GET 请求失败后清理并发状态，下一次可正常发起', async () => {
+    const failed = requestGet('/api/items', { page: 9 });
+    uniRequestOpts.fail({ errMsg: 'network down' });
+    await expect(failed).rejects.toMatchObject({ code: -1 });
+    const retried = requestGet('/api/items', { page: 9 });
+    expect(uni.request).toHaveBeenCalledTimes(2);
+    uniRequestOpts.success({ statusCode: 200, data: { code: 0, data: 'ok' } });
+    await expect(retried).resolves.toBe('ok');
+  });
+
   it('请求头注入 X-Client-Type 与 Bearer token', () => {
     requestPost('/api/x', {});
     expect(uniRequestOpts.header['X-Client-Type']).toBe('MINI_APP');

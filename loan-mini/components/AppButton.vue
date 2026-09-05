@@ -8,6 +8,7 @@
     ]"
     :loading="loading"
     :disabled="disabled || loading"
+    :open-type="openType || undefined"
     hover-class="btn-hover"
     @click="onClick"
   >
@@ -41,6 +42,8 @@ const props = defineProps({
   loading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   text: { type: String, default: '' },
+  /** 微信开放能力（如 share），H5 会忽略该属性 */
+  openType: { type: String, default: '' },
 });
 
 /** 解析最终按钮类型：type（旧用法）优先，其次 variant（新用法） */
