@@ -150,7 +150,7 @@ const routes = [
         path: 'report/overview',
         name: 'ReportOverview',
         component: () => import('@/views/report/Overview.vue'),
-        meta: { title: '数据概览' },
+        meta: { title: '经营概览' },
       },
       {
         path: 'report/screening',
@@ -257,7 +257,13 @@ router.beforeEach(async (to) => {
       if (!canAccessRoute(to.path, menuPaths, {
         debugCenterEnabled: import.meta.env.VITE_DEBUG_CENTER === 'true',
       })) {
-        return { path: '/403', query: { from: to.fullPath } };
+        // 兜底：经营分析类页面在后端菜单未同步时，允许管理/运营角色访问（待 t_role_menu 补数据后删除）
+        const allowed = ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'];
+        if (to.path.startsWith('/report') && allowed.includes(store.roleCode)) {
+          // continue
+        } else {
+          return { path: '/403', query: { from: to.fullPath } };
+        }
       }
     } catch (e) {
       return { path: '/403', query: { from: to.fullPath } };
