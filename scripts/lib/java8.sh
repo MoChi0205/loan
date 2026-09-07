@@ -53,6 +53,7 @@ loan_detect_java8() {
   registered_java="$(/usr/libexec/java_home -v 1.8 2>/dev/null || true)"
   # 原生架构优先，避免 Apple 芯片误选 x86_64 JDK 后经 Rosetta 慢启动。
   selected="$(loan_native_java8 "$host_arch" \
+    "/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home" \
     "/Users/admin/Documents/developer/jdk8-arm64/Contents/Home" \
     "/Users/admin/Documents/developer/jdk1.8/Contents/Home" \
     "/Library/Java/JavaVirtualMachines/jdk1.8.0_202.jdk/Contents/Home" \
@@ -65,6 +66,7 @@ loan_detect_java8() {
 
   # 没有原生版本时允许退回任意可执行 JDK 8，但明确说明兼容层风险。
   for java_home in \
+    "/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home" \
     "/Users/admin/Documents/developer/jdk1.8/Contents/Home" \
     "/Library/Java/JavaVirtualMachines/jdk1.8.0_202.jdk/Contents/Home" \
     "$registered_java" \
