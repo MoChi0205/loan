@@ -2,6 +2,7 @@ package com.loan.plan.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.common.ResultCode;
+import com.loan.common.util.BizIdGenerator;
 import com.loan.engine.rule.StepConditionEvaluator;
 import com.loan.exception.BusinessException;
 import com.loan.plan.entity.AdmissionExecutionPlan;
@@ -168,7 +169,7 @@ public class PlanOrchestrationService {
             plan.setStatus("0");
         }
         if (!StringUtils.hasText(plan.getPlanCode())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "计划编码必填");
+            plan.setPlanCode(BizIdGenerator.generate("plan"));
         }
         plan.setCreatedBy(operator);
         plan.setUpdatedBy(operator);

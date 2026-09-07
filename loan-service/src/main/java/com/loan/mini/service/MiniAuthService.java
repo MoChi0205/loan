@@ -29,7 +29,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.security.MessageDigest;
@@ -63,6 +67,16 @@ public class MiniAuthService {
     private final ChannelUserMapper channelUserMapper;
     private final BankChannelMapper bankChannelMapper;
     private final DepartmentMapper departmentMapper;
+    private final PlatformTransactionManager transactionManager;
+    private TransactionTemplate newTxTemplate;
+
+    /** 邀请码绑定独立的 REQUIRES_NEW 事务：其失败只回滚自身，绝不污染外层登录事务 */
+    @javax.annotation.PostConstruct
+    public void init() {
+        DefaultTransactionDefinition def = new DefaultTransactionDefinition();
+        def.setPropagationBehavior(Propagation.REQUIRES_NEW.value());
+        this.newTxTemplate = new TransactionTemplate(transactionManager, def);
+    }
 
     /**
      * 微信登录（Q3 方案 A 主通道）：wx.login code → openid → 按 hash 找/建档案 → 签发 JWT。
@@ -97,10 +111,24 @@ public class MiniAuthService {
             clientProfileMapper.insert(client);
         }
         // 绑定邀请码只记录分享引荐关系，服务顾问由独立分配审批流程产生。
+        // 邀请码为可选项：不存在/已用/过期时降级跳过，绝不阻断登录主流程。
+        // 关键：bind 自身 @Transactional(rollbackFor=Exception.class) 抛错会把外层事务标 rollback-only，
+        // 故用 REQUIRES_NEW 隔离，其失败仅回滚自身子事务。
         String referrerNo = null;
         if (StringUtils.hasText(inviteCode)) {
-            Map<String, Object> bind = invitationService.bind(inviteCode, client.getClientCode(), client.getId());
-            if ("CUSTOMER".equals(bind.get("referrerType"))) {
+            // lambda 内只能捕获 effectively-final 变量；client 在本方法内被重新赋值，故先把要传的值提取为 final 局部变量
+            final String clientCode = client.getClientCode();
+            final Long clientId = client.getId();
+            Map<String, Object> bind = newTxTemplate.execute(status -> {
+                try {
+                    return invitationService.bind(inviteCode, clientCode, clientId);
+                } catch (BusinessException e) {
+                    status.setRollbackOnly();
+                    log.warn("邀请码绑定失败（已降级跳过）: {}", e.getMessage());
+                    return null;
+                }
+            });
+            if (bind != null && "CUSTOMER".equals(bind.get("referrerType"))) {
                 referrerNo = (String) bind.get("referrerClientCode");
                 if (client.getInvitedFlag() == null || client.getInvitedFlag() == 0) {
                     client.setInvitedFlag(1);
