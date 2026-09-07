@@ -3,6 +3,7 @@ package com.loan.partner.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -47,4 +48,8 @@ public class PartnerProduct implements Serializable {
 
     /** 更新时间 */
     private LocalDateTime updatedAt;
+
+    /** 产品名称（批量装配的展示字段，不落合作库表） */
+    @TableField(exist = false)
+    private String productName;
 }

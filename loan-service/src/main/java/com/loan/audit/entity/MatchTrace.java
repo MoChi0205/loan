@@ -26,11 +26,11 @@ public class MatchTrace implements Serializable {
     /** 链路 UUID */
     private String traceUuid;
 
-    /** 客户档案 ID（调试场景为 0） */
-    private Long clientProfileId;
+    /** 客户业务编码（影子调试场景为空） */
+    private String clientProfileCode;
 
-    /** 提交单 ID（调试场景为 0） */
-    private Long submissionId;
+    /** 提交单业务编号（影子调试场景为空） */
+    private String submissionNo;
 
     /** 客群 */
     private String customerGroup;

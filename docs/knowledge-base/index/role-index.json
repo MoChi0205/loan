@@ -242,7 +242,7 @@
       },
       "cannot": [
         "**不能审批任何审批类型** `ALLOCATION` 白名单 `MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS]` —— **不含 ADVISER** `PRODUCT` / `DOWNLOAD` 白名单 `APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]` —— **也不含 ADVISER** → **顾问只能\"提交分配申请\"（`/claim`），不能审批**",
-        "**无审批中心入口** —— `mine.vue` `isApproverRole = ['boss','operator','super']` 不含 adviser；08 矩阵对顾问为 ❌ / —",
+        "**不能审批任何审批类型** —— 顾问不在审批白名单，虽不展示审批中心入口；仅可提交分配申请",
         "**无客户管理列表、无线索公海** —— 08 矩阵当前 ❌（**全部 7 角色均为 ❌**），规划在 Web 端阶段二"
       ],
       "approvalTypes": [],
@@ -259,7 +259,7 @@
       "isStaff": true,
       "isChannel": false,
       "fallback": false,
-      "pitfall": "全项目最高频权限误判点：直觉上经理能审，但 APPROVER_ROLES 不含 DEPT_MANAGER",
+      "pitfall": "ALLOCATION 审批已纳入 DEPT_MANAGER，但部门经理仅可审批本人团队；跨团队申请需上级角色处理",
       "dataScope": "deptSubtree",
       "dataScopeNote": "本部门（deptCode 子树）全量 + 本人全量",
       "tabBar": {
@@ -294,7 +294,7 @@
       "derivation": {
         "backend": "`MiniAuthController.resolveRoleInfo()`：`TYPE_STAFF` + `\"DEPT_MANAGER\"` → `role = \"deptmgr\"`",
         "frontend": "`store/user.js resolveRole()`：同上",
-        "getter": "`isStaff` 含 deptmgr；`isChannel` 为 false；**`isApproverRole` 不含 deptmgr**",
+        "getter": "`isStaff` 含 deptmgr；`isChannel` 为 false；`isApproverRole` 包含 deptmgr",
         "storage": "",
         "evidence": [
           "loan-service/src/main/java/com/loan/mini/controller/MiniAuthController.java#resolveRoleInfo",
@@ -302,17 +302,14 @@
         ]
       },
       "cannot": [
-        "**不能审批 `ALLOCATION`（分配审批）—— 本角色最关键的红线** 依据：`MiniRoleGuard.APPROVER_ROLES = [\"OPERATOR\", \"SUPER_ADMIN\", \"SUPER\", \"BOSS\"]` **不含 `DEPT_MANAGER`** 代码位置：`loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java:25-26` 调用链：`requireApproverFor(\"ALLOCATION\", user)` → `requireApprover(user)` → `APPROVER_ROLES.contains(code)` 失败 → 抛 `BusinessException(FORBIDDEN, \"仅运营管理员或超级管理员可审批分配\")` 来源结论：**D0-4**（已推翻《遗留项增量设计-2026-08-30》中的相反描述） → deptmgr **只能\"申请\"分配，不能审批** 🚨 **误判高发原因**：直觉上\"经理能审\"。代码不允许的理由是：**分配审批涉及跨部门归属变更**",
-        "**无审批中心入口** `loan-mini/pages/mine/mine.vue:183-185` `isApproverRole = ['boss','operator','super']` **不含 deptmgr**； 08 矩阵对 deptmgr 的审批中心行为 ❌ / —，与 `APPROVER_ROLES` 白名单一致",
+        "**ALLOCATION 仅限本人团队**：`MiniRoleGuard.APPROVER_ROLES` 包含 `DEPT_MANAGER`；`ClientAllocationService.assertDeptManagerScope` 按申请人部门过滤，跨团队申请由上级角色处理",
+        "**审批中心入口已在小程序 mine 页展示**：`isApproverRole = ['deptmgr','boss','operator','super']`；待审列表与动作仍由后端按本人团队范围收口",
         "**不能改系统配置 / 角色权限菜单** 属 `operator` / `super` 在 **Web 管理端**（`views/config`、`views/org`）的能力"
       ],
-      "approvalTypes": [
-        "PRODUCT",
-        "DOWNLOAD"
-      ],
+      "approvalTypes": ["ALLOCATION", "DOWNLOAD", "MATERIAL_REVIEW"],
       "skillPath": ".workbuddy/skills/role-deptmgr",
       "skillFile": ".workbuddy/skills/role-deptmgr/SKILL.md",
-      "approvalEntry": false
+      "approvalEntry": true
     },
     {
       "id": "boss",
@@ -374,6 +371,7 @@
       ],
       "approvalTypes": [
         "ALLOCATION",
+        "MATERIAL_REVIEW",
         "PRODUCT",
         "DOWNLOAD"
       ],
@@ -440,6 +438,7 @@
       ],
       "approvalTypes": [
         "ALLOCATION",
+        "MATERIAL_REVIEW",
         "PRODUCT",
         "DOWNLOAD"
       ],
@@ -503,6 +502,7 @@
       ],
       "approvalTypes": [
         "ALLOCATION",
+        "MATERIAL_REVIEW",
         "PRODUCT",
         "DOWNLOAD"
       ],
@@ -588,9 +588,9 @@
       ]
     },
     "evidence": {
-      "审批_ALLOCATION": "MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS]（不含 DEPT_MANAGER）→ D0-4",
+      "审批_ALLOCATION": "MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS, DEPT_MANAGER]；DEPT_MANAGER 仅本人团队 → D39",
       "审批_PRODUCT_DOWNLOAD": "MiniRoleGuard.APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]",
-      "审批中心入口": "mine.vue:183-185 isApproverRole = ['boss','operator','super']",
+      "审批中心入口": "mine.vue:197-199 isApproverRole = ['deptmgr','boss','operator','super']",
       "智能匹配": "C1：客户自身 + 全部 STAFF 可操作；渠道是唯一不可操作角色（MiniMatchController 六处 TYPE_CHANNEL 守卫）",
       "命中产品明细": "C4 + MiniMatchController.reportProducts（仅 STAFF；客户脱敏）",
       "全量报告/工单四维": "C3/C7/C11：reportList 与 orderList 的三分支（渠道空集 / 客户 own / 员工全量）"
@@ -623,16 +623,16 @@
     "derivation": "角色推导来源（后端 resolveRoleInfo + 前端 store/user.js resolveRole）",
     "cannot": "关键禁止项，逐条镜像自 role-<id>/SKILL.md §3（本索引的核心价值）",
     "approvalTypes": "可审批类型，由 MiniRoleGuard 两个白名单按 roleCode 计算得出（代码真值）",
-    "approvalEntry": "小程序 mine 页是否有「审批中心」入口（mine.vue isApproverRole = boss/operator/super）",
+    "approvalEntry": "小程序 mine 页是否有「审批中心」入口（mine.vue isApproverRole = deptmgr/boss/operator/super）",
     "tabBar": "自绘 TabBar 结构，真值来源 loan-mini/components/TabBar.vue",
     "skillPath": "对应角色技能目录（只读引用，本索引不修改技能内容）"
   },
   "approvalWhitelistTruth": {
-    "ALLOCATION": "MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS] —— 不含 DEPT_MANAGER / ADVISER",
+    "ALLOCATION": "MiniRoleGuard.APPROVER_ROLES = [OPERATOR, SUPER_ADMIN, SUPER, BOSS, DEPT_MANAGER] —— DEPT_MANAGER 仅本人团队，不含 ADVISER",
     "PRODUCT": "MiniRoleGuard.APPROVAL_ROLES = [BOSS, DEPT_MANAGER, OPERATOR, SUPER_ADMIN, SUPER]",
     "DOWNLOAD": "同上 APPROVAL_ROLES",
     "runtimeRestriction": "application.properties loan.mini.approval.types=ALLOCATION,MATERIAL_REVIEW,PRODUCT,DOWNLOAD —— 当前四类审批均已开放",
-    "docConflict": "04-后端 API 契约.md 第 90-91 行写「ALLOCATION 含 DEPT_MANAGER」，与代码冲突，以代码 + D0-4 为准"
+    "docConflict": "历史 D0-4 与当前 D39 冲突；当前代码与 04-后端 API 契约均以 ALLOCATION 含 DEPT_MANAGER（仅本人团队）为准"
   },
   "counts": {
     "roles": 7,

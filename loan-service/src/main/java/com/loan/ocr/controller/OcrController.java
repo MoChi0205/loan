@@ -56,12 +56,12 @@ public class OcrController {
      * 保存识别记录（阶段一模拟）。
      *
      * @param record 识别记录
-     * @return 记录 ID
+     * @return 记录业务编码（fileKey）
      */
     @PostMapping("/record")
-    public Result<Long> saveRecord(@RequestBody OcrRecord record) {
+    public Result<String> saveRecord(@RequestBody OcrRecord record) {
         ocrService.saveRecord(record);
-        return Result.ok(record.getId());
+        return Result.ok(record.getBizCode());
     }
 
     /**
@@ -73,7 +73,7 @@ public class OcrController {
      * @param file          材料文件（字段名 file）
      * @param bizType       资料类型（ID_CARD / BUSINESS_LICENSE / FINANCIAL_STATEMENT / CONTRACT / DUE_DILIGENCE / OTHER）
      * @param customerGroup 客群（可选，ENTERPRISE / PERSONAL）
-     * @return 识别结果（facts / confidenceAvg / ocrRecordId / extractedFields / rulesMissing）
+     * @return 识别结果（facts / confidenceAvg / ocrFileKey / extractedFields / rulesMissing）
      */
     @PostMapping("/recognize")
     public Result<OcrResult> recognize(

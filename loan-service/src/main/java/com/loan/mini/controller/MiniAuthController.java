@@ -71,7 +71,7 @@ public class MiniAuthController {
      */
     @GetMapping("/me")
     public Result<Map<String, Object>> me(@CurrentUser LoanUser user) {
-        Map<String, Object> profile = miniAuthService.myProfile(user == null ? null : user.getUserNo());
+        Map<String, Object> profile = miniAuthService.myProfile(user);
         if (profile == null) {
             profile = new java.util.LinkedHashMap<>();
         }
@@ -134,11 +134,15 @@ public class MiniAuthController {
      */
     @PostMapping("/auth/enterprise")
     public Result<Map<String, Object>> enterpriseAuth(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
-        String clientCode = user == null ? null : user.getUserNo();
-        if (clientCode == null) {
+        if (user == null || user.getUserNo() == null) {
             throw new com.loan.exception.BusinessException(
                     com.loan.common.ResultCode.UNAUTHORIZED, "请先登录");
         }
+        if (!LoanUser.TYPE_CUSTOMER.equals(user.getUserType())) {
+            throw new com.loan.exception.BusinessException(
+                    com.loan.common.ResultCode.FORBIDDEN, "仅客户可进行身份认证");
+        }
+        String clientCode = user.getUserNo();
         return Result.ok(miniAuthService.enterpriseAuth(clientCode, body.get("creditCode"),
                 body.get("enterpriseName"), body.get("contactName")));
     }

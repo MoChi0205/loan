@@ -10,12 +10,18 @@ import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.channel.entity.ChannelUser;
+import com.loan.channel.mapper.ChannelUserMapper;
 import com.loan.config.entity.ConfigItem;
 import com.loan.config.mapper.ConfigItemMapper;
 import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.infrastructure.security.JwtService;
 import com.loan.infrastructure.wechat.WxCode2SessionService;
+import com.loan.org.entity.Department;
+import com.loan.org.mapper.DepartmentMapper;
+import com.loan.product.entity.BankChannel;
+import com.loan.product.mapper.BankChannelMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import com.loan.utils.DesensitizeUtils;
@@ -54,6 +60,9 @@ public class MiniAuthService {
     private final com.loan.invitation.service.InvitationService invitationService;
     private final com.loan.personal.service.PersonalProfileService personalProfileService;
     private final StaffMapper staffMapper;
+    private final ChannelUserMapper channelUserMapper;
+    private final BankChannelMapper bankChannelMapper;
+    private final DepartmentMapper departmentMapper;
 
     /**
      * 微信登录（Q3 方案 A 主通道）：wx.login code → openid → 按 hash 找/建档案 → 签发 JWT。
@@ -207,6 +216,59 @@ public class MiniAuthService {
         m.put("wxBound", client.getWxOpenidHash() != null ? 1 : 0);
         m.put("authenticated", isAuthenticated(client));
         return m;
+    }
+
+    /**
+     * 按登录角色装配「我的」资料。客户、渠道和员工的数据模型不同，禁止把渠道账号或员工工号
+     * 当作 {@code clientCode} 查询客户档案。
+     *
+     * @param user 当前登录用户
+     * @return 面向当前角色的脱敏资料摘要
+     */
+    public Map<String, Object> myProfile(LoanUser user) {
+        if (user == null || !StringUtils.hasText(user.getUserNo())) {
+            return new LinkedHashMap<>();
+        }
+        if (LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
+            return channelProfile(user);
+        }
+        if (LoanUser.TYPE_STAFF.equals(user.getUserType())) {
+            return staffProfile(user);
+        }
+        return myProfile(user.getUserNo());
+    }
+
+    /** 渠道账户资料：主显姓名和银行名称，不对端暴露物理主键或手机号哈希。 */
+    private Map<String, Object> channelProfile(LoanUser user) {
+        ChannelUser channelUser = user.getUserId() == null ? null : channelUserMapper.selectById(user.getUserId());
+        Long bankChannelId = channelUser == null ? user.getBankChannelId() : channelUser.getBankChannelId();
+        BankChannel bankChannel = bankChannelId == null ? null : bankChannelMapper.selectById(bankChannelId);
+        Map<String, Object> profile = new LinkedHashMap<>();
+        profile.put("contactName", channelUser == null ? user.getName() : channelUser.getName());
+        profile.put("phone", DesensitizeUtils.phone(user.getPhone()));
+        profile.put("jobTitle", channelUser == null ? null : channelUser.getJobTitle());
+        profile.put("bankName", bankChannel == null ? null : bankChannel.getBankName());
+        profile.put("registeredAt", channelUser == null ? null : channelUser.getCreatedAt());
+        profile.put("authenticated", true);
+        return profile;
+    }
+
+    /** 员工资料：主显姓名、部门和角色，不对端暴露内部工号。 */
+    private Map<String, Object> staffProfile(LoanUser user) {
+        Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                .eq(Staff::getStaffCode, user.getUserNo()).last("limit 1"));
+        String deptCode = staff == null ? user.getDeptCode() : staff.getDeptCode();
+        Department department = !StringUtils.hasText(deptCode) ? null
+                : departmentMapper.selectOne(new LambdaQueryWrapper<Department>()
+                .eq(Department::getDeptCode, deptCode).last("limit 1"));
+        Map<String, Object> profile = new LinkedHashMap<>();
+        profile.put("contactName", staff == null ? user.getName() : staff.getStaffName());
+        profile.put("phone", DesensitizeUtils.phone(user.getPhone()));
+        profile.put("departmentName", department == null ? null : department.getDeptName());
+        profile.put("roleCode", staff == null ? user.getRoleCode() : staff.getRoleCode());
+        profile.put("hiredAt", staff == null ? null : staff.getCreatedAt());
+        profile.put("authenticated", true);
+        return profile;
     }
 
     private String ownerStaffName(String staffCode) {

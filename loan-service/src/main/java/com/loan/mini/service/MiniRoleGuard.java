@@ -31,7 +31,7 @@ public class MiniRoleGuard {
     private static final List<String> APPROVER_ROLES =
             Arrays.asList("OPERATOR", "SUPER_ADMIN", "SUPER", "BOSS", "DEPT_MANAGER");
 
-    /** 普通审批（PRODUCT / DOWNLOAD 等）角色白名单，含部门经理。 */
+    /** 普通审批（DOWNLOAD / MATERIAL_REVIEW）角色白名单，含部门经理。 */
     private static final List<String> APPROVAL_ROLES =
             Arrays.asList("BOSS", "DEPT_MANAGER", "OPERATOR", "SUPER_ADMIN", "SUPER");
 
@@ -76,7 +76,8 @@ public class MiniRoleGuard {
      *
      * <ul>
      *   <li>{@code ALLOCATION}：仅审批分配管理员（{@link #requireApprover}）。</li>
-     *   <li>其他（PRODUCT / DOWNLOAD 等）：企业员工 + 含部门经理的审批角色。</li>
+     *   <li>PRODUCT：渠道新增内容终审，仅老板 / 超级管理员。</li>
+     *   <li>DOWNLOAD / MATERIAL_REVIEW：企业员工 + 含部门经理的审批角色。</li>
      * </ul>
      *
      * @param type 审批类型，例如 {@code ALLOCATION} / {@code PRODUCT} / {@code DOWNLOAD}
@@ -85,6 +86,10 @@ public class MiniRoleGuard {
     public void requireApproverFor(String type, LoanUser user) {
         if ("ALLOCATION".equals(type)) {
             requireApprover(user);
+            return;
+        }
+        if ("PRODUCT".equalsIgnoreCase(type)) {
+            requireChannelFinalApprover(user);
             return;
         }
         requireStaff(user);
@@ -100,5 +105,12 @@ public class MiniRoleGuard {
         if (!CHANNEL_FINAL_APPROVER_ROLES.contains(code)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "仅老板或超级管理员可审批渠道新增内容");
         }
+    }
+
+    /** 当前用户是否为渠道内容终审人，供列表/计数按角色收口。 */
+    public boolean isChannelFinalApprover(LoanUser user) {
+        return user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())
+                && user.getRoleCode() != null
+                && CHANNEL_FINAL_APPROVER_ROLES.contains(user.getRoleCode().toUpperCase());
     }
 }

@@ -53,7 +53,7 @@ public class MiniMaterialService {
      * @param clientCode 客户编码（用于解析客群，可不传）
      * @param reportNo   报告编号（诊断补充材料场景，可不传）
      * @param user       当前登录用户（留痕用）
-     * @return {ocrApplied, pendingReview, reviewNo, extractedFields, mergedCount, ocrRecordId}
+     * @return {ocrApplied, pendingReview, reviewNo, extractedFields, mergedCount, ocrFileKey}
      */
     public Map<String, Object> ingest(String fileKey, String bizType, String clientCode,
                                       String reportNo, LoanUser user) {
@@ -63,7 +63,7 @@ public class MiniMaterialService {
         result.put("reviewNo", null);
         result.put("extractedFields", new ArrayList<Map<String, Object>>());
         result.put("mergedCount", 0);
-        result.put("ocrRecordId", null);
+        result.put("ocrFileKey", null);
 
         if (!ocrEnabled) {
             return result;
@@ -73,14 +73,14 @@ public class MiniMaterialService {
         String operator = user == null ? null : user.getName();
 
         OcrResult ocr = ocrService.recognize(fileKey, bizType, customerGroup);
-        result.put("ocrRecordId", ocr.getOcrRecordId());
+        result.put("ocrFileKey", ocr.getOcrFileKey());
         result.put("extractedFields", ocr.getExtractedFields() == null
                 ? new ArrayList<Map<String, Object>>() : ocr.getExtractedFields());
 
         // facts 非空 → 进入审批门控（先存待复核，不回灌客数据）
         if (ocr.getFacts() != null && !ocr.getFacts().isEmpty()) {
             String reviewNo = materialReviewService.createPending(
-                    ocr.getOcrRecordId(), bizType, clientCode, reportNo, ocr.getFacts(), operator);
+                    ocr.getOcrFileKey(), bizType, clientCode, reportNo, ocr.getFacts(), operator);
             result.put("pendingReview", true);
             result.put("reviewNo", reviewNo);
             return result;

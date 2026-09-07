@@ -64,7 +64,7 @@ public class MaterialReviewService {
     /**
      * 创建待复核单（上传识别后调用）。
      *
-     * @param ocrRecordId      OCR 记录主键
+     * @param ocrFileKey       OCR 文件业务键（file_key）
      * @param bizType          资料类型
      * @param clientProfileCode 客户编码
      * @param reportNo         关联报告编号（可空）
@@ -73,11 +73,11 @@ public class MaterialReviewService {
      * @return 复核单号
      */
     @Transactional(rollbackFor = Exception.class)
-    public String createPending(Long ocrRecordId, String bizType, String clientProfileCode,
+    public String createPending(String ocrFileKey, String bizType, String clientProfileCode,
                                 String reportNo, Map<String, Object> facts, String operator) {
         MaterialReview r = new MaterialReview();
         r.setReviewNo(BizIdGenerator.generate("matrev"));
-        r.setOcrRecordId(ocrRecordId);
+        r.setOcrFileKey(ocrFileKey);
         r.setBizType(bizType);
         r.setClientProfileCode(clientProfileCode);
         r.setReportNo(reportNo);
@@ -90,8 +90,9 @@ public class MaterialReviewService {
         reviewMapper.insert(r);
 
         // 标记 OCR 记录为待复核、客不可见
-        if (ocrRecordId != null) {
-            OcrRecord rec = ocrRecordMapper.selectById(ocrRecordId);
+        if (StringUtils.hasText(ocrFileKey)) {
+            OcrRecord rec = ocrRecordMapper.selectOne(new LambdaQueryWrapper<OcrRecord>()
+                    .eq(OcrRecord::getFileKey, ocrFileKey).last("limit 1"));
             if (rec != null) {
                 rec.setReviewStatus(STATUS_PENDING);
                 rec.setVisibleFlag(0);
@@ -134,8 +135,9 @@ public class MaterialReviewService {
             String submissionNo = backfillSubmission(r, facts, operator);
             r.setSubmissionNo(submissionNo);
             // 置 OCR 记录客可见
-            if (r.getOcrRecordId() != null) {
-                OcrRecord rec = ocrRecordMapper.selectById(r.getOcrRecordId());
+            if (StringUtils.hasText(r.getOcrFileKey())) {
+                OcrRecord rec = ocrRecordMapper.selectOne(new LambdaQueryWrapper<OcrRecord>()
+                        .eq(OcrRecord::getFileKey, r.getOcrFileKey()).last("limit 1"));
                 if (rec != null) {
                     rec.setVisibleFlag(1);
                     rec.setReviewStatus(STATUS_APPROVED);

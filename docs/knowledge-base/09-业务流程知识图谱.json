@@ -8,11 +8,11 @@
   "roles": [
     { "id": "R1", "name": "客户", "userType": "CUSTOMER", "roleCode": "", "tabCount": 5, "canMatch": "仅自己", "reportVisible": "仅自己+仅日期", "productVisible": false },
     { "id": "R2", "name": "渠道", "userType": "CHANNEL", "roleCode": "", "tabCount": 4, "canMatch": false, "reportVisible": "小程序隐藏；Web本人客户只读", "clientVisible": "Web本人录入形成客户只读+归属顾问姓名", "productVisible": "自有" },
-    { "id": "R3", "name": "顾问", "userType": "STAFF", "roleCode": "ADVISER", "tabCount": 5, "canMatch": true, "reportVisible": "全量四维", "productVisible": true },
-    { "id": "R4", "name": "部门经理", "userType": "STAFF", "roleCode": "DEPT_MANAGER", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": true },
-    { "id": "R5", "name": "老板", "userType": "STAFF", "roleCode": "BOSS", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": true, "canApproveAlloc": true },
-    { "id": "R6", "name": "运营", "userType": "STAFF", "roleCode": "OPERATOR", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": true, "canApproveAlloc": true },
-    { "id": "R7", "name": "超管", "userType": "STAFF", "roleCode": "SUPER_ADMIN", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": true, "canApproveAlloc": true }
+    { "id": "R3", "name": "顾问", "userType": "STAFF", "roleCode": "ADVISER", "tabCount": 5, "canMatch": true, "reportVisible": "全量四维", "productVisible": "Web管理" },
+    { "id": "R4", "name": "部门经理", "userType": "STAFF", "roleCode": "DEPT_MANAGER", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": "Web管理" },
+    { "id": "R5", "name": "老板", "userType": "STAFF", "roleCode": "BOSS", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": "Web管理", "canApproveAlloc": true },
+    { "id": "R6", "name": "运营", "userType": "STAFF", "roleCode": "OPERATOR", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": "Web管理", "canApproveAlloc": true },
+    { "id": "R7", "name": "超管", "userType": "STAFF", "roleCode": "SUPER_ADMIN", "tabCount": 5, "canMatch": true, "reportVisible": "全量", "productVisible": "Web管理", "canApproveAlloc": true }
   ],
   "modules": [
     { "id": "M_AUTH", "name": "登录/认证/企业认证", "doc": "§1", "entry": true },
@@ -57,8 +57,8 @@
     { "id": "P6", "method": "POST", "path": "/api/mini/product/{code}/revoke", "module": "M_CHANPROD", "perm": "CHANNEL", "note": "撤销审批→DRAFT" },
     { "id": "P7", "method": "POST", "path": "/api/mini/product/{code}/delete-apply", "module": "M_CHANPROD", "perm": "CHANNEL", "note": "申请删除" },
     { "id": "P8", "method": "POST", "path": "/api/mini/product/{code}/delete-cancel", "module": "M_CHANPROD", "perm": "CHANNEL", "note": "撤销删除" },
-    { "id": "P9", "method": "GET", "path": "/api/mini/partner-product/delete/pending", "module": "M_CHANPROD", "perm": "OPERATOR/SUPER/BOSS", "note": "待删列表" },
-    { "id": "P10", "method": "POST", "path": "/api/mini/partner-product/delete/{approvalNo}/audit", "module": "M_CHANPROD", "perm": "OPERATOR/SUPER/BOSS", "note": "终审删除" },
+    { "id": "P9", "method": "GET", "path": "/api/mini/partner-product/delete/pending", "module": "M_CHANPROD", "perm": "BOSS/SUPER_ADMIN/SUPER", "note": "待删列表，批量装配产品" },
+    { "id": "P10", "method": "POST", "path": "/api/mini/partner-product/delete/{approvalNo}/audit", "module": "M_CHANPROD", "perm": "BOSS/SUPER_ADMIN/SUPER", "note": "终审删除；合作库置OFFLINE，审批记录保留" },
     { "id": "I1", "method": "POST", "path": "/api/mini/invitation/bind", "module": "M_INVITE", "perm": "CUSTOMER", "note": "自动绑定后的补绑兼容入口；只建立引荐关系" },
     { "id": "I2", "method": "GET", "path": "/api/mini/invitation/mine", "module": "M_INVITE", "perm": "CUSTOMER", "note": "我的邀请码" },
     { "id": "I3", "method": "GET", "path": "/api/mini/invitation/records", "module": "M_INVITE", "perm": "CUSTOMER", "note": "邀请记录" },
@@ -91,7 +91,7 @@
     { "id": "T_SCREEN", "name": "t_client_screening", "module": "M_MATCH", "fields": "report_no, total_result, grade" },
     { "id": "T_SP", "name": "t_screening_product", "module": "M_PRODUCTS", "fields": "report_no, product_code, hit_result, match_score(B1落地)" },
     { "id": "T_ALLOC", "name": "t_client_allocation_approval", "module": "M_ALLOC", "fields": "approval_no, client_code, applicant_staff_code, approve_status, pending_key, apply_source" },
-    { "id": "T_PA", "name": "t_product_approval", "module": "M_CHANPROD", "fields": "apply_type CREATE/DELETE, approve_status DRAFT/PENDING/OK/REJECTED/PENDING_DELETE(C9复用不新增表)" },
+    { "id": "T_PA", "name": "t_product_approval", "module": "M_CHANPROD", "fields": "apply_type CREATE/DELETE, approve_status DRAFT/PENDING/APPROVED/REJECTED/PENDING_DELETE；兼容历史OK(C9复用不新增表)" },
     { "id": "T_LEAD", "name": "t_lead", "module": "M_LEAD", "fields": "recorder_staff_code=渠道稳定userNo；渠道初始PENDING_APPROVAL，终审通过NEW且owner_staff_code=NULL进入公海" },
     { "id": "T_STAFF", "name": "t_staff", "module": "M_REPORT", "fields": "staff_code, staff_name(B4 staffName来源)" },
     { "id": "T_BP", "name": "t_bank_product", "module": "M_PRODUCTS", "fields": "product_code, product_name, bank_name" },
@@ -108,10 +108,11 @@
     { "id": "SM_PRODUCT", "name": "渠道产品状态机(C9)", "transitions": [
         { "from": "DRAFT", "to": "PENDING", "action": "submit" },
         { "from": "PENDING", "to": "DRAFT", "action": "revoke(即时)" },
-        { "from": "PENDING", "to": "OK", "action": "运营终审通过" },
-        { "from": "OK", "to": "PENDING_DELETE", "action": "delete-apply" },
-        { "from": "PENDING_DELETE", "to": "OK", "action": "audit(reject)/delete-cancel" },
-        { "from": "PENDING_DELETE", "to": "DELETED", "action": "audit(approve)物理删除+审计" }
+        { "from": "PENDING", "to": "APPROVED", "action": "老板/超级管理员终审通过，并幂等激活合作库" },
+        { "from": "APPROVED", "to": "PENDING_DELETE", "action": "delete-apply" },
+        { "from": "PENDING_DELETE", "to": "APPROVED", "action": "delete-cancel" },
+        { "from": "PENDING_DELETE", "to": "REJECTED", "action": "audit(reject)，产品仍上架" },
+        { "from": "PENDING_DELETE", "to": "OFFLINE", "action": "audit(approve)，合作库下架并保留产品/审批记录" }
     ] },
     { "id": "SM_ALLOC", "name": "客户归属流转(C2/C19)", "transitions": [
         { "from": "NONE", "to": "UNASSIGNED_POOL", "action": "微信客户注册且owner_staff_code为空" },

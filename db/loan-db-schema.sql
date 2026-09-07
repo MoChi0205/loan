@@ -198,7 +198,6 @@ CREATE TABLE `t_bank_product` (
 DROP TABLE IF EXISTS `t_partner_product`;
 CREATE TABLE `t_partner_product` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `bank_product_id` bigint NOT NULL COMMENT '银行产品ID',
   `bank_product_code` varchar(64) NOT NULL COMMENT '银行产品业务编码(红线#3业务唯一ID,PartnerProduct实体查询键;D28补录)',
   `cooperate_until` datetime NOT NULL COMMENT '合作库有效期(到期自动下架,历史匹配报告与审计永久保留)',
   `status` varchar(16) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态(ACTIVE上架/EXPIRED到期/OFFLINE手动下架)',
@@ -207,7 +206,6 @@ CREATE TABLE `t_partner_product` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_bank_product_id` (`bank_product_id`),
   UNIQUE KEY `uk_bank_product_code` (`bank_product_code`),
   KEY `idx_status_until` (`status`,`cooperate_until`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='合作库上架(对客可见权在我司;T-30/T-7两次到期提醒续签)';
@@ -544,7 +542,7 @@ CREATE TABLE `t_client_recycle_config` (
 DROP TABLE IF EXISTS `t_personal_profile`;
 CREATE TABLE `t_personal_profile` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `client_profile_id` bigint NOT NULL COMMENT '客户档案ID(1:1)',
+  `client_profile_code` varchar(64) NOT NULL COMMENT '客户编码(业务ID:client+32位随机,1:1)',
   `real_name` varchar(64) NOT NULL COMMENT '姓名',
   `id_card_no` varchar(256) DEFAULT NULL COMMENT '身份证号(AES加密)',
   `id_card_hash` varchar(64) DEFAULT NULL COMMENT '身份证SHA-256哈希',
@@ -560,14 +558,14 @@ CREATE TABLE `t_personal_profile` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_client_profile_id` (`client_profile_id`),
+  UNIQUE KEY `uk_client_profile_code` (`client_profile_code`),
   KEY `idx_id_card_hash` (`id_card_hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='个人客户档案(1:1扩展)';
 
 DROP TABLE IF EXISTS `t_personal_auth`;
 CREATE TABLE `t_personal_auth` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `client_profile_id` bigint NOT NULL COMMENT '客户档案ID',
+  `client_profile_code` varchar(64) NOT NULL COMMENT '客户编码(业务ID:client+32位随机)',
   `auth_type` varchar(32) NOT NULL COMMENT '认证类型(ID_CARD_OCR身份证OCR/FACE_LIVENESS人脸活体/PHONE_THREE_ELEMENT手机三要素)',
   `auth_status` varchar(16) NOT NULL COMMENT '认证状态(PENDING/SUCCESS/FAIL)',
   `fail_reason` varchar(255) DEFAULT NULL COMMENT '失败原因',
@@ -575,25 +573,25 @@ CREATE TABLE `t_personal_auth` (
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人姓名',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
-  KEY `idx_client_type` (`client_profile_id`,`auth_type`)
+  KEY `idx_client_type` (`client_profile_code`,`auth_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='个人认证记录(OCR+人脸活体+三要素,全过才认证)';
 
 DROP TABLE IF EXISTS `t_client_submission`;
 CREATE TABLE `t_client_submission` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `submission_no` varchar(64) NOT NULL COMMENT '提交单号(业务ID:submit+32位随机)',
-  `client_profile_id` bigint NOT NULL COMMENT '客户档案ID',
+  `client_profile_code` varchar(64) NOT NULL COMMENT '客户编码(业务ID:client+32位随机)',
   `customer_group` varchar(16) NOT NULL COMMENT '客群',
   `data_json` json NOT NULL COMMENT '提交资料结构化JSON',
   `client_submit_id` varchar(64) NOT NULL COMMENT '客户端幂等键(防重复提交)',
-  `match_trace_id` bigint DEFAULT NULL COMMENT '关联匹配审计ID',
+  `match_trace_no` varchar(64) DEFAULT NULL COMMENT '关联匹配审计链路UUID(业务编码)',
   `status` varchar(16) NOT NULL DEFAULT 'SUBMITTED' COMMENT '状态(SUBMITTED已提交/MATCHING匹配中/MATCHED已匹配)',
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人姓名',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_submission_no` (`submission_no`),
   UNIQUE KEY `uk_client_submit_id` (`client_submit_id`),
-  KEY `idx_client_status` (`client_profile_id`,`status`)
+  KEY `idx_client_status` (`client_profile_code`,`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户资料提交(幂等防重)';
 
 -- ============================================================
@@ -620,8 +618,8 @@ CREATE TABLE `t_extract_field_def` (
 DROP TABLE IF EXISTS `t_client_business_fact`;
 CREATE TABLE `t_client_business_fact` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `client_profile_id` bigint NOT NULL COMMENT '客户档案ID',
-  `submission_id` bigint NOT NULL COMMENT '提交单ID',
+  `client_profile_code` varchar(64) DEFAULT NULL COMMENT '客户业务编码(影子调试为空)',
+  `submission_no` varchar(64) DEFAULT NULL COMMENT '提交单业务编号(影子调试为空)',
   `field_code` varchar(64) NOT NULL COMMENT '字段编码',
   `field_value` varchar(512) DEFAULT NULL COMMENT '字段值',
   `field_type` varchar(16) NOT NULL DEFAULT 'STRING' COMMENT '字段类型',
@@ -718,7 +716,8 @@ CREATE TABLE `t_match_trace` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_trace_uuid` (`trace_uuid`),
-  KEY `idx_client` (`client_profile_id`),
+  KEY `idx_client` (`client_profile_code`),
+  KEY `idx_submission_no` (`submission_no`),
   KEY `idx_executed` (`executed_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='匹配审计主表(全链路明细含命中产品——仅管理端可见)';
 
@@ -745,7 +744,6 @@ DROP TABLE IF EXISTS `t_screening_product`;
 CREATE TABLE `t_screening_product` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `report_no` varchar(64) NOT NULL COMMENT '报告编号(业务ID:report+32位随机)',
-  `bank_product_id` bigint NOT NULL COMMENT '银行产品ID(t_bank_product)',
   `product_code` varchar(64) NOT NULL COMMENT '产品编码(内部代号化)',
   `hit_result` varchar(24) NOT NULL COMMENT '命中结果(PASS/CONDITION/REJECT)',
   `match_score` int NOT NULL DEFAULT '0' COMMENT '匹配度0-100(落库时按模块命中率计算)',
@@ -808,14 +806,14 @@ DROP TABLE IF EXISTS `t_product_approval`;
 CREATE TABLE `t_product_approval` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `approval_no` varchar(64) NOT NULL COMMENT '审核工单号(业务ID:prdapr+32位随机)',
-  `bank_product_id` bigint NOT NULL COMMENT '银行产品ID',
+  `bank_product_code` varchar(64) NOT NULL COMMENT '银行产品编码(业务编码)',
   `channel_user_id` bigint NOT NULL COMMENT '提交渠道账号ID',
-  `apply_type` varchar(16) NOT NULL COMMENT '申请类型(CREATE新建/UPDATE变更,变更生成草稿副本前后快照)',
+  `apply_type` varchar(16) NOT NULL COMMENT '申请类型(CREATE新建/DELETE删除)',
   `before_snapshot_json` json DEFAULT NULL COMMENT '变更前快照',
   `after_snapshot_json` json DEFAULT NULL COMMENT '变更后快照(全程可追溯)',
   `duplicate_flag` tinyint NOT NULL DEFAULT '0' COMMENT '重复产品标记(同渠道同名/同额度区间自动比对标红)',
-  `approve_status` varchar(16) NOT NULL DEFAULT 'PENDING' COMMENT '审核状态(PENDING待审核/APPROVED通过/REJECTED驳回)',
-  `approver_staff_id` bigint DEFAULT NULL COMMENT '审核人(走部门审核人配置t_dept_approver,未配置默认老板)',
+  `approve_status` varchar(16) NOT NULL DEFAULT 'DRAFT' COMMENT '审核状态(DRAFT草稿/PENDING待审核/APPROVED通过/REJECTED驳回/PENDING_DELETE待删除)',
+  `approver_staff_code` varchar(32) DEFAULT NULL COMMENT '审核人员工工号(业务编码)',
   `approve_opinion` varchar(500) DEFAULT NULL COMMENT '审核意见(驳回必填,通过选填)',
   `timeout_at` datetime NOT NULL COMMENT '审核时效(48小时可配,超时仪表盘+消息提醒老板)',
   `approved_at` datetime DEFAULT NULL COMMENT '审核完成时间',
@@ -825,9 +823,10 @@ CREATE TABLE `t_product_approval` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_approval_no` (`approval_no`),
+  KEY `idx_product_status` (`bank_product_code`,`approve_status`),
   KEY `idx_status_timeout` (`approve_status`,`timeout_at`),
   KEY `idx_channel` (`channel_user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='产品审核工单(新建与变更都走审核;通过入全量库,上架合作库另二次操作)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='渠道产品审批工单(录入与删除均走审批;通过后同步合作库)';
 
 DROP TABLE IF EXISTS `t_bank_contact`;
 CREATE TABLE `t_bank_contact` (
@@ -884,8 +883,9 @@ CREATE TABLE `t_service_order` (
 DROP TABLE IF EXISTS `t_service_attachment`;
 CREATE TABLE `t_service_attachment` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `order_id` bigint NOT NULL COMMENT '工单ID(上传动作绑工单留痕)',
-  `client_profile_id` bigint NOT NULL COMMENT '客户ID(同客户跨工单一键引用复用)',
+  `order_no` varchar(64) DEFAULT NULL COMMENT '工单号(业务ID:order+32位随机)',
+  `client_profile_code` varchar(64) DEFAULT NULL COMMENT '客户编码(业务ID:client+32位随机)',
+  `report_no` varchar(64) DEFAULT NULL COMMENT '关联初筛报告编号(业务ID:report+32位随机)',
   `attachment_type` varchar(32) NOT NULL COMMENT '资料类型(ID_CARD身份证/BUSINESS_LICENSE营业执照/FINANCIAL_STATEMENT财报/CONTRACT合同/DUE_DILIGENCE尽调材料/OTHER其他)',
   `file_key` varchar(255) NOT NULL COMMENT '文件key(阿里云OSS,复用tse OssStorageService;本地磁盘为开发模式)',
   `file_name` varchar(255) NOT NULL COMMENT '原始文件名',
@@ -898,8 +898,9 @@ CREATE TABLE `t_service_attachment` (
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人姓名',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
-  KEY `idx_order` (`order_id`),
-  KEY `idx_client_type` (`client_profile_id`,`attachment_type`),
+  KEY `idx_order` (`order_no`),
+  KEY `idx_client_type` (`client_profile_code`,`attachment_type`),
+  KEY `idx_report_no` (`report_no`),
   KEY `idx_upload_staff` (`upload_staff_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='服务资料库(查看/下载统一动态水印,原文件永不出库)';
 
@@ -1356,7 +1357,7 @@ DROP TABLE IF EXISTS `t_ocr_record`;
 CREATE TABLE `t_ocr_record` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `biz_scene` varchar(32) NOT NULL COMMENT '场景(CLIENT_AUTH客户认证/CLIENT_SUBMIT资料提交/CHANNEL_PRODUCT渠道产品)',
-  `biz_id` bigint DEFAULT NULL COMMENT '关联业务对象ID(客户档案ID/提交单ID/银行产品ID)',
+  `biz_code` varchar(64) DEFAULT NULL COMMENT '关联业务编码(客户/提交单/产品/上传文件业务键)',
   `file_key` varchar(255) NOT NULL COMMENT '原始文件key(阿里云OSS,复用tse OssStorageService)',
   `ocr_type` varchar(32) NOT NULL COMMENT '识别类型(provider名:mock默认未激活/vlm大模型视觉抽取)',
   `tencent_action` varchar(64) DEFAULT NULL COMMENT '腾讯云OCR接口名(BizLicenseOCR/VatInvoiceOCR等)',
@@ -1371,7 +1372,7 @@ CREATE TABLE `t_ocr_record` (
   `review_status` varchar(32) DEFAULT NULL COMMENT '复核状态(PENDING_REVIEW待复核/APPROVED已通过/REJECTED已驳回)',
   `visible_flag` tinyint(1) DEFAULT 0 COMMENT '客户可见标志(0不可见/1可见，审批通过后置1)',
   PRIMARY KEY (`id`),
-  KEY `idx_scene_biz` (`biz_scene`,`biz_id`),
+  KEY `idx_scene_biz` (`biz_scene`,`biz_code`),
   KEY `idx_file_key` (`file_key`),
   KEY `idx_operator` (`operator_type`,`operator_id`),
   KEY `idx_ocr_review_status` (`review_status`)
@@ -1381,7 +1382,7 @@ DROP TABLE IF EXISTS `t_material_review`;
 CREATE TABLE `t_material_review` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `review_no` varchar(64) NOT NULL COMMENT '复核单号(业务唯一ID: matrev + 32位随机)',
-  `ocr_record_id` bigint DEFAULT NULL COMMENT '关联OCR记录主键(t_ocr_record.id)',
+  `ocr_file_key` varchar(255) DEFAULT NULL COMMENT '关联OCR文件业务键(t_ocr_record.file_key)',
   `biz_type` varchar(32) DEFAULT NULL COMMENT '资料类型(ID_CARD/BUSINESS_LICENSE/FINANCIAL_STATEMENT/CONTRACT/DUE_DILIGENCE/OTHER)',
   `client_profile_code` varchar(64) DEFAULT NULL COMMENT '客户编码(业务ID)',
   `report_no` varchar(64) DEFAULT NULL COMMENT '关联报告编号(诊断材料回灌用)',
@@ -1398,6 +1399,7 @@ CREATE TABLE `t_material_review` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_review_no` (`review_no`),
   KEY `idx_review_status` (`review_status`),
+  KEY `idx_review_ocr_file` (`ocr_file_key`),
   KEY `idx_review_client` (`client_profile_code`),
   KEY `idx_review_report` (`report_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='材料复核审批单(上传识别结果门控，审批通过才回灌客数据)';
@@ -1534,6 +1536,7 @@ CREATE TABLE `t_notification` (
   `read_at` datetime DEFAULT NULL COMMENT '阅读时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_notification_id` (`notification_id`),
+  UNIQUE KEY `uk_notify_biz_once` (`user_no`,`type`,`related_id`),
   KEY `idx_user_read` (`user_no`,`read_status`),
   KEY `idx_type_related` (`type`,`related_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='站内消息通知';

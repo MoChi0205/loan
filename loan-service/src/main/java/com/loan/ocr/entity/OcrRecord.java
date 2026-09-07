@@ -26,9 +26,6 @@ public class OcrRecord implements Serializable {
     /** 场景（CLIENT_AUTH/CLIENT_SUBMIT/CHANNEL_PRODUCT） */
     private String bizScene;
 
-    /** 关联业务对象 ID */
-    private Long bizId;
-
     /** 关联业务编码（业务ID：reportNo/clientCode/productCode；替代 biz_id 物理主键查询，红线#3） */
     private String bizCode;
 

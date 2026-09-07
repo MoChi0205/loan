@@ -4,6 +4,7 @@ import com.loan.common.Result;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.mini.service.MiniProductService;
+import com.loan.channel.dto.ChannelProductReq;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,7 +28,7 @@ public class ChannelProductController {
     /** 查询当前渠道账号录入的全部产品申请。 */
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> list(@CurrentUser LoanUser user) {
-        return Result.ok(miniProductService.myProducts(user.getUserId()));
+        return Result.ok(miniProductService.myProducts(user));
     }
 
     /** 查询本人产品申请详情。 */
@@ -39,7 +40,7 @@ public class ChannelProductController {
 
     /** 保存本人产品草稿；所属渠道由登录态决定。 */
     @PostMapping
-    public Result<Map<String, Object>> create(@RequestBody Map<String, Object> body,
+    public Result<Map<String, Object>> create(@RequestBody ChannelProductReq body,
                                               @CurrentUser LoanUser user) {
         return Result.ok(miniProductService.save(body, user));
     }
@@ -47,7 +48,7 @@ public class ChannelProductController {
     /** 编辑本人草稿或驳回后的产品。 */
     @PutMapping("/{approvalNo}")
     public Result<Map<String, Object>> update(@PathVariable String approvalNo,
-                                              @RequestBody Map<String, Object> body,
+                                              @RequestBody ChannelProductReq body,
                                               @CurrentUser LoanUser user) {
         return Result.ok(miniProductService.update(approvalNo, body, user));
     }

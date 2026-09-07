@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
@@ -41,6 +42,7 @@ public class NotificationService {
      * @param req 通知请求
      * @return 通知实体
      */
+    @Transactional(rollbackFor = Exception.class)
     public Notification send(NotificationReq req) {
         if (req == null || !StringUtils.hasText(req.getUserNo()) || !StringUtils.hasText(req.getTitle())) {
             throw new IllegalArgumentException("接收人与标题必填");
@@ -75,6 +77,51 @@ public class NotificationService {
                 .eq(Notification::getType, type)
                 .eq(Notification::getRelatedId, relatedId));
         return count != null && count > 0;
+    }
+
+    /**
+     * 指定接收人的同类型、同业务关联通知是否存在。
+     *
+     * @param userNo    接收人业务账号
+     * @param type      通知类型
+     * @param relatedId 关联业务编码
+     * @return true 已发送
+     */
+    public boolean exists(String userNo, String type, String relatedId) {
+        if (!StringUtils.hasText(userNo) || !StringUtils.hasText(type) || !StringUtils.hasText(relatedId)) {
+            return false;
+        }
+        Long count = notificationMapper.selectCount(new LambdaQueryWrapper<Notification>()
+                .eq(Notification::getUserNo, userNo)
+                .eq(Notification::getType, type)
+                .eq(Notification::getRelatedId, relatedId));
+        return count != null && count > 0;
+    }
+
+    /**
+     * 幂等发送同一业务通知。并发下依赖数据库唯一键
+     * {@code (user_no,type,related_id)} 收口，避免“先查后写”重复通知。
+     *
+     * @param req 通知请求
+     * @return true 本次新建；false 已存在
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean sendOnce(NotificationReq req) {
+        if (req == null || !StringUtils.hasText(req.getUserNo())
+                || !StringUtils.hasText(req.getType()) || !StringUtils.hasText(req.getRelatedId())) {
+            throw new IllegalArgumentException("幂等通知的接收人、类型与关联业务编码必填");
+        }
+        if (exists(req.getUserNo(), req.getType(), req.getRelatedId())) {
+            return false;
+        }
+        try {
+            send(req);
+            return true;
+        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            log.info("通知重复请求已幂等忽略: userNo={}, type={}, relatedId={}",
+                    req.getUserNo(), req.getType(), req.getRelatedId());
+            return false;
+        }
     }
 
     /**

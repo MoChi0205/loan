@@ -30,8 +30,8 @@ public class MaterialReview implements Serializable {
     /** 复核单号（业务唯一ID：matrev + 32 位随机） */
     private String reviewNo;
 
-    /** 关联 OCR 记录主键（t_ocr_record.id） */
-    private Long ocrRecordId;
+    /** 关联 OCR 文件业务键（t_ocr_record.file_key，禁止使用物理主键） */
+    private String ocrFileKey;
 
     /** 资料类型（ID_CARD / BUSINESS_LICENSE / FINANCIAL_STATEMENT / CONTRACT / DUE_DILIGENCE / OTHER） */
     private String bizType;

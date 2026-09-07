@@ -8,14 +8,14 @@
     </div>
 
     <el-tabs v-model="activeTab">
-      <el-tab-pane label="产品审核" name="product" />
+      <el-tab-pane v-if="canAuditChannelContent" label="产品审核" name="product" />
       <el-tab-pane label="附件下载审批" name="download" />
       <el-tab-pane v-if="canAuditAllocation" label="客户分配审批" name="allocation" />
       <el-tab-pane v-if="canAuditChannelContent" label="渠道线索审批" name="channelLead" />
     </el-tabs>
 
     <!-- ============ 产品审核 ============ -->
-    <div v-show="activeTab === 'product'" class="loan-card">
+    <div v-if="canAuditChannelContent" v-show="activeTab === 'product'" class="loan-card">
       <AppSearchBar :loading="loadingP" @search="searchP" @reset="resetP">
         <el-select v-model="queryP.status" placeholder="审核状态" clearable style="width: 140px">
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
@@ -32,7 +32,6 @@
         <el-table-column label="产品" min-width="170">
           <template #default="{ row }">
             <div class="cell-main">{{ row.bankProductName || '—' }}</div>
-            <div class="cell-sub mono">{{ row.bankProductCode }}</div>
           </template>
         </el-table-column>
         <el-table-column label="申请类型" width="100">
@@ -251,7 +250,7 @@ const userStore = useUserStore();
 const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.ALLOCATION_AUDIT));
 const canAuditChannelContent = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
 
-const activeTab = ref('product');
+const activeTab = ref(canAuditChannelContent.value ? 'product' : 'download');
 const loadedTabs = reactive({ product: false, download: false, allocation: false, channelLead: false });
 const statusText = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' };
 const statusTag = (s) => ({ PENDING: 'loan-tag-warning', APPROVED: 'loan-tag-success', REJECTED: 'loan-tag-danger' }[s] || 'loan-tag-muted');
@@ -363,7 +362,7 @@ async function onAudit() {
     const payload = { approve: auditForm.approve, opinion: auditForm.opinion.trim() || null };
     if (auditForm.kind === 'product') {
       await auditProductApproval(auditForm.approvalNo, payload);
-      ElMessage.success(auditForm.approve ? '已通过，产品入全量库' : '已驳回');
+      ElMessage.success(auditForm.approve ? '已通过，产品已进入全量库与合作库' : '已驳回');
       loadP();
     } else if (auditForm.kind === 'allocation') {
       await auditAllocationApproval(auditForm.approvalNo, payload);
@@ -465,6 +464,7 @@ async function onApply() {
 /** 页签首次激活时再取数，避免审批中心首屏并发三套分页。 */
 watch(activeTab, async (tab) => {
   if (loadedTabs[tab]) return;
+  if (tab === 'product' && !canAuditChannelContent.value) return;
   if (tab === 'allocation' && !canAuditAllocation.value) return;
   if (tab === 'channelLead' && !canAuditChannelContent.value) return;
   loadedTabs[tab] = true;

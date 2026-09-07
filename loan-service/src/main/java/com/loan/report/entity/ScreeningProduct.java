@@ -26,9 +26,6 @@ public class ScreeningProduct implements Serializable {
     /** 报告编号（业务唯一ID：report + 32 位随机） */
     private String reportNo;
 
-    /** 银行产品 ID（t_bank_product.id） */
-    private Long bankProductId;
-
     /** 产品编码（内部代号化） */
     private String productCode;
 

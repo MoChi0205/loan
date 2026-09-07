@@ -45,6 +45,9 @@ public class PersonalController {
         if (clientCode == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "请先登录");
         }
+        if (!LoanUser.TYPE_CUSTOMER.equals(user.getUserType())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅客户可进行身份认证");
+        }
         return Result.ok(personalProfileService.personalAuth(clientCode, req));
     }
 

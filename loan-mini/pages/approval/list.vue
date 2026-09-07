@@ -63,7 +63,7 @@ import {
 const segTabs = [
   { value: 'ALL', label: '全部' },
   { value: 'PRODUCT', label: '产品' },
-  { value: 'DOWNLOAD', label: '渠道产品' },
+  { value: 'DOWNLOAD', label: '资料下载' },
   { value: 'ALLOCATION', label: '分配' },
   { value: 'MATERIAL_REVIEW', label: '材料复核' },
 ];

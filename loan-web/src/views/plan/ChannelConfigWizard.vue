@@ -44,7 +44,7 @@
         <el-button size="small" @click="openImportDialog()">从其他渠道复制</el-button>
         <el-button size="small" @click="openTemplateImportDialog()">从模版导入</el-button>
       </div>
-      <el-table :data="strategies" v-loading="loading" stripe row-key="strategyCode">
+      <el-table :data="strategies" v-loading="loading" stripe row-key="strategyCode" style="height: calc(100vh - 320px); min-height: 360px">
         <el-table-column label="产品" min-width="160">
           <template #default="{ row }">{{ productName(row.bankProductCode) }}</template>
         </el-table-column>
@@ -61,7 +61,7 @@
             <span class="loan-tag" :class="row.status === 'ACTIVE' ? 'loan-tag-success' : 'loan-tag-muted'">{{ row.status === 'ACTIVE' ? '已上线' : '草稿' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="strategyActions(row)" />
           </template>

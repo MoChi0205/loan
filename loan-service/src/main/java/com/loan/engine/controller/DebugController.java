@@ -99,8 +99,8 @@ public class DebugController {
     private Long saveTrace(String traceUuid, String customerGroup, MatchResultVO vo, long durationMs) {
         MatchTrace trace = new MatchTrace();
         trace.setTraceUuid(traceUuid);
-        trace.setClientProfileId(0L);
-        trace.setSubmissionId(0L);
+        trace.setClientProfileCode(null);
+        trace.setSubmissionNo(null);
         trace.setCustomerGroup(customerGroup);
         trace.setTotalResult(resolveTotalResult(vo));
         trace.setHitCount(vo.getPassCount());

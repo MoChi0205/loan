@@ -58,8 +58,8 @@
         <router-link to="/product" class="panel-link">前往合作库 →</router-link>
       </h3>
       <div v-if="expiring.length" class="expire-list">
-        <div v-for="p in expiring" :key="p.bankProductCode" class="expire-item" :title="p.productName || p.bankProductCode">
-          <span class="expire-code mono">{{ p.bankProductCode }}</span>
+        <div v-for="p in expiring" :key="p.bankProductCode" class="expire-item" :title="p.productName || '未命名产品'">
+          <span class="expire-code">{{ p.productName || '未命名产品' }}</span>
           <span class="expire-until">{{ formatPartnerUntil(p.cooperateUntil) }}</span>
           <span class="expire-badge" :class="remainClass(p)">{{ remainText(p) }}</span>
         </div>

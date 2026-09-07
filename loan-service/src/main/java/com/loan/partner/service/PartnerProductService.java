@@ -1,13 +1,17 @@
 package com.loan.partner.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.dao.DuplicateKeyException;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
 import com.loan.partner.dto.PartnerProductSaveReq;
 import com.loan.partner.entity.PartnerProduct;
 import com.loan.partner.mapper.PartnerProductMapper;
+import com.loan.product.entity.BankProduct;
+import com.loan.product.mapper.BankProductMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +19,10 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Collections;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 合作库上架服务（P0-5）：CRUD + 续签 + 状态流转 + 到期 job 逻辑。
@@ -39,6 +47,7 @@ public class PartnerProductService {
     private static final long WARN_DAYS = 30;
 
     private final PartnerProductMapper partnerProductMapper;
+    private final BankProductMapper bankProductMapper;
 
     /**
      * 分页查询（管理端）。
@@ -48,14 +57,39 @@ public class PartnerProductService {
      * @param size   每页大小
      * @return 分页结果
      */
-    public PageResult<PartnerProduct> page(String status, int page, int size) {
+    public PageResult<PartnerProduct> page(String status, String keyword, int page, int size) {
         LambdaQueryWrapper<PartnerProduct> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(status)) {
             wrapper.eq(PartnerProduct::getStatus, status);
         }
+        if (StringUtils.hasText(keyword)) {
+            List<String> productCodes = bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
+                            .like(BankProduct::getProductName, keyword.trim()))
+                    .stream().map(BankProduct::getProductCode).collect(Collectors.toList());
+            wrapper.and(w -> w.like(PartnerProduct::getBankProductCode, keyword.trim())
+                    .func(x -> {
+                        if (!productCodes.isEmpty()) x.or().in(PartnerProduct::getBankProductCode, productCodes);
+                    }));
+        }
         wrapper.orderByDesc(PartnerProduct::getCreatedAt);
         Page<PartnerProduct> result = partnerProductMapper.selectPage(new Page<>(page, size), wrapper);
+        fillProductNames(result.getRecords());
         return PageResult.build(page, size, result.getTotal(), result.getRecords());
+    }
+
+    /** 一页合作库产品名一次批量装配，避免前端只能展示内部编码。 */
+    private void fillProductNames(List<PartnerProduct> partners) {
+        List<String> codes = partners == null ? Collections.emptyList() : partners.stream()
+                .map(PartnerProduct::getBankProductCode).filter(StringUtils::hasText)
+                .distinct().collect(Collectors.toList());
+        if (codes.isEmpty()) return;
+        Map<String, BankProduct> products = bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
+                        .in(BankProduct::getProductCode, codes)).stream()
+                .collect(Collectors.toMap(BankProduct::getProductCode, Function.identity(), (left, right) -> left));
+        partners.forEach(partner -> {
+            BankProduct product = products.get(partner.getBankProductCode());
+            partner.setProductName(product == null ? null : product.getProductName());
+        });
     }
 
     /**
@@ -126,6 +160,79 @@ public class PartnerProductService {
         product.setUpdatedBy(StringUtils.hasText(operator) ? operator : "system");
         product.setUpdatedAt(LocalDateTime.now());
         partnerProductMapper.updateById(product);
+    }
+
+    /**
+     * 产品删除审批通过后将合作库记录置为下架。
+     *
+     * <p>合作库承担历史与审计关联，不能物理删除；重复审批回放时条件更新天然幂等。
+     *
+     * @param bankProductCode 银行产品业务编码
+     * @param operator        操作人
+     * @return 实际更新行数
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public int offlineByApproval(String bankProductCode, String operator) {
+        if (!StringUtils.hasText(bankProductCode)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "银行产品业务编码必填");
+        }
+        String updatedBy = StringUtils.hasText(operator) ? operator : "system";
+        return partnerProductMapper.update(null, new LambdaUpdateWrapper<PartnerProduct>()
+                .eq(PartnerProduct::getBankProductCode, bankProductCode.trim())
+                .ne(PartnerProduct::getStatus, STATUS_OFFLINE)
+                .set(PartnerProduct::getStatus, STATUS_OFFLINE)
+                .set(PartnerProduct::getUpdatedBy, updatedBy)
+                .set(PartnerProduct::getUpdatedAt, LocalDateTime.now()));
+    }
+
+    /**
+     * 产品审批通过后上架或重新激活合作库记录。
+     *
+     * <p>业务编码唯一索引承担并发兜底；已存在记录采用条件更新，重复审批回放不会新增重复数据。
+     *
+     * @param bankProductCode 银行产品业务编码
+     * @param cooperateUntil  合作有效期
+     * @param operator        审批人
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void activateByApproval(String bankProductCode, LocalDateTime cooperateUntil, String operator) {
+        if (!StringUtils.hasText(bankProductCode)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "银行产品业务编码必填");
+        }
+        LocalDateTime finalUntil = cooperateUntil == null ? LocalDateTime.now().plusYears(1) : cooperateUntil;
+        if (!finalUntil.isAfter(LocalDateTime.now())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "合作有效期必须晚于当前时间");
+        }
+        String updatedBy = StringUtils.hasText(operator) ? operator : "system";
+        LocalDateTime now = LocalDateTime.now();
+        int updated = partnerProductMapper.update(null, new LambdaUpdateWrapper<PartnerProduct>()
+                .eq(PartnerProduct::getBankProductCode, bankProductCode.trim())
+                .set(PartnerProduct::getCooperateUntil, finalUntil)
+                .set(PartnerProduct::getStatus, STATUS_ACTIVE)
+                .set(PartnerProduct::getUpdatedBy, updatedBy)
+                .set(PartnerProduct::getUpdatedAt, now));
+        if (updated > 0) {
+            return;
+        }
+        PartnerProduct product = new PartnerProduct();
+        product.setBankProductCode(bankProductCode.trim());
+        product.setCooperateUntil(finalUntil);
+        product.setStatus(STATUS_ACTIVE);
+        product.setCreatedBy(updatedBy);
+        product.setUpdatedBy(updatedBy);
+        product.setCreatedAt(now);
+        product.setUpdatedAt(now);
+        try {
+            partnerProductMapper.insert(product);
+        } catch (DuplicateKeyException ex) {
+            // 并发审批时唯一索引只允许一个插入者，其余请求转为幂等更新。
+            partnerProductMapper.update(null, new LambdaUpdateWrapper<PartnerProduct>()
+                    .eq(PartnerProduct::getBankProductCode, bankProductCode.trim())
+                    .set(PartnerProduct::getCooperateUntil, finalUntil)
+                    .set(PartnerProduct::getStatus, STATUS_ACTIVE)
+                    .set(PartnerProduct::getUpdatedBy, updatedBy)
+                    .set(PartnerProduct::getUpdatedAt, LocalDateTime.now()));
+        }
     }
 
     /**

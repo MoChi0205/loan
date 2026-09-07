@@ -441,7 +441,7 @@
           ],
           "implemented": true,
           "status": "active",
-          "note": "权限真值在代码：`MiniRoleGuard.APPROVER_ROLES`（ALLOCATION）**不含 DEPT_MANAGER**；`APPROVAL_ROLES`（PRODUCT/DOWNLOAD）含 DEPT_MANAGER。`04-后端 API 契约.md` 第 90-91 行的相反描述已过时，**以代码 + D0-4 为准**。"
+          "note": "权限真值在代码：`MiniRoleGuard.APPROVER_ROLES`（ALLOCATION）**包含 DEPT_MANAGER，但仅限本人团队**；`APPROVAL_ROLES`（PRODUCT/DOWNLOAD）含 DEPT_MANAGER，渠道 PRODUCT 终审另由 `CHANNEL_FINAL_APPROVER_ROLES` 收口为 BOSS/SUPER_ADMIN/SUPER。历史 D0-4 已由 D39 覆盖，以代码与后端 API 契约为准。"
         }
       ]
     },

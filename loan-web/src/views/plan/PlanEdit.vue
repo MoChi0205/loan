@@ -60,12 +60,11 @@
             <span v-else>{{ row[col.key] }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click.stop="openPlanDialog(row)">编辑</el-button>
-            <el-button link type="primary" size="small" @click.stop="onCopyPlan(row)">复制</el-button>
-            <el-button link type="primary" size="small" @click.stop="onSaveAsTemplate(row)">另存为模板</el-button>
-            <el-button link type="danger" size="small" @click.stop="onDeletePlan(row)">删除</el-button>
+            <div @click.stop>
+              <AppTableActions :actions="planActions(row)" />
+            </div>
           </template>
         </el-table-column>
         <template #empty>
@@ -304,6 +303,7 @@ import AppDialog from '@/components/AppDialog.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import AppTableActions from '@/components/AppTableActions.vue';
 import { appConfirm } from '@/utils/confirm';
 import { formatDateTime } from '@/utils/format';
 import {
@@ -393,6 +393,16 @@ async function loadRulesByCG(customerGroup) {
 }
 
 const rowKey = (row) => row.planCode;
+
+/** 计划操作统一走公共组件，超过两个操作自动折叠，防止固定列拥挤。 */
+function planActions(row) {
+  return [
+    { key: 'edit', label: '编辑', onClick: () => openPlanDialog(row) },
+    { key: 'copy', label: '复制', onClick: () => onCopyPlan(row) },
+    { key: 'template', label: '另存为模板', onClick: () => onSaveAsTemplate(row) },
+    { key: 'delete', label: '删除', type: 'danger', onClick: () => onDeletePlan(row) },
+  ];
+}
 
 /** 点击行：选中计划并打开详情弹窗 */
 async function onRowClick(p) {

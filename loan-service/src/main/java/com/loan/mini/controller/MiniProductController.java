@@ -6,6 +6,8 @@ import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.mini.service.MiniProductService;
+import com.loan.mini.service.MiniRoleGuard;
+import com.loan.channel.dto.ChannelProductReq;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,7 +27,7 @@ import java.util.Map;
  * 录入后提交审批，可撤销审批；已上架产品可申请删除、撤销删除申请。
  *
  * <p><b>运营 / 超管侧</b>（{@code /api/mini/partner-product/delete/*}）：
- * 对待删除申请做终审，批准即从全量库移除，驳回则回到已上架。
+ * 对待删除申请做终审，批准后合作库置为下架并保留审批记录，驳回后仍可继续上架。
  * 两端合并在本 Controller 便于统一维护 C9 状态机。
  *
  * @author loan-platform
@@ -36,6 +38,7 @@ import java.util.Map;
 public class MiniProductController {
 
     private final MiniProductService miniProductService;
+    private final MiniRoleGuard miniRoleGuard;
 
     /* ==================== 渠道侧 ==================== */
 
@@ -48,18 +51,18 @@ public class MiniProductController {
     @GetMapping("/product/list")
     public Result<List<Map<String, Object>>> myProducts(@CurrentUser LoanUser user) {
         requireChannel(user);
-        return Result.ok(miniProductService.myProducts(user.getUserId()));
+        return Result.ok(miniProductService.myProducts(user));
     }
 
     /**
      * 保存产品（新建草稿，或编辑草稿 / 已驳回后重提）。
      *
-     * @param body 产品信息（bankProductCode 必填）
+     * @param body 产品业务信息（内部产品编码与所属银行由后端生成/推导）
      * @param user 当前渠道用户
      * @return { code, action: CREATED | UPDATED }
      */
     @PostMapping("/product")
-    public Result<Map<String, Object>> save(@RequestBody Map<String, Object> body,
+    public Result<Map<String, Object>> save(@RequestBody ChannelProductReq body,
                                             @CurrentUser LoanUser user) {
         requireChannel(user);
         return Result.ok(miniProductService.save(body, user));
@@ -69,7 +72,7 @@ public class MiniProductController {
      * 产品详情（编辑态回填，C9）。
      *
      * <p>按审批单号定位本渠道的申请，返回表单可回填字段：
-     * bankProductCode / cooperateUntil / amountMin / amountMax / requirement。
+     * 产品名称、客群、合作有效期、额度/利率/期限与进件要求；不返回物理主键。
      *
      * @param code 审批单号
      * @param user 当前渠道用户
@@ -84,8 +87,7 @@ public class MiniProductController {
     /**
      * 编辑产品（草稿 / 已驳回可编辑重提）。
      *
-     * <p><b>C9 语义：</b>按路径 code 定位审批单更新（编辑态编码不可变），
-     * 而非按 bankProductCode 重建草稿。
+     * <p><b>C9 语义：</b>按路径 code 定位审批单更新，内部产品编码不可由前端改写。
      *
      * @param code 审批单号
      * @param body 产品信息
@@ -94,7 +96,7 @@ public class MiniProductController {
      */
     @PutMapping("/product/{code}")
     public Result<Map<String, Object>> update(@PathVariable String code,
-                                              @RequestBody Map<String, Object> body,
+                                              @RequestBody ChannelProductReq body,
                                               @CurrentUser LoanUser user) {
         requireChannel(user);
         return Result.ok(miniProductService.update(code, body, user));
@@ -129,7 +131,7 @@ public class MiniProductController {
     }
 
     /**
-     * 申请删除（已上架 → 待删除），需我司运营 / 超管终审。
+     * 申请删除（已上架 → 待删除），需我司老板 / 超级管理员终审。
      *
      * @param code 审批单号
      * @param body 删除原因（reason）
@@ -160,7 +162,7 @@ public class MiniProductController {
         return Result.ok(null);
     }
 
-    /* ==================== 运营 / 超管侧：删除终审（C9 闭环） ==================== */
+    /* ==================== 老板 / 超级管理员侧：删除终审（C9 闭环） ==================== */
 
     /**
      * 待删除审批列表（运营 / 超管视角）。
@@ -170,12 +172,12 @@ public class MiniProductController {
      */
     @GetMapping("/partner-product/delete/pending")
     public Result<List<Map<String, Object>>> pendingDelete(@CurrentUser LoanUser user) {
-        requireStaff(user);
+        miniRoleGuard.requireChannelFinalApprover(user);
         return Result.ok(miniProductService.pendingDeleteList());
     }
 
     /**
-     * 删除审批终审（批准 → 从全量库移除；驳回 → 回到已上架）。
+     * 删除审批终审（批准 → 合作库下架并保留审计；驳回 → 继续上架）。
      *
      * @param approvalNo 审批单号
      * @param body       { approve: boolean, opinion: string }
@@ -186,7 +188,7 @@ public class MiniProductController {
     public Result<Void> auditDelete(@PathVariable String approvalNo,
                                     @RequestBody Map<String, Object> body,
                                     @CurrentUser LoanUser user) {
-        requireStaff(user);
+        miniRoleGuard.requireChannelFinalApprover(user);
         boolean approve = body != null && Boolean.parseBoolean(String.valueOf(body.get("approve")));
         String opinion = body == null || body.get("opinion") == null ? "" : String.valueOf(body.get("opinion"));
         miniProductService.auditDelete(approvalNo, approve, opinion, user.getUserNo());
@@ -205,13 +207,4 @@ public class MiniProductController {
         }
     }
 
-    /** 员工：可做删除终审 */
-    private void requireStaff(LoanUser user) {
-        if (user == null || user.getUserNo() == null) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "请先登录");
-        }
-        if (!LoanUser.TYPE_STAFF.equals(user.getUserType())) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "仅运营 / 超级管理员可做删除终审");
-        }
-    }
 }

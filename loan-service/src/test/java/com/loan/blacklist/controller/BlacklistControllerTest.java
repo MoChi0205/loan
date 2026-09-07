@@ -96,4 +96,30 @@ class BlacklistControllerTest {
             UserContext.clear();
         }
     }
+
+    @Test
+    @DisplayName("POST /api/admin/blacklist/release 缺少标识返回参数错误而非 500")
+    void post_api_admin_blacklist_release_missing_id_returns_param_error() throws Exception {
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(post("/api/admin/blacklist/release").content("{}").contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1001));
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("POST /api/admin/blacklist 空请求体返回参数错误")
+    void post_api_admin_blacklist_add_null_body_returns_param_error() throws Exception {
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(post("/api/admin/blacklist").content("null").contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(1001));
+        } finally {
+            UserContext.clear();
+        }
+    }
 }

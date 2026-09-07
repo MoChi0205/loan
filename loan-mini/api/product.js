@@ -7,13 +7,13 @@
  * - PUT   /api/mini/product/{code}            编辑（DRAFT / REJECTED 可编辑重提）
  * - POST  /api/mini/product/{code}/submit     提交审批（DRAFT → PENDING）
  * - POST  /api/mini/product/{code}/revoke     撤销审批（PENDING → DRAFT，无需审批）
- * - POST  /api/mini/product/{code}/delete-apply   申请删除（OK → PENDING_DELETE，需我司终审）
- * - POST  /api/mini/product/{code}/delete-cancel  撤销删除（PENDING_DELETE → OK）
+ * - POST  /api/mini/product/{code}/delete-apply   申请删除（APPROVED → PENDING_DELETE，需我司终审）
+ * - POST  /api/mini/product/{code}/delete-cancel  撤销删除（PENDING_DELETE → APPROVED）
  *
  * 状态机：
- *   DRAFT ─submit→ PENDING ─通过→ OK ─delete-apply→ PENDING_DELETE ─通过→ DELETED(物理移除+留痕)
+ *   DRAFT ─submit→ PENDING ─通过→ APPROVED ─delete-apply→ PENDING_DELETE ─通过→ OFFLINE(保留审批留痕)
  *     ↑              │                                    │
- *     └──── revoke ──┘                        delete-cancel┘（或驳回 → OK）
+ *     └──── revoke ──┘                        delete-cancel┘（驳回后仍保持上架）
  */
 import { requestGet, requestPost, requestPut } from './request';
 
@@ -21,7 +21,7 @@ import { requestGet, requestPost, requestPut } from './request';
 export const PRODUCT_STATUS = {
   DRAFT: 'DRAFT',
   PENDING: 'PENDING',
-  OK: 'OK',
+  APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   PENDING_DELETE: 'PENDING_DELETE',
 };
@@ -30,7 +30,7 @@ export const PRODUCT_STATUS = {
  * 我的产品列表（渠道仅见本行录入产品）。
  *
  * @returns {Promise<Array<{
- *   code, bankProductCode, productName, bankName, amountRange, rate,
+ *   code, productName, bankName, amountRange, rate,
  *   status, rejectReason, cooperateUntil, createdAt
  * }>>}
  */
@@ -42,7 +42,7 @@ export function myProducts() {
  * 产品详情（编辑回填用）。
  *
  * @param {string} code 审批单号
- * @returns {Promise<{code:string, bankProductCode:string, cooperateUntil?:string, amountMin?:string, amountMax?:string, requirement?:any}>}
+ * @returns {Promise<{code:string, productName:string, customerGroup:string, cooperateUntil?:string, amountMin?:number, amountMax?:number, bizTermsJson?:string}>}
  */
 export function getProductDetail(code) {
   return requestGet(`/api/mini/product/${code}`);
@@ -52,10 +52,12 @@ export function getProductDetail(code) {
  * 录入产品（保存为草稿）。
  *
  * @param {Object} payload
- * @param {string} payload.bankProductCode 银行产品编码
+ * @param {string} payload.productName 产品名称
+ * @param {'ENTERPRISE'|'PERSONAL'} payload.customerGroup 适用客群
  * @param {string} [payload.cooperateUntil] 合作有效期至
- * @param {string} [payload.amountRange] 额度范围，格式为“100-500万”
- * @param {Object} [payload.requirement]   进件要求（结构化，后端解析校验）
+ * @param {number} [payload.amountMin] 额度下限（元）
+ * @param {number} [payload.amountMax] 额度上限（元）
+ * @param {string} [payload.bizTermsJson] 进件要求结构化 JSON
  * @returns {Promise<{code:string}>}
  */
 export function createProduct(payload) {
@@ -66,7 +68,7 @@ export function createProduct(payload) {
  * 编辑产品（草稿 / 已驳回可编辑重提）。
  *
  * @param {string} code 产品编码
- * @param {Object} payload 同 createProduct；按现有后端契约以 amountRange 传递额度范围
+ * @param {Object} payload 同 createProduct；内部产品编码不向前端暴露或接收
  * @returns {Promise<Void>}
  */
 export function updateProduct(code, payload) {
@@ -74,7 +76,7 @@ export function updateProduct(code, payload) {
 }
 
 /**
- * 提交审批（草稿 → 待审批），走运营/超管终审。
+ * 提交审批（草稿 → 待审批），走平台终审。
  *
  * @param {string} code 产品编码
  * @returns {Promise<Void>}
@@ -94,8 +96,8 @@ export function revokeApproval(code) {
 }
 
 /**
- * 申请删除（已上架 → 待删除），需我司运营/超管终审，
- * 审批通过后从全量库物理删除（操作留痕至审计日志）。
+ * 申请删除（已上架 → 待删除），需我司老板/超管终审，
+ * 审批通过后合作库置为 OFFLINE，并永久保留审批记录。
  *
  * @param {string} code   产品编码
  * @param {string} reason 删除原因

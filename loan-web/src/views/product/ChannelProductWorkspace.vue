@@ -17,7 +17,7 @@
             <AppEmpty title="暂无产品" desc="录入第一项合作产品，保存草稿后提交平台审批" />
           </template>
           <el-table-column prop="productName" label="产品名称" min-width="180">
-            <template #default="{ row }">{{ row.productName || row.bankProductCode || '—' }}</template>
+            <template #default="{ row }">{{ row.productName || '—' }}</template>
           </el-table-column>
           <el-table-column prop="bankName" label="所属银行" min-width="150">
             <template #default="{ row }">{{ row.bankName || '本渠道所属银行' }}</template>
@@ -52,8 +52,14 @@
       @confirm="save"
     >
       <el-form ref="formRef" :model="dialog.form" :rules="rules" label-width="112px">
-        <el-form-item label="银行产品编码" prop="bankProductCode">
-          <el-input v-model="dialog.form.bankProductCode" :disabled="!!dialog.approvalNo" placeholder="请输入平台银行产品编码" />
+        <el-form-item label="产品名称" prop="productName">
+          <el-input v-model="dialog.form.productName" maxlength="128" show-word-limit placeholder="请输入对外产品名称" />
+        </el-form-item>
+        <el-form-item label="适用客群" prop="customerGroup">
+          <el-radio-group v-model="dialog.form.customerGroup">
+            <el-radio-button label="ENTERPRISE">企业客户</el-radio-button>
+            <el-radio-button label="PERSONAL">个人客户</el-radio-button>
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="合作有效期">
           <el-date-picker v-model="dialog.form.cooperateUntil" type="date" value-format="YYYY-MM-DD" placeholder="请选择有效期" style="width:100%" />
@@ -64,8 +70,28 @@
         <el-form-item label="额度上限(万)">
           <el-input-number v-model="dialog.form.amountMax" :min="0" :controls="false" style="width:100%" />
         </el-form-item>
-        <el-form-item label="进件要求" prop="requirementText">
-          <el-input v-model="dialog.form.requirementText" type="textarea" :rows="5" placeholder='请输入 JSON，例如 {"纳税要求":"10万元以上"}' />
+        <el-form-item label="利率区间(%)">
+          <div class="range-field">
+            <el-input-number v-model="dialog.form.rateMin" :min="0" :max="100" :precision="4" :controls="false" placeholder="下限" />
+            <span>至</span>
+            <el-input-number v-model="dialog.form.rateMax" :min="0" :max="100" :precision="4" :controls="false" placeholder="上限" />
+          </div>
+        </el-form-item>
+        <el-form-item label="期限区间(月)">
+          <div class="range-field">
+            <el-input-number v-model="dialog.form.termMin" :min="1" :controls="false" placeholder="下限" />
+            <span>至</span>
+            <el-input-number v-model="dialog.form.termMax" :min="1" :controls="false" placeholder="上限" />
+          </div>
+        </el-form-item>
+        <el-form-item label="纳税门槛(万)">
+          <el-input-number v-model="dialog.form.taxThreshold" :min="0" :controls="false" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="开票要求">
+          <el-input v-model="dialog.form.invoiceRequire" maxlength="255" placeholder="例如：近12个月开票额不低于100万" />
+        </el-form-item>
+        <el-form-item label="进件要求">
+          <el-input v-model="dialog.form.requirementText" type="textarea" :rows="4" maxlength="1000" show-word-limit placeholder="请用业务语言说明准入条件、担保方式和材料清单" />
         </el-form-item>
       </el-form>
     </AppDialog>
@@ -97,17 +123,19 @@ const loading = ref(false);
 const error = ref('');
 const rows = ref([]);
 const formRef = ref();
-const emptyForm = () => ({ bankProductCode: '', cooperateUntil: '', amountMin: null, amountMax: null, requirementText: '{}' });
+const emptyForm = () => ({
+  productName: '', customerGroup: 'ENTERPRISE', cooperateUntil: '',
+  amountMin: null, amountMax: null, rateMin: null, rateMax: null,
+  termMin: null, termMax: null, taxThreshold: null, invoiceRequire: '', requirementText: '',
+});
 const dialog = reactive({ visible: false, saving: false, approvalNo: '', form: emptyForm() });
 const rules = {
-  bankProductCode: [{ required: true, message: '请输入银行产品编码', trigger: 'blur' }],
-  requirementText: [{ validator: (_rule, value, callback) => {
-    try { JSON.parse(value || '{}'); callback(); } catch { callback(new Error('进件要求必须是合法 JSON')); }
-  }, trigger: 'blur' }],
+  productName: [{ required: true, message: '请输入产品名称', trigger: 'blur' }],
+  customerGroup: [{ required: true, message: '请选择适用客群', trigger: 'change' }],
 };
 
-const statusText = (status) => ({ DRAFT: '草稿', PENDING: '待审批', OK: '已上架', REJECTED: '已驳回', PENDING_DELETE: '待删除' }[status] || status || '—');
-const statusTone = (status) => ({ DRAFT: 'loan-tag-muted', PENDING: 'loan-tag-warning', OK: 'loan-tag-success', REJECTED: 'loan-tag-danger', PENDING_DELETE: 'loan-tag-danger' }[status] || 'loan-tag-muted');
+const statusText = (status) => ({ DRAFT: '草稿', PENDING: '待审批', APPROVED: '已上架', REJECTED: '已驳回', PENDING_DELETE: '待删除' }[status] || status || '—');
+const statusTone = (status) => ({ DRAFT: 'loan-tag-muted', PENDING: 'loan-tag-warning', APPROVED: 'loan-tag-success', REJECTED: 'loan-tag-danger', PENDING_DELETE: 'loan-tag-danger' }[status] || 'loan-tag-muted');
 
 async function load() {
   loading.value = true;
@@ -135,11 +163,15 @@ async function openEdit(row) {
     const data = res.data || {};
     dialog.approvalNo = row.code;
     dialog.form = {
-      bankProductCode: data.bankProductCode || '',
+      productName: data.productName || '',
+      customerGroup: data.customerGroup || 'ENTERPRISE',
       cooperateUntil: data.cooperateUntil || '',
-      amountMin: data.amountMin == null ? null : Number(data.amountMin),
-      amountMax: data.amountMax == null ? null : Number(data.amountMax),
-      requirementText: data.requirement == null ? '{}' : (typeof data.requirement === 'string' ? data.requirement : JSON.stringify(data.requirement, null, 2)),
+      amountMin: toWan(data.amountMin), amountMax: toWan(data.amountMax),
+      rateMin: numberOrNull(data.rateMin), rateMax: numberOrNull(data.rateMax),
+      termMin: numberOrNull(data.termMin), termMax: numberOrNull(data.termMax),
+      taxThreshold: toWan(data.taxThreshold),
+      invoiceRequire: data.invoiceRequire || '',
+      requirementText: requirementDescription(data.bizTermsJson),
     };
     dialog.visible = true;
   } catch (e) { /* 统一提示 */ }
@@ -151,10 +183,15 @@ async function save() {
   try {
     const f = dialog.form;
     const data = {
-      bankProductCode: f.bankProductCode.trim(),
+      productName: f.productName.trim(),
+      customerGroup: f.customerGroup,
       cooperateUntil: f.cooperateUntil || undefined,
-      amountRange: f.amountMin != null || f.amountMax != null ? `${f.amountMin ?? '?'}-${f.amountMax ?? '?'}万` : undefined,
-      requirement: JSON.parse(f.requirementText || '{}'),
+      amountMin: toYuan(f.amountMin), amountMax: toYuan(f.amountMax),
+      rateMin: toRate(f.rateMin), rateMax: toRate(f.rateMax),
+      termMin: f.termMin, termMax: f.termMax,
+      taxThreshold: toYuan(f.taxThreshold),
+      invoiceRequire: f.invoiceRequire.trim() || undefined,
+      bizTermsJson: JSON.stringify({ description: f.requirementText.trim() }),
     };
     if (dialog.approvalNo) await updateChannelProduct(dialog.approvalNo, data);
     else await createChannelProduct(data);
@@ -186,10 +223,24 @@ function rowActions(row) {
   ];
   if (row.status === 'PENDING') return [{ key: 'revoke', label: '撤销审批', onClick: () => act('revoke', row) }];
   if (row.status === 'REJECTED') return [{ key: 'edit', label: '编辑重提', type: 'primary', onClick: () => openEdit(row) }];
-  if (row.status === 'OK') return [{ key: 'delete', label: '申请删除', type: 'danger', onClick: () => act('delete', row) }];
+  if (row.status === 'APPROVED') return [{ key: 'delete', label: '申请删除', type: 'danger', onClick: () => act('delete', row) }];
   if (row.status === 'PENDING_DELETE') return [{ key: 'cancel', label: '撤销删除', onClick: () => act('cancelDelete', row) }];
   return [];
 }
 
 onMounted(load);
+
+const numberOrNull = (value) => value == null || value === '' ? null : Number(value);
+const toWan = (value) => value == null || value === '' ? null : Number(value) / 10000;
+const toYuan = (value) => value == null || value === '' ? null : Number(value) * 10000;
+const toRate = (value) => value == null || value === '' ? null : Number(value) / 100;
+function requirementDescription(value) {
+  if (!value) return '';
+  try { return JSON.parse(value)?.description || ''; } catch { return String(value); }
+}
 </script>
+
+<style scoped>
+.range-field { display: flex; align-items: center; gap: 10px; width: 100%; }
+.range-field .el-input-number { flex: 1; width: 0; }
+</style>

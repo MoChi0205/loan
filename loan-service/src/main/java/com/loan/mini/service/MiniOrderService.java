@@ -166,8 +166,8 @@ public class MiniOrderService {
     /**
      * 服务类型（前端列表标题用）：按关联产品与来源推导，缺省为「服务单」。
      *
-     * <p>TODO 接入 t_bank_product 按 bankProductCode 取真实产品分类
-     * （融资 / 资料下载 / 额度确认 / 投诉建议）。
+     * <p>服务类型以工单来源为真值；银行产品当前没有“服务分类”字段，不能通过产品编码臆测分类。
+     * 若后续扩展类型，应新增受控枚举字段并完成数据迁移后在此解析。
      */
     private String resolveServiceType(ServiceOrder o) {
         String source = o.getSource();

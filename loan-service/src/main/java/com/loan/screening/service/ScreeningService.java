@@ -110,15 +110,15 @@ public class ScreeningService {
                 .build();
 
         long start = System.currentTimeMillis();
-        // TODO(渠道V2): 渠道应从客户档案的邀请/渠道绑定关系推导（client → invitation → channel），
-        // 目前暂传 null 加载全渠道策略；待渠道绑定链路打通后改为传具体 channelCode
+        // 平台匹配默认比较全部可用渠道。分享邀请仅记录引荐关系，不能据此限制产品渠道；
+        // 如未来新增“客户主动指定渠道”的独立业务关系，再由专用策略解析器传入 channelCode。
         List<ProductPlan> productPlans = planLoaderService.loadProductPlans(null, group, applyCity);
         MatchResultVO vo = matchService.match(context, productPlans);
         long duration = System.currentTimeMillis() - start;
 
-        // 落匹配审计（trace + rule logs），回填实际的客户档案/提交单内部 ID
+        // 落匹配审计（trace + rule logs），跨表仅保存客户/提交单业务编码
         Long traceId = saveTrace(context.getTraceUuid(), group.getCode(), vo, duration,
-                client.getId(), submission == null ? null : submission.getId());
+                client.getClientCode(), submission == null ? null : submission.getSubmissionNo());
         saveRuleLogs(traceId, vo);
 
         // 生成初筛报告
@@ -155,15 +155,15 @@ public class ScreeningService {
     /**
      * 落匹配审计主表。
      *
-     * @param clientProfileId 客户档案内部 ID（替换原硬编码 0L）
-     * @param submissionId    提交单内部 ID（替换原硬编码 0L）
+     * @param clientProfileCode 客户业务编码
+     * @param submissionNo      提交单业务编号
      */
     private Long saveTrace(String traceUuid, String customerGroup, MatchResultVO vo, long durationMs,
-                           Long clientProfileId, Long submissionId) {
+                           String clientProfileCode, String submissionNo) {
         MatchTrace trace = new MatchTrace();
         trace.setTraceUuid(traceUuid);
-        trace.setClientProfileId(clientProfileId);
-        trace.setSubmissionId(submissionId);
+        trace.setClientProfileCode(clientProfileCode);
+        trace.setSubmissionNo(submissionNo);
         trace.setCustomerGroup(customerGroup);
         trace.setTotalResult(resolveTotalResult(vo));
         trace.setHitCount(vo.getPassCount());
@@ -192,7 +192,6 @@ public class ScreeningService {
         for (ProductMatchVO p : vo.getProducts()) {
             ScreeningProduct sp = new ScreeningProduct();
             sp.setReportNo(reportNo);
-            sp.setBankProductId(p.getProductId());
             sp.setProductCode(p.getProductCode());
             sp.setHitResult(p.getTotalResult());
             sp.setMatchScore(resolveMatchScore(p));

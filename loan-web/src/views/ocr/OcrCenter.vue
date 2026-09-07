@@ -68,7 +68,7 @@
         <h3 class="loan-card-title">识别结果</h3>
         <el-tag v-if="result.rulesMissing" type="warning" size="small">规则种子缺失（facts 可能为空）</el-tag>
         <el-tag v-else type="success" size="small">提取完成</el-tag>
-        <span v-if="result.ocrRecordId" class="ocr-record-id">记录 ID：{{ result.ocrRecordId }}</span>
+        <span v-if="result.ocrFileKey" class="ocr-record-id">识别记录已安全留存</span>
       </div>
 
       <el-table :data="factRows" v-loading="loading" stripe size="default">

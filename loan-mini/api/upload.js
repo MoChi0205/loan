@@ -18,7 +18,7 @@ const UPLOAD_URL = `${BASE_URL}/api/mini/upload`;
  *
  * 响应（uploadImage 已解包 Result.data）含 fileKey/fileName/fileSize/url，
  * 以及 OCR 回灌相关字段：ocrApplied(boolean) / pendingReview(boolean) / reviewNo(string) /
- * extractedFields(数组) / mergedCount(int) / ocrRecordId(long)。
+ * extractedFields(数组) / mergedCount(int) / ocrFileKey(string，业务键)。
  *
  * <p>业务规则（材料复核门控）：当大模型（VLM）识别到事实时，后端<b>不会立即回灌</b>客户数据，
  * 而是创建「材料复核」待审单（pendingReview=true, reviewNo 返回），事实进入待审态；
@@ -33,7 +33,7 @@ const UPLOAD_URL = `${BASE_URL}/api/mini/upload`;
  * @param {string} [opts.reportNo] 关联报告编号（诊断材料回灌用，T2）
  * @returns {Promise<{fileKey:string, fileName:string, fileSize:number, url:string,
  *          ocrApplied:boolean, pendingReview:boolean, reviewNo:string,
- *          extractedFields:Array, mergedCount:number, ocrRecordId:number}>}
+ *          extractedFields:Array, mergedCount:number, ocrFileKey:string}>}
  */
 export function uploadMaterial(filePath, { bizType, clientCode, reportNo } = {}) {
   const formData = {};

@@ -1,6 +1,8 @@
 package com.loan.partner.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
@@ -8,7 +10,9 @@ import com.loan.exception.BusinessException;
 import com.loan.partner.dto.PartnerProductSaveReq;
 import com.loan.partner.entity.PartnerProduct;
 import com.loan.partner.mapper.PartnerProductMapper;
+import com.loan.product.mapper.BankProductMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +21,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.dao.DuplicateKeyException;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -37,14 +43,22 @@ import static org.mockito.Mockito.*;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class PartnerProductServiceTest {
 
+    @BeforeAll
+    static void initTableInfo() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), "test"),
+                PartnerProduct.class);
+    }
+
     @Mock
     private PartnerProductMapper partnerProductMapper;
+    @Mock
+    private BankProductMapper bankProductMapper;
 
     private PartnerProductService service;
 
     @BeforeEach
     void setUp() {
-        service = new PartnerProductService(partnerProductMapper);
+        service = new PartnerProductService(partnerProductMapper, bankProductMapper);
     }
 
     // ---------- create ----------
@@ -163,6 +177,53 @@ class PartnerProductServiceTest {
         verify(partnerProductMapper, never()).updateById(any());
     }
 
+    @Test
+    @DisplayName("offlineByApproval：条件更新置 OFFLINE，重复回放由数据库状态条件幂等")
+    void offlineByApproval_isConditionalAndIdempotent() {
+        when(partnerProductMapper.update(isNull(), any())).thenReturn(1, 0);
+
+        assertEquals(1, service.offlineByApproval(" bp_x ", "boss001"));
+        assertEquals(0, service.offlineByApproval("bp_x", "boss001"));
+        verify(partnerProductMapper, times(2)).update(isNull(), any());
+        verify(partnerProductMapper, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("activateByApproval：已有合作库记录时条件更新并激活")
+    void activateByApproval_updatesExisting() {
+        when(partnerProductMapper.update(isNull(), any())).thenReturn(1);
+
+        service.activateByApproval("bp_x", LocalDateTime.now().plusDays(30), "boss001");
+
+        verify(partnerProductMapper).update(isNull(), any());
+        verify(partnerProductMapper, never()).insert(any());
+    }
+
+    @Test
+    @DisplayName("activateByApproval：首次通过新增合作库记录")
+    void activateByApproval_insertsNew() {
+        when(partnerProductMapper.update(isNull(), any())).thenReturn(0);
+        when(partnerProductMapper.insert(any())).thenReturn(1);
+
+        service.activateByApproval("bp_x", LocalDateTime.now().plusDays(30), "boss001");
+
+        ArgumentCaptor<PartnerProduct> cap = ArgumentCaptor.forClass(PartnerProduct.class);
+        verify(partnerProductMapper).insert(cap.capture());
+        assertEquals(PartnerProductService.STATUS_ACTIVE, cap.getValue().getStatus());
+        assertEquals("bp_x", cap.getValue().getBankProductCode());
+    }
+
+    @Test
+    @DisplayName("activateByApproval：并发插入唯一键冲突后转为幂等更新")
+    void activateByApproval_recoversFromConcurrentInsert() {
+        when(partnerProductMapper.update(isNull(), any())).thenReturn(0, 1);
+        when(partnerProductMapper.insert(any())).thenThrow(new DuplicateKeyException("duplicate"));
+
+        service.activateByApproval("bp_x", LocalDateTime.now().plusDays(30), "boss001");
+
+        verify(partnerProductMapper, times(2)).update(isNull(), any());
+    }
+
     // ---------- listActive / listExpiring ----------
 
     @Test
@@ -276,7 +337,7 @@ class PartnerProductServiceTest {
         pg.setTotal(1);
         when(partnerProductMapper.selectPage(any(), any())).thenReturn(pg);
 
-        PageResult<PartnerProduct> r = service.page(null, 1, 10);
+        PageResult<PartnerProduct> r = service.page(null, null, 1, 10);
         assertNotNull(r);
         verify(partnerProductMapper).selectPage(any(), any());
     }

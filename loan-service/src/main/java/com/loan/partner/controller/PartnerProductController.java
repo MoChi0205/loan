@@ -52,13 +52,14 @@ public class PartnerProductController {
     @GetMapping("/api/admin/partner-product/page")
     public Result<PageResult<PartnerProduct>> page(
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
         requireStaff(user);
         int p = PageParams.page(page);
         int s = PageParams.size(size);
-        return Result.ok(partnerProductService.page(status, p, s));
+        return Result.ok(partnerProductService.page(status, keyword, p, s));
     }
 
     /**

@@ -106,7 +106,8 @@ class MiniAuthControllerTest {
         try {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(post("/api/mini/auth/enterprise").content("{}").contentType(MediaType.APPLICATION_JSON))
-                .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(jsonPath("$.code").value(2001));
         } finally {
             UserContext.clear();
         }

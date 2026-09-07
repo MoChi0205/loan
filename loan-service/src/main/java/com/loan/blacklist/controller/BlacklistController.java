@@ -2,10 +2,12 @@ package com.loan.blacklist.controller;
 
 import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
+import com.loan.common.ResultCode;
 import com.loan.common.util.PageParams;
 import com.loan.blacklist.service.BlacklistService;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
+import com.loan.exception.BusinessException;
 import com.loan.log.annotation.OpLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.StringUtils;
 
 import java.util.Map;
 
@@ -54,13 +57,20 @@ public class BlacklistController {
      */
     @PostMapping
     @OpLog(bizType = "黑名单", action = "CREATE")
-    public Result<Void> add(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
-        blacklistService.add((String) body.get("dimension"),
-                (String) body.get("value"),
-                (String) body.get("reasonType"),
-                (String) body.get("reasonRemark"),
+    public Result<Void> add(@RequestBody(required = false) Map<String, Object> body, @CurrentUser LoanUser user) {
+        if (body == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "黑名单参数不能为空");
+        }
+        blacklistService.add(text(body.get("dimension")),
+                text(body.get("value")),
+                text(body.get("reasonType")),
+                text(body.get("reasonRemark")),
                 user == null ? "system" : user.getName());
         return Result.ok();
+    }
+
+    private String text(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     /**
@@ -72,8 +82,21 @@ public class BlacklistController {
      */
     @PostMapping("/release")
     @OpLog(bizType = "黑名单", action = "RELEASE")
-    public Result<Void> release(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
-        blacklistService.release(Long.valueOf(body.get("id").toString()),
+    public Result<Void> release(@RequestBody(required = false) Map<String, Object> body, @CurrentUser LoanUser user) {
+        Object rawId = body == null ? null : body.get("id");
+        if (rawId == null || !StringUtils.hasText(String.valueOf(rawId))) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "黑名单记录标识必填");
+        }
+        final long id;
+        try {
+            id = Long.parseLong(String.valueOf(rawId));
+        } catch (NumberFormatException ex) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "黑名单记录标识格式错误");
+        }
+        if (id <= 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "黑名单记录标识格式错误");
+        }
+        blacklistService.release(id,
                 user == null ? "system" : user.getUserNo());
         return Result.ok();
     }

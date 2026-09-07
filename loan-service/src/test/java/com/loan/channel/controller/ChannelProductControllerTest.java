@@ -9,6 +9,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,14 +39,14 @@ class ChannelProductControllerTest {
 
     @Test
     void listsOnlyCurrentChannelProducts() throws Exception {
-        when(productService.myProducts(2L)).thenReturn(Collections.emptyList());
+        when(productService.myProducts(any(LoanUser.class))).thenReturn(Collections.emptyList());
         try {
             com.loan.context.UserContext.setUser(channel);
             mvc.perform(get("/api/channel/product/list"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").isArray());
-            verify(productService).myProducts(2L);
+            verify(productService).myProducts(any(LoanUser.class));
         } finally {
             com.loan.context.UserContext.clear();
         }

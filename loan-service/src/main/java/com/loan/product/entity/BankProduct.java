@@ -36,6 +36,9 @@ public class BankProduct {
     /** 来源（CHANNEL_SELF/OURS） */
     private String source;
 
+    /** 渠道创建人账号 ID（仅内部数据范围校验，不对外展示） */
+    private Long channelUserId;
+
     /** 额度下限（元） */
     private BigDecimal amountMin;
 
@@ -53,6 +56,15 @@ public class BankProduct {
 
     /** 期限上限（月） */
     private Integer termMax;
+
+    /** 纳税门槛（元/年） */
+    private BigDecimal taxThreshold;
+
+    /** 开票要求 */
+    private String invoiceRequire;
+
+    /** 进件要求结构化 JSON */
+    private String bizTermsJson;
 
     /** 状态（DRAFT/PENDING/APPROVED/REJECTED/OFFLINE） */
     private String status;

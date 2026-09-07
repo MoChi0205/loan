@@ -12,7 +12,7 @@ import java.util.Map;
  * <ul>
  *   <li>{@code facts}：映射到诊断事实字段（annualTaxAmount / annualInvoiceAmount / foundYears / industry / entName / creditCode）；</li>
  *   <li>{@code extractedFields}：提取字段明细（响应用：fieldCode / fieldName / value / confidence）；</li>
- *   <li>{@code ocrRecordId}：落库的 t_ocr_record 主键；</li>
+ *   <li>{@code ocrFileKey}：落库 OCR 记录的业务关联键（上传文件业务编码）；不对外暴露物理主键；</li>
  *   <li>{@code rulesMissing}：是否缺失映射规则（true 时调用方应在报告标注「需补映射规则种子」）。</li>
  * </ul>
  *
@@ -28,8 +28,8 @@ public class OcrResult implements Serializable {
     /** 平均置信度（Mock 为 null） */
     private BigDecimal confidenceAvg;
 
-    /** 落库的 t_ocr_record 主键 */
-    private Long ocrRecordId;
+    /** OCR 记录业务关联键（att + 32 位随机文件业务编码） */
+    private String ocrFileKey;
 
     /** 提取字段明细（响应用） */
     private List<Map<String, Object>> extractedFields;
@@ -53,12 +53,12 @@ public class OcrResult implements Serializable {
         this.confidenceAvg = confidenceAvg;
     }
 
-    public Long getOcrRecordId() {
-        return ocrRecordId;
+    public String getOcrFileKey() {
+        return ocrFileKey;
     }
 
-    public void setOcrRecordId(Long ocrRecordId) {
-        this.ocrRecordId = ocrRecordId;
+    public void setOcrFileKey(String ocrFileKey) {
+        this.ocrFileKey = ocrFileKey;
     }
 
     public List<Map<String, Object>> getExtractedFields() {

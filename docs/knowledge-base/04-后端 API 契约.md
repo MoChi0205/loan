@@ -22,10 +22,10 @@
 | 接口 | 说明 | 权限 |
 |------|------|------|
 | `POST /api/mini/auth/login` | **实际路径**（微信登录，兼容 phone；历史文档写 wx-login 已过时） | 公开 |
-| `GET /api/mini/me` | 当前用户档案摘要（含 `roleInfo`、`ownerStaffName`、`referrerName`；顾问归属与分享引荐分开返回） | 已登录 |
+| `GET /api/mini/me` | 当前角色档案摘要：客户返回认证/顾问/引荐；渠道返回姓名/脱敏手机号/所属银行；员工返回姓名/部门/角色；均含 `roleInfo`，不主显物理 ID/内部工号 | 已登录 |
 | ~~`POST /api/mini/auth/login-bind`~~ ⚠️ 已废弃 | 合并进 `POST /api/mini/auth/login` 的 `inviteCode` 参数（2026-08-30 校正，旧方案文档仍写 login-bind 不实） | — |
 | `POST /api/mini/auth/enterprise` | 企业/个人认证（CUSTOMER） | 已登录(CUSTOMER) |
-| `POST /api/mini/auth/personal` | **个人实名认证**（Mock 三要素校验 + 落库留痕，`PersonalController`；未登录抛 `UNAUTHORIZED`） | 已登录 |
+| `POST /api/mini/auth/personal` | **个人实名认证**（Mock 三要素校验 + 落库留痕，`PersonalController`；未登录抛 `UNAUTHORIZED`） | 已登录(CUSTOMER) |
 | `GET /api/mini/wecom/qrcode` | 企微客服活码 URL | 公开 |
 
 ### 匹配（C15）
@@ -80,7 +80,7 @@
 | `GET /api/channel/lead/page` | 本人录入线索组合分页，不按归属顾问或审批状态隐式过滤；新增后立即可见，其他渠道不可见 | CHANNEL 本人 |
 | `GET /api/channel/product/list` | Web 查询本渠道账号录入的全部产品申请与审批进度 | CHANNEL 本人 |
 | `GET /api/channel/product/{approvalNo}` | Web 查询本人产品申请详情 | CHANNEL 本人 |
-| `POST /api/channel/product` / `PUT /api/channel/product/{approvalNo}` | Web 新增/编辑本人草稿或驳回产品 | CHANNEL 本人 |
+| `POST /api/channel/product` / `PUT /api/channel/product/{approvalNo}` | Web 新增/编辑本人草稿或驳回产品；前端只传业务字段，产品编码由后端生成、所属银行由登录态推导；金额单位元、利率存小数 | CHANNEL 本人 |
 | `POST /api/channel/product/{approvalNo}/submit\|revoke\|delete-apply\|delete-cancel` | Web 提交审批、撤销、申请删除或撤销删除 | CHANNEL 本人，按审批状态机校验 |
 | `GET /api/channel/client/page` | 本人录入并已转化客户分页，返回脱敏手机号与 `ownerStaffName` | CHANNEL 本人只读 |
 | `POST /api/channel/client/batch` | body `{codes:[clientCode...]}`；去空、去重、保持请求顺序，单次最多 100 条，越权/未命中项不返回 | CHANNEL 本人只读 |
@@ -97,15 +97,15 @@
 | `GET /api/mini/order/list` | 服务单列表（**C7 四维筛选**） | 角色二分：客户仅状态+时间 / 员工四维 |
 | `GET /api/mini/order/{orderNo}` | 工单详情 | **客户校验归属 / 员工全量** |
 | `GET /api/mini/product/list` | 我的产品 | CHANNEL 看自己的（后端 requireChannel，员工暂不可用） |
-| `POST /api/mini/product` | 录入产品（DRAFT） | **仅 CHANNEL**（后端 requireChannel；KB 旧文 CHANNEL/STAFF 不实） |
-| `GET /api/mini/product/{code}` | 产品详情（编辑回填） | 仅本人 |
-| `PUT /api/mini/product/{code}` | 编辑产品（按 code 定位审批单更新） | 仅本人 |
+| `POST /api/mini/product` | 录入产品（DRAFT）；产品编码后端生成、所属银行取登录渠道，金额单位元、利率存小数 | **仅 CHANNEL**（后端 requireChannel；KB 旧文 CHANNEL/STAFF 不实） |
+| `GET /api/mini/product/{code}` | 产品详情（编辑回填，不返回物理主键和内部产品编码） | 仅本人 |
+| `PUT /api/mini/product/{code}` | 编辑产品（按审批业务编码定位，只允许业务字段白名单） | 仅本人 |
 | `POST /api/mini/product/{code}/submit` | 提交审批 | 仅本人 |
 | `POST /api/mini/product/{code}/revoke` | 撤销审批 | 仅本人（PENDING 状态） |
-| `POST /api/mini/product/{code}/delete-apply` | 申请删除 | 仅本人（OK 状态） |
+| `POST /api/mini/product/{code}/delete-apply` | 申请删除 | 仅本人（APPROVED 状态；兼容历史 OK） |
 | `POST /api/mini/product/{code}/delete-cancel` | 撤销删除 | 仅本人（PENDING_DELETE） |
-| `GET /api/mini/partner-product/delete/pending` | **实际路径** 待删列表（历史文档写 /product/pending-delete 有误） | 仅运营/超管 |
-| `POST /api/mini/partner-product/delete/{approvalNo}/audit` | **实际路径** 终审删除（历史文档写 /product/{code}/audit-delete 有误） | 仅运营/超管 |
+| `GET /api/mini/partner-product/delete/pending` | **实际路径** 待删列表（批量装配产品名称，无逐行查询） | 仅老板/超管 |
+| `POST /api/mini/partner-product/delete/{approvalNo}/audit` | 终审删除；通过后合作库置 OFFLINE，审批记录保留；状态条件更新防并发重复处理 | 仅老板/超管 |
 | `GET /api/mini/partner-product/active` | 合作产品只读列表（ACTIVE 且未过期；**无角色守卫，仅校验登录态**） | 已登录 |
 
 ### Web 管理端分页扩展（2026-09-02）
@@ -136,7 +136,7 @@
 ### 材料上传（G3 · 2026-08-30 新增）
 | 接口 | 说明 | 权限 |
 |------|------|------|
-| `POST /api/mini/upload` | 上传经营/认证材料（`MultipartFile file` 必填；可选 `bizType` / `clientCode` / **`reportNo`（T2 新增，关联诊断材料回灌）**，由 `@CurrentUser LoanUser user` 取登录态）；落盘 `loan.upload.base-dir`（默认 `./uploads`），best-effort 写 `t_service_attachment` 元数据（失败仅 warn 不阻断）；返回 `LinkedHashMap{fileKey("att"+UUID前32), fileName, fileSize, url:"/api/mini/upload/{fileKey}"}` **+ 新增（向后兼容）`ocrApplied`(bool) / `extractedFields`(数组 `{fieldCode,fieldName,value,confidence}`) / `mergedCount`(int) / `ocrRecordId`(long)** | 已登录（CUSTOMER/STAFF/CHANNEL） |
+| `POST /api/mini/upload` | 上传经营/认证材料（`MultipartFile file` 必填；可选 `bizType` / `clientCode` / **`reportNo`（T2 新增，关联诊断材料回灌）**，由 `@CurrentUser LoanUser user` 取登录态）；落盘 `loan.upload.base-dir`（默认 `./uploads`），best-effort 写 `t_service_attachment` 元数据（失败仅 warn 不阻断）；返回 `LinkedHashMap{fileKey("att"+UUID前32), fileName, fileSize, url:"/api/mini/upload/{fileKey}"}` **+ `ocrApplied`(bool) / `extractedFields`(数组 `{fieldCode,fieldName,value,confidence}`) / `mergedCount`(int) / `ocrFileKey`(string业务键，不返回物理 OCR ID)** | 已登录（CUSTOMER/STAFF/CHANNEL） |
 | `GET /api/mini/upload/{fileKey}` | 按 fileKey 安全回传文件（inline 预览；`fileKey.matches("[a-zA-Z0-9]+")` 防目录穿越，`Files.list` 前缀匹配） | 已登录 |
 
 > 前端：`api/upload.js` 新增 `uploadMaterial(filePath,{bizType,clientCode})` → 走 `uploadImage()` 封装（H5/小程序统一）；`materialUrl(fileKey)` 拼预览地址。已接线：① `pages/match/match.vue` 材料上传 `bizType=m.key`、补充上传 `bizType=OTHER`；② `pages/report/detail.vue` 诊断补充材料 `bizType=FINANCIAL_STATEMENT` → 成功后 `loadDiagnosis(reportNo)` 刷新。业务 ID 遵守红线：fileKey=`att`+32 位随机；`spring.servlet.multipart.max-file-size/request-size=10MB` 已开。
@@ -156,7 +156,7 @@
 | 接口 | 说明 | 权限 |
 |------|------|------|
 | `GET /api/mini/approval/counts` | 待审计数 `{PRODUCT, DOWNLOAD, ALLOCATION, MATERIAL_REVIEW, TOTAL}` | 管理角色；实际开放类型由白名单控制 |
-| `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION\|MATERIAL_REVIEW&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}`；材料复核记录返回 `reviewNo` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可见本人团队；其他审批类型可含 DEPT_MANAGER |
+| `GET /api/mini/approval/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION\|MATERIAL_REVIEW&page&size` | 待审列表 `{page,size,total,records(每条约带 type),paginationHint:"SEGMENTED"}`；材料复核记录返回 `reviewNo` | 渠道 PRODUCT 仅 BOSS/SUPER_ADMIN/SUPER；ALLOCATION 含 DEPT_MANAGER 但仅本人团队；DOWNLOAD/MATERIAL_REVIEW 可含 DEPT_MANAGER |
 | `POST /api/mini/approval/{type}/{approvalNo}/audit` | 审批 body `{approve, opinion}`；`MATERIAL_REVIEW` 时路径参数传其 `reviewNo` | ALLOCATION 含 DEPT_MANAGER，但部门经理仅可审批本人团队；其他审批类型可含 DEPT_MANAGER |
 | `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER_ADMIN/SUPER/BOSS 全量；DEPT_MANAGER 仅本团队 |
 | `POST /api/admin/approval/allocation/{approvalNo}/approve` | 管理端 allocation 通过（`ApprovalController`，非 `/audit`） | 同上 |

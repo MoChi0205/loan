@@ -18,6 +18,8 @@ import com.loan.exception.BusinessException;
 import com.loan.mini.service.MiniClientService;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
+import com.loan.partner.service.PartnerProductService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ApprovalService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /** 允许排序字段（白名单，防注入） */
     private static final java.util.Map<String, com.baomidou.mybatisplus.core.toolkit.support.SFunction<ProductApproval, ?>> ORDER_FIELDS =
@@ -102,6 +106,7 @@ public class ApprovalService {
     private final MiniClientService miniClientService;
     private final StaffMapper staffMapper;
     private final BusinessNameService businessNameService;
+    private final PartnerProductService partnerProductService;
 
     /**
      * 已开放的审批类型白名单（配置 {@code loan.mini.approval.types}，逗号分隔）。
@@ -206,19 +211,52 @@ public class ApprovalService {
         if (!approve && !StringUtils.hasText(opinion)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "驳回意见必填");
         }
-        a.setApproveStatus(approve ? "APPROVED" : "REJECTED");
-        a.setApproveOpinion(opinion);
-        a.setApproverStaffCode(operator);
-        a.setApprovedAt(LocalDateTime.now());
-        a.setUpdatedBy(operator);
-        productApprovalMapper.updateById(a);
-        // 联动产品状态：通过入全量库 APPROVED，驳回置 REJECTED
+        String targetStatus = approve ? "APPROVED" : "REJECTED";
+        LocalDateTime now = LocalDateTime.now();
+        int updated = productApprovalMapper.update(null,
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<ProductApproval>()
+                        .eq(ProductApproval::getApprovalNo, approvalNo)
+                        .eq(ProductApproval::getApproveStatus, STATUS_PENDING)
+                        .set(ProductApproval::getApproveStatus, targetStatus)
+                        .set(ProductApproval::getApproveOpinion, opinion)
+                        .set(ProductApproval::getApproverStaffCode, operator)
+                        .set(ProductApproval::getApprovedAt, now)
+                        .set(ProductApproval::getUpdatedBy, operator)
+                        .set(ProductApproval::getUpdatedAt, now));
+        if (updated == 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "审批单已由其他管理员处理，请刷新后查看");
+        }
+        // 联动全量库；产品不存在是数据完整性错误，事务整体回滚。
         BankProduct product = bankProductMapper.selectOne(new LambdaQueryWrapper<BankProduct>()
                 .eq(BankProduct::getProductCode, a.getBankProductCode()));
-        if (product != null && "DRAFT".equals(product.getStatus())) {
-            product.setStatus(approve ? "APPROVED" : "REJECTED");
-            product.setUpdatedBy(operator);
-            bankProductMapper.updateById(product);
+        if (product == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "审批关联的银行产品不存在");
+        }
+        product.setStatus(targetStatus);
+        product.setUpdatedBy(operator);
+        product.setUpdatedAt(now);
+        bankProductMapper.updateById(product);
+        if (approve) {
+            partnerProductService.activateByApproval(a.getBankProductCode(),
+                    cooperateUntil(a.getAfterSnapshotJson()), operator);
+        }
+    }
+
+    /** 从审批快照读取合作有效期；未填写时默认审批日起一年。 */
+    @SuppressWarnings("unchecked")
+    private LocalDateTime cooperateUntil(String snapshotJson) {
+        if (!StringUtils.hasText(snapshotJson)) {
+            return LocalDateTime.now().plusYears(1);
+        }
+        try {
+            Map<String, Object> snapshot = OBJECT_MAPPER.readValue(snapshotJson, Map.class);
+            Object value = snapshot.get("cooperateUntil");
+            if (value == null || !StringUtils.hasText(String.valueOf(value))) {
+                return LocalDateTime.now().plusYears(1);
+            }
+            return java.time.LocalDate.parse(String.valueOf(value)).atTime(23, 59, 59);
+        } catch (Exception ex) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "产品合作有效期格式不正确");
         }
     }
 
@@ -431,11 +469,19 @@ public class ApprovalService {
      * @return { page, size, total, records（每条含 type 字段）, paginationHint }
      */
     public Map<String, Object> unifiedPending(String type, int page, int size) {
+        return unifiedPending(type, page, size, true);
+    }
+
+    /** 按当前角色能力聚合待审列表；非渠道终审人不返回 PRODUCT 待办。 */
+    public Map<String, Object> unifiedPending(String type, int page, int size, boolean includeProduct) {
         int p = normalizePage(page);
         int s = normalizeSize(size);
         List<Map<String, Object>> merged = new ArrayList<>();
         long total = 0L;
         for (String t : requestedTypes(type)) {
+            if (TYPE_PRODUCT.equals(t) && !includeProduct) {
+                continue;
+            }
             if (!typeEnabled(t)) {
                 continue;
             }
@@ -477,10 +523,16 @@ public class ApprovalService {
      * @return { PRODUCT, DOWNLOAD, ALLOCATION, MATERIAL_REVIEW, TOTAL }
      */
     public Map<String, Object> pendingCounts() {
+        return pendingCounts(true);
+    }
+
+    /** 按当前角色能力统计待办；非渠道终审人 PRODUCT 固定为 0。 */
+    public Map<String, Object> pendingCounts(boolean includeProduct) {
         Map<String, Object> counts = new LinkedHashMap<>();
         long total = 0L;
         for (String t : ALL_TYPES) {
-            long c = typeEnabled(t) ? pendingSlice(t, 1, 1).getTotal() : 0L;
+            long c = typeEnabled(t) && (includeProduct || !TYPE_PRODUCT.equals(t))
+                    ? pendingSlice(t, 1, 1).getTotal() : 0L;
             counts.put(t, c);
             total += c;
         }
@@ -506,7 +558,7 @@ public class ApprovalService {
         List<Map<String, Object>> records = rows.stream().map(r -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("reviewNo", r.getReviewNo());
-            m.put("ocrRecordId", r.getOcrRecordId());
+            m.put("ocrFileKey", r.getOcrFileKey());
             m.put("bizType", r.getBizType());
             m.put("clientProfileCode", r.getClientProfileCode());
             m.put("reportNo", r.getReportNo());
@@ -533,7 +585,7 @@ public class ApprovalService {
         MaterialReview r = materialReviewService.detail(reviewNo);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("reviewNo", r.getReviewNo());
-        m.put("ocrRecordId", r.getOcrRecordId());
+        m.put("ocrFileKey", r.getOcrFileKey());
         m.put("bizType", r.getBizType());
         m.put("clientProfileCode", r.getClientProfileCode());
         m.put("reportNo", r.getReportNo());

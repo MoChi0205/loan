@@ -85,7 +85,7 @@ public class OcrService {
      * @param fileKey       文件 key（落盘后的本地文件名前缀）
      * @param bizType       资料类型（ID_CARD / BUSINESS_LICENSE / FINANCIAL_STATEMENT / CONTRACT / DUE_DILIGENCE / OTHER）
      * @param customerGroup 客群（可选）
-     * @return 识别结果（facts / 平均置信度 / 记录主键 / 提取字段明细）
+     * @return 识别结果（facts / 平均置信度 / OCR 业务键 / 提取字段明细）
      */
     public OcrResult recognize(String fileKey, String bizType, String customerGroup) {
         String filePath = resolveFilePath(fileKey);
@@ -96,11 +96,12 @@ public class OcrService {
         boolean rulesMissing = defs.isEmpty();
 
         // 落 t_ocr_record（best-effort 留痕，失败仅告警不阻断）
-        Long recordId = null;
+        String ocrFileKey = fileKey;
         try {
             OcrRecord record = new OcrRecord();
             record.setBizScene(mapBizScene(bizType));
-            record.setBizCode(null);
+            // fileKey 是上传时生成的业务编码（att + 32 位随机），作为 OCR 记录的稳定关联键
+            record.setBizCode(fileKey);
             record.setFileKey(fileKey);
             record.setOcrType(extractor.providerName());
             record.setExtractJson(toJson(facts));
@@ -109,7 +110,6 @@ public class OcrService {
             record.setCreatedBy("system");
             record.setCreatedAt(java.time.LocalDateTime.now());
             ocrRecordMapper.insert(record);
-            recordId = record.getId();
         } catch (Exception e) {
             // 识别记录落库失败不影响主流程
         }
@@ -117,7 +117,7 @@ public class OcrService {
         OcrResult result = new OcrResult();
         result.setFacts(facts);
         result.setConfidenceAvg(null);
-        result.setOcrRecordId(recordId);
+        result.setOcrFileKey(ocrFileKey);
         result.setExtractedFields(toExtractedFields(facts));
         result.setRulesMissing(rulesMissing);
         return result;

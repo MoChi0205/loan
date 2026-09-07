@@ -11,7 +11,8 @@ import java.util.Map;
 /**
  * 小程序端邀请绑定薄封装：绑定成功后返回引荐人昵称/姓名给小程序展示。
  *
- * <p>绑定副作用（回写归属顾问 + 生成归属线索）在 {@link InvitationService#bind} 内完成，
+ * <p>绑定只记录分享引荐关系，不回写服务顾问、不生成服务归属；顾问归属由管理员直分配、
+ * 分配审批或顾问公海认领产生。实际绑定由 {@link InvitationService#bind} 完成，
  * 本层只负责把内部返回映射为小程序可读的展示结构。
  *
  * @author loan-platform
@@ -23,7 +24,7 @@ public class MiniInvitationService {
     private final InvitationService invitationService;
 
     /**
-     * 绑定邀请码并返回顾问昵称。
+     * 绑定邀请码并返回引荐人姓名。
      *
      * @param inviteCode 邀请码
      * @param clientCode 客户编码

@@ -27,6 +27,9 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 
 /**
@@ -41,6 +44,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class LeadService {
+
+    private static final int MAX_BATCH_SIZE = 100;
 
     /** 允许排序字段（白名单，防注入） */
     private static final java.util.Map<String, com.baomidou.mybatisplus.core.toolkit.support.SFunction<Lead, ?>> ORDER_FIELDS =
@@ -262,11 +267,11 @@ public class LeadService {
                 && lead.getRecorderStaffCode().equals(staffCode)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "回收冷却期内不可认领");
         }
-        String from = lead.getOwnerStaffCode();
-        lead.setOwnerStaffCode(staffCode);
-        lead.setUpdatedBy(staffName);
-        leadMapper.updateById(lead);
-        allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "CLAIM", from, staffCode, staffName, "公海认领"));
+        int updated = leadMapper.claimIfUnowned(leadNo, staffCode, staffName);
+        if (updated == 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "线索已被其他顾问认领，请刷新后查看");
+        }
+        allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "CLAIM", null, staffCode, staffName, "公海认领"));
     }
 
     /**
@@ -299,13 +304,17 @@ public class LeadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int batchClaim(List<String> leadNos, String staffCode, String staffName) {
-        if (leadNos == null || leadNos.isEmpty()) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择要认领的线索");
+        List<String> distinct = normalizeBatch(leadNos);
+        Map<String, Lead> leads = loadLeadMap(distinct);
+        for (String leadNo : distinct) {
+            Lead lead = requireBatchLead(leads, leadNo);
+            validateClaim(lead, staffCode);
+            if (leadMapper.claimIfUnowned(leadNo, staffCode, staffName) == 0) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "线索已被其他顾问认领，请刷新后查看");
+            }
+            allocationRecordMapper.insert(buildRecord(leadNo, "CLAIM", null, staffCode, staffName, "批量公海认领"));
         }
-        for (String leadNo : leadNos) {
-            claim(leadNo, staffCode, staffName);
-        }
-        return leadNos.size();
+        return distinct.size();
     }
 
     /**
@@ -318,16 +327,21 @@ public class LeadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int batchAssign(List<String> leadNos, String toStaffCode, String operator) {
-        if (leadNos == null || leadNos.isEmpty()) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择要指派的线索");
-        }
+        List<String> distinct = normalizeBatch(leadNos);
         if (!StringUtils.hasText(toStaffCode)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "请选择目标员工");
         }
-        for (String leadNo : leadNos) {
-            assign(leadNo, toStaffCode, operator);
+        Map<String, Lead> leads = loadLeadMap(distinct);
+        for (String leadNo : distinct) {
+            Lead lead = requireBatchLead(leads, leadNo);
+            String from = lead.getOwnerStaffCode();
+            allocationRecordMapper.insert(buildRecord(leadNo, "MANUAL", from, toStaffCode, operator, "批量手动指派"));
         }
-        return leadNos.size();
+        int updated = leadMapper.assignByLeadNos(distinct, toStaffCode, operator);
+        if (updated != distinct.size()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "部分线索状态已变化，请刷新后重试");
+        }
+        return updated;
     }
 
     /**
@@ -341,20 +355,57 @@ public class LeadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int batchDelete(List<String> leadNos, String operator) {
-        if (leadNos == null || leadNos.isEmpty()) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择要删除的线索");
-        }
-        for (String leadNo : leadNos) {
-            Lead lead = leadMapper.selectOne(new LambdaQueryWrapper<Lead>().eq(Lead::getLeadNo, leadNo));
-            if (lead == null) {
-                continue;
-            }
-            // 审计留痕后物理删除
-            allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "DELETE",
+        List<String> distinct = normalizeBatch(leadNos);
+        Map<String, Lead> leads = loadLeadMap(distinct);
+        List<String> found = new ArrayList<>();
+        for (String leadNo : distinct) {
+            Lead lead = leads.get(leadNo);
+            if (lead == null) continue;
+            allocationRecordMapper.insert(buildRecord(leadNo, "DELETE",
                     lead.getOwnerStaffCode(), null, operator, "批量删除线索"));
-            leadMapper.deleteById(lead.getId());
+            found.add(leadNo);
         }
-        return leadNos.size();
+        return found.isEmpty() ? 0 : leadMapper.deleteByLeadNos(found);
+    }
+
+    /** 批量入参去空、去重并限制单次规模，防止超长 IN 与接口滥用。 */
+    private List<String> normalizeBatch(List<String> leadNos) {
+        if (leadNos == null || leadNos.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择要操作的线索");
+        }
+        LinkedHashSet<String> distinct = leadNos.stream().filter(StringUtils::hasText)
+                .map(String::trim).collect(Collectors.toCollection(LinkedHashSet::new));
+        if (distinct.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择有效线索");
+        }
+        if (distinct.size() > MAX_BATCH_SIZE) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "单次最多操作 " + MAX_BATCH_SIZE + " 条线索");
+        }
+        return new ArrayList<>(distinct);
+    }
+
+    /** 一次批量查询并以业务编码映射。 */
+    private Map<String, Lead> loadLeadMap(List<String> leadNos) {
+        return leadMapper.selectList(new LambdaQueryWrapper<Lead>().in(Lead::getLeadNo, leadNos)).stream()
+                .collect(Collectors.toMap(Lead::getLeadNo, lead -> lead, (left, right) -> left, LinkedHashMap::new));
+    }
+
+    private Lead requireBatchLead(Map<String, Lead> leads, String leadNo) {
+        Lead lead = leads.get(leadNo);
+        if (lead == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "线索不存在：" + leadNo);
+        }
+        return lead;
+    }
+
+    private void validateClaim(Lead lead, String staffCode) {
+        if (lead.getOwnerStaffCode() != null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "线索已被认领");
+        }
+        if (lead.getAssignBlockedUntil() != null && lead.getAssignBlockedUntil().isAfter(LocalDateTime.now())
+                && staffCode != null && staffCode.equals(lead.getRecorderStaffCode())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "回收冷却期内不可认领");
+        }
     }
 
     /**

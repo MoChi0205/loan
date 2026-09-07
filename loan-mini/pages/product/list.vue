@@ -42,7 +42,7 @@
     <view v-else class="stack">
       <view v-for="p in filteredProducts" :key="p.code" class="card prod-card u-hover">
         <view class="prod-top">
-          <text class="prod-name u-ellipsis">{{ p.productName || p.bankProductCode }}</text>
+          <text class="prod-name u-ellipsis">{{ p.productName || '未命名产品' }}</text>
           <AppTag :type="statusTagType(p.status)" size="sm">{{ statusLabel(p.status) }}</AppTag>
         </view>
 
@@ -66,7 +66,7 @@
 
         <!-- 待删除提示 -->
         <view v-if="p.status === 'PENDING_DELETE'" class="pending-box">
-          待我司终审删除 · 审批通过后将<b>从全量库中移除</b>（操作留痕至审计日志）
+          待我司终审删除 · 审批通过后将从合作库下架，历史记录和审计留痕仍保留
         </view>
 
         <!-- 操作区（C9 状态机驱动，触控 44px） -->
@@ -96,8 +96,8 @@
  * 渠道「我的产品」（C9 撤销审批 + 申请删除 + 撤销删除）。
  *
  * 状态机：
- *   DRAFT ─提交审批→ PENDING ─运营通过→ OK ─申请删除→ PENDING_DELETE ─运营批准→ DELETED
- *     ↑               │（撤销审批）                        │（撤销删除 / 驳回 → OK）
+ *   DRAFT ─提交审批→ PENDING ─终审通过→ APPROVED ─申请删除→ PENDING_DELETE ─终审批准→ OFFLINE
+ *     ↑               │（撤销审批）                              │（撤销删除 → APPROVED）
  *     └───────────────┘                                    └──────────────────┘
  *
  * 可用操作由状态推导（actionsOf），新增状态只需改一处映射表。
@@ -123,8 +123,7 @@ const filteredProducts = computed(() => {
   const kw = keyword.value.trim().toLowerCase();
   return products.value.filter(p =>
     (p.productName || '').toLowerCase().includes(kw) ||
-    (p.bankName || '').toLowerCase().includes(kw) ||
-    (p.bankProductCode || '').toLowerCase().includes(kw)
+    (p.bankName || '').toLowerCase().includes(kw)
   );
 });
 /** 正在执行的操作（产品编码 + 操作 key），用于按钮级 loading */
@@ -136,7 +135,7 @@ const isChannel = computed(() => store.isChannel);
 /** 状态说明图例 */
 const legend = [
   { label: '草稿', tone: 'muted', desc: '已保存未提交，可编辑或提交审批' },
-  { label: '待审批', tone: 'warning', desc: '已提交，等待我司运营 / 超管终审，可撤销' },
+  { label: '待审批', tone: 'warning', desc: '已提交，等待平台终审，可撤销' },
   { label: '已上架', tone: 'success', desc: '审批通过，在合作库展示，可申请删除' },
   { label: '已驳回', tone: 'danger', desc: '未通过，可见原因，编辑后可重新提交' },
   { label: '待删除', tone: 'danger', desc: '已申请删除，等待终审，可撤销' },
@@ -146,14 +145,14 @@ function statusLabel(s) {
   return {
     [PRODUCT_STATUS.DRAFT]: '草稿',
     [PRODUCT_STATUS.PENDING]: '待审批',
-    [PRODUCT_STATUS.OK]: '已上架',
+    [PRODUCT_STATUS.APPROVED]: '已上架',
     [PRODUCT_STATUS.REJECTED]: '已驳回',
     [PRODUCT_STATUS.PENDING_DELETE]: '待删除',
   }[s] || (s || '未知');
 }
 
 function statusTagType(s) {
-  if (s === PRODUCT_STATUS.OK) return 'success';
+  if (s === PRODUCT_STATUS.APPROVED) return 'success';
   if (s === PRODUCT_STATUS.PENDING) return 'warning';
   if (s === PRODUCT_STATUS.REJECTED || s === PRODUCT_STATUS.PENDING_DELETE) return 'danger';
   return 'muted';
@@ -172,8 +171,8 @@ function actionsOf(p) {
     list.push({ key: 'edit', label: '编辑', variant: 'secondary' });
   } else if (p.status === PRODUCT_STATUS.PENDING) {
     list.push({ key: 'revoke', label: '撤销审批', variant: 'secondary' });
-  } else if (p.status === PRODUCT_STATUS.OK) {
-    list.push({ key: 'delete', label: '申请删除', variant: 'secondary', confirm: '申请删除后需我司运营 / 超管终审，审批通过将从全量库移除。确认申请？' });
+  } else if (p.status === PRODUCT_STATUS.APPROVED) {
+    list.push({ key: 'delete', label: '申请删除', variant: 'secondary', confirm: '申请删除后需平台终审，审批通过后合作产品将下架并保留审核记录。确认申请？' });
   } else if (p.status === PRODUCT_STATUS.REJECTED) {
     list.push({ key: 'edit', label: '编辑重提', variant: 'primary' });
   } else if (p.status === PRODUCT_STATUS.PENDING_DELETE) {

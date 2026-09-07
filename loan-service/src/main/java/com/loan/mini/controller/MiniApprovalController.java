@@ -28,7 +28,7 @@ import java.util.Map;
  * 白名单外类型不会出现在待审列表 / 计数中，审批动作亦被拒绝。</p>
  *
  * <p><b>权限：</b>统一走 {@link MiniRoleGuard}；ALLOCATION 需运营 / 超管 / 老板，
- * PRODUCT / DOWNLOAD 额外放通部门经理。</p>
+ * DOWNLOAD / MATERIAL_REVIEW 可含部门经理；渠道 PRODUCT 仅老板 / 超级管理员。</p>
  *
  * @author loan-platform
  */
@@ -49,7 +49,7 @@ public class MiniApprovalController {
     @GetMapping("/counts")
     public Result<Map<String, Object>> counts(@CurrentUser LoanUser user) {
         miniRoleGuard.requireApprover(user);
-        return Result.ok(approvalService.pendingCounts());
+        return Result.ok(approvalService.pendingCounts(miniRoleGuard.isChannelFinalApprover(user)));
     }
 
     /**
@@ -72,7 +72,8 @@ public class MiniApprovalController {
             @CurrentUser LoanUser user) {
         miniRoleGuard.requireApproverFor(ApprovalService.TYPE_ALL.equals(type)
                 ? ApprovalService.TYPE_ALLOCATION : type, user);
-        return Result.ok(approvalService.unifiedPending(type, page, size));
+        return Result.ok(approvalService.unifiedPending(type, page, size,
+                miniRoleGuard.isChannelFinalApprover(user)));
     }
 
     /**

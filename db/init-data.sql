@@ -127,20 +127,20 @@ INSERT INTO `t_bank_channel` (`channel_code`, `bank_name`, `created_by`) VALUES
 
 -- 产品（客户群 ENTERPRISE，来源 OURS 我司录入；产品名仅管理端可见）
 INSERT INTO `t_bank_product`
-(`product_code`, `bank_channel_id`, `product_name`, `customer_group`, `source`,
+(`product_code`, `bank_channel_code`, `product_name`, `customer_group`, `source`,
  `amount_min`, `amount_max`, `rate_min`, `rate_max`, `term_min`, `term_max`,
  `tax_threshold`, `invoice_require`, `status`, `created_by`) VALUES
-('WH_TAX_LOAN_A', 1, '武汉某行·企业税贷 A', 'ENTERPRISE', 'OURS',
+('WH_TAX_LOAN_A', 'WH_BANK', '武汉某行·企业税贷 A', 'ENTERPRISE', 'OURS',
  500000.00, 3000000.00, 0.0350, 0.0650, 12, 36,
  30000.00, '近 12 个月连续开票', 'APPROVED', 'system'),
-('HB_TAX_LOAN_B', 2, '湖北某行·企业税贷 B', 'ENTERPRISE', 'OURS',
+('HB_TAX_LOAN_B', 'HB_BANK', '湖北某行·企业税贷 B', 'ENTERPRISE', 'OURS',
  300000.00, 1000000.00, 0.0400, 0.0700, 6, 24,
  20000.00, '近 6 个月连续开票', 'APPROVED', 'system');
 
 -- 合作库上架（对客可见权在我司，设有效期）
-INSERT INTO `t_partner_product` (`bank_product_id`, `cooperate_until`, `created_by`) VALUES
-(1, '2027-08-25 00:00:00', 'system'),
-(2, '2027-08-25 00:00:00', 'system');
+INSERT INTO `t_partner_product` (`bank_product_code`, `cooperate_until`, `created_by`) VALUES
+('WH_TAX_LOAN_A', '2027-08-25 00:00:00', 'system'),
+('HB_TAX_LOAN_B', '2027-08-25 00:00:00', 'system');
 
 -- ============================================================
 -- 三、规则目录域：四分类 / 企业规则 / 规则版本

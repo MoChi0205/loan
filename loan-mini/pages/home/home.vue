@@ -103,6 +103,7 @@ import { useUserStore } from '../../store/user';
 import TabBar from '../../components/TabBar.vue';
 import AppIcon from '../../components/AppIcon.vue';
 import { partnerProducts } from '../../api/match';
+import { myProducts } from '../../api/product';
 import { consumePendingInvitation } from '../../utils/invitation';
 import { orderList } from '../../api/order';
 import { approvalCounts } from '../../api/approval';
@@ -194,7 +195,6 @@ const navEntries = computed(() => {
     return [
       { key: 'product', label: '我的产品', icon: 'bank', tone: 'blue', desc: '录入·审批', action: onProduct },
       { key: 'client', label: '录入客户', icon: 'users', tone: 'gold', desc: '线索录入', action: onClient },
-      { key: 'order', label: '服务工单', icon: 'order', tone: 'green', desc: '跟进记录', action: onOrder },
       { key: 'mine', label: '我的', icon: 'mine', tone: 'gray', desc: '账户设置', action: onMine },
     ];
   }
@@ -223,14 +223,33 @@ const navEntries = computed(() => {
   ];
 });
 
-onShow(() => {
-  store.init().then((ok) => {
-    if (ok) consumePendingInvitation(store);
-  }).catch(() => {});
-  loadPartnerCount();
-  loadOrderCount();
-  loadApprovalCount();
+onShow(async () => {
+  try {
+    const ok = await store.init();
+    if (!ok) return;
+    await consumePendingInvitation(store);
+    approvalTotal.value = 0;
+    orderCount.value = 0;
+    if (store.isChannel) {
+      await loadMyProductCount();
+      return;
+    }
+    await Promise.all([loadPartnerCount(), loadOrderCount(), loadApprovalCount()]);
+  } catch (e) {
+    partnerCount.value = 0;
+    orderCount.value = 0;
+    approvalTotal.value = 0;
+  }
 });
+
+async function loadMyProductCount() {
+  try {
+    const data = await myProducts();
+    partnerCount.value = Array.isArray(data) ? data.length : 0;
+  } catch (e) {
+    partnerCount.value = 0;
+  }
+}
 
 async function loadPartnerCount() {
   try {

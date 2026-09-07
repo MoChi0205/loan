@@ -41,11 +41,9 @@
           <el-table-column label="产品" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
               <div>{{ row.productName || '—' }}</div>
-              <div v-if="row.productCode" class="cell-sub">内部编码：{{ row.productCode }}</div>
             </template>
           </el-table-column>
           <el-table-column prop="bankName" label="所属银行" width="160" />
-          <el-table-column prop="productName" label="产品名称" min-width="180" show-overflow-tooltip />
           <el-table-column label="服务地区" min-width="160" show-overflow-tooltip>
             <template #default="{ row }">
               <span v-if="row.serviceCities">{{ row.serviceCities }}</span>
@@ -106,12 +104,6 @@
           <el-table-column label="产品" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
               <div>{{ row.productName || '—' }}</div>
-              <div v-if="row.bankProductCode" class="cell-sub">内部编码：{{ row.bankProductCode }}</div>
-            </template>
-          </el-table-column>
-          <el-table-column label="产品名" min-width="180" show-overflow-tooltip>
-            <template #default="{ row }">
-              {{ row.productName || '—' }}
             </template>
           </el-table-column>
           <el-table-column label="合作到期日" width="170">
@@ -519,7 +511,7 @@ function partnerRowActions(row) {
       key: 'toggle',
       label: offline ? '上架' : '下架',
       type: offline ? 'success' : 'warning',
-      confirm: offline ? `确认重新上架产品「${row.bankProductCode}」？` : `确认下架产品「${row.bankProductCode}」？下架后小程序/报告侧不再展示。`,
+      confirm: offline ? `确认重新上架产品「${row.productName || '未命名产品'}」？` : `确认下架产品「${row.productName || '未命名产品'}」？下架后小程序/报告侧不再展示。`,
       onClick: () => onToggleStatus(row, offline),
     },
     {

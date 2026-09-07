@@ -12,7 +12,7 @@
             <text class="profile-name">{{ displayName }}</text>
             <text class="profile-phone">{{ phoneDisplay }}</text>
           </view>
-          <AppClickable class="auth-chip" :class="store.isAuthed ?' chip-ok' :' chip-todo'" @click="onGoAuth">
+          <AppClickable v-if="!isChannelRole && !isStaffRole" class="auth-chip" :class="store.isAuthed ?' chip-ok' :' chip-todo'" @click="onGoAuth">
             {{ store.isAuthed ? '已认证' : '去认证' }}
           </AppClickable>
         </view>
@@ -71,17 +71,15 @@
         <text class="menu-arrow">›</text>
       </AppClickable>
 
-      <!-- 我的产品（C9）：渠道管理自有产品；员工可录入银行产品。客户无此入口 -->
-      <AppClickable v-if="isChannelRole || isStaffRole" class="card menu-card" @click="goProduct">
+      <!-- 我的产品（C9）：仅渠道管理自有产品；员工管理能力位于 Web 管理端。 -->
+      <AppClickable v-if="isChannelRole" class="card menu-card" @click="goProduct">
         <view class="menu-left">
           <view class="menu-icon-wrap">
             <AppIcon name="bank" size="md" />
           </view>
           <view class="menu-body">
-            <text class="menu-title">{{ isChannelRole ? '我的产品' : '银行产品' }}</text>
-            <text class="menu-desc">
-              {{ isChannelRole ? '录入 / 撤销审批 / 申请删除' : '录入产品，走运营终审上架' }}
-            </text>
+            <text class="menu-title">我的产品</text>
+            <text class="menu-desc">录入 / 撤销审批 / 申请删除</text>
           </view>
         </view>
         <text class="menu-arrow">›</text>
@@ -224,8 +222,8 @@ const accountRows = computed(() => {
   if (isChannelRole.value) {
     return [
       { label: '所属银行', value: p.bankName || (u.deptName) || '—' },
-      { label: '合作开始', value: p.cooperateStartAt || '—' },
-      { label: '银行联系人', value: p.bankContact || u.name || '—' },
+      { label: '账号姓名', value: p.contactName || u.name || '—' },
+      { label: '岗位', value: p.jobTitle || '—' },
     ];
   }
 
@@ -237,10 +235,10 @@ const accountRows = computed(() => {
     const rows = [];
     // 老板与超管无归属部门概念；其他员工只展示部门名称，不用编码兜底。
     if (role.value !== 'boss' && role.value !== 'super') {
-      rows.push({ label: '部门', value: u.deptName || '—' });
+      rows.push({ label: '部门', value: p.departmentName || u.deptName || '—' });
     }
     rows.push({ label: '角色', value: roleLabel });
-    rows.push({ label: '入职时间', value: u.hiredAt || '—' });
+    rows.push({ label: '入职时间', value: p.hiredAt || u.hiredAt || '—' });
     return rows;
   }
 
@@ -337,7 +335,7 @@ function onGoAuth() {
 
 function goOrder() { uni.reLaunch({ url: '/pages/order/list' }); }
 
-/** C9：跳转我的产品（渠道 / 员工可见） */
+/** C9：跳转我的产品（仅渠道可见） */
 function goProduct() {  uni.navigateTo({ url: '/pages/product/list' });
 }
 

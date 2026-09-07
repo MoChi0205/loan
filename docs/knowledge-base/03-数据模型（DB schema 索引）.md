@@ -22,9 +22,9 @@
 | `t_industry_benchmark`（**行业均值**） | **T1 新增** | dimensions（industry / annual_tax / annual_invoice / found_years / tax_rate）+ 均值；`IndustryBenchmarkService.avgByDimension`；缺失兜底硬编码 45/50/55/60/55 |
 | `t_lead`（线索） | **T4 新增** | `source` 字典含 CHANNEL（旧 `MINI` 已废弃）；渠道录入先 `PENDING_APPROVAL`，终审通过后进公海 `owner_staff_code=NULL`；`recorder_staff_code` 保存稳定渠道 `userNo`；渠道本人数据查询走 `idx_recorder_source_status`，转化关联走 `idx_client_profile_code`；AES+SHA 处理 `phone`/`credit_code`；唯一索引冲突返友好文案不泄归属人 |
 | `t_lead_ent_ext`（线索企业扩展字段） | **T4 新增** | `ent_name` / `credit_code` / `industry` / `found_years` / `annual_tax_amount` / `annual_invoice_amount`（对应 lead/submit body 企业字段） |
-| `t_ocr_record`（OCR 回灌记录） | **T2 新增** | `biz_scene` / `biz_id` / `biz_code`（业务ID：reportNo/clientCode/productCode，红线#3）/ `extract_json` / `confidence_avg`；`data_json._ocrMeta.version` 派生 `materialVersion`（D26 修正：补录 biz_code 列，实体与表已对齐） |
+| `t_ocr_record`（OCR 回灌记录） | **T2 新增** | `biz_scene` / `biz_code`（业务编码，禁止物理 ID）/ `file_key` / `extract_json` / `confidence_avg`；`data_json._ocrMeta.version` 派生 `materialVersion` |
 | `t_service_attachment`（材料附件） | **T2 新增 `report_no` 列** | 关联诊断材料回灌；原有 `file_key` / `url` 不变（向后兼容） |
-| `t_client_submission`（提交单） | 经营事实 facts（`data_json` JSON） | **C19 B2 诊断算法数据源** |
+| `t_client_submission`（提交单） | 经营事实 facts（`data_json` JSON） | `client_profile_code` + `match_trace_no` 业务编码关联；**C19 B2 诊断算法数据源** |
 | `t_lead_allocation_record`（线索流转流水） | 归属流转记录（从属线索 ID） | action_type 字典：MANUAL/AUTO/CLAIM/RECYCLE/TRANSFER/CONVERT |
 | `t_attachment_download_approval` | 资料下载审批（C9 之外的无水印下载审批） | 独立于产品审批 |
 | `t_staff`（员工映射） | CRM SSO 员工 → `dept_code`（业务编码，非 dept_id，D24/D26 修正）→ roleCode 三级绑定 | **staffName 来源** |

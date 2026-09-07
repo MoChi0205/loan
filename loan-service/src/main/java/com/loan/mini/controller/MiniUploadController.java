@@ -124,7 +124,7 @@ public class MiniUploadController {
                     data.put("ocrApplied", ocr.get("ocrApplied"));
                     data.put("extractedFields", ocr.get("extractedFields"));
                     data.put("mergedCount", ocr.get("mergedCount"));
-                    data.put("ocrRecordId", ocr.get("ocrRecordId"));
+                    data.put("ocrFileKey", ocr.get("ocrFileKey"));
                     // 审批门控：识别结果进入待复核时回传标识，前端据此提示「待我司审批，暂不可见」
                     data.put("pendingReview", ocr.get("pendingReview"));
                     data.put("reviewNo", ocr.get("reviewNo"));
@@ -133,7 +133,7 @@ public class MiniUploadController {
                     data.put("ocrApplied", false);
                     data.put("extractedFields", new java.util.ArrayList<Map<String, Object>>());
                     data.put("mergedCount", 0);
-                    data.put("ocrRecordId", null);
+                    data.put("ocrFileKey", null);
                 }
             }
             return Result.ok(data);
