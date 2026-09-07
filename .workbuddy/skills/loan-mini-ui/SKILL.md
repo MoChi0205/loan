@@ -109,6 +109,18 @@ description: >-
 - **tabBar 结构以代码 `components/TabBar.vue` 为准**，文档（如 `01-角色权限模型.md`）与代码冲突时**以代码为准并回写文档**
 - 角色 tabBar 边界详见对应 `role-<角色>` 技能（T02 产出）
 
+### fixed 元素限宽居中铁律（D64，用户 2026-09-07 报告叠影后固化）
+
+- **禁止 `left:50% + translateX(-50%)` 给 fixed 元素做"限宽居中"**：
+  - 若 `right` 保持 `0` → left/right over-constrained + max-width，宽度计算错乱（实测 381px）；
+  - 若 `right:auto` 且无显式 `width` → fixed 元素 **shrink-to-fit 收缩成内容宽**，5 个 tab 挤压、
+    标签换行把 TabBar 撑高，盖住页面底部内容形成「叠影」。
+- **唯一正确写法**：`left:0; right:0; max-width:600px; margin:0 auto;`（定宽居中，不依赖 transform）。
+  涉及两处：`TabBar.vue` scoped 的 H5 `@media (min-width:768px)` 与 `App.vue` 全局 `.tab-bar.is-tablet`（JS 驱动、!important，双端通用），**两处必须保持同一写法**。
+- `.tab-label` 必须 `white-space: nowrap`，防止窄项下 4 字标签折行。
+- uni-app H5 宽屏 rpx 按 `rpxCalcMaxDeviceWidth`(960) 放大 1.28 倍：TabBar 实高约 123px，
+  tab 页根容器 `padding-bottom` 预留（≥128rpx）不可删，删了滚动到底内容必被盖。
+
 ## 七、交互与可访问性
 
 - 可点元素（卡片 / 按钮）用 `hover-class` 提供按压反馈

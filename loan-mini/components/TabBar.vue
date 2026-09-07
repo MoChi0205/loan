@@ -168,6 +168,9 @@ function onTap(item) {
   margin-top: 6rpx;
   font-size: var(--fs-xs);
   line-height: 1;
+  /* 禁止换行：H5 窄项下「智能匹配」等 4 字标签曾折行把 TabBar 撑高，
+     压住页面底部内容形成叠影（用户 2026-09-07 报告） */
+  white-space: nowrap;
   /* 未选中用 tab 自身语义色（不再灰！） */
   color: var(--tab-color, var(--text-secondary));
   font-weight: 500;
@@ -180,13 +183,14 @@ function onTap(item) {
 }
 
 /* #ifdef H5 */
-/* 宽屏限宽：与 uni-page-body 对齐（阶段2 H1） */
+/* 宽屏限宽：与 uni-page-body 对齐（阶段2 H1）
+   ⚠️ 居中必须用 left:0 + right:0 + margin:auto —— 不可用 left:50% + translateX(-50%)：
+   fixed 元素同时设 left/right 会先拉伸宽度（被 left/right 拉伸压过 max-width），
+   实测宽度塌成 381px、5 个 tab 挤压换行（用户 2026-09-07 报告叠影的根因之一） */
 @media (min-width: 768px) {
   .tab-bar {
     max-width: 600px;
     margin: 0 auto;
-    left: 50%;
-    transform: translateX(-50%);
   }
 }
 /* #endif */

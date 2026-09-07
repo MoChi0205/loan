@@ -293,9 +293,13 @@ button::after {
   margin: 0 auto;
 }
 .tab-bar.is-tablet {
+  /* ⚠️ 居中禁止 left:50% + right:auto + translateX(-50%)：fixed 元素在
+     right:auto 且无显式 width 时按 shrink-to-fit 收缩成内容宽（实测 381px），
+     5 个 tab 挤压变形（用户 2026-09-07 报告叠影根因）；须定宽居中 */
   max-width: 600px !important;
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%) !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 auto !important;
+  transform: none !important;
 }
 </style>
