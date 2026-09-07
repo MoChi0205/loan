@@ -50,6 +50,14 @@ public class ClientService {
         ORDER_FIELDS.put("createdAt", ClientProfile::getCreatedAt);
     }
 
+    /**
+     * 成交时间筛选的 EXISTS 子查询前缀：关联该客户名下「已成交(DEAL)」工单的成交时间。
+     * 与建档时间（created_at）区分，供 pageLite 的 dealTimeStart/dealTimeEnd 使用。
+     */
+    private static final String DEAL_EXISTS_SQL =
+            "SELECT 1 FROM t_service_order o WHERE o.client_profile_code = t_client_profile.client_code"
+                    + " AND o.status = 'DEAL'";
+
     private final ClientProfileMapper clientProfileMapper;
     private final PersonalProfileMapper personalProfileMapper;
     private final PersonalProfileService personalProfileService;
@@ -67,7 +75,9 @@ public class ClientService {
      *   <li>{@code enterpriseName} — 企业名称模糊</li>
      *   <li>{@code creditCode} — 统一社会信用代码精确（SHA-256 哈希）</li>
      *   <li>{@code ownerStaffCode} — 归属人；顾问/渠道查本人客户时传入</li>
-     *   <li>{@code createdAtStart}/{@code createdAtEnd} — 建档时间范围（暂代成交时间范围；成交时间联表 t_service_order 后续迭代）</li>
+     *   <li>{@code createdAtStart}/{@code createdAtEnd} — 建档时间范围（t_client_profile.created_at）</li>
+     *   <li>{@code dealTimeStart}/{@code dealTimeEnd} — 成交时间范围：EXISTS 联表
+     *       {@code t_service_order}（status='DEAL'）按 deal_time 过滤，只返回该区间内有成交的客户</li>
      * </ul>
      *
      * @param keyword        关键字（可选）
@@ -78,6 +88,8 @@ public class ClientService {
      * @param ownerStaffCode 归属人工号（可选）
      * @param createdAtStart 建档起始（可选）
      * @param createdAtEnd   建档截止（可选）
+     * @param dealTimeStart  成交起始（可选）
+     * @param dealTimeEnd    成交截止（可选）
      * @param page           页码
      * @param size           每页大小
      * @return 客户轻量列表
@@ -85,6 +97,7 @@ public class ClientService {
     public PageResult<Map<String, Object>> pageLite(String keyword, String name, String phone, String enterpriseName,
                                                     String creditCode, String ownerStaffCode,
                                                     java.time.LocalDateTime createdAtStart, java.time.LocalDateTime createdAtEnd,
+                                                    java.time.LocalDateTime dealTimeStart, java.time.LocalDateTime dealTimeEnd,
                                                     int page, int size, String orderBy, String orderDir) {
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(ownerStaffCode)) {
@@ -114,6 +127,14 @@ public class ClientService {
         }
         if (createdAtEnd != null) {
             wrapper.le(ClientProfile::getCreatedAt, createdAtEnd);
+        }
+        // 成交时间范围：EXISTS 联表 t_service_order（仅已成交工单），按 deal_time 过滤
+        if (dealTimeStart != null && dealTimeEnd != null) {
+            wrapper.exists(DEAL_EXISTS_SQL + " AND o.deal_time >= {0} AND o.deal_time <= {1}", dealTimeStart, dealTimeEnd);
+        } else if (dealTimeStart != null) {
+            wrapper.exists(DEAL_EXISTS_SQL + " AND o.deal_time >= {0}", dealTimeStart);
+        } else if (dealTimeEnd != null) {
+            wrapper.exists(DEAL_EXISTS_SQL + " AND o.deal_time <= {0}", dealTimeEnd);
         }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, ClientProfile::getCreatedAt);
         Page<ClientProfile> result = clientProfileMapper.selectPage(new Page<>(page, size), wrapper);

@@ -33,7 +33,16 @@
           start-placeholder="建档起始"
           end-placeholder="建档截止"
           value-format="YYYY-MM-DD HH:mm:ss"
-          style="width: 280px"
+          style="width: 260px"
+        />
+        <el-date-picker
+          v-model="dealTimeRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="成交起始"
+          end-placeholder="成交截止"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          style="width: 260px"
         />
       </AppSearchBar>
       <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode">
@@ -261,6 +270,8 @@ const {
   creditCode: '',
   createdAtStart: '',
   createdAtEnd: '',
+  dealTimeStart: '',
+  dealTimeEnd: '',
 });
 
 /** 建档时间范围（daterange）→ 拆成起止两个查询参数 */
@@ -270,15 +281,25 @@ watch(createdAtRange, (val) => {
   clientQuery.createdAtEnd = Array.isArray(val) && val[1] ? val[1] : '';
 });
 
+/** 成交时间范围（daterange，联表 t_service_order 已成交工单）→ 拆成起止两个查询参数 */
+const dealTimeRange = ref(null);
+watch(dealTimeRange, (val) => {
+  clientQuery.dealTimeStart = Array.isArray(val) && val[0] ? val[0] : '';
+  clientQuery.dealTimeEnd = Array.isArray(val) && val[1] ? val[1] : '';
+});
+
 function openChannelClient(row) {
   router.push({ path: '/client', query: { clientCode: row.clientCode } });
 }
 /** 返回客户列表（所有角色统一入口） */
 function backToClientList() {
-  // 日期范围与筛选条件一并清空，避免返回列表后仍受旧筛选影响
+  // 日期范围一并清空，避免返回列表后仍受旧筛选影响
   createdAtRange.value = null;
+  dealTimeRange.value = null;
   clientQuery.createdAtStart = '';
   clientQuery.createdAtEnd = '';
+  clientQuery.dealTimeStart = '';
+  clientQuery.dealTimeEnd = '';
   router.push({ path: '/client' });
 }
 

@@ -180,6 +180,8 @@ public class ClientController {
      * @param ownerStaffCode 归属人工号（可选；顾问/渠道查本人客户时传入）
      * @param createdAtStart 建档起始时间（可选）
      * @param createdAtEnd   建档截止时间（可选）
+     * @param dealTimeStart  成交起始时间（可选，联表 t_service_order 已成交工单）
+     * @param dealTimeEnd    成交截止时间（可选，联表 t_service_order 已成交工单）
      * @param page           页码
      * @param size           每页大小
      * @return 客户轻量列表
@@ -194,12 +196,14 @@ public class ClientController {
             @RequestParam(required = false) String ownerStaffCode,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime createdAtStart,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime createdAtEnd,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dealTimeStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dealTimeEnd,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir) {
         return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
-                ownerStaffCode, createdAtStart, createdAtEnd,
+                ownerStaffCode, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 
