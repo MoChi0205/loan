@@ -55,9 +55,8 @@
               <view class="stat-icon-wrap">
                 <AppIcon :name="card.icon" size="md" />
               </view>
-              <text class="stat-num">{{ card.value }}</text>
-              <text class="stat-name">{{ card.label }}</text>
-              <text class="stat-extra" v-if="card.extra">{{ card.extra }}</text>
+            <text class="stat-num">{{ card.value }}</text>
+            <text class="stat-name">{{ card.label }}</text>
             </AppClickable>
           </view>
         </scroll-view>
@@ -74,7 +73,6 @@
               <AppIcon :name="entry.icon" size="md" />
             </view>
             <text class="nav-name">{{ entry.label }}</text>
-            <text class="nav-desc" v-if="entry.desc">{{ entry.desc }}</text>
           </AppClickable>
         </view>
       </view>
@@ -561,7 +559,7 @@ function onMine() {
   justify-content:center;
   width:200rpx;
   min-width:200rpx;
-  padding:28rpx 16rpx;
+  padding:24rpx 16rpx;
   background:var(--bg-card);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
@@ -588,20 +586,17 @@ function onMine() {
   line-height:1.1
 }
 .stat-name{
+  display:block;
+  width:100%;
   margin-top:6rpx;
   font-size:23rpx;
   color:var(--text-secondary)
 }
-.stat-extra{
-  margin-top:4rpx;
-  font-size:var(--fs-xxs);
-  color:var(--text-placeholder)
-}
 /* 色调（引用设计令牌，禁止裸色值） */
-.stat-blue .stat-icon-wrap{ background:rgba(11,29,58,.08); color:var(--brand-deep) }
-.stat-gold .stat-icon-wrap{ background:var(--gold-bg); color:var(--gold-text) }
-.stat-green .stat-icon-wrap{ background:var(--success-bg); color:var(--success-text) }
-.stat-red .stat-icon-wrap{ background:rgba(239,68,68,.08); color:var(--danger-text) }
+.stat-blue .stat-icon-wrap{ background:rgba(37,99,235,.10); color:rgba(37,99,235,1) }
+.stat-gold .stat-icon-wrap{ background:rgba(217,119,6,.12); color:rgba(217,119,6,1) }
+.stat-green .stat-icon-wrap{ background:rgba(16,185,129,.10); color:rgba(5,150,105,1) }
+.stat-red .stat-icon-wrap{ background:rgba(239,68,68,.10); color:rgba(220,38,38,1) }
 .stat-blue::before, .stat-gold::before, .stat-green::before, .stat-red::before{
   content:'';
   position:absolute;
@@ -635,8 +630,8 @@ function onMine() {
   flex-direction:column;
   align-items:center;
   width:25%;
-  padding:12rpx 4rpx;
-  min-height:140rpx
+  padding:16rpx 4rpx;
+  min-height:120rpx
 }
 .nav-cell:active{
   transform:scale(.94)
@@ -651,6 +646,8 @@ function onMine() {
   margin-bottom:12rpx
 }
 .nav-name{
+  display:block;
+  width:100%;
   font-size:24rpx;
   font-weight:600;
   color:var(--text-primary);
@@ -658,20 +655,12 @@ function onMine() {
   flex-shrink:0;
   text-align:center
 }
-.nav-desc{
-  margin-top:4rpx;
-  font-size:var(--fs-xxs);
-  color:var(--text-placeholder);
-  line-height:1.3;
-  flex-shrink:0;
-  text-align:center
-}
 /* 宫格图标色调（引用设计令牌） */
-.nav-ic-blue{ background:rgba(11,29,58,.08); color:var(--brand-deep) }
-.nav-ic-gold{ background:var(--gold-bg); color:var(--gold-text) }
-.nav-ic-green{ background:var(--success-bg); color:var(--success-text) }
-.nav-ic-red{ background:rgba(239,68,68,.08); color:var(--danger-text) }
-.nav-ic-gray{ background:var(--bg-input); color:var(--text-secondary) }
+.nav-ic-blue{ background:rgba(37,99,235,.10); color:rgba(37,99,235,1) }
+.nav-ic-gold{ background:rgba(217,119,6,.12); color:rgba(217,119,6,1) }
+.nav-ic-green{ background:rgba(16,185,129,.10); color:rgba(5,150,105,1) }
+.nav-ic-red{ background:rgba(239,68,68,.10); color:rgba(220,38,38,1) }
+.nav-ic-gray{ background:var(--bg-input); color:rgba(100,116,139,1) }
 
 /* ===== 合作产品提示 ===== */
 .partner-tip{

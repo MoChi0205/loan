@@ -60,15 +60,15 @@ const props = defineProps({
 
 const store = useUserStore();
 
-/** TabBar 语义色（基于设计令牌，5 色不重复） */
+/** TabBar 语义色（明亮饱和，避免深灰/深海军蓝在白色底上显得发灰） */
 const COLOR = {
-  HOME: 'var(--brand-deep)',     // #0B1D3A 深海军蓝
-  MATCH: 'var(--brand-bright)',     // 品牌蓝（匹配/连接）
-  REPORT: 'var(--gold)',          // #C8A96E 暖金（数据/报告）
-  ORDER: 'var(--success)',        // #10B981 绿色（服务/进行）
-  MINE: 'var(--role-channel)',       // 青色（个人中心）
-  PRODUCT: 'var(--gold)',         // #C8A96E 暖金（产品）
-  CLIENT: 'var(--success)',       // #10B981 绿色（客户/录入）
+  HOME: 'rgba(59,130,246,1)',     // 明亮蓝（首页）
+  MATCH: 'rgba(96,165,250,1)',   // 更亮蓝（匹配/连接）
+  REPORT: 'rgba(245,158,11,1)',  // 亮琥珀金（数据/报告）
+  ORDER: 'rgba(16,185,129,1)',   // 翠绿（服务/进行）
+  MINE: 'rgba(6,182,212,1)',     // 青色（个人中心）
+  PRODUCT: 'rgba(245,158,11,1)', // 亮琥珀金（产品）
+  CLIENT: 'rgba(16,185,129,1)',  // 翠绿（客户/录入）
 };
 
 const tabList = computed(() => {
@@ -145,7 +145,7 @@ function onTap(item) {
   width: 48rpx;
   height: 6rpx;
   border-radius: 0 0 6rpx 6rpx;
-  background: var(--brand-deep);
+  background: rgba(59,130,246,1);
 }
 
 /* 图标容器：选中态加柔和背景药丸（电商风格）
@@ -161,7 +161,7 @@ function onTap(item) {
 }
 
 .tab-icon-wrap.icon-active {
-  background: rgba(11, 29, 58, 0.08);
+  background: rgba(59, 130, 246, 0.12);
 }
 
 .tab-label {
@@ -175,7 +175,7 @@ function onTap(item) {
 }
 
 .tab-active .tab-label {
-  color: var(--brand-deep);
+  color: rgba(59,130,246,1);
   font-weight: 600;
 }
 

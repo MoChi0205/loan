@@ -201,11 +201,11 @@ async function doLogin() {
     jumpHome();
   } catch (e) {
     console.error('[login]', e);
-    if (!isH5 && e && e.stage === 'wxLogin') {
+    if (!isH5.value && e && e.stage === 'wxLogin') {
       // 仅小程序端可能「取不到 wx code」（用户拒绝授权等）；
       // H5 下 wxLogin 直接返回模拟 code，不会走到该分支。
       uni.showToast({ title: '微信授权失败，请重试', icon: 'none', duration: 2500 });
-    } else if (isH5) {
+    } else if (isH5.value) {
       // H5 预览登录失败（多为后端未开启 wechat.mock 或网络不可达）：
       // 自动展开角色入口，引导用 CRM 账号进入，避免卡死在落地页。
       showRolePicker.value = true;
@@ -341,13 +341,13 @@ function onStart() {
   flex-shrink:0
 }
 .dot-1{
-  background:var(--brand-deep)
+  background:rgba(59,130,246,1)
 }
 .dot-2{
-  background:var(--brand-bright)
+  background:rgba(14,165,233,1)
 }
 .dot-3{
-  background:var(--gold)
+  background:rgba(245,158,11,1)
 }
 .tl-num{
   color:var(--bg-card);
@@ -442,7 +442,7 @@ function onStart() {
   left:0;
   right:0;
   bottom:0;
-  background:rgba(15,23,42,.45);
+  background:rgba(15,23,42,.78);
   z-index:999;
   display:flex;
   align-items:flex-end;
@@ -452,7 +452,8 @@ function onStart() {
   width:100%;
   background:var(--bg-card);
   border-radius: var(--radius-lg) 32rpx 0 0;
-  padding:40rpx 32rpx 60rpx;
+  padding:40rpx 32rpx calc(60rpx + env(safe-area-inset-bottom));
+  box-shadow:0 -8rpx 32rpx rgba(0,0,0,.18);
   animation:slideUp-a55e80fe .25s ease-out
 }
 @keyframes slideUp-a55e80fe{
@@ -482,8 +483,8 @@ to{
   border-bottom:none
 }
 .role-item.active .role-dot{
-  background:var(--brand-deep);
-  box-shadow:0 0 0 6rpx rgba(11,29,58,.15)
+  background:rgba(59,130,246,1);
+  box-shadow:0 0 0 6rpx rgba(59,130,246,.22)
 }
 .role-dot{
   width:20rpx;
@@ -509,7 +510,7 @@ to{
   margin-top:4rpx
 }
 .role-check{
-  color:var(--brand-deep);
+  color:rgba(59,130,246,1);
   font-size: var(--fs-title);
   font-weight:700
 }
