@@ -2,11 +2,11 @@
   <div class="client-profile-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ showOwnClientList && !clientCode ? '我的客户' : (detail.enterpriseName || detail.realName || detail.name || '客户档案') }}</h2>
-        <p class="loan-page-subtitle">{{ isChannel ? '本人录入客户 · 档案只读 · 服务归属' : (isAdviser ? '本人归属客户 · 档案与服务记录' : '客户资料 · 认证信息 · 服务归属 · 操作留痕') }}</p>
+        <h2 class="loan-page-title">{{ !clientCode ? (showOwnClientList ? '我的客户' : '客户档案') : (detail.enterpriseName || detail.realName || detail.name || '客户档案') }}</h2>
+        <p class="loan-page-subtitle">{{ !clientCode ? '多维筛选 · 客户列表（手机号 / 姓名 / 企业名 / 信用代码 / 建档时间）' : (isChannel ? '本人录入客户 · 档案只读 · 服务归属' : (isAdviser ? '本人归属客户 · 档案与服务记录' : '客户资料 · 认证信息 · 服务归属 · 分配/跟进历史')) }}</p>
       </div>
       <div class="header-actions">
-        <el-button v-if="showOwnClientList && clientCode" @click="backToChannelClients">返回我的客户</el-button>
+        <el-button v-if="clientCode" @click="backToClientList">返回客户列表</el-button>
         <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_SCREENING)" type="primary" :disabled="!clientCode" @click="goScreening">
           <AppIcon name="screening" :size="14" />
           发起初筛
@@ -15,35 +15,50 @@
           <AppIcon name="edit" :size="14" />
           编辑档案
         </el-button>
-        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)" type="warning" plain @click="openAssign">分配归属</el-button>
+        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)" type="warning" plain :disabled="!clientCode" @click="openAssign">分配归属</el-button>
         <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_RECYCLE)" type="danger" plain :disabled="!detail.ownerStaffCode" @click="onRecycle">回收进公海</el-button>
       </div>
     </div>
 
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
-      <template v-if="showOwnClientList">
-        <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
-          <el-input v-model="clientQuery.keyword" :placeholder="isChannel ? '客户姓名 / 企业名称 / 手机号' : '客户姓名 / 企业名称'" clearable style="width: 260px" @keyup.enter="searchClients" />
-        </AppSearchBar>
-        <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode">
-          <template #empty><AppEmpty :title="isChannel ? '暂无客户档案' : '暂无客户'" :desc="isChannel ? '本人录入的线索转化为客户后会显示在这里' : '本人归属的客户会显示在这里'" /></template>
-          <el-table-column label="客户" min-width="180">
-            <template #default="{ row }">
-              <div class="cell-main">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</div>
-              <div v-if="row.phone" class="cell-sub">{{ desensitizePhone(row.phone) }}</div>
-            </template>
-          </el-table-column>
-          <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
-          <el-table-column prop="createdAt" label="建档时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
-            <template #default="{ row }">
-              <AppTableActions :actions="ownClientActions(row)" />
-            </template>
-          </el-table-column>
-        </el-table>
-        <AppPagination v-model:page="clientQuery.page" v-model:size="clientQuery.size" :total="clientTotal" @change="loadClients" />
-      </template>
-      <AppEmpty v-else title="请选择客户" desc="从客户列表选择一条客户档案后查看详情" />
+      <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
+        <el-input v-model="clientQuery.name" placeholder="联系人姓名" clearable style="width: 160px" @keyup.enter="searchClients" />
+        <el-input v-model="clientQuery.phone" placeholder="手机号" clearable style="width: 160px" @keyup.enter="searchClients" />
+        <el-input v-model="clientQuery.enterpriseName" placeholder="企业名称" clearable style="width: 200px" @keyup.enter="searchClients" />
+        <el-input v-model="clientQuery.creditCode" placeholder="统一社会信用代码" clearable style="max-width: 220px; min-width: 180px" @keyup.enter="searchClients" />
+        <el-date-picker
+          v-model="createdAtRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="建档起始"
+          end-placeholder="建档截止"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          style="width: 280px"
+        />
+      </AppSearchBar>
+      <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode">
+        <template #empty>
+          <AppEmpty
+            :title="showOwnClientList ? '暂无客户' : '暂无符合条件的客户'"
+            :desc="showOwnClientList ? (isChannel ? '本人录入的线索转化为客户后会显示在这里' : '本人归属的客户会显示在这里') : '试试调整筛选条件'"
+          />
+        </template>
+        <el-table-column label="客户" min-width="180">
+          <template #default="{ row }">
+            <div class="cell-main">{{ row.enterpriseName || row.contactName || '—' }}</div>
+            <div v-if="row.phone" class="cell-sub">{{ desensitizePhone(row.phone) }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
+        <el-table-column label="最近跟进" width="170"><template #default="{ row }">{{ row.lastFollowedAt ? formatDateTime(row.lastFollowedAt) : '—' }}</template></el-table-column>
+        <el-table-column prop="createdAt" label="建档时间" width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <AppTableActions :actions="ownClientActions(row)" />
+          </template>
+        </el-table-column>
+      </el-table>
+      <AppPagination v-model:page="clientQuery.page" v-model:size="clientQuery.size" :total="clientTotal" @change="loadClients" />
     </div>
     <div v-else v-loading="loading" class="profile-body">
       <!-- ① 基础信息 -->
@@ -99,6 +114,27 @@
           <el-descriptions-item label="最近更新人">{{ detail.updatedBy || '—' }}</el-descriptions-item>
           <el-descriptions-item label="最近更新时间">{{ formatDateTime(detail.updatedAt) }}</el-descriptions-item>
         </el-descriptions>
+      </div>
+
+      <!-- ④ 分配/跟进历史（复用 t_lead_allocation_record，所有角色可见） -->
+      <div class="loan-card section-card">
+        <h3 class="panel-title">
+          分配 / 跟进历史
+          <span class="panel-sub" v-if="historyTotal">共 {{ historyTotal }} 条</span>
+        </h3>
+        <div v-if="!historyTotal" class="muted">暂无流转记录</div>
+        <el-table v-else :data="historyRows" size="small" stripe>
+          <el-table-column label="时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column label="动作" width="140">
+            <template #default="{ row }">
+              <span class="loan-tag" :class="historyActionTag(row.actionType)">{{ historyActionText(row.actionType) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="原归属" width="140"><template #default="{ row }">{{ row.fromStaffName || row.fromStaffCode || '—' }}</template></el-table-column>
+          <el-table-column label="新归属" width="140"><template #default="{ row }">{{ row.toStaffName || row.toStaffCode || '—' }}</template></el-table-column>
+          <el-table-column label="操作人" width="120"><template #default="{ row }">{{ row.operator || '—' }}</template></el-table-column>
+          <el-table-column label="备注" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ row.remark || '—' }}</template></el-table-column>
+        </el-table>
       </div>
     </div>
 
@@ -192,7 +228,7 @@ import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient } from '@/api/client';
+import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory } from '@/api/client';
 import { staffPage } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
@@ -217,12 +253,71 @@ const {
   load: loadClients,
   onSearch: searchClients,
   onReset: resetClients,
-} = useTable(pageClients, { keyword: '' });
+} = useTable(pageClients, {
+  keyword: '',
+  name: '',
+  phone: '',
+  enterpriseName: '',
+  creditCode: '',
+  createdAtStart: '',
+  createdAtEnd: '',
+});
+
+/** 建档时间范围（daterange）→ 拆成起止两个查询参数 */
+const createdAtRange = ref(null);
+watch(createdAtRange, (val) => {
+  clientQuery.createdAtStart = Array.isArray(val) && val[0] ? val[0] : '';
+  clientQuery.createdAtEnd = Array.isArray(val) && val[1] ? val[1] : '';
+});
+
 function openChannelClient(row) {
   router.push({ path: '/client', query: { clientCode: row.clientCode } });
 }
-function backToChannelClients() {
+/** 返回客户列表（所有角色统一入口） */
+function backToClientList() {
+  // 日期范围与筛选条件一并清空，避免返回列表后仍受旧筛选影响
+  createdAtRange.value = null;
+  clientQuery.createdAtStart = '';
+  clientQuery.createdAtEnd = '';
   router.push({ path: '/client' });
+}
+
+// ============================================================
+// 分配 / 跟进历史（所有角色可见，复用 t_lead_allocation_record）
+// ============================================================
+const historyRows = ref([]);
+const historyTotal = ref(0);
+const HISTORY_ACTION_MAP = {
+  CLAIM_APPLY: { label: '申请认领', type: 'warning' },
+  CLAIM_APPROVED: { label: '认领通过', type: 'success' },
+  TRANSFER_APPLY: { label: '转移申请', type: 'warning' },
+  MANAGER_ASSIGN: { label: '指派归属', type: 'primary' },
+  FOLLOW_UP: { label: '跟进记录', type: 'primary' },
+  CLIENT_RECYCLE: { label: '回收公海', type: 'danger' },
+  CLIENT_RECYCLE_MANUAL: { label: '管理员回收', type: 'danger' },
+  CLIENT_SELF_RELEASE: { label: '主动释放', type: 'danger' },
+};
+function historyActionText(code) {
+  return (code && HISTORY_ACTION_MAP[code]?.label) || code || '—';
+}
+function historyActionTag(code) {
+  const t = (code && HISTORY_ACTION_MAP[code]?.type) || 'muted';
+  return { info: 'loan-tag-info', primary: 'loan-tag-primary', success: 'loan-tag-success', warning: 'loan-tag-warning', danger: 'loan-tag-danger', muted: 'loan-tag-muted' }[t] || 'loan-tag-muted';
+}
+async function loadHistory(code) {
+  if (!code) {
+    historyRows.value = [];
+    historyTotal.value = 0;
+    return;
+  }
+  try {
+    const res = await getClientHistory(code);
+    historyRows.value = res.data?.records || [];
+    historyTotal.value = res.data?.total || 0;
+  } catch (e) {
+    historyRows.value = [];
+    historyTotal.value = 0;
+  }
 }
 
 /** 我的客户列表操作列：查看档案 +（顾问）跟进 / 释放回公海 */
@@ -548,16 +643,19 @@ async function onRecycle() {
 }
 
 // 路由参数 clientCode（query 或 path 参数均可）变化时重载
+// 所有角色均可看到客户列表（D67）：未选中客户时加载列表，选中时加载档案 + 历史
 watch(
   () => route.query.clientCode || route.params.clientCode,
   (code) => {
     if (code) {
       clientCode.value = code;
       loadDetail(code);
+      loadHistory(code);
       return;
     }
     clientCode.value = '';
-    if (showOwnClientList.value) loadClients();
+    loadHistory('');
+    loadClients();
   },
   { immediate: true },
 );
@@ -579,6 +677,12 @@ watch(
 }
 .cell-sub {
   font-size: 12px;
+  color: var(--loan-text-secondary, var(--loan-text-muted));
+}
+.panel-sub {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
   color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 .muted {

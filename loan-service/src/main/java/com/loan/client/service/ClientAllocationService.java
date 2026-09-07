@@ -35,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -690,6 +691,60 @@ public class ClientAllocationService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("clientCode", clientCode);
         result.put("followedAt", now);
+        return result;
+    }
+
+    /**
+     * 客户分配/跟进历史（复用 t_lead_allocation_record，按 lead_no=clientCode 倒序）。
+     *
+     * <p>包含 CLAIM_APPLY / CLAIM_APPROVED / CLIENT_RECYCLE / FOLLOW_UP /
+     * MANAGER_ASSIGN / CLIENT_SELF_RELEASE / CLIENT_RECYCLE_MANUAL 等所有流转动作，
+     * 一次性展示客户从公海认领、转移、回收、自助释放、跟进的完整历史。</p>
+     *
+     * @param clientCode 客户编码
+     * @param page       页码（从 1 起）
+     * @param size       每页大小
+     * @return { page, size, total, records }
+     */
+    public Map<String, Object> history(String clientCode, int page, int size) {
+        requireClient(clientCode);
+        List<LeadAllocationRecord> records = allocationRecordMapper.selectList(
+                new LambdaQueryWrapper<LeadAllocationRecord>()
+                        .eq(LeadAllocationRecord::getLeadNo, clientCode)
+                        .orderByDesc(LeadAllocationRecord::getCreatedAt));
+        int fromIndex = Math.max(0, (page - 1) * size);
+        int toIndex = Math.min(records.size(), fromIndex + size);
+        List<LeadAllocationRecord> slice = fromIndex >= records.size()
+                ? Collections.<LeadAllocationRecord>emptyList()
+                : records.subList(fromIndex, toIndex);
+
+        // 批量回填操作人姓名，避免行级 N+1
+        Set<String> staffCodes = new HashSet<>();
+        for (LeadAllocationRecord r : slice) {
+            if (StringUtils.hasText(r.getFromStaffCode())) staffCodes.add(r.getFromStaffCode());
+            if (StringUtils.hasText(r.getToStaffCode())) staffCodes.add(r.getToStaffCode());
+            // operator 当前为操作人姓名，无需再查
+        }
+        Map<String, String> staffNameMap = businessNameService.staffNames(staffCodes);
+
+        List<Map<String, Object>> rows = new ArrayList<>(slice.size());
+        for (LeadAllocationRecord r : slice) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("actionType", r.getActionType());
+            m.put("fromStaffCode", r.getFromStaffCode());
+            m.put("fromStaffName", staffNameMap.get(r.getFromStaffCode()));
+            m.put("toStaffCode", r.getToStaffCode());
+            m.put("toStaffName", staffNameMap.get(r.getToStaffCode()));
+            m.put("operator", r.getOperator());
+            m.put("remark", r.getRemark());
+            m.put("createdAt", r.getCreatedAt());
+            rows.add(m);
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("page", page);
+        result.put("size", size);
+        result.put("total", records.size());
+        result.put("records", rows);
         return result;
     }
 

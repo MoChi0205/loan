@@ -16,13 +16,18 @@ export function getClientDetail(clientCode) {
   return request({ url: `${prefix}/${clientCode}`, method: 'get' });
 }
 
-/** 客户分页：渠道后端强制本人录入范围；顾问默认只查本人归属客户。 */
+/**
+ * 客户分页：渠道后端强制本人录入范围；顾问默认只查本人归属客户。
+ *
+ * <p>支持多维筛选：name / phone / enterpriseName / creditCode / createdAtStart / createdAtEnd
+ * （D67）。顾问默认自动追加 ownerStaffCode；其他角色按入参 ownerStaffCode 透传。</p>
+ */
 export function pageClients(params) {
   const user = currentUser();
   const channel = isChannel();
   const url = channel ? '/api/channel/client/page' : '/api/admin/client/page-lite';
   const payload = { ...params };
-  if (!channel && user?.roleCode === 'ADVISER') {
+  if (!channel && user?.roleCode === 'ADVISER' && !payload.ownerStaffCode) {
     payload.ownerStaffCode = user.userNo;
   }
   return request({ url, method: 'get', params: payload });
@@ -74,5 +79,17 @@ export function followClient(clientCode, content) {
     url: `/api/admin/client/${clientCode}/follow`,
     method: 'post',
     data: { content },
+  });
+}
+
+/**
+ * 客户分配/跟进历史（t_lead_allocation_record 复用）：
+ * CLAIM_APPLY/CLAIM_APPROVED/CLIENT_RECYCLE/CLIENT_RECYCLE_MANUAL/FOLLOW_UP 等流水。
+ */
+export function getClientHistory(clientCode, params) {
+  return request({
+    url: `/api/admin/client/${clientCode}/history`,
+    method: 'get',
+    params: params || { page: 1, size: 50 },
   });
 }

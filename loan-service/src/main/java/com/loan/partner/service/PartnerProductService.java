@@ -112,6 +112,7 @@ public class PartnerProductService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该银行产品已上架合作库");
         }
         PartnerProduct product = new PartnerProduct();
+        product.setBankProductId(resolveBankProductId(req.getBankProductCode()));
         product.setBankProductCode(req.getBankProductCode());
         product.setCooperateUntil(req.getCooperateUntil());
         product.setStatus(StringUtils.hasText(req.getStatus()) ? req.getStatus() : STATUS_ACTIVE);
@@ -215,6 +216,7 @@ public class PartnerProductService {
             return;
         }
         PartnerProduct product = new PartnerProduct();
+        product.setBankProductId(resolveBankProductId(bankProductCode));
         product.setBankProductCode(bankProductCode.trim());
         product.setCooperateUntil(finalUntil);
         product.setStatus(STATUS_ACTIVE);
@@ -323,5 +325,24 @@ public class PartnerProductService {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "合作库产品不存在");
         }
         return product;
+    }
+
+    /**
+     * 解析银行产品内部物理主键（兼容旧库 t_partner_product.bank_product_id NOT NULL，D67）。
+     *
+     * <p>迁移 mvp-bizid-fk 落地后该列会被 DROP，本方法可同步下线并把实体字段标记
+     * {@code @TableField(exist = false)}。当前为兜底——查不到时返回 null，由 MySQL
+     * 继续抛 "doesn't have a default value" 暴露问题，避免静默回填脏数据。</p>
+     *
+     * @param bankProductCode 银行产品业务编码
+     * @return 银行产品内部 id，未找到返回 null
+     */
+    private Long resolveBankProductId(String bankProductCode) {
+        if (!StringUtils.hasText(bankProductCode)) {
+            return null;
+        }
+        BankProduct product = bankProductMapper.selectOne(new LambdaQueryWrapper<BankProduct>()
+                .eq(BankProduct::getProductCode, bankProductCode.trim()).last("limit 1"));
+        return product == null ? null : product.getId();
     }
 }
