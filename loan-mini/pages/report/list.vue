@@ -73,7 +73,6 @@
       <!-- 统一用 AppListItem：左侧评级块 + 主内容 + 右侧状态（替代原 .report-item 独立实现） -->
       <AppListItem
         v-for="item in reports" :key="item.reportNo"
-        :id="item.reportNo"
         :title="itemTitle(item)"
         tappable
         :aria-label="`报告 ${item.reportNo}，评级 ${gradeLabel(item.grade)}`"

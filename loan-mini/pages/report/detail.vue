@@ -31,7 +31,7 @@
 
         <AppEmpty v-else-if="!products.length"
           title="暂无命中产品明细"
-          desc="命中产品明细需「报告 ↔ 产品」关联数据（t_screening_product）支撑，该能力正在补齐中" />
+          desc="命中产品明细需「报告 ↔ 产品」关联数据支撑，该能力正在补齐中" />
 
         <view v-else class="stack">
           <AppListItem
@@ -107,9 +107,9 @@
           <!-- 诊断头：报告关联 + 材料时效提示（P2-1） -->
           <view class="card diag-header">
             <view class="diag-header-l">
-              <text class="diag-id">DIAG-{{ report.reportNo }}</text>
+              <text class="diag-id">DIAG · {{ report.reportNo.slice(-8) }}</text>
               <text class="diag-time">
-                基于「{{ report.reportNo }}」上传材料生成 · {{ formatTime(diagnosis.generatedAt) }}
+                基于「报告 {{ report.reportNo.slice(-8) }}」上传材料生成 · {{ formatTime(diagnosis.generatedAt) }}
               </text>
             </view>
             <AppButton variant="secondary" size="sm" @click="onUploadMaterial">上传最新材料</AppButton>
@@ -415,7 +415,7 @@ function goBack() { uni.navigateBack(); }
 <style scoped>
 .detail-page {
   min-height: 100vh;
-  padding: 0 var(--space-4) var(--space-12);
+  padding: 0 var(--space-4) calc(var(--space-12) + env(safe-area-inset-bottom));
   background: var(--bg-page);
   box-sizing: border-box;
 }

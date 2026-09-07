@@ -601,10 +601,11 @@ function onMine() {
   margin-bottom:32rpx;
   padding-top:8rpx
 }
+/* 微信小程序 WXSS 不支持 display:grid，改用 flex-wrap 兼容双端；
+   每格 width:25% 固定四列，杜绝 grid 被忽略后退化与文字重叠 */
 .nav-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:20rpx 0;
+  display:flex;
+  flex-wrap:wrap;
   background:var(--bg-card);
   border-radius:var(--radius-md);
   padding:24rpx 16rpx;
@@ -614,7 +615,9 @@ function onMine() {
   display:flex;
   flex-direction:column;
   align-items:center;
-  padding:12rpx 4rpx
+  width:25%;
+  padding:12rpx 4rpx;
+  min-height:140rpx
 }
 .nav-cell:active{
   transform:scale(.94)
@@ -631,12 +634,18 @@ function onMine() {
 .nav-name{
   font-size:24rpx;
   font-weight:600;
-  color:var(--text-primary)
+  color:var(--text-primary);
+  line-height:1.3;
+  flex-shrink:0;
+  text-align:center
 }
 .nav-desc{
   margin-top:4rpx;
   font-size:var(--fs-xxs);
-  color:var(--text-placeholder)
+  color:var(--text-placeholder);
+  line-height:1.3;
+  flex-shrink:0;
+  text-align:center
 }
 /* 宫格图标色调（引用设计令牌） */
 .nav-ic-blue{ background:rgba(11,29,58,.08); color:var(--brand-deep) }
