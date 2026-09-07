@@ -46,26 +46,26 @@ defineProps({
 /* 语义色：淡底 + 无障碍深字（对比度 ≥4.5:1） */
 .tag-success {
   background: rgba(16, 185, 129, 0.14);
-  color: var(--success-text, #047857);
+  color: var(--success-text);
 }
 .tag-warning {
   background: rgba(245, 158, 11, 0.16);
-  color: var(--warning-text, #b45309);
+  color: var(--warning-text);
 }
 .tag-danger {
   background: rgba(239, 68, 68, 0.14);
-  color: var(--danger-text, #b91c1c);
+  color: var(--danger-text);
 }
 .tag-info {
   background: rgba(6, 182, 212, 0.14);
-  color: var(--info-text, #0e7490);
+  color: var(--info-text);
 }
 .tag-gold {
   background: rgba(200, 169, 110, 0.18);
-  color: var(--gold-text, #3a2e12);
+  color: var(--gold-text);
 }
 .tag-muted {
-  background: var(--bg-input, #f1f5f9);
-  color: var(--text-secondary, #64748b);
+  background: var(--bg-input);
+  color: var(--text-secondary);
 }
 </style>

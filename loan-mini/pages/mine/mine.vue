@@ -12,9 +12,9 @@
             <text class="profile-name">{{ displayName }}</text>
             <text class="profile-phone">{{ phoneDisplay }}</text>
           </view>
-          <view class="auth-chip" :class="store.isAuthed ? 'chip-ok' : 'chip-todo'" @click="onGoAuth">
+          <AppClickable class="auth-chip" :class="store.isAuthed ?' chip-ok' :' chip-todo'" @click="onGoAuth">
             {{ store.isAuthed ? '已认证' : '去认证' }}
-          </view>
+          </AppClickable>
         </view>
       </view>
     </view>
@@ -58,7 +58,7 @@
       </view>
 
       <!-- 功能菜单 -->
-      <view v-if="!isChannelRole" class="card menu-card u-hover" @click="goOrder">
+      <AppClickable v-if="!isChannelRole" class="card menu-card u-hover" @click="goOrder">
         <view class="menu-left">
           <view class="menu-icon-wrap">
             <AppIcon name="list" size="md" />
@@ -69,10 +69,10 @@
           </view>
         </view>
         <text class="menu-arrow">›</text>
-      </view>
+      </AppClickable>
 
       <!-- 我的产品（C9）：渠道管理自有产品；员工可录入银行产品。客户无此入口 -->
-      <view v-if="isChannelRole || isStaffRole" class="card menu-card" @click="goProduct">
+      <AppClickable v-if="isChannelRole || isStaffRole" class="card menu-card" @click="goProduct">
         <view class="menu-left">
           <view class="menu-icon-wrap">
             <AppIcon name="bank" size="md" />
@@ -85,10 +85,10 @@
           </view>
         </view>
         <text class="menu-arrow">›</text>
-      </view>
+      </AppClickable>
 
       <!-- 审批中心（C19）：仅运营/超管/老板可见 -->
-      <view v-if="isApproverRole" class="card menu-card" @click="goApproval">
+      <AppClickable v-if="isApproverRole" class="card menu-card" @click="goApproval">
         <view class="menu-left">
           <view class="menu-icon-wrap">
             <AppIcon name="check" size="md" />
@@ -100,7 +100,7 @@
         </view>
         <view v-if="approvalTotal > 0" class="menu-badge">{{ approvalTotal }}</view>
         <text class="menu-arrow">›</text>
-      </view>
+      </AppClickable>
 
       <!-- 分享邀请：分享链接自动携带邀请码，接收方无需手填 -->
       <view v-if="role === 'customer'" class="card share-card">
@@ -376,7 +376,7 @@ function onLogout() {
   margin: 0;
   /* 底部 padding 由 48rpx 收到 32rpx：原值是给 .content 负 margin 上叠预留的空间 */
   padding: 56rpx 40rpx 32rpx;
-  background: linear-gradient(145deg, var(--brand-deep) 0%, var(--brand-mid) 50%, var(--brand-bright) 100%);
+  background: var(--brand-deep);
   overflow: hidden;
 }
 
@@ -445,7 +445,7 @@ function onLogout() {
   padding: 32rpx;
   /* 20rpx 小于阴影扩散半径（20rpx），相邻卡片阴影会连成一片，提到 32rpx */
   margin-bottom: 32rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-md);
 }
 
 .sec-header {
@@ -483,9 +483,9 @@ function onLogout() {
   width: 76rpx;
   height: 76rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--brand-deep), var(--brand-bright));
+  background: var(--brand-mid);
   color: var(--text-invert);
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -522,7 +522,7 @@ function onLogout() {
 .menu-body { display: flex; flex-direction: column; }
 .menu-title { font-size: 29rpx; font-weight: 600; color: var(--text-primary); }
 .menu-desc { margin-top: 6rpx; font-size: 23rpx; color: var(--text-placeholder); }
-.menu-arrow { font-size: 40rpx; color: var(--line); }
+.menu-arrow { font-size: var(--fs-arrow); color: var(--line); }
 
 .menu-badge {
   min-width: 32rpx;

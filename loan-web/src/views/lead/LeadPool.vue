@@ -579,7 +579,7 @@ onMounted(load);
   gap: 10px;
   padding: 10px 16px;
   margin-bottom: 10px;
-  background: var(--loan-bg-elevated, #f8fafc);
+  background: var(--loan-bg-elevated, var(--loan-surface));
   border: 1px solid var(--loan-border);
   border-radius: 8px;
 }
@@ -589,7 +589,7 @@ onMounted(load);
   margin-right: 4px;
 }
 .batch-count b {
-  color: var(--loan-primary, #3b82f6);
+  color: var(--loan-primary);
   font-size: 14px;
 }
 </style>

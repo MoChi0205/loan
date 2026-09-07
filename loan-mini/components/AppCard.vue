@@ -29,14 +29,14 @@ defineProps({
 
 <style scoped>
 .app-card {
-  background: var(--color-card, #ffffff);
-  border-radius: var(--radius-card, 24rpx);
-  box-shadow: var(--shadow-card, 0 4rpx 20rpx rgba(0, 0, 0, 0.05));
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 .app-card--flat {
   box-shadow: none;
-  border: 2rpx solid var(--color-border, #e5e7eb);
+  border: 2rpx solid var(--line);
 }
 .app-card--pad {
   padding: 32rpx;

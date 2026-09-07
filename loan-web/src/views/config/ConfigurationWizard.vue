@@ -97,22 +97,22 @@ onMounted(load);
   align-items: center;
   gap: 16px;
   padding-bottom: 20px;
-  border-bottom: 1px solid var(--loan-border, #e5e8f0);
+  border-bottom: 1px solid var(--loan-border);
   margin-bottom: 8px;
 }
 .progress-label {
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
 }
 .progress-num {
-  color: var(--loan-primary, #4f7cff);
+  color: var(--loan-primary);
   margin-left: 6px;
 }
 .progress-tip {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   white-space: nowrap;
 }
 .step-list {
@@ -124,7 +124,7 @@ onMounted(load);
   align-items: center;
   gap: 14px;
   padding: 14px 8px;
-  border-bottom: 1px solid var(--loan-border, #f0f2f7);
+  border-bottom: 1px solid var(--loan-border, var(--loan-surface));
 }
 .step-row:last-child {
   border-bottom: none;
@@ -138,13 +138,13 @@ onMounted(load);
   justify-content: center;
   font-size: 14px;
   font-weight: 600;
-  background: var(--loan-surface, #f5f7fa);
-  color: var(--loan-text-secondary, #8a94a6);
+  background: var(--loan-surface, var(--loan-bg));
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   flex-shrink: 0;
 }
 .step-index-done {
-  background: var(--loan-success, #2fbf71);
-  color: #fff;
+  background: var(--loan-success);
+  color: var(--loan-paper);
 }
 .step-body {
   flex: 1;
@@ -153,14 +153,14 @@ onMounted(load);
 .step-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .step-desc {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   margin-top: 2px;
 }
 .step-right {
@@ -170,7 +170,7 @@ onMounted(load);
 }
 .step-count {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 .mono {
   font-family: "SF Mono", Menlo, Consolas, monospace;

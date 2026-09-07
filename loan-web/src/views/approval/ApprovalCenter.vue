@@ -481,9 +481,9 @@ watch(activeTab, async (tab) => {
 
 <style scoped>
 .cell-main { font-weight: 500; }
-.cell-sub { font-size: 12px; color: var(--loan-text-secondary, #8a94a6); }
+.cell-sub { font-size: 12px; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
-.link-token { font-size: 12px; color: var(--loan-primary, #4f7cff); }
-.muted { color: var(--loan-text-secondary, #8a94a6); }
+.link-token { font-size: 12px; color: var(--loan-primary); }
+.muted { color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .remote-more { min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--loan-primary); cursor: pointer; font-size: 13px; }
 </style>

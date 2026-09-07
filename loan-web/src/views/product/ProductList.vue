@@ -717,9 +717,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.muted { color: var(--loan-text-secondary, #8a94a6); }
-.expiring-until { color: var(--loan-warning, #f59e0b); }
-.renew-hint { margin: 0 0 14px; font-size: 13px; color: var(--loan-text-secondary, #8a94a6); }
+.muted { color: var(--loan-text-secondary, var(--loan-text-muted)); }
+.expiring-until { color: var(--loan-warning); }
+.renew-hint { margin: 0 0 14px; font-size: 13px; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .city-wrap { display: flex; flex-direction: column; gap: 12px; }
 .city-tags { display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; }
 .city-tag { margin: 0; }

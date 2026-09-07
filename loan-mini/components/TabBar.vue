@@ -63,10 +63,10 @@ const store = useUserStore();
 /** TabBar 语义色（基于设计令牌，5 色不重复） */
 const COLOR = {
   HOME: 'var(--brand-deep)',     // #0B1D3A 深海军蓝
-  MATCH: '#534AB7',               // 蓝紫（匹配/连接）
+  MATCH: 'var(--brand-bright)',     // 品牌蓝（匹配/连接）
   REPORT: 'var(--gold)',          // #C8A96E 暖金（数据/报告）
   ORDER: 'var(--success)',        // #10B981 绿色（服务/进行）
-  MINE: '#0E7490',                // 青色（个人中心）
+  MINE: 'var(--role-channel)',       // 青色（个人中心）
   PRODUCT: 'var(--gold)',         // #C8A96E 暖金（产品）
   CLIENT: 'var(--success)',       // #10B981 绿色（客户/录入）
 };
@@ -116,7 +116,7 @@ function onTap(item) {
   align-items: stretch;
   background: var(--text-invert);
   border-top: 1rpx solid var(--line);
-  box-shadow: 0 -4rpx 24rpx rgba(0, 0, 0, 0.06);
+  box-shadow: 0 -4rpx 24rpx rgba(15, 23, 42, 0.06);
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }

@@ -8,30 +8,22 @@
 
     <!-- 客户类型切换：双卡片 -->
     <view class="type-row">
-      <view
-        class="type-card u-hover"
-        :class="{ active: authType === 'enterprise' }"
-        @click="authType = 'enterprise'"
-      >
+      <AppClickable class="type-card u-hover" :class="{ active: authType ===' enterprise' }" @click="authType =' enterprise'">
         <view class="type-icon-wrap" :class="{ 'icon-active': authType === 'enterprise' }">
           <AppIcon name="enterprise" size="lg" />
         </view>
         <text class="type-label">企业认证</text>
         <text class="type-desc">营业执照 · 对公经营</text>
         <view class="type-check" v-if="authType === 'enterprise'">✓</view>
-      </view>
-      <view
-        class="type-card u-hover"
-        :class="{ active: authType === 'personal' }"
-        @click="authType = 'personal'"
-      >
+      </AppClickable>
+      <AppClickable class="type-card u-hover" :class="{ active: authType ===' personal' }" @click="authType =' personal'">
         <view class="type-icon-wrap" :class="{ 'icon-active': authType === 'personal' }">
           <AppIcon name="person" size="lg" />
         </view>
         <text class="type-label">个人认证</text>
         <text class="type-desc">实名 · 工薪 / 自由职业</text>
         <view class="type-check" v-if="authType === 'personal'">✓</view>
-      </view>
+      </AppClickable>
     </view>
 
     <!-- 企业表单 -->
@@ -93,19 +85,19 @@
         <view class="switch-list">
           <view class="switch-row" v-for="opt in assetOptions" :key="opt.key">
             <text class="switch-label">{{ opt.label }}</text>
-            <switch :checked="personalForm[opt.key] === 1" color="#0B1D3A" @change="onSwitch(opt.key, $event)" />
+            <switch :checked="personalForm[opt.key] === 1" :color="SWITCH_COLOR" @change="onSwitch(opt.key, $event)" />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 合规声明 -->
-    <view class="compliance" @click="agreed = !agreed">
+    <AppClickable class="compliance" @click="agreed = !agreed">
       <view class="checkbox" :class="{ checked: agreed }">
         <text v-if="agreed" class="check-mark">✓</text>
       </view>
       <text class="compliance-text">我已阅读并同意《用户授权与隐私协议》，授权平台使用上述信息进行贷款匹配分析</text>
-    </view>
+    </AppClickable>
 
     <AppButton class="submit-btn" variant="primary" size="lg" block :loading="submitting" @click="onSubmit">
       {{ submitting ? '提交中…' : '提交认证' }}
@@ -144,6 +136,8 @@ const assetOptions = [
   { key: 'fundFlag', label: '连续缴纳公积金' },
 ];
 
+// 设计令牌：switch 原生 color 属性不支持 CSS 变量，用脚本常量承载（值取自 --brand-deep #0B1D3A）
+const SWITCH_COLOR = '#0B1D3A';
 function onSwitch(key, e) {
   personalForm[key] = e.detail && e.detail.value ? 1 : 0;
 }
@@ -261,7 +255,7 @@ async function onSubmit() {
   margin-bottom:20rpx
 }
 .type-icon-wrap.icon-active{
-  background:linear-gradient(135deg,var(--brand-deep),var(--brand-bright))
+  background:var(--brand-deep)
 }
 .type-label{
   font-size:29rpx;

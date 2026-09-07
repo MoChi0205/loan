@@ -79,7 +79,7 @@ onBeforeUnmount(() => {
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.18);
   font-size: 13.5px;
-  color: var(--loan-text, #1f2937);
+  color: var(--loan-text);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
 }
 .ctx-item:hover:not(:disabled) {
   background: var(--loan-primary-soft, rgba(59, 130, 246, 0.18));
-  color: var(--loan-text, #1f2937);
+  color: var(--loan-text);
 }
 .ctx-item:disabled {
   opacity: 0.4;

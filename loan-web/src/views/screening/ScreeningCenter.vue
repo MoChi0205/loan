@@ -333,7 +333,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.muted { color: var(--loan-text-secondary, #8a94a6); }
+.muted { color: var(--loan-text-secondary, var(--loan-text-muted)); }
 
 /* 左右布局 */
 .screening-layout {
@@ -371,14 +371,14 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 320px;
-  color: var(--loan-text-muted, #b0b8c6);
+  color: var(--loan-text-muted);
 }
 .placeholder-text {
   margin-top: 16px;
   font-size: 14px;
   line-height: 1.8;
   text-align: center;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 
 /* 结果卡片 */
@@ -394,7 +394,7 @@ onMounted(() => {
 .result-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
 }
 .result-grid {
   display: grid;
@@ -404,23 +404,23 @@ onMounted(() => {
 .result-item {
   text-align: center;
   padding: 14px 8px;
-  background: var(--loan-surface, #f8fafc);
-  border: 1px solid var(--loan-border, #e5e8f0);
+  background: var(--loan-surface);
+  border: 1px solid var(--loan-border);
   border-radius: 8px;
 }
 .result-num {
   font-size: 24px;
   font-weight: 700;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
 }
 .result-label {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   margin-top: 4px;
 }
-.result-item--pass .result-num { color: var(--loan-success, #2fbf71); }
-.result-item--cond .result-num { color: var(--loan-warning, #f59e0b); }
-.result-item--reject .result-num { color: var(--loan-danger, #e5484d); }
+.result-item--pass .result-num { color: var(--loan-success); }
+.result-item--cond .result-num { color: var(--loan-warning); }
+.result-item--reject .result-num { color: var(--loan-danger); }
 
 .result-foot {
   display: flex;
@@ -429,9 +429,9 @@ onMounted(() => {
   gap: 12px;
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 1px dashed var(--loan-border, #e5e8f0);
+  border-top: 1px dashed var(--loan-border);
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 .report-no {
   flex: 1 1 auto;

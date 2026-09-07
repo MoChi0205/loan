@@ -138,7 +138,7 @@ onMounted(async () => {
   font-weight: 600;
   margin: 0 0 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--loan-border, #e5e8f0);
+  border-bottom: 1px solid var(--loan-border);
 }
 .trend-table {
   width: 100%;
@@ -148,8 +148,8 @@ onMounted(async () => {
 .trend-table th, .trend-table td {
   padding: 6px 8px;
   text-align: right;
-  border-bottom: 1px solid var(--loan-border, #f0f2f7);
+  border-bottom: 1px solid var(--loan-border, var(--loan-surface));
 }
-.trend-table th:first-child, .trend-table td:first-child { text-align: left; color: var(--loan-text-secondary, #8a94a6); }
+.trend-table th:first-child, .trend-table td:first-child { text-align: left; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 </style>

@@ -47,31 +47,25 @@
       <text class="h5-note" v-if="isH5">H5 预览模式：采用模拟登录（后端 wechat.mock），仅供本地联调</text>
 
       <!-- 开发模式：角色切换（仅开发环境显示） -->
-      <view class="dev-panel u-hover" v-if="showDevPanel" @click.stop="toggleDevRoles">
+      <AppClickable class="dev-panel u-hover" v-if="showDevPanel" @click.stop="toggleDevRoles">
         <text class="dev-tag">DEV</text>
         <text class="dev-hint">当前：{{ devRoleLabel }} · 点击切换角色</text>
-      </view>
+      </AppClickable>
 
       <!-- 角色选择浮层 -->
-      <view class="dev-overlay" v-if="showRolePicker" @click="showRolePicker = false">
-        <view class="role-picker" @click.stop>
+      <AppClickable class="dev-overlay" v-if="showRolePicker" @click="showRolePicker = false">
+        <AppClickable class="role-picker" @click.stop>
           <text class="picker-title">切换身份（开发模式）</text>
-          <view
-            v-for="r in devRoles"
-            :key="r.code"
-            class="role-item u-hover"
-            :class="{ active: devRole === r.code }"
-            @click="pickRole(r)"
-          >
+          <AppClickable v-for="r in devRoles" :key="r.code" class="role-item u-hover" :class="{ active: devRole === r.code }" @click="pickRole(r)">
             <view class="role-dot" />
             <view class="role-info">
               <text class="role-name">{{ r.name }}</text>
               <text class="role-desc">{{ r.desc }}</text>
             </view>
             <text class="role-check" v-if="devRole === r.code">✓</text>
-          </view>
-        </view>
-      </view>
+          </AppClickable>
+        </AppClickable>
+      </AppClickable>
     </view>
   </view>
 </template>
@@ -245,7 +239,7 @@ function onStart() {
   position:relative;
   margin:0;
   padding:120rpx 48rpx 72rpx;
-  background:linear-gradient(145deg,var(--brand-deep),var(--brand-mid),var(--brand-bright));
+  background:var(--brand-deep);
   overflow:hidden
 }
 .hero-decor{
@@ -288,7 +282,7 @@ function onStart() {
   font-weight:500
 }
 .hero-title{
-  font-size:48rpx;
+  font-size: var(--fs-display);
   font-weight:800;
   color:var(--bg-card);
   letter-spacing:2rpx;
@@ -448,7 +442,7 @@ function onStart() {
   left:0;
   right:0;
   bottom:0;
-  background:rgba(0,0,0,.45);
+  background:rgba(15,23,42,.45);
   z-index:999;
   display:flex;
   align-items:flex-end;
@@ -516,7 +510,7 @@ to{
 }
 .role-check{
   color:var(--brand-deep);
-  font-size:32rpx;
+  font-size: var(--fs-title);
   font-weight:700
 }
 </style>

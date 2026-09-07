@@ -40,15 +40,15 @@ const router = useRouter();
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--loan-bg, #f5f7fa);
+  background: var(--loan-bg);
   padding: 24px;
 }
 .error-card {
   text-align: center;
   max-width: 420px;
   padding: 48px 40px;
-  background: var(--loan-card-bg, #ffffff);
-  border: 1px solid var(--loan-border, #e5e8f0);
+  background: var(--loan-card-bg, var(--loan-paper));
+  border: 1px solid var(--loan-border);
   border-radius: 16px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
 }
@@ -61,20 +61,20 @@ const router = useRouter();
   -webkit-text-fill-color: transparent;
 }
 .error-code.tone-warning {
-  background: linear-gradient(135deg, var(--loan-warning, #fbbf24), var(--loan-danger, #f87171));
+  background: linear-gradient(135deg, var(--loan-warning), var(--loan-danger));
 }
 .error-code.tone-info {
-  background: linear-gradient(135deg, var(--loan-primary, #3b82f6), var(--loan-accent, #38bdf8));
+  background: linear-gradient(135deg, var(--loan-primary), var(--loan-accent));
 }
 .error-title {
   font-size: 20px;
   font-weight: 700;
   margin: 16px 0 8px;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
 }
 .error-desc {
   font-size: 13px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   line-height: 1.7;
 }
 .error-actions {

@@ -1,0 +1,17 @@
+{
+  "overrides": [
+    {
+      "files": ["**/*.vue"],
+      "customSyntax": "postcss-html"
+    }
+  ],
+  "rules": {
+    "unit-no-unknown": [true, { "ignoreUnits": ["rpx"] }],
+    "color-no-hex": [true, { "except": ["custom-properties"] }]
+  },
+  "ignoreFiles": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**"
+  ]
+}

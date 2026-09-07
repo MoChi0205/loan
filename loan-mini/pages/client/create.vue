@@ -25,8 +25,8 @@
         <view class="field">
           <text class="field-label">客群</text>
           <view class="seg">
-            <view class="seg-item" :class="{ active: form.leadType === 'ENTERPRISE' }" @click="onPickGroup('ENTERPRISE')">企业</view>
-            <view class="seg-item" :class="{ active: form.leadType === 'PERSONAL' }" @click="onPickGroup('PERSONAL')">个人</view>
+            <AppClickable class="seg-item" :class="{ active: form.leadType ===' ENTERPRISE' }" @click="onPickGroup(' ENTERPRISE')">企业</AppClickable>
+            <AppClickable class="seg-item" :class="{ active: form.leadType ===' PERSONAL' }" @click="onPickGroup(' PERSONAL')">个人</AppClickable>
           </view>
         </view>
       </view>

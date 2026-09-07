@@ -48,7 +48,7 @@ function onBack() {
 
 <style scoped>
 .app-topbar {
-  background: var(--color-card, #ffffff);
+  background: var(--bg-card);
 }
 .is-fixed {
   position: fixed;
@@ -75,17 +75,17 @@ function onBack() {
 .back-arrow {
   width: 20rpx;
   height: 20rpx;
-  border-left: 4rpx solid var(--color-primary, #0b1d3a);
-  border-bottom: 4rpx solid var(--color-primary, #0b1d3a);
+  border-left: 4rpx solid var(--brand-deep);
+  border-bottom: 4rpx solid var(--brand-deep);
   transform: rotate(45deg);
   margin-left: 8rpx;
 }
 .nav-title {
   flex: 1;
   text-align: center;
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   font-weight: 600;
-  color: var(--color-text, #1a1a2e);
+  color: var(--text-primary);
 }
 .nav-right {
   width: 80rpx;

@@ -111,6 +111,26 @@ function applyVars(mode, primary, accent) {
     '--loan-danger': isDark ? '#f87171' : '#dc2626',
     '--loan-info': accent,
 
+    // 语义柔和色（callout/徽标软底，暗色低透明叠加 / 浅色浅底）
+    '--loan-success-bg': isDark ? 'rgba(52, 211, 153, 0.14)' : '#ecfdf5',
+    '--loan-success-line': isDark ? 'rgba(52, 211, 153, 0.34)' : '#a7f3d0',
+    '--loan-success-text': isDark ? '#6ee7b7' : '#047857',
+    '--loan-warning-bg': isDark ? 'rgba(251, 191, 36, 0.14)' : '#fffbeb',
+    '--loan-warning-line': isDark ? 'rgba(251, 191, 36, 0.34)' : '#fde68a',
+    '--loan-warning-text': isDark ? '#fcd34d' : '#b45309',
+    '--loan-danger-bg': isDark ? 'rgba(248, 113, 113, 0.14)' : '#fef2f2',
+    '--loan-danger-line': isDark ? 'rgba(248, 113, 113, 0.34)' : '#fecaca',
+    '--loan-danger-text': isDark ? '#fca5a5' : '#b91c1c',
+    '--loan-info-bg': isDark ? 'rgba(56, 189, 248, 0.14)' : '#eff6ff',
+    '--loan-info-line': isDark ? 'rgba(56, 189, 248, 0.34)' : '#bfdbfe',
+    '--loan-info-text': isDark ? '#7dd3fc' : '#1d4ed8',
+
+    // 分类强调色（仪表盘多指标区分，稳定品牌邻近色）
+    '--loan-cat-indigo': isDark ? '#818cf8' : '#6366f1',
+    '--loan-cat-teal': isDark ? '#2dd4bf' : '#14b8a6',
+    '--loan-cat-orange': isDark ? '#fb923c' : '#f97316',
+    '--loan-cat-purple': isDark ? '#c084fc' : '#a855f7',
+
     // 侧栏
     '--loan-sider-bg': isDark ? '#0e1726' : '#ffffff',
     '--loan-sider-text': isDark ? '#cbd5e1' : '#4b5563',

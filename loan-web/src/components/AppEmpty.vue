@@ -58,7 +58,7 @@ defineProps({
   justify-content: center;
   gap: 10px;
   padding: 24px 16px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   text-align: center;
 }
 .empty-art {
@@ -68,11 +68,11 @@ defineProps({
 .empty-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
 }
 .empty-desc {
   font-size: 12px;
-  color: var(--loan-text-muted, #8a94a6);
+  color: var(--loan-text-muted);
   max-width: 320px;
   line-height: 1.6;
 }

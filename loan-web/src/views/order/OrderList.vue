@@ -388,7 +388,7 @@ onMounted(load);
 }
 .cell-sub {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 .mono {
   font-family: "SF Mono", Menlo, Consolas, monospace;

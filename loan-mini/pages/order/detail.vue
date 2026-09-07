@@ -161,7 +161,7 @@ function goBack() {
 .status-label {
   padding: 10rpx 36rpx;
   border-radius: 40rpx;
-  font-size: 32rpx;
+  font-size: var(--fs-title);
   font-weight: 700;
   background: rgba(255, 255, 255, 0.22);
 }

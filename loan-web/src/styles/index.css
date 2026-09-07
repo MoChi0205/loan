@@ -10,6 +10,7 @@
  * 组件内禁止硬编码颜色。改 .env 即可全局换肤。
  * ============================================================ */
 
+/* stylelint-disable color-no-hex -- 令牌源：自定义属性声明与 Element Plus 变量覆盖允许裸 hex */
 :root {
   /* 兜底默认值（正式值由 applyTheme 从环境配置覆盖）——深蓝金融高对比暗色 */
   --loan-primary: #3b82f6;
@@ -23,6 +24,8 @@
 
   --loan-bg: #0b1220;
   --loan-card-bg: #131e33;
+  --loan-paper: #ffffff;      /* 白底/纸面：报表预览、打印区等刻意保留白色，明暗主题均白 */
+  --loan-black: #000000;      /* 纯黑：color-mix 压暗、遮罩等，非主题相关，不随主题变化 */
   --loan-surface: #0e1828;
   --loan-border: #243148;
   --loan-border-strong: #3b4a63;
@@ -35,6 +38,26 @@
   --loan-warning: #fbbf24;
   --loan-danger: #f87171;
   --loan-info: #38bdf8;
+
+  /* 语义柔和色（callout/徽标软底；暗色：低透明叠加，浅色：浅底） */
+  --loan-success-bg: rgba(52, 211, 153, 0.14);
+  --loan-success-line: rgba(52, 211, 153, 0.34);
+  --loan-success-text: #6ee7b7;
+  --loan-warning-bg: rgba(251, 191, 36, 0.14);
+  --loan-warning-line: rgba(251, 191, 36, 0.34);
+  --loan-warning-text: #fcd34d;
+  --loan-danger-bg: rgba(248, 113, 113, 0.14);
+  --loan-danger-line: rgba(248, 113, 113, 0.34);
+  --loan-danger-text: #fca5a5;
+  --loan-info-bg: rgba(56, 189, 248, 0.14);
+  --loan-info-line: rgba(56, 189, 248, 0.34);
+  --loan-info-text: #7dd3fc;
+
+  /* 分类强调色（仪表盘多指标区分，稳定品牌邻近色） */
+  --loan-cat-indigo: #818cf8;
+  --loan-cat-teal: #2dd4bf;
+  --loan-cat-orange: #fb923c;
+  --loan-cat-purple: #c084fc;
 
   --loan-sider-bg: #0e1726;
   --loan-sider-text: #cbd5e1;
@@ -1130,3 +1153,5 @@ body {
 [class$="-page"] > .loan-card > .el-table {
   flex-shrink: 0;
 }
+
+/* stylelint-enable color-no-hex */

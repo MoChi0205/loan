@@ -1,0 +1,38 @@
+name: stylelint
+
+on:
+  push:
+    paths:
+      - "loan-mini/**"
+      - "loan-web/**"
+      - ".github/workflows/stylelint.yml"
+  pull_request:
+    paths:
+      - "loan-mini/**"
+      - "loan-web/**"
+      - ".github/workflows/stylelint.yml"
+
+jobs:
+  stylelint:
+    name: stylelint (loan-mini + loan-web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # 小程序端：裸 hex / 未知单位（rpx 已白名单）门禁
+      - name: loan-mini stylelint
+        working-directory: loan-mini
+        run: |
+          npm install
+          npm run lint:style
+
+      # Web 管理端：同款 stylelint 配置（color-no-hex + rpx 白名单 + postcss-html）
+      - name: loan-web stylelint
+        working-directory: loan-web
+        run: |
+          npm install
+          npm run lint:style

@@ -30,11 +30,7 @@
         />
         <!-- 归属筛选（C3：顾问默认全量） -->
         <view class="owner-seg">
-          <view
-            v-for="o in ownerOptions" :key="o.key"
-            class="owner-item" :class="{ active: filters.owner === o.key }"
-            @click="onOwnerChange(o.key)"
-          >{{ o.label }}</view>
+          <AppClickable v-for="o in ownerOptions" :key="o.key" class="owner-item" :class="{ active: filters.owner === o.key }" @click="onOwnerChange(o.key)">{{ o.label }}</AppClickable>
         </view>
       </template>
 

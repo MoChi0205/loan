@@ -2,14 +2,10 @@
   <view class="approval-page">
     <!-- 类型分段 tab（审批中心统一：ALL / PRODUCT / DOWNLOAD / ALLOCATION / MATERIAL_REVIEW） -->
     <view class="seg-tabs">
-      <view
-        v-for="t in segTabs" :key="t.value"
-        class="seg-tab" :class="{ active: activeType === t.value }"
-        @click="switchType(t.value)"
-      >
+      <AppClickable v-for="t in segTabs" :key="t.value" class="seg-tab" :class="{ active: activeType === t.value }" @click="switchType(t.value)">
         <text class="seg-label">{{ t.label }}</text>
         <text v-if="countMap[t.value] > 0" class="seg-badge">{{ countMap[t.value] }}</text>
-      </view>
+      </AppClickable>
     </view>
 
     <!-- 加载中 -->

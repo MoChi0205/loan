@@ -111,7 +111,7 @@ function particleStyle(p) {
  * Mesh —— 渐变光斑 + 细网格（默认，柔和专业）
  * ============================================================ */
 .bg-mesh {
-  background: linear-gradient(135deg, #f5f7fa 0%, #eef2ff 50%, #ecfeff 100%);
+  background: linear-gradient(135deg, var(--loan-bg) 0%, var(--loan-info-bg) 50%, var(--loan-info-bg) 100%);
 }
 
 .mesh-blob {
@@ -125,7 +125,7 @@ function particleStyle(p) {
 .mesh-blob-1 {
   width: 520px;
   height: 520px;
-  background: #93c5fd;
+  background: var(--loan-primary-active);
   top: -160px;
   left: -120px;
   animation: mesh-drift-a 28s ease-in-out infinite alternate;
@@ -134,7 +134,7 @@ function particleStyle(p) {
 .mesh-blob-2 {
   width: 460px;
   height: 460px;
-  background: #c4b5fd;
+  background: var(--loan-cat-purple);
   bottom: -140px;
   right: -100px;
   animation: mesh-drift-b 34s ease-in-out infinite alternate;
@@ -143,7 +143,7 @@ function particleStyle(p) {
 .mesh-blob-3 {
   width: 380px;
   height: 380px;
-  background: #67e8f9;
+  background: var(--loan-accent);
   top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -159,8 +159,8 @@ function particleStyle(p) {
     transparent 1px
   );
   background-size: 28px 28px;
-  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
-  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at center, var(--loan-black) 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, var(--loan-black) 30%, transparent 75%);
 }
 
 @keyframes mesh-drift-a {
@@ -194,7 +194,7 @@ function particleStyle(p) {
  * Aurora —— 极光波带
  * ============================================================ */
 .bg-aurora {
-  background: linear-gradient(160deg, #eef2ff 0%, #f5f7fa 50%, #ecfeff 100%);
+  background: linear-gradient(160deg, var(--loan-info-bg) 0%, var(--loan-bg) 50%, var(--loan-info-bg) 100%);
 }
 
 .aurora-band {
@@ -209,19 +209,19 @@ function particleStyle(p) {
 }
 
 .aurora-band-1 {
-  background: linear-gradient(90deg, transparent, #93c5fd, transparent);
+  background: linear-gradient(90deg, transparent, var(--loan-primary-active), transparent);
   top: 20%;
   animation: aurora-sway-a 18s ease-in-out infinite alternate;
 }
 
 .aurora-band-2 {
-  background: linear-gradient(90deg, transparent, #c4b5fd, transparent);
+  background: linear-gradient(90deg, transparent, var(--loan-cat-purple), transparent);
   top: 50%;
   animation: aurora-sway-b 22s ease-in-out infinite alternate;
 }
 
 .aurora-band-3 {
-  background: linear-gradient(90deg, transparent, #67e8f9, transparent);
+  background: linear-gradient(90deg, transparent, var(--loan-accent), transparent);
   top: 75%;
   animation: aurora-sway-c 26s ease-in-out infinite alternate;
 }
@@ -257,7 +257,7 @@ function particleStyle(p) {
  * Particles —— 漂浮粒子
  * ============================================================ */
 .bg-particles {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); /* stylelint-disable-line color-no-hex */
 }
 
 .particle {
@@ -314,7 +314,7 @@ function particleStyle(p) {
 .fallback {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #f5f7fa 0%, #eef2ff 100%);
+  background: linear-gradient(135deg, var(--loan-bg) 0%, var(--loan-info-bg) 100%);
 }
 
 /* 无障碍：尊重用户的减少动画偏好 */

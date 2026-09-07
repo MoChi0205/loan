@@ -663,7 +663,7 @@ watch(menus, () => {
   height: 34px;
   border-radius: var(--loan-radius-sm);
   background: var(--loan-gradient);
-  color: #fff;
+  color: var(--loan-paper);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -722,8 +722,8 @@ watch(menus, () => {
   font-size: 12px;
   line-height: 1.6;
   color: var(--loan-text-muted);
-  background: color-mix(in srgb, var(--loan-warning-bg, #fffbe6) 60%, transparent);
-  border: 1px dashed var(--loan-warning-line, #e6d4a8);
+  background: color-mix(in srgb, var(--loan-warning-bg) 60%, transparent);
+  border: 1px dashed var(--loan-warning-line, #e6d4a8); /* stylelint-disable-line color-no-hex */
 }
 
 /* ============================================================
@@ -758,13 +758,13 @@ watch(menus, () => {
   background: linear-gradient(90deg,
     color-mix(in srgb, var(--loan-primary) 24%, transparent) 0%,
     color-mix(in srgb, var(--loan-primary) 10%, transparent) 100%);
-  color: color-mix(in srgb, var(--loan-primary) 62%, #000);   /* T15: 浅色主题深蓝字(AA≥4.5:1)，原 #3b82f6 仅 2.8:1 */
+  color: color-mix(in srgb, var(--loan-primary) 62%, var(--loan-black));   /* T15: 浅色主题深蓝字(AA≥4.5:1)，原 #3b82f6 仅 2.8:1 */
   font-weight: 600;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--loan-primary) 30%, transparent);
 }
 /* 深色主题:白字(现状,达标) */
 :root[data-theme="dark"] .menu-group-title.active {
-  color: #fff;
+  color: var(--loan-paper);
 }
 .menu-group-title.active::before {
   content: "";
@@ -979,13 +979,13 @@ watch(menus, () => {
   background: linear-gradient(90deg,
     color-mix(in srgb, var(--loan-primary) 24%, transparent) 0%,
     color-mix(in srgb, var(--loan-primary) 10%, transparent) 100%);
-  color: color-mix(in srgb, var(--loan-primary) 62%, #000);   /* T15: 浅色主题深蓝字(AA≥4.5:1)，原 #3b82f6 仅 2.8:1 */
+  color: color-mix(in srgb, var(--loan-primary) 62%, var(--loan-black));   /* T15: 浅色主题深蓝字(AA≥4.5:1)，原 #3b82f6 仅 2.8:1 */
   font-weight: 600;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--loan-primary) 30%, transparent);
 }
 /* 深色主题:白字(现状,达标) */
 :root[data-theme="dark"] .menu-item.active {
-  color: #fff;
+  color: var(--loan-paper);
 }
 .menu-item.active .menu-icon {
   color: var(--loan-primary);
@@ -1097,7 +1097,7 @@ watch(menus, () => {
 }
 .route-tab.is-active {
   background: var(--loan-primary);
-  color: #fff;
+  color: var(--loan-paper);
   border-color: var(--loan-primary);
 }
 .route-tab.is-active .tab-close {
@@ -1216,7 +1216,7 @@ watch(menus, () => {
   height: 30px;
   border-radius: 50%;
   background: var(--loan-gradient);
-  color: #fff;
+  color: var(--loan-paper);
   display: flex;
   align-items: center;
   justify-content: center;

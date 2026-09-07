@@ -220,6 +220,6 @@ onMounted(load);
 </script>
 
 <style scoped>
-.cell-sub { color: var(--loan-text-secondary, #8a94a6); font-size: 12px; }
-.suffix { margin-left: 8px; color: var(--loan-text-secondary, #8a94a6); font-size: 12px; }
+.cell-sub { color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; }
+.suffix { margin-left: 8px; color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; }
 </style>

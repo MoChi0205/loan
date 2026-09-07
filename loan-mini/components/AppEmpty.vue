@@ -100,12 +100,12 @@ defineProps({
 .empty-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: var(--color-text, #1a1a2e);
+  color: var(--text-primary);
   margin-bottom: 8rpx;
 }
 .empty-desc {
   font-size: 24rpx;
-  color: var(--color-text-hint, #9ca3af);
+  color: var(--text-placeholder);
   text-align: center;
   line-height: 1.6;
 }

@@ -521,10 +521,10 @@ watch(
 }
 .cell-sub {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 .muted {
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 .flag-grid {
   display: grid;

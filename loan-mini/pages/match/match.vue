@@ -82,7 +82,7 @@
       />
 
       <!-- 步骤 0：目标企业（仅企业员工 · C10 自动查重分流） -->
-      <view v-if="currentStep === 0 && isStaff" class="card step-card">
+      <AppCard v-if="currentStep === 0 && isStaff" class="step-card">
         <view class="step-head">
           <text class="step-title">目标企业</text>
           <AppTag type="info" size="sm">自动查重</AppTag>
@@ -163,10 +163,10 @@
         <view v-else class="empty-hint">
           输入企业名称 / 手机号 / 统一社会信用代码，系统自动查重后分流
         </view>
-      </view>
+      </AppCard>
 
       <!-- 步骤 1：经营事实（客户与员工共用；员工此时已确定目标企业） -->
-      <view v-else-if="currentStep === 1" class="card step-card">
+      <AppCard v-else-if="currentStep === 1" class="step-card">
         <view class="step-head">
           <text class="step-title">经营事实</text>
           <AppTag type="danger" size="sm">必填</AppTag>
@@ -187,8 +187,8 @@
         </view>
 
         <view class="type-toggle">
-          <view class="type-item" :class="{ active: factType === 'enterprise' }" @click="factType = 'enterprise'">企业经营</view>
-          <view class="type-item" :class="{ active: factType === 'personal' }" @click="factType = 'personal'">个人资质</view>
+          <AppClickable class="type-item" :class="{ active: factType ===' enterprise' }" @click="factType =' enterprise'">企业经营</AppClickable>
+          <AppClickable class="type-item" :class="{ active: factType ===' personal' }" @click="factType =' personal'">个人资质</AppClickable>
         </view>
 
         <template v-if="factType === 'enterprise'">
@@ -241,17 +241,17 @@
           </view>
           <view class="switch-row">
             <text class="field-label">名下有房产</text>
-            <switch :checked="!!personalFacts.houseFlag" color="#0B1D3A" @change="e => onSwitch('houseFlag', e)" />
+            <switch :checked="!!personalFacts.houseFlag" :color="SWITCH_COLOR" @change="e => onSwitch('houseFlag', e)" />
           </view>
           <view class="switch-row">
             <text class="field-label">名下有车辆</text>
-            <switch :checked="!!personalFacts.carFlag" color="#0B1D3A" @change="e => onSwitch('carFlag', e)" />
+            <switch :checked="!!personalFacts.carFlag" :color="SWITCH_COLOR" @change="e => onSwitch('carFlag', e)" />
           </view>
         </template>
-      </view>
+      </AppCard>
 
       <!-- 步骤 2：上传经营材料 -->
-      <view v-else-if="currentStep === 2" class="card step-card">
+      <AppCard v-else-if="currentStep === 2" class="step-card">
         <view class="step-head">
           <text class="step-title">上传经营材料</text>
           <AppTag :type="uploadedMaterialCount > 0 ? 'success' : 'danger'" size="sm">
@@ -259,18 +259,18 @@
           </AppTag>
         </view>
         <view class="upload-grid">
-          <view v-for="m in materials" :key="m.key" class="upload-tile" @click="onUpload(m)">
+          <AppClickable v-for="m in materials" :key="m.key" class="upload-tile" @click="onUpload(m)">
             <view class="upload-ic"><AppIcon :name="m.icon" /></view>
             <text class="upload-name">{{ m.name }}</text>
             <text class="upload-status" :class="m.status">{{ m.statusText }}</text>
-          </view>
+          </AppClickable>
         </view>
         <text class="step-tip">支持 PDF / Excel / 图片，单文件 ≤ 20MB；系统将自动核验企业编码与一致性</text>
         <AppButton variant="secondary" size="md" @click="onSupplement">上传补充材料</AppButton>
-      </view>
+      </AppCard>
 
       <!-- 步骤 3：核验 & 匹配 -->
-      <view v-else-if="currentStep === 3" class="card step-card">
+      <AppCard v-else-if="currentStep === 3" class="step-card">
         <view class="step-head">
           <text class="step-title">材料核验</text>
           <AppTag type="muted" size="sm">匹配前最后一步</AppTag>
@@ -286,7 +286,7 @@
           开始匹配 · 生成报告
         </AppButton>
         <text class="step-tip center">基于核验后的材料生成匹配报告 + 经营诊断</text>
-      </view>
+      </AppCard>
 
       <!-- 底部导航：第 0 步与最后一步的操作已在卡片内，不重复渲染 -->
       <view v-if="showFooterNav" class="footer-nav">
@@ -317,6 +317,7 @@ import { ref, reactive, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
 import TabBar from '../../components/TabBar.vue';
+import AppCard from '../../components/AppCard.vue';
 import { runMatch } from '../../api/match';
 import { searchClient, createClient, claimClient, claimStatus } from '../../api/client';
 import { uploadMaterial } from '../../api/upload';
@@ -494,6 +495,8 @@ const employLabel = computed(() => personalFacts.employType || '');
 
 function onOperateChange(e) { enterpriseFacts.operateStatus = operateOptions[Number(e.detail.value)]; }
 function onEmployChange(e) { personalFacts.employType = employOptions[Number(e.detail.value)]; }
+// 设计令牌：switch 原生 color 属性不支持 CSS 变量，用脚本常量承载（值取自 --brand-deep #0B1D3A）
+const SWITCH_COLOR = '#0B1D3A';
 function onSwitch(key, e) { personalFacts[key] = e.detail.value ? 1 : 0; }
 function onCityChange(e) {
   const region = Array.isArray(e.detail.value) ? e.detail.value : [];
@@ -706,7 +709,7 @@ onShow(() => {
 .match-page { padding: var(--space-4); padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom)); }
 
 /* ===== 步骤卡 ===== */
-.step-card { margin-top: var(--space-3); }
+:deep(.step-card) { margin-top: var(--space-3); }
 .step-head {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: var(--space-3);
@@ -850,9 +853,7 @@ onShow(() => {
   margin: var(--space-4) var(--space-3) var(--space-6);
   padding: var(--space-8) var(--space-5) var(--space-6);
   border-radius: var(--radius-lg);
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgba(200, 169, 110, 0.28) 0%, rgba(200, 169, 110, 0) 60%),
-    linear-gradient(165deg, var(--brand-deep) 0%, var(--brand-mid) 55%, var(--brand-bright) 100%);
+  background: var(--brand-deep);
   color: var(--text-invert);
   text-align: center;
   overflow: hidden;
@@ -877,18 +878,12 @@ onShow(() => {
   position: absolute; inset: 0;
   background: var(--gold);
   clip-path: path('M100 8 L185 38 L185 112 Q185 168 100 192 Q15 168 15 112 L15 38 Z');
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.18);
+  box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.18);
 }
 .shield-glow {
-  position: absolute; inset: -16rpx;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 70%);
-  border-radius: 50%;
-  animation: guard-pulse 3s ease-in-out infinite;
+  display: none; /* quieter: 移除 AI-slop 发光 */
 }
-@keyframes guard-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.12); opacity: 1; }
-}
+/* guard-pulse 已随 shield-glow 隐藏移除 */
 .shield-icon {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
 }

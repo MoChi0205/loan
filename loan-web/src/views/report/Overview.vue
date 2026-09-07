@@ -135,14 +135,14 @@ const loadingT = ref(false);
 const overview = ref({});
 
 const statCards = computed(() => [
-  { key: 'client', label: '客户数', value: fmtInt(overview.value.clientCount), delta: overview.value.clientCountDelta, icon: 'client', color: '#3b82f6' },
-  { key: 'lead', label: '线索数', value: fmtInt(overview.value.leadCount), delta: overview.value.leadCountDelta, icon: 'lead', color: '#6366f1' },
-  { key: 'order', label: '工单数', value: fmtInt(overview.value.orderCount), delta: overview.value.orderCountDelta, icon: 'order', color: '#14b8a6' },
-  { key: 'deal', label: '成交单数', value: fmtInt(overview.value.dealOrderCount), delta: overview.value.dealOrderCountDelta, icon: 'success', color: '#22c55e' },
-  { key: 'dealAmount', label: '成交金额', value: '¥' + fmtAmount(overview.value.dealAmountSum), delta: overview.value.dealAmountSumDelta, icon: 'money', color: '#10b981' },
-  { key: 'reward', label: '奖励单数', value: fmtInt(overview.value.rewardCount), delta: overview.value.rewardCountDelta, icon: 'reward', color: '#f59e0b' },
-  { key: 'rewardAmount', label: '奖励金额', value: '¥' + fmtAmount(overview.value.rewardAmountSum), delta: overview.value.rewardAmountSumDelta, icon: 'trend', color: '#f97316' },
-  { key: 'screening', label: '初筛报告', value: fmtInt(overview.value.screeningCount), delta: overview.value.screeningCountDelta, icon: 'screening', color: '#a855f7' },
+  { key: 'client', label: '客户数', value: fmtInt(overview.value.clientCount), delta: overview.value.clientCountDelta, icon: 'client', color: 'var(--loan-primary)' },
+  { key: 'lead', label: '线索数', value: fmtInt(overview.value.leadCount), delta: overview.value.leadCountDelta, icon: 'lead', color: 'var(--loan-cat-indigo)' },
+  { key: 'order', label: '工单数', value: fmtInt(overview.value.orderCount), delta: overview.value.orderCountDelta, icon: 'order', color: 'var(--loan-cat-teal)' },
+  { key: 'deal', label: '成交单数', value: fmtInt(overview.value.dealOrderCount), delta: overview.value.dealOrderCountDelta, icon: 'success', color: 'var(--loan-success)' },
+  { key: 'dealAmount', label: '成交金额', value: '¥' + fmtAmount(overview.value.dealAmountSum), delta: overview.value.dealAmountSumDelta, icon: 'money', color: 'var(--loan-success)' },
+  { key: 'reward', label: '奖励单数', value: fmtInt(overview.value.rewardCount), delta: overview.value.rewardCountDelta, icon: 'reward', color: 'var(--loan-warning)' },
+  { key: 'rewardAmount', label: '奖励金额', value: '¥' + fmtAmount(overview.value.rewardAmountSum), delta: overview.value.rewardAmountSumDelta, icon: 'trend', color: 'var(--loan-cat-orange)' },
+  { key: 'screening', label: '初筛报告', value: fmtInt(overview.value.screeningCount), delta: overview.value.screeningCountDelta, icon: 'screening', color: 'var(--loan-cat-purple)' },
 ]);
 
 /* 漏斗 */
@@ -214,7 +214,7 @@ onMounted(async () => {
 <style scoped>
 .range-hint {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   background: var(--loan-surface, rgba(255,255,255,.04));
   border: 1px solid var(--loan-border, rgba(255,255,255,.08));
   padding: 4px 10px;
@@ -231,8 +231,8 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--loan-card-bg, #fff);
-  border: 1px solid var(--loan-border, #e5e8f0);
+  background: var(--loan-card-bg, var(--loan-paper));
+  border: 1px solid var(--loan-border);
   border-left: 3px solid var(--accent, var(--loan-primary));
   border-radius: var(--loan-radius-md, 10px);
   padding: 14px 16px;
@@ -257,19 +257,19 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--loan-paper);
   background: var(--accent, var(--loan-primary));
 }
 .stat-body { flex: 1; min-width: 0; }
 .stat-label {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   margin-bottom: 4px;
 }
 .stat-value {
   font-size: 22px;
   font-weight: 700;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
   line-height: 1.1;
 }
 /* 环比标签：绿涨红跌 */
@@ -286,15 +286,15 @@ onMounted(async () => {
   border-radius: 8px;
 }
 .stat-delta .delta-cap { font-weight: 500; opacity: .7; margin-left: 2px; }
-.stat-delta.up { background: rgba(52, 211, 153, 0.14); color: var(--loan-success, #34d399); }
-.stat-delta.down { background: rgba(248, 113, 113, 0.14); color: var(--loan-danger, #f87171); }
+.stat-delta.up { background: var(--loan-success-bg); color: var(--loan-success); }
+.stat-delta.down { background: var(--loan-danger-bg); color: var(--loan-danger); }
 
 .panel-title {
   font-size: 14px;
   font-weight: 600;
   margin: 0 0 14px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--loan-border, #e5e8f0);
+  border-bottom: 1px solid var(--loan-border);
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -302,7 +302,7 @@ onMounted(async () => {
 .panel-title small {
   font-size: 11px;
   font-weight: 400;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 
 /* 漏斗 */
@@ -315,8 +315,8 @@ onMounted(async () => {
   gap: 12px;
 }
 .funnel-stage { display: flex; flex-direction: column; }
-.funnel-name { font-size: 13px; font-weight: 600; color: var(--loan-text, #1c2433); }
-.funnel-value { font-size: 12px; color: var(--loan-text-secondary, #8a94a6); }
+.funnel-name { font-size: 13px; font-weight: 600; color: var(--loan-text); }
+.funnel-value { font-size: 12px; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .funnel-track {
   height: 30px;
   background: var(--loan-surface, rgba(255,255,255,.04));
@@ -338,14 +338,14 @@ onMounted(async () => {
 .funnel-pct {
   font-size: 11px;
   font-weight: 700;
-  color: #fff;
+  color: var(--loan-paper);
   white-space: nowrap;
 }
 .funnel-conv { text-align: right; }
 .conv-badge {
   font-size: 11px;
   font-weight: 600;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   background: var(--loan-surface, rgba(255,255,255,.05));
   padding: 2px 8px;
   border-radius: 8px;
@@ -365,9 +365,9 @@ onMounted(async () => {
   justify-content: space-between;
   margin-top: 10px;
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
-.trend-foot b { color: var(--loan-text, #1c2433); }
+.trend-foot b { color: var(--loan-text); }
 
 /* 分布 */
 .dist-grid {
@@ -385,7 +385,7 @@ onMounted(async () => {
 }
 .dist-label {
   font-size: 12px;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -405,7 +405,7 @@ onMounted(async () => {
 .dist-num {
   font-size: 12px;
   font-weight: 600;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
   text-align: right;
 }
 

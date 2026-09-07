@@ -276,7 +276,7 @@ defineProps({
   left: 41%;
   top: 41%;
   border-radius: 50%;
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
   border: 3rpx solid currentColor;
   box-sizing: border-box;
 }
@@ -445,7 +445,7 @@ defineProps({
   bottom: 12%;
   width: 36%;
   height: 30%;
-  background: var(--color-card, #ffffff);
+  background: var(--bg-card);
   border: 4rpx solid currentColor;
   border-radius: 50%;
   box-sizing: border-box;
@@ -490,7 +490,7 @@ defineProps({
 .home-door {
   width: 26%;
   height: 55%;
-  background: var(--color-card, #ffffff);
+  background: var(--bg-card);
   border-radius: 4rpx 4rpx 0 0;
 }
 
@@ -722,7 +722,7 @@ defineProps({
   left: 22%;
   height: 5rpx;
   border-radius: 3rpx;
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
   opacity: 0.85;
 }
 .doc-line-1 { top: 28%; width: 46%; }
@@ -746,7 +746,7 @@ defineProps({
   top: 0;
   width: 30%;
   height: 30%;
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
   border-bottom-left-radius: 6rpx;
   opacity: 0.9;
 }
@@ -837,7 +837,7 @@ defineProps({
   height: 24%;
   border: 4rpx solid currentColor;
   border-radius: 50%;
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
   box-sizing: border-box;
 }
 .share-node-left { left: 4%; top: 38%; }

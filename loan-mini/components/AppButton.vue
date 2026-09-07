@@ -71,22 +71,22 @@ function onClick(e) {
 
 /* 尺寸 */
 .btn-sm { height: 64rpx; font-size: 24rpx; padding: 0 24rpx; }
-.btn-md { height: 88rpx; font-size: 28rpx; padding: 0 32rpx; }
-.btn-lg { height: 100rpx; font-size: 32rpx; padding: 0 36rpx; }
+.btn-md { height: 88rpx; font-size: var(--fs-em); padding: 0 32rpx; }
+.btn-lg { height: 100rpx; font-size: var(--fs-title); padding: 0 36rpx; }
 
 /* 通栏 */
 .is-block { width: 100%; }
 
 /* 主按钮：深海军蓝 */
 .btn-primary {
-  background: var(--color-primary, #0b1d3a);
+  background: var(--brand-deep);
   color: var(--text-invert);
   box-shadow: 0 8rpx 24rpx rgba(11, 29, 58, 0.22);
 }
 
 /* 暖金按钮（强调/CTA） */
 .btn-gold {
-  background: var(--color-accent, #c8a96e);
+  background: var(--gold);
   color: var(--text-invert);
   box-shadow: 0 8rpx 24rpx rgba(200, 169, 110, 0.28);
 }
@@ -94,9 +94,9 @@ function onClick(e) {
 /* 次按钮：描边 */
 .btn-secondary,
 .btn-ghost {
-  background: var(--bg-card, #fff);
-  color: var(--color-primary, #0b1d3a);
-  border: 2rpx solid var(--color-primary, #0b1d3a);
+  background: var(--bg-card);
+  color: var(--brand-deep);
+  border: 2rpx solid var(--brand-deep);
   box-shadow: none;
 }
 .btn-ghost { background: transparent; }
@@ -104,7 +104,7 @@ function onClick(e) {
 /* 文字按钮 */
 .btn-text {
   background: transparent;
-  color: var(--color-primary, #0b1d3a);
+  color: var(--brand-deep);
   box-shadow: none;
 }
 

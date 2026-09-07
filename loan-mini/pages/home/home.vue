@@ -15,22 +15,22 @@
         </view>
 
         <!-- 电商风格搜索栏 -->
-        <view class="search-bar" @click="onSearch">
+        <AppClickable class="search-bar" @click="onSearch">
           <AppIcon name="search" size="sm" color="var(--text-secondary)" />
           <text class="search-ph">{{ searchPlaceholder }}</text>
-        </view>
+        </AppClickable>
 
-        <view class="auth-pill" v-if="!store.isChannel && !store.isStaff" :class="store.isAuthed ? 'pill-ok' : 'pill-todo'" @click="onGoAuth">
+        <AppClickable class="auth-pill" v-if="!store.isChannel && !store.isStaff" :class="store.isAuthed ?' pill-ok' :' pill-todo'" @click="onGoAuth">
           <text class="pill-icon">{{ store.isAuthed ? '✓' : '!' }}</text>
           <text class="pill-text">{{ store.isAuthed ? '已认证' : '完成身份认证' }}</text>
-        </view>
+        </AppClickable>
       </view>
     </view>
 
     <!-- 内容区 -->
     <view class="content">
       <!-- 认证引导卡（仅客户；渠道与员工无需客户身份认证） -->
-      <view class="card promo-card u-hover" v-if="!store.isStaff && !store.isAuthed && !store.isChannel" @click="onGoAuth">
+      <AppClickable class="card promo-card u-hover" v-if="!store.isStaff && !store.isAuthed && !store.isChannel" @click="onGoAuth">
         <view class="promo-left">
           <view class="promo-icon-wrap">
             <AppIcon name="bolt" size="md" />
@@ -41,7 +41,7 @@
           </view>
         </view>
         <text class="promo-arrow">›</text>
-      </view>
+      </AppClickable>
 
       <!-- 动态数据卡片（电商风格：横向滚动 / 点击跳转） -->
       <view class="stat-section" v-if="statCards.length">
@@ -51,20 +51,14 @@
         </view>
         <scroll-view scroll-x class="stat-scroll" :show-scrollbar="false">
           <view class="stat-track">
-            <view
-              v-for="card in statCards"
-              :key="card.key"
-              class="stat-card u-hover"
-              :class="`stat-${card.tone}`"
-              @click="card.action"
-            >
+            <AppClickable v-for="card in statCards" :key="card.key" class="stat-card u-hover" :class="`stat-${card.tone}`" @click="card.action">
               <view class="stat-icon-wrap">
                 <AppIcon :name="card.icon" size="md" />
               </view>
               <text class="stat-num">{{ card.value }}</text>
               <text class="stat-name">{{ card.label }}</text>
               <text class="stat-extra" v-if="card.extra">{{ card.extra }}</text>
-            </view>
+            </AppClickable>
           </view>
         </scroll-view>
       </view>
@@ -75,18 +69,13 @@
           <text class="sec-title">快捷功能</text>
         </view>
         <view class="nav-grid">
-          <view
-            v-for="entry in navEntries"
-            :key="entry.key"
-            class="nav-cell u-hover"
-            @click="entry.action"
-          >
+          <AppClickable v-for="entry in navEntries" :key="entry.key" class="nav-cell u-hover" @click="entry.action">
             <view class="nav-icon-wrap" :class="`nav-ic-${entry.tone}`">
               <AppIcon :name="entry.icon" size="md" />
             </view>
             <text class="nav-name">{{ entry.label }}</text>
             <text class="nav-desc" v-if="entry.desc">{{ entry.desc }}</text>
-          </view>
+          </AppClickable>
         </view>
       </view>
 
@@ -347,7 +336,7 @@ function onMine() {
   position:relative;
   margin:0;
   padding:48rpx 40rpx 56rpx;
-  background:linear-gradient(145deg,var(--brand-deep),var(--brand-mid),var(--brand-bright));
+  background:var(--brand-deep);
   overflow:hidden
 }
 .banner-decor{
@@ -450,7 +439,7 @@ function onMine() {
 .pill-ok{
   background:rgba(16,185,129,.22);
   border-color:rgba(16,185,129,.5);
-  color:#a7f3d0
+  color:var(--success-text)
 }
 .pill-todo{
   background:rgba(254,230,138,.12);
@@ -518,7 +507,7 @@ function onMine() {
   flex-direction:column
 }
 .promo-title{
-  font-size:28rpx;
+  font-size: var(--fs-em);
   font-weight:600;
   color:var(--gold-text)
 }
@@ -528,7 +517,7 @@ function onMine() {
   color:var(--warning-text)
 }
 .promo-arrow{
-  font-size:40rpx;
+  font-size: var(--fs-arrow);
   color:var(--warning-text);
   flex-shrink:0
 }

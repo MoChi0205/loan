@@ -1,0 +1,14 @@
+{
+  "name": "loan-main",
+  "version": "1.0.0",
+  "private": true,
+  "description": "企业贷款咨询服务产品系统（Maven 多模块父工程 + 前端 loan-mini / loan-web 子包）",
+  "scripts": {
+    "prepare": "husky",
+    "lint:staged": "lint-staged"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2"
+  }
+}

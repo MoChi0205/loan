@@ -224,15 +224,15 @@ onMounted(async () => {
   font-weight: 600;
   margin: 0 0 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--loan-border, #e5e8f0);
+  border-bottom: 1px solid var(--loan-border);
 }
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 .cell-main { font-weight: 500; }
-.cell-sub { font-size: 12px; color: var(--loan-text-secondary, #8a94a6); }
-.pass-cnt { color: var(--loan-success, #10b981); margin-right: 8px; }
-.cond-cnt { color: var(--loan-warning, #f59e0b); margin-right: 8px; }
-.rej-cnt  { color: var(--loan-danger, #ef4444); }
-.advice { white-space: pre-wrap; font-size: 12px; margin: 0; color: var(--loan-text, #1c2433); }
+.cell-sub { font-size: 12px; color: var(--loan-text-secondary, var(--loan-text-muted)); }
+.pass-cnt { color: var(--loan-success); margin-right: 8px; }
+.cond-cnt { color: var(--loan-warning); margin-right: 8px; }
+.rej-cnt  { color: var(--loan-danger); }
+.advice { white-space: pre-wrap; font-size: 12px; margin: 0; color: var(--loan-text); }
 
 /* ===== 报告详情抽屉 ===== */
 .report-banner {
@@ -241,12 +241,12 @@ onMounted(async () => {
   align-items: center;
   padding: 24px 20px;
   border-radius: 12px;
-  color: #fff;
+  color: var(--loan-paper);
   margin-bottom: 16px;
 }
-.rb-high { background: var(--loan-primary, #3b82f6); }
-.rb-middle { background: var(--loan-warning, #f59e0b); }
-.rb-low { background: var(--loan-text-secondary, #94a3b8); }
+.rb-high { background: var(--loan-primary); }
+.rb-middle { background: var(--loan-warning); }
+.rb-low { background: var(--loan-text-secondary, var(--loan-text-muted)); }
 .rb-label { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
 .rb-metrics { display: flex; align-items: center; width: 100%; }
 .rb-metric { flex: 1; text-align: center; }
@@ -261,12 +261,12 @@ onMounted(async () => {
   color: var(--loan-text);
   margin-bottom: 8px;
   padding-left: 8px;
-  border-left: 3px solid var(--loan-primary, #3b82f6);
+  border-left: 3px solid var(--loan-primary);
 }
 
 .advice-box {
-  background: var(--loan-surface, #f8fafc);
-  border: 1px solid var(--loan-border, #e2e8f0);
+  background: var(--loan-surface);
+  border: 1px solid var(--loan-border);
   border-radius: 8px;
   padding: 12px 16px;
   font-size: 13px;
@@ -281,11 +281,11 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 8px;
   padding: 12px 16px;
-  background: var(--loan-warning-bg, #fffbeb);
-  border: 1px solid var(--loan-warning-line, #fde68a);
+  background: var(--loan-warning-bg);
+  border: 1px solid var(--loan-warning-line);
   border-radius: 8px;
   font-size: 12px;
-  color: var(--loan-warning-text, #b45309);
+  color: var(--loan-warning-text);
   line-height: 1.6;
   margin-top: 8px;
 }

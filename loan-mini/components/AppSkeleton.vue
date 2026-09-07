@@ -38,7 +38,7 @@ function lineWidth(i) {
   gap: 24rpx;
   align-items: center;
   padding: 28rpx 0;
-  border-bottom: 2rpx solid var(--color-border, #e5e7eb);
+  border-bottom: 2rpx solid var(--line);
 }
 .sk-line {
   height: 24rpx;

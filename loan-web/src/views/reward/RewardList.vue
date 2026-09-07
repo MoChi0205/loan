@@ -289,7 +289,7 @@ onMounted(load);
 }
 .cell-sub {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   margin-top: 2px;
 }
 .mono {
@@ -297,7 +297,7 @@ onMounted(load);
 }
 .reward-amount {
   font-weight: 600;
-  color: var(--loan-primary, #4f7cff);
+  color: var(--loan-primary);
 }
 
 /* 独立状态标签（不依赖 el-tag，避免深色模式/截断问题） */
@@ -312,36 +312,36 @@ onMounted(load);
 }
 .status-success {
   background: rgba(47, 191, 113, 0.1);
-  color: #16a34a;
+  color: var(--loan-success);
 }
 .status-warning {
   background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
+  color: var(--loan-warning);
 }
 .status-danger {
   background: rgba(229, 72, 77, 0.1);
-  color: #dc2626;
+  color: var(--loan-danger);
 }
 .status-muted {
-  background: var(--loan-surface, #f1f3f5);
-  color: var(--loan-text-secondary, #8a94a6);
+  background: var(--loan-surface);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 
 /* 深色模式下状态标签适配 */
 :global(html.dark) .status-success {
   background: rgba(47, 191, 113, 0.15);
-  color: #4ade80;
+  color: var(--loan-success);
 }
 :global(html.dark) .status-warning {
   background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  color: var(--loan-warning);
 }
 :global(html.dark) .status-danger {
   background: rgba(229, 72, 77, 0.15);
-  color: #f87171;
+  color: var(--loan-danger);
 }
 :global(html.dark) .status-muted {
   background: rgba(255, 255, 255, 0.06);
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
 }
 </style>

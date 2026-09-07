@@ -823,7 +823,7 @@ onMounted(async () => {
   color: var(--loan-text-muted);
 }
 .cg-switch :deep(.el-segmented) {
-  background: var(--loan-surface, #f8fafc);
+  background: var(--loan-surface);
   padding: 3px;
   border-radius: var(--loan-radius);
 }
@@ -859,7 +859,7 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--loan-surface, #f8fafc);
+  background: var(--loan-surface);
   border: 1px solid var(--loan-border);
   border-radius: var(--loan-radius);
 }
@@ -872,7 +872,7 @@ onMounted(async () => {
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
   color: var(--loan-text-secondary);
-  background: #fff;
+  background: var(--loan-paper);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -894,7 +894,7 @@ onMounted(async () => {
 .module-sidebar {
   width: 220px;
   flex-shrink: 0;
-  background: var(--loan-surface, #f8fafc);
+  background: var(--loan-surface);
   border-right: 1px solid var(--loan-border);
   padding: 12px;
   overflow-y: auto;
@@ -911,10 +911,10 @@ onMounted(async () => {
   margin-bottom: 6px;
 }
 .module-item:hover {
-  background: var(--loan-primary-soft, #f0f7ff);
+  background: var(--loan-primary-soft, var(--loan-info-bg));
 }
 .module-item.active {
-  background: var(--loan-primary-soft, #f0f7ff);
+  background: var(--loan-primary-soft, var(--loan-info-bg));
   border: 1px solid var(--loan-primary);
 }
 .module-item-info {
@@ -943,7 +943,7 @@ onMounted(async () => {
   padding: 16px;
   overflow-y: auto;
   max-height: 560px;
-  background: var(--loan-card-bg, #fff);
+  background: var(--loan-card-bg, var(--loan-paper));
 }
 .module-content-inner {
   display: flex;
@@ -957,7 +957,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: var(--loan-surface, #f8fafc);
+  background: var(--loan-surface);
   border: 1px solid var(--loan-border);
   border-radius: var(--loan-radius);
 }
@@ -979,7 +979,7 @@ onMounted(async () => {
   height: 26px;
   border-radius: 6px;
   background: var(--loan-primary);
-  color: #fff;
+  color: var(--loan-paper);
   font-size: 12px;
   font-weight: 700;
 }
@@ -1010,9 +1010,9 @@ onMounted(async () => {
   padding: 0 6px;
   font-size: 10px;
 }
-.tag-info { background: #e8f4fd; color: #1677ff; }
-.tag-warn { background: #fff7e6; color: #fa8c16; }
-.tag-danger { background: #fff1f0; color: #f5222d; }
+.tag-info { background: var(--loan-info-bg); color: var(--loan-primary); }
+.tag-warn { background: var(--loan-warning-bg); color: var(--loan-cat-orange); }
+.tag-danger { background: var(--loan-danger-bg); color: var(--loan-danger); }
 .text-muted { color: var(--loan-text-muted); font-size: 12px; }
 
 /* 步骤表格 */
@@ -1031,19 +1031,19 @@ onMounted(async () => {
   text-align: left;
   font-weight: 600;
   color: var(--loan-text-secondary);
-  background: var(--loan-surface, #f8fafc);
+  background: var(--loan-surface);
   border-bottom: 1px solid var(--loan-border);
   white-space: nowrap;
   font-size: 12px;
 }
 .step-table tbody td {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--loan-border, #f0f0f0);
+  border-bottom: 1px solid var(--loan-border, var(--loan-surface));
   vertical-align: middle;
   color: var(--loan-text);
 }
 .step-table tbody tr:last-child td { border-bottom: none; }
-.step-table tbody tr:hover td { background: var(--loan-primary-soft, #f0f7ff); }
+.step-table tbody tr:hover td { background: var(--loan-primary-soft, var(--loan-info-bg)); }
 
 .col-num { font-weight: 600; color: var(--loan-text-muted); font-size: 12px; }
 .col-rule-name { font-weight: 500; }

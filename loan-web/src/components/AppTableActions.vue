@@ -175,7 +175,7 @@ function onCommand(c) {
 }
 
 .app-table-actions__sep {
-  color: var(--loan-border-strong, #d8dee8);
+  color: var(--loan-border-strong, var(--loan-border));
   font-size: 11px;
   user-select: none;
   margin: 0 1px;

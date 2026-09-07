@@ -1,0 +1,3 @@
+{
+  "*.{vue,scss,css}": ["bash scripts/lint-style-staged.sh"]
+}

@@ -80,6 +80,7 @@ export default {
    ============================================================ */
 /* 注意：微信 wxss 不支持 :root 选择器（只认 page）；uni-app H5 端 page 会匹配 uni-page 元素，
    故统一用 page 定义全局 CSS 变量，双端生效。勿改回 :root。 */
+/* stylelint-disable color-no-hex -- 设计令牌定义源：裸 hex 为规范唯一来源，禁止 lint 拦截 */
 page {
   /* ===== 品牌色 ===== */
   --brand-deep: #0B1D3A;
@@ -137,6 +138,8 @@ page {
   /* ===== 字号（7 级，含 xxs 字号下限） ===== */
   --fs-xxs: 22rpx;  --fs-xs: 22rpx;   --fs-sm: 24rpx;   --fs-md: 26rpx;
   --fs-lg: 30rpx;   --fs-xl: 36rpx;   --fs-2xl: 44rpx;
+  /* 扩展（组件/页面实际使用的离阶梯尺寸，纳入令牌避免裸值；值不变） */
+  --fs-em: 28rpx;     --fs-title: 32rpx;   --fs-arrow: 40rpx;   --fs-display: 48rpx;
   --lh-tight: 1.3;  --lh-base: 1.6;   --lh-loose: 1.7;
 
   /* ===== 阴影（3 级） ===== */
@@ -179,6 +182,7 @@ page {
   --radius-input: var(--radius-md);
   --shadow-card: var(--shadow-md);
 }
+/* stylelint-enable color-no-hex */
 
 page {
   background-color: var(--bg-page);

@@ -1053,7 +1053,7 @@ onMounted(async () => {
 }
 .orch-nav-item.active .mod-order {
   background: var(--loan-primary);
-  color: #fff;
+  color: var(--loan-paper);
 }
 .orch-nav-item .mod-name {
   flex: 1;

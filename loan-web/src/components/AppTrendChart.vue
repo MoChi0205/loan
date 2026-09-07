@@ -124,7 +124,7 @@ const xLabels = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--loan-text-muted, #8a94a6);
+  color: var(--loan-text-muted);
   font-size: 13px;
   border: 1px dashed var(--loan-border, rgba(255,255,255,.15));
   border-radius: 8px;
@@ -134,7 +134,7 @@ const xLabels = computed(() => {
   justify-content: space-between;
   margin-top: 4px;
   font-size: 11px;
-  color: var(--loan-text-muted, #8a94a6);
+  color: var(--loan-text-muted);
 }
 .axis-label {
   flex: 1;

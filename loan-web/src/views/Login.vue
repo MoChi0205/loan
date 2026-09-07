@@ -229,9 +229,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 56px 72px;
-  background: linear-gradient(155deg, #2756d4 0%, #2f6cd9 50%, #4d96ed 100%);
-  background-color: #2f6cd9;
-  color: #fff;
+  background: linear-gradient(155deg, var(--loan-primary) 0%, var(--loan-primary) 50%, var(--loan-primary) 100%);
+  background-color: var(--loan-primary);
+  color: var(--loan-paper);
   overflow: hidden;
 }
 
@@ -267,7 +267,7 @@ onMounted(() => {
   height: 40px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  color: var(--loan-paper);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -382,7 +382,7 @@ onMounted(() => {
 
 .login-tab.active {
   background: var(--loan-primary);
-  color: #fff;
+  color: var(--loan-paper);
   font-weight: 500;
 }
 

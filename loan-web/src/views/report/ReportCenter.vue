@@ -227,20 +227,20 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 .stat-card {
-  background: var(--loan-card-bg, #fff);
-  border: 1px solid var(--loan-border, #e5e8f0);
+  background: var(--loan-card-bg, var(--loan-paper));
+  border: 1px solid var(--loan-border);
   border-radius: var(--loan-radius-md, 10px);
   padding: 14px 16px;
 }
 .stat-label {
   font-size: 12px;
-  color: var(--loan-text-secondary, #8a94a6);
+  color: var(--loan-text-secondary, var(--loan-text-muted));
   margin-bottom: 6px;
 }
 .stat-value {
   font-size: 20px;
   font-weight: 700;
-  color: var(--loan-text, #1c2433);
+  color: var(--loan-text);
 }
 .trend-grid {
   display: grid;
@@ -255,7 +255,7 @@ onMounted(async () => {
   font-weight: 600;
   margin: 0 0 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--loan-border, #e5e8f0);
+  border-bottom: 1px solid var(--loan-border);
 }
 .trend-table {
   width: 100%;
@@ -265,16 +265,16 @@ onMounted(async () => {
 .trend-table th, .trend-table td {
   padding: 6px 8px;
   text-align: right;
-  border-bottom: 1px solid var(--loan-border, #f0f2f7);
+  border-bottom: 1px solid var(--loan-border, var(--loan-surface));
 }
-.trend-table th:first-child, .trend-table td:first-child { text-align: left; color: var(--loan-text-secondary, #8a94a6); }
+.trend-table th:first-child, .trend-table td:first-child { text-align: left; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 .cell-main { font-weight: 500; }
-.cell-sub { font-size: 12px; color: var(--loan-text-secondary, #8a94a6); }
+.cell-sub { font-size: 12px; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 
 /* 通过/有条件/拒绝：彩色小字 */
-.pass-cnt { color: var(--loan-success, #34d399); margin-right: 8px; }
-.cond-cnt { color: var(--loan-warning, #f59e0b); margin-right: 8px; }
-.rej-cnt  { color: var(--loan-danger, #e5484d); }
-.advice { white-space: pre-wrap; font-size: 12px; margin: 0; color: var(--loan-text, #1c2433); }
+.pass-cnt { color: var(--loan-success); margin-right: 8px; }
+.cond-cnt { color: var(--loan-warning); margin-right: 8px; }
+.rej-cnt  { color: var(--loan-danger); }
+.advice { white-space: pre-wrap; font-size: 12px; margin: 0; color: var(--loan-text); }
 </style>

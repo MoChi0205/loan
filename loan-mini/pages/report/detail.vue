@@ -22,13 +22,7 @@
 
       <!-- Tab：企业员工可见「命中产品」（C4）；客户对客脱敏，仅看报告信息与诊断 -->
       <view class="tab-seg">
-        <view
-          v-for="t in tabs" :key="t.key"
-          class="tab-item" :class="{ active: activeTab === t.key }"
-          :role="'tab'"
-          :aria-selected="activeTab === t.key"
-          @click="onTabChange(t.key)"
-        >{{ t.label }}</view>
+        <AppClickable v-for="t in tabs" :key="t.key" class="tab-item" :class="{ active: activeTab === t.key }" :aria-selected="activeTab === t.key" @click="onTabChange(t.key)">{{ t.label }}</AppClickable>
       </view>
 
       <!-- ===== Tab 1：命中产品（C4，仅企业员工） ===== -->
