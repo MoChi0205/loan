@@ -59,13 +59,17 @@ public class ClientService {
     /**
      * 客户轻量分页（建单下拉 / 客户选择）。
      *
-     * @param keyword 关键字：客户编码 / 联系人 / 企业名称 / 手机号（精确）
-     * @param page    页码
-     * @param size    每页大小
+     * @param keyword        关键字：客户编码 / 联系人 / 企业名称 / 手机号（精确）
+     * @param ownerStaffCode 归属人工号（可选；传入后仅返回该归属人客户）
+     * @param page           页码
+     * @param size           每页大小
      * @return 客户轻量列表
      */
-    public PageResult<Map<String, Object>> pageLite(String keyword, int page, int size, String orderBy, String orderDir) {
+    public PageResult<Map<String, Object>> pageLite(String keyword, String ownerStaffCode, int page, int size, String orderBy, String orderDir) {
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(ownerStaffCode)) {
+            wrapper.eq(ClientProfile::getOwnerStaffCode, ownerStaffCode.trim());
+        }
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
             // 以关键字查询客户：姓名 / 企业名 / 手机号（SHA-256 哈希精确）；不再按客户内部编码匹配。

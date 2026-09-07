@@ -325,6 +325,8 @@ public class ClientAllocationService {
             row.put("clientCode", approval.getClientCode());
             row.put("applicantName", names.get(approval.getApplicantStaffCode()));
             row.put("applySource", approval.getApplySource());
+            // 前端按 approveStatus 判断是否展示「审核」按钮，必须回传（待审页均为 PENDING）
+            row.put("approveStatus", approval.getApproveStatus());
             row.put("createdAt", approval.getCreatedAt());
             ClientProfile client = clients.get(approval.getClientCode());
             if (client != null) {
@@ -634,6 +636,60 @@ public class ClientAllocationService {
         result.put("clientCode", clientCode);
         result.put("recycled", true);
         result.put("fromOwnerStaffCode", from);
+        return result;
+    }
+
+    /**
+     * 顾问主动释放自己的客户回公海（无需审批）。
+     *
+     * <p>仅客户当前归属本人可操作，清空归属并置冷却，不删档案。</p>
+     *
+     * @param clientCode 客户编码
+     * @param operator   操作人
+     * @return { clientCode, released=true, fromOwnerStaffCode }
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> selfRelease(String clientCode, LoanUser operator) {
+        ClientProfile client = requireClient(clientCode);
+        String staffNo = operator == null ? null : operator.getUserNo();
+        if (!StringUtils.hasText(staffNo) || !staffNo.equals(client.getOwnerStaffCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅客户归属本人可释放回公海");
+        }
+        String from = client.getOwnerStaffCode();
+        recycleClient(client, "顾问主动释放回公海", operator == null ? "system" : operator.getName());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("clientCode", clientCode);
+        result.put("released", true);
+        result.put("fromOwnerStaffCode", from);
+        return result;
+    }
+
+    /**
+     * 顾问记录客户跟进：刷新最后跟进时间并写流转流水，避免超期自动回收。
+     *
+     * @param clientCode 客户编码
+     * @param operator   操作人
+     * @param content    跟进内容（可选）
+     * @return { clientCode, followedAt }
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> followUp(String clientCode, LoanUser operator, String content) {
+        ClientProfile client = requireClient(clientCode);
+        String staffNo = operator == null ? null : operator.getUserNo();
+        if (!StringUtils.hasText(staffNo) || !staffNo.equals(client.getOwnerStaffCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅客户归属本人可记录跟进");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        clientProfileMapper.update(null, new LambdaUpdateWrapper<ClientProfile>()
+                .eq(ClientProfile::getClientCode, clientCode)
+                .set(ClientProfile::getLastFollowedAt, now)
+                .set(ClientProfile::getUpdatedBy, operator == null ? "system" : operator.getName()));
+        record(clientCode, staffNo, staffNo, "FOLLOW_UP",
+                operator == null ? "system" : operator.getName(),
+                StringUtils.hasText(content) ? content.trim() : "记录跟进");
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("clientCode", clientCode);
+        result.put("followedAt", now);
         return result;
     }
 

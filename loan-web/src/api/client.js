@@ -2,7 +2,8 @@ import request from '@/utils/request';
 import { getStorageJSON, KEYS } from '@/utils/storage';
 import { isChannelUser } from '@/utils/access';
 
-const isChannel = () => isChannelUser(getStorageJSON(KEYS.USER, null));
+const currentUser = () => getStorageJSON(KEYS.USER, null);
+const isChannel = () => isChannelUser(currentUser());
 
 /**
  * 客户档案接口（对接 loan-service /api/admin/client，P0-6）。
@@ -15,10 +16,16 @@ export function getClientDetail(clientCode) {
   return request({ url: `${prefix}/${clientCode}`, method: 'get' });
 }
 
-/** 客户分页：渠道后端强制本人录入范围，员工使用管理端轻量列表。 */
+/** 客户分页：渠道后端强制本人录入范围；顾问默认只查本人归属客户。 */
 export function pageClients(params) {
-  const url = isChannel() ? '/api/channel/client/page' : '/api/admin/client/page-lite';
-  return request({ url, method: 'get', params });
+  const user = currentUser();
+  const channel = isChannel();
+  const url = channel ? '/api/channel/client/page' : '/api/admin/client/page-lite';
+  const payload = { ...params };
+  if (!channel && user?.roleCode === 'ADVISER') {
+    payload.ownerStaffCode = user.userNo;
+  }
+  return request({ url, method: 'get', params: payload });
 }
 
 /** 档案编辑（基础信息 + 个人档案合并，含操作留痕） */
@@ -50,5 +57,22 @@ export function recycleClient(clientCode) {
   return request({
     url: `/api/admin/client/${clientCode}/recycle`,
     method: 'post',
+  });
+}
+
+/** 顾问主动释放自己的客户回公海（无需审批，仅归属本人可操作）。 */
+export function releaseClient(clientCode) {
+  return request({
+    url: `/api/admin/client/${clientCode}/release`,
+    method: 'post',
+  });
+}
+
+/** 顾问记录跟进：刷新 lastFollowedAt，避免超期自动回收。 */
+export function followClient(clientCode, content) {
+  return request({
+    url: `/api/admin/client/${clientCode}/follow`,
+    method: 'post',
+    data: { content },
   });
 }

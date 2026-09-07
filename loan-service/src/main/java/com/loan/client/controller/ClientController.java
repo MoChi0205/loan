@@ -116,21 +116,58 @@ public class ClientController {
     }
 
     /**
+     * 顾问主动释放自己的客户回公海（无需审批）。
+     *
+     * <p>仅客户当前归属本人可操作，清空归属并置冷却，不删档案。</p>
+     *
+     * @param clientCode 客户编码
+     * @param user 当前登录用户
+     * @return { clientCode, released=true, fromOwnerStaffCode }
+     */
+    @PostMapping("/{clientCode}/release")
+    @OpLog(bizType = "客户归属", action = "CLIENT_SELF_RELEASE")
+    public Result<Map<String, Object>> release(@PathVariable String clientCode,
+                                               @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        return Result.ok(clientAllocationService.selfRelease(clientCode, user));
+    }
+
+    /**
+     * 顾问记录客户跟进：刷新最后跟进时间，避免超期自动回收进公海。
+     *
+     * @param clientCode 客户编码
+     * @param body { content: 跟进内容（可选） }
+     * @param user 当前登录用户
+     * @return { clientCode, followedAt }
+     */
+    @PostMapping("/{clientCode}/follow")
+    @OpLog(bizType = "客户跟进", action = "FOLLOW_UP")
+    public Result<Map<String, Object>> follow(@PathVariable String clientCode,
+                                              @RequestBody(required = false) Map<String, String> body,
+                                              @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        String content = body == null ? null : body.get("content");
+        return Result.ok(clientAllocationService.followUp(clientCode, user, content));
+    }
+
+    /**
      * 客户轻量分页（关键字：编码 / 联系人 / 企业 / 手机号）。
      *
-     * @param keyword 关键字（可选）
-     * @param page    页码
-     * @param size    每页大小
+     * @param keyword       关键字（可选）
+     * @param ownerStaffCode 归属人工号（可选；顾问/渠道查本人客户时传入）
+     * @param page          页码
+     * @param size          每页大小
      * @return 客户轻量列表
      */
     @GetMapping("/page-lite")
     public Result<PageResult<Map<String, Object>>> pageLite(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String ownerStaffCode,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir) {
-        return Result.ok(clientService.pageLite(keyword, PageParams.page(page), PageParams.size(size), orderBy, orderDir));
+        return Result.ok(clientService.pageLite(keyword, ownerStaffCode, PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 
     /**

@@ -2,11 +2,11 @@
   <div class="client-profile-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ isChannel && !clientCode ? '我的客户' : (detail.enterpriseName || detail.realName || detail.name || '客户档案') }}</h2>
-        <p class="loan-page-subtitle">{{ isChannel ? '本人录入客户 · 档案只读 · 服务归属' : '客户资料 · 认证信息 · 服务归属 · 操作留痕' }}</p>
+        <h2 class="loan-page-title">{{ showOwnClientList && !clientCode ? '我的客户' : (detail.enterpriseName || detail.realName || detail.name || '客户档案') }}</h2>
+        <p class="loan-page-subtitle">{{ isChannel ? '本人录入客户 · 档案只读 · 服务归属' : (isAdviser ? '本人归属客户 · 档案与服务记录' : '客户资料 · 认证信息 · 服务归属 · 操作留痕') }}</p>
       </div>
       <div class="header-actions">
-        <el-button v-if="isChannel && clientCode" @click="backToChannelClients">返回我的客户</el-button>
+        <el-button v-if="showOwnClientList && clientCode" @click="backToChannelClients">返回我的客户</el-button>
         <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_SCREENING)" type="primary" :disabled="!clientCode" @click="goScreening">
           <AppIcon name="screening" :size="14" />
           发起初筛
@@ -21,19 +21,23 @@
     </div>
 
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
-      <template v-if="isChannel">
+      <template v-if="showOwnClientList">
         <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
-          <el-input v-model="clientQuery.keyword" placeholder="客户姓名 / 企业名称 / 手机号" clearable style="width: 260px" @keyup.enter="searchClients" />
+          <el-input v-model="clientQuery.keyword" :placeholder="isChannel ? '客户姓名 / 企业名称 / 手机号' : '客户姓名 / 企业名称'" clearable style="width: 260px" @keyup.enter="searchClients" />
         </AppSearchBar>
         <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode">
-          <template #empty><AppEmpty title="暂无客户档案" desc="本人录入的线索转化为客户后会显示在这里" /></template>
-          <el-table-column prop="clientName" label="客户" min-width="180" />
-          <el-table-column prop="phone" label="手机号" width="130" />
+          <template #empty><AppEmpty :title="isChannel ? '暂无客户档案' : '暂无客户'" :desc="isChannel ? '本人录入的线索转化为客户后会显示在这里' : '本人归属的客户会显示在这里'" /></template>
+          <el-table-column label="客户" min-width="180">
+            <template #default="{ row }">
+              <div class="cell-main">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</div>
+              <div v-if="row.phone" class="cell-sub">{{ desensitizePhone(row.phone) }}</div>
+            </template>
+          </el-table-column>
           <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
           <el-table-column prop="createdAt" label="建档时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="120" fixed="right">
+          <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
-              <AppTableActions :actions="[{ key: 'detail', label: '查看档案', onClick: () => openChannelClient(row) }]" />
+              <AppTableActions :actions="ownClientActions(row)" />
             </template>
           </el-table-column>
         </el-table>
@@ -165,6 +169,15 @@
         </el-form-item>
       </el-form>
     </AppDialog>
+
+    <!-- 跟进弹窗：记录跟进内容并刷新跟进时间，避免超期自动回收 -->
+    <AppDialog v-model:visible="followVisible" title="跟进客户" width="480px" :loading="following" @confirm="onFollowSubmit">
+      <el-form label-width="80px" label-position="right">
+        <el-form-item label="跟进内容">
+          <el-input v-model="followForm.content" type="textarea" :rows="3" placeholder="记录本次跟进情况（可选）" />
+        </el-form-item>
+      </el-form>
+    </AppDialog>
   </div>
 </template>
 
@@ -179,7 +192,7 @@ import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient } from '@/api/client';
+import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient } from '@/api/client';
 import { staffPage } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
@@ -191,6 +204,8 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
+const isAdviser = computed(() => userStore.roleCode === 'ADVISER');
+const showOwnClientList = computed(() => isChannel.value || isAdviser.value);
 const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
@@ -208,6 +223,49 @@ function openChannelClient(row) {
 }
 function backToChannelClients() {
   router.push({ path: '/client' });
+}
+
+/** 我的客户列表操作列：查看档案 +（顾问）跟进 / 释放回公海 */
+function ownClientActions(row) {
+  const actions = [{ key: 'detail', label: '查看档案', onClick: () => openChannelClient(row) }];
+  if (isAdviser.value) {
+    actions.push({ key: 'follow', label: '跟进', onClick: () => openFollow(row) });
+    actions.push({
+      key: 'release',
+      label: '释放回公海',
+      type: 'warning',
+      confirm: '确认将该客户释放回公海？释放后不再归属你，冷却期内不可认领。',
+      onClick: () => onReleaseOwnClient(row),
+    });
+  }
+  return actions;
+}
+
+const followVisible = ref(false);
+const following = ref(false);
+const followForm = reactive({ clientCode: '', content: '' });
+function openFollow(row) {
+  followForm.clientCode = row.clientCode;
+  followForm.content = '';
+  followVisible.value = true;
+}
+async function onFollowSubmit() {
+  following.value = true;
+  try {
+    await followClient(followForm.clientCode, followForm.content);
+    ElMessage.success('跟进已记录');
+    followVisible.value = false;
+    loadClients();
+  } catch (e) { /* 拦截器已提示 */ } finally {
+    following.value = false;
+  }
+}
+async function onReleaseOwnClient(row) {
+  try {
+    await releaseClient(row.clientCode);
+    ElMessage.success('已释放回公海');
+    loadClients();
+  } catch (e) { /* 拦截器已提示 */ }
 }
 
 /** 档案详情（后端已脱敏敏感字段，前端再做一层兜底展示） */
@@ -499,7 +557,7 @@ watch(
       return;
     }
     clientCode.value = '';
-    if (isChannel.value) loadClients();
+    if (showOwnClientList.value) loadClients();
   },
   { immediate: true },
 );
