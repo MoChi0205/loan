@@ -78,7 +78,7 @@ function onDropdownChange(key, visible) {
  *     { key: 'edit', label: '编辑', onClick: () => onEdit(row) },
  *     { key: 'toggle', label: '停用', type: 'warning', confirm: '确认停用？', onClick: () => onToggle(row) },
  *     { key: 'more', label: '更多', children: [
- *       { key: 'copy', label: '复制编码', onClick: () => onCopy(row) },
+ *       { key: 'detail', label: '查看详情', onClick: () => openDetail(row) },
  *       { key: 'del', label: '删除', type: 'danger', confirm: '确认删除？', onClick: () => onDel(row) },
  *     ]},
  *   ];

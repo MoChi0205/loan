@@ -16,7 +16,7 @@
     <!-- 计划列表 -->
     <div class="loan-card">
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
-        <el-input v-model="query.keyword" placeholder="计划编码 / 名称" clearable style="width: 260px" @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" placeholder="计划名称" clearable style="width: 260px" @keyup.enter="onSearch" />
         <template #append>
           <el-button type="primary" @click="openPlanDialog()">
             <AppIcon name="add" :size="14" />
@@ -77,7 +77,7 @@
     <AppDialog v-model:visible="planDialog.visible" :title="planDialog.title" :loading="planDialog.saving" @confirm="onSavePlan">
       <el-form ref="planFormRef" :model="planDialog.form" :rules="planRules" label-width="90px">
         <el-form-item label="客群" prop="customerGroup">
-          <el-select v-model="planDialog.form.customerGroup" style="width: 100%" teleported>
+          <el-select v-model="planDialog.form.customerGroup" style="width: 100%" teleported placement="top-start">
             <el-option label="企业贷（ENTERPRISE）" value="ENTERPRISE" />
             <el-option label="个贷（PERSONAL）" value="PERSONAL" />
           </el-select>
@@ -94,13 +94,13 @@
         <el-form-item label="模块编码" prop="moduleCode"><el-input v-model="moduleDialog.form.moduleCode" placeholder="如 OPERATION" /></el-form-item>
         <el-form-item label="模块名称" prop="moduleName"><el-input v-model="moduleDialog.form.moduleName" placeholder="模块名称" /></el-form-item>
         <el-form-item label="逻辑">
-          <el-select v-model="moduleDialog.form.logicType" style="width: 100%" teleported>
+          <el-select v-model="moduleDialog.form.logicType" style="width: 100%" teleported placement="top-start">
             <el-option label="AND（模块内遇FAIL短路）" value="AND" />
             <el-option label="OR（模块内遇PASS短路）" value="OR" />
           </el-select>
         </el-form-item>
         <el-form-item label="连接下模块">
-          <el-select v-model="moduleDialog.form.joinWithNextModule" style="width: 100%" teleported>
+          <el-select v-model="moduleDialog.form.joinWithNextModule" style="width: 100%" teleported placement="top-start">
             <el-option label="AND（串行，任一FAIL即短路）" value="AND" />
             <el-option label="OR（并行，全FAIL才失败）" value="OR" />
           </el-select>
@@ -117,12 +117,12 @@
       <el-form ref="stepFormRef" :model="stepDialog.form" :rules="stepRules" label-width="100px" class="step-dialog-form">
         <!-- 规则选择：按分类级联 -->
         <el-form-item label="规则分类" prop="categoryCode">
-          <el-select v-model="stepDialog.form.categoryCode" placeholder="先选择规则分类" clearable style="width: 100%" @change="onCategoryChange">
+          <el-select v-model="stepDialog.form.categoryCode" placeholder="先选择规则分类" clearable style="width: 100%" placement="top-start" @change="onCategoryChange">
             <el-option v-for="c in ruleCategories" :key="c.code" :label="c.name" :value="c.code" />
           </el-select>
         </el-form-item>
         <el-form-item label="规则" prop="ruleId">
-          <el-select v-model="stepDialog.form.ruleId" :placeholder="stepDialog.form.categoryCode ? '选择规则' : '请先选择规则分类'" filterable :disabled="!stepDialog.form.categoryCode" style="width: 100%" teleported>
+          <el-select v-model="stepDialog.form.ruleId" :placeholder="stepDialog.form.categoryCode ? '选择规则' : '请先选择规则分类'" filterable :disabled="!stepDialog.form.categoryCode" style="width: 100%" teleported placement="top-start">
             <el-option v-for="r in filteredRules" :key="r.ruleId || r.ruleCode" :label="`${r.ruleName}（${r.ruleCode}）`" :value="r.ruleId || r.ruleCode" />
           </el-select>
         </el-form-item>
@@ -132,7 +132,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="与下一步">
-              <el-select v-model="stepDialog.form.joinWithNext" clearable style="width: 100%" teleported>
+              <el-select v-model="stepDialog.form.joinWithNext" clearable style="width: 100%" teleported placement="top-start">
                 <el-option label="AND（串行，FAIL即短路）" value="AND" />
                 <el-option label="OR（本步PASS短路后续）" value="OR" />
               </el-select>
@@ -148,14 +148,14 @@
         <el-row :gutter="16">
           <el-col :span="7">
             <el-form-item label="条件字段">
-              <el-select v-model="stepDialog.form.conditionField" filterable allow-create default-first-option clearable placeholder="fact 字段码" style="width: 100%" teleported>
+              <el-select v-model="stepDialog.form.conditionField" filterable allow-create default-first-option clearable placeholder="fact 字段码" style="width: 100%" teleported placement="top-start">
                 <el-option v-for="f in conditionFieldOptions" :key="f.value" :label="f.label" :value="f.value" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="6">
             <el-form-item label="运算符">
-              <el-select v-model="stepDialog.form.conditionOperator" clearable placeholder="如 EQ" style="width: 100%" teleported>
+              <el-select v-model="stepDialog.form.conditionOperator" clearable placeholder="如 EQ" style="width: 100%" teleported placement="top-start">
                 <el-option v-for="o in OPERATORS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
             </el-form-item>
@@ -358,7 +358,6 @@ const planTableRef = ref();
 /** 列配置（支持拖拽排序；操作列固定在最右，不参与拖拽） */
 const columns = ref([
   { key: 'planName', label: '计划名称', width: 200, sortable: false },
-  { key: 'planCode', label: '计划编码', width: 260, sortable: false },
   { key: 'version', label: '版本', width: 80, sortable: false },
   { key: 'customerGroup', label: '客群', width: 90, sortable: false },
   { key: 'createdAt', label: '创建时间', width: 170, sortable: 'custom' },

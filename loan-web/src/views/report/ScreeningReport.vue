@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">{{ isChannel ? '客户分析报告' : '初筛报告' }}</h2>
-        <p class="loan-page-subtitle">{{ isChannel ? '仅展示本人录入客户的分析结果和归属顾问' : '初筛引擎生成的报告记录，可按档位/状态/编号检索' }}</p>
+        <p class="loan-page-subtitle">{{ isChannel ? '仅展示本人录入客户的分析结果和归属顾问' : '初筛引擎生成的报告记录，可按客户、档位和状态检索' }}</p>
       </div>
     </div>
 
@@ -20,14 +20,14 @@
           <el-option label="小程序提交" value="MINI" />
           <el-option label="Web 录入" value="WEB" />
         </el-select>
-        <el-input v-model="queryS.keyword" placeholder="报告编号 / 客户姓名 / 手机号 / 企业名" style="width: 260px" clearable @keyup.enter="searchS" />
+        <el-input v-model="queryS.keyword" placeholder="客户姓名 / 手机号 / 企业名" style="width: 260px" clearable @keyup.enter="searchS" />
       </AppSearchBar>
 
-      <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo">
+      <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无报告" :desc="isChannel ? '本人录入的客户生成分析报告后会显示在这里' : '在「初筛执行」中为客户生成第一份匹配报告'" />
         </template>
-        <el-table-column v-if="!isChannel" prop="reportNo" label="报告编号" width="120" show-overflow-tooltip />
+        <el-table-column v-if="!isChannel" label="报告" min-width="210" show-overflow-tooltip><template #default="{ row }">{{ reportDisplayTitle(row) }}</template></el-table-column>
         <el-table-column prop="clientName" label="客户" min-width="150" show-overflow-tooltip />
         <el-table-column v-if="isChannel" prop="ownerStaffName" label="归属顾问" width="130"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
         <el-table-column v-if="!isChannel" label="来源" width="110">
@@ -104,7 +104,7 @@
         <div class="report-section">
           <div class="report-section-title">基础信息</div>
           <el-descriptions :column="2" border>
-            <el-descriptions-item v-if="!isChannel" label="报告编号">{{ detail.reportNo }}</el-descriptions-item>
+            <el-descriptions-item v-if="!isChannel" label="报告名称">{{ reportDisplayTitle(detail) }}</el-descriptions-item>
             <el-descriptions-item label="来源">
               <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
             </el-descriptions-item>
@@ -143,6 +143,7 @@ import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { pageScreenings, screeningDetail } from '@/api/report';
 import { useUserStore } from '@/store/user';
+import { reportDisplayTitle } from '@/utils/display';
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -177,7 +178,7 @@ const detailStarLabel = computed(() => {
   return gradeStar(g);
 });
 
-const { loading: loadingS, data: dataS, total: totalS, query: queryS, load: loadS, onSearch: searchS, onReset: resetS } =
+const { loading: loadingS, data: dataS, total: totalS, query: queryS, load: loadS, onSearch: searchS, onReset: resetS, handleSortChange } =
   useTable(pageScreenings, { grade: '', status: '', source: '', keyword: '' });
 
 const detailVisible = ref(false);

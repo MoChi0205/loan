@@ -34,7 +34,7 @@
         </AppSearchBar>
 
         <AppTableState :error="errorAll" @retry="loadAll">
-        <el-table :data="dataAll" v-loading="loadingAll" stripe @sort-change="handleSortChangeAll">
+        <el-table :data="dataAll" v-loading="loadingAll" stripe @sort-change="handleSortChangeAll" style="height: calc(100vh - 320px); min-height: 360px">
           <template #empty>
             <AppEmpty title="暂无产品" desc="点击右上角「新增产品」录入银行产品" />
           </template>
@@ -68,7 +68,9 @@
               {{ formatDateTime(row.createdAt) }}
             </template>
           </el-table-column>
-          <el-table-column prop="createdBy" label="录入人" width="90" show-overflow-tooltip />
+          <el-table-column label="录入人" width="90" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.createdByName || row.createdBy || '—' }}</template>
+          </el-table-column>
           <!-- 操作列 -->
           <el-table-column label="操作" width="180" fixed="right">
             <template #default="{ row }">
@@ -93,11 +95,11 @@
           <el-select v-model="queryCo.status" placeholder="合作状态" clearable style="width: 140px">
             <el-option v-for="(v, k) in partnerStatusMap" :key="k" :label="v" :value="k" />
           </el-select>
-          <el-input v-model="queryCo.keyword" placeholder="产品编码 / 产品名" style="width: 220px" clearable @keyup.enter="searchCo" />
+          <el-input v-model="queryCo.keyword" placeholder="产品名称 / 银行名称" style="width: 220px" clearable @keyup.enter="searchCo" />
         </AppSearchBar>
 
         <AppTableState :error="errorCo" @retry="loadCo">
-        <el-table :data="dataCo" v-loading="loadingCo" stripe row-key="bankProductCode">
+        <el-table :data="dataCo" v-loading="loadingCo" stripe row-key="bankProductCode" style="height: calc(100vh - 320px); min-height: 360px">
           <template #empty>
             <AppEmpty title="合作库暂无产品" desc="点击右上角「录入合作库」添加对客展示的银行产品，并设置合作到期日" />
           </template>
@@ -122,11 +124,13 @@
               <span class="loan-tag" :class="partnerStatusTag(row.status)">{{ partnerStatusText(row.status) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="createdBy" label="录入人" width="90" show-overflow-tooltip />
+          <el-table-column label="录入人" width="90" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.createdByName || row.createdBy || '—' }}</template>
+          </el-table-column>
           <el-table-column label="录入时间" width="165" show-overflow-tooltip>
             <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="110" fixed="right">
             <template #default="{ row }">
               <AppTableActions :actions="partnerRowActions(row)" />
             </template>
@@ -162,10 +166,10 @@
           <el-input v-model="dialogForm.bankName" placeholder="如 武汉某银行" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
-          <DictSelect v-model="dialogForm.customerGroup" type="customerGroup" placeholder="请选择客群" />
+          <DictSelect v-model="dialogForm.customerGroup" type="customerGroup" placeholder="请选择客群" placement="top-start" />
         </el-form-item>
         <el-form-item label="来源" prop="source">
-          <DictSelect v-model="dialogForm.source" type="productSource" placeholder="请选择来源" />
+          <DictSelect v-model="dialogForm.source" type="productSource" placeholder="请选择来源" placement="top-start" />
         </el-form-item>
         <el-form-item label="额度区间(元)">
           <el-input-number v-model="dialogForm.amountMin" :precision="2" :controls="false" placeholder="下限" style="width: 130px" />
@@ -183,7 +187,7 @@
           <el-input-number v-model="dialogForm.termMax" :controls="false" placeholder="上限" style="width: 130px" />
         </el-form-item>
         <el-form-item label="状态" prop="status">
-          <DictSelect v-model="dialogForm.status" type="productStatus" />
+          <DictSelect v-model="dialogForm.status" type="productStatus" placement="top-start" />
         </el-form-item>
       </el-form>
     </AppDialog>
@@ -192,7 +196,7 @@
     <AppDialog v-model:visible="partnerDialog.visible" title="录入合作库" width="520px" :loading="partnerDialog.saving" @confirm="onPartnerSave">
       <el-form ref="partnerFormRef" :model="partnerDialog.form" :rules="partnerRules" label-width="110px" label-position="right">
         <el-form-item label="银行产品" prop="bankProductCode">
-          <RemoteProductSelect v-model="partnerDialog.form.bankProductCode" scope="all" placeholder="输入产品名称搜索" />
+          <RemoteProductSelect v-model="partnerDialog.form.bankProductCode" scope="all" placeholder="输入产品名称搜索" placement="top-start" />
         </el-form-item>
         <el-form-item label="合作到期日" prop="cooperateUntil">
           <el-date-picker
@@ -204,7 +208,7 @@
           />
         </el-form-item>
         <el-form-item label="初始状态" prop="status">
-          <el-select v-model="partnerDialog.form.status" style="width: 100%">
+          <el-select v-model="partnerDialog.form.status" style="width: 100%" placement="top-start">
             <el-option v-for="(v, k) in partnerStatusMap" :key="k" :label="v" :value="k" />
           </el-select>
         </el-form-item>
@@ -265,7 +269,6 @@ import AppTableState from '@/components/AppTableState.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime } from '@/utils/format';
 import { appConfirm } from '@/utils/confirm';
-import { copyText } from '@/utils/clipboard';
 import { pageProducts, createProduct, updateProduct, deleteProduct } from '@/api/product';
 import {
   pagePartnerProducts,
@@ -365,13 +368,6 @@ function rowActions(row) {
       confirm: `确认删除产品「${row.productName}」？删除后不可恢复，请谨慎操作。`,
       onClick: () => onDelete(row),
     },
-    {
-      key: 'more',
-      label: '更多',
-      children: [
-        { key: 'copy', label: '复制编码', onClick: () => onCopyCode(row) },
-      ],
-    },
   ];
 }
 
@@ -420,15 +416,6 @@ async function onDelete(row) {
     loadAll();
   } catch (e) {
     // 拦截器已提示
-  }
-}
-
-async function onCopyCode(row) {
-  try {
-    await copyText(row.productCode);
-    ElMessage.success('编码已复制');
-  } catch {
-    ElMessage.warning('复制失败，请手动复制');
   }
 }
 
@@ -501,7 +488,7 @@ function formatDate(d) {
 }
 
 // ============================================================
-// 合作库操作列：续签 / 下架·上架 / 复制编码
+// 合作库操作列：续签 / 下架·上架
 // ============================================================
 function partnerRowActions(row) {
   const offline = row.status === 'OFFLINE';
@@ -513,13 +500,6 @@ function partnerRowActions(row) {
       type: offline ? 'success' : 'warning',
       confirm: offline ? `确认重新上架产品「${row.productName || '未命名产品'}」？` : `确认下架产品「${row.productName || '未命名产品'}」？下架后小程序/报告侧不再展示。`,
       onClick: () => onToggleStatus(row, offline),
-    },
-    {
-      key: 'more',
-      label: '更多',
-      children: [
-        { key: 'copy', label: '复制编码', onClick: () => onCopyCode(row) },
-      ],
     },
   ];
 }

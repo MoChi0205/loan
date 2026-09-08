@@ -62,7 +62,6 @@
         </AppSearchBar>
 
         <el-table :data="staffs" v-loading="loading" stripe row-key="id" @sort-change="handleSortChange">
-          <el-table-column prop="staffCode" label="工号" width="110"  show-overflow-tooltip />
           <el-table-column prop="staffName" label="姓名" min-width="130" />
           <el-table-column prop="deptName" label="部门" width="130">
             <template #default="{ row }">{{ row.deptName || '—' }}</template>

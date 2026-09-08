@@ -26,14 +26,13 @@
           <el-option label="企业" value="ENTERPRISE" />
           <el-option label="个人" value="PERSONAL" />
         </el-select>
-        <el-input v-model="query.keyword" placeholder="模版编码 / 名称" clearable style="width: 200px" @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" placeholder="模版名称" clearable style="width: 200px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
       <el-table :data="data" v-loading="loading" stripe row-key="templateCode" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无策略模版" desc="创建策略模版后，可通过「导入到策略」一键应用到渠道" />
         </template>
-        <el-table-column prop="templateCode" label="模版编码" width="180" />
         <el-table-column prop="templateName" label="模版名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="客群" width="90">
           <template #default="{ row }"><DictTag type="customerGroup" :value="row.customerGroup" /></template>
@@ -59,7 +58,7 @@
         <el-form-item label="模版编码" prop="templateCode"><el-input v-model="tplDialog.form.templateCode" placeholder="渠道内唯一" /></el-form-item>
         <el-form-item label="模版名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" /></el-form-item>
         <el-form-item label="客群" prop="customerGroup">
-          <el-select v-model="tplDialog.form.customerGroup" style="width: 100%">
+          <el-select v-model="tplDialog.form.customerGroup" style="width: 100%" placement="top-start">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
           </el-select>
@@ -107,12 +106,12 @@
         <el-form-item label="模块编码" prop="moduleCode"><el-input v-model="modDialog.form.moduleCode" /></el-form-item>
         <el-form-item label="模块名称" prop="moduleName"><el-input v-model="modDialog.form.moduleName" /></el-form-item>
         <el-form-item label="逻辑">
-          <el-select v-model="modDialog.form.logicType" style="width: 100%">
+          <el-select v-model="modDialog.form.logicType" style="width: 100%" placement="top-start">
             <el-option label="AND" value="AND" /><el-option label="OR" value="OR" />
           </el-select>
         </el-form-item>
         <el-form-item label="连接下模块">
-          <el-select v-model="modDialog.form.joinWithNextModule" style="width: 100%">
+          <el-select v-model="modDialog.form.joinWithNextModule" style="width: 100%" placement="top-start">
             <el-option label="AND（串行，任一FAIL即短路）" value="AND" />
             <el-option label="OR（并行，全FAIL才失败）" value="OR" />
           </el-select>
@@ -124,7 +123,7 @@
     <AppDialog v-model:visible="stepDialog.visible" :title="stepDialog.title" :loading="stepDialog.saving" @confirm="onSaveStep" width="720px">
       <el-form ref="stepFormRef" :model="stepDialog.form" :rules="stepRules" label-width="100px">
         <el-form-item label="规则" prop="ruleId">
-          <el-select v-model="stepDialog.form.ruleId" placeholder="选择规则（必选）" filterable :disabled="!!stepDialog.editingId" style="width: 100%" @change="onRuleChange">
+          <el-select v-model="stepDialog.form.ruleId" placeholder="选择规则（必选）" filterable :disabled="!!stepDialog.editingId" style="width: 100%" placement="top-start" @change="onRuleChange">
             <el-option
               v-for="r in availableRules"
               :key="r.id"
@@ -140,7 +139,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="与下一步">
-              <el-select v-model="stepDialog.form.joinWithNext" clearable style="width: 100%">
+              <el-select v-model="stepDialog.form.joinWithNext" clearable style="width: 100%" placement="top-start">
                 <el-option label="AND（串行，FAIL即短路）" value="AND" />
                 <el-option label="OR（本步PASS短路后续）" value="OR" />
               </el-select>
@@ -178,17 +177,17 @@
     <AppDialog v-model:visible="importDialog.visible" title="导入到渠道准入策略" :loading="importDialog.saving" @confirm="onImport">
       <el-form ref="importFormRef" :model="importDialog.form" :rules="importRules" label-width="90px">
         <el-form-item label="渠道" prop="channelCode">
-          <el-select v-model="importDialog.form.channelCode" placeholder="选择渠道" filterable style="width: 100%">
+          <el-select v-model="importDialog.form.channelCode" placeholder="选择渠道" filterable style="width: 100%" placement="top-start">
             <el-option v-for="c in channels" :key="c.channelCode" :label="c.bankName" :value="c.channelCode" />
           </el-select>
         </el-form-item>
         <el-form-item label="产品" prop="bankProductCode">
-          <RemoteProductSelect v-model="importDialog.form.bankProductCode" :customer-group="importDialog.form.customerGroup" />
+          <RemoteProductSelect v-model="importDialog.form.bankProductCode" :customer-group="importDialog.form.customerGroup" placement="top-start" />
         </el-form-item>
         <el-form-item label="策略编码" prop="strategyCode"><el-input v-model="importDialog.form.strategyCode" placeholder="渠道内唯一" /></el-form-item>
         <el-form-item label="策略名称"><el-input v-model="importDialog.form.strategyName" placeholder="缺省用模版名" /></el-form-item>
         <el-form-item label="客群">
-          <el-select v-model="importDialog.form.customerGroup" style="width: 100%">
+          <el-select v-model="importDialog.form.customerGroup" style="width: 100%" placement="top-start">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
           </el-select>
@@ -200,7 +199,7 @@
     <AppDialog v-model:visible="snapshotDialog.visible" title="从渠道策略快照为模版" :loading="snapshotDialog.saving" @confirm="onSnapshot">
       <el-form label-width="110px">
         <el-form-item label="源渠道">
-          <el-select v-model="snapshotDialog.channelCode" placeholder="选择渠道" filterable style="width: 100%" @change="onSnapshotChannelChange">
+          <el-select v-model="snapshotDialog.channelCode" placeholder="选择渠道" filterable style="width: 100%" placement="top-start" @change="onSnapshotChannelChange">
             <el-option v-for="c in channels" :key="c.channelCode" :label="`${c.bankName}（${c.channelCode}）`" :value="c.channelCode" />
           </el-select>
         </el-form-item>
@@ -290,7 +289,7 @@ async function onOffline(row) { await offlineTemplate(row.templateCode); ElMessa
 async function onDelete(row) { await deleteTemplate(row.templateCode); ElMessage.success('已删除'); load(); }
 
 // 模版 CRUD
-const tplDialog = reactive({ visible: false, title: '', saving: false, editingId: null, form: { templateCode: '', templateName: '', customerGroup: 'ENTERPRISE', description: '' } });
+const tplDialog = reactive({ visible: false, title: '', saving: false, editingCode: null, form: { templateCode: '', templateName: '', customerGroup: 'ENTERPRISE', description: '' } });
 const tplFormRef = ref();
 const tplRules = {
   templateCode: [{ required: true, message: '请输入模版编码', trigger: 'blur' }],
@@ -305,7 +304,7 @@ function openCreate() {
 }
 function openTplDialog(row) {
   tplDialog.title = '编辑模版';
-  tplDialog.editingId = row.id;
+  tplDialog.editingCode = row.templateCode;
   Object.assign(tplDialog.form, { templateCode: row.templateCode, templateName: row.templateName, customerGroup: row.customerGroup, description: row.description });
   tplDialog.visible = true;
 }
@@ -313,7 +312,7 @@ async function onSaveTpl() {
   await tplFormRef.value.validate();
   tplDialog.saving = true;
   try {
-    if (tplDialog.editingId) await updateTemplate(tplDialog.form.templateCode, { ...tplDialog.form });
+    if (tplDialog.editingCode) await updateTemplate(tplDialog.form.templateCode, { ...tplDialog.form });
     else await createTemplate({ ...tplDialog.form });
     ElMessage.success('已保存');
     tplDialog.visible = false;

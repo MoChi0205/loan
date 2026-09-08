@@ -20,7 +20,7 @@
         <el-select v-model="queryP.status" placeholder="审核状态" clearable style="width: 140px">
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
-        <el-input v-model="queryP.keyword" placeholder="审核单号 / 产品编码" style="width: 220px" clearable @keyup.enter="searchP" />
+        <el-input v-model="queryP.keyword" placeholder="产品名称 / 提交人" style="width: 220px" clearable @keyup.enter="searchP" />
       </AppSearchBar>
 
       <AppTableState :error="errorP" @retry="loadP">
@@ -28,7 +28,7 @@
         <template #empty>
           <AppEmpty title="暂无产品审核" desc="新产品申请入全量库后将在此等待审核" />
         </template>
-        <el-table-column prop="approvalNo" label="审核单号" min-width="180" show-overflow-tooltip />
+        <el-table-column label="审批事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'product') }}</template></el-table-column>
         <el-table-column label="产品" min-width="170">
           <template #default="{ row }">
             <div class="cell-main">{{ row.bankProductName || '—' }}</div>
@@ -69,13 +69,15 @@
     <!-- ============ 渠道新增线索终审（老板/超级管理员单级终审） ============ -->
     <div v-show="activeTab === 'channelLead'" class="loan-card">
       <AppSearchBar :loading="loadingCL" @search="searchCL" @reset="resetCL">
-        <el-input v-model="queryCL.keyword" placeholder="联系人 / 手机号 / 线索编号" style="width: 260px" clearable @keyup.enter="searchCL" />
+        <el-input v-model="queryCL.keyword" placeholder="联系人 / 手机号 / 渠道名称" style="width: 260px" clearable @keyup.enter="searchCL" />
       </AppSearchBar>
       <AppTableState :error="errorCL" @retry="loadCL">
-        <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo">
+        <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo" style="height: calc(100vh - 320px); min-height: 360px">
           <template #empty><AppEmpty title="暂无渠道线索审批" desc="渠道录入新线索后将在此等待终审" /></template>
           <el-table-column prop="contactName" label="联系人" width="130" />
-          <el-table-column prop="phone" label="手机号" width="140" />
+          <el-table-column label="手机号" width="140">
+            <template #default="{ row }">{{ desensitizePhone(row.phone) }}</template>
+          </el-table-column>
           <el-table-column prop="channelName" label="录入渠道" min-width="150" />
           <el-table-column prop="leadType" label="客群" width="100"><template #default="{ row }">{{ row.leadType === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
           <el-table-column prop="createdAt" label="提交时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
@@ -95,7 +97,7 @@
         <el-select v-model="queryD.status" placeholder="审批状态" clearable style="width: 140px">
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
-        <el-input v-model="queryD.keyword" placeholder="申请单号 / 申请人姓名" style="width: 220px" clearable @keyup.enter="searchD" />
+        <el-input v-model="queryD.keyword" placeholder="申请人姓名 / 用途说明" style="width: 220px" clearable @keyup.enter="searchD" />
         <template #append>
           <el-button v-permission="ACTION_PERMISSION.DOWNLOAD_APPLY" type="primary" plain @click="openApply">
             <AppIcon name="add" :size="14" />
@@ -105,11 +107,11 @@
       </AppSearchBar>
 
       <AppTableState :error="errorD" @retry="loadD">
-      <el-table :data="dataD" v-loading="loadingD" stripe row-key="approvalNo" @sort-change="handleSortChangeD">
+      <el-table :data="dataD" v-loading="loadingD" stripe row-key="approvalNo" @sort-change="handleSortChangeD" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无下载审批" desc="员工发起无水印下载申请后将在此审批" />
         </template>
-        <el-table-column prop="approvalNo" label="申请单号" min-width="180" show-overflow-tooltip />
+        <el-table-column label="审批事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'download') }}</template></el-table-column>
         <el-table-column prop="applicantStaffName" label="申请人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.applicantStaffName || '姓名待补充' }}</template>
         </el-table-column>
@@ -147,15 +149,15 @@
     <!-- ============ 客户分配审批（无归宿客户归属流转，仅审批分配管理员可见） ============ -->
     <div v-show="activeTab === 'allocation'" class="loan-card">
       <AppSearchBar :loading="loadingA" @search="searchA" @reset="resetA">
-        <el-input v-model="queryA.keyword" placeholder="审批单号 / 企业名称 / 申请人" style="width: 240px" clearable @keyup.enter="searchA" />
+        <el-input v-model="queryA.keyword" placeholder="企业名称 / 客户姓名 / 申请人" style="width: 240px" clearable @keyup.enter="searchA" />
       </AppSearchBar>
 
       <AppTableState :error="errorA" @retry="loadA">
-      <el-table :data="dataA" v-loading="loadingA" stripe row-key="approvalNo">
+      <el-table :data="dataA" v-loading="loadingA" stripe row-key="approvalNo" @sort-change="handleSortChangeA">
         <template #empty>
           <AppEmpty title="暂无分配审批" desc="客户申请归属流转、无归宿客户分配将在此等待审批" />
         </template>
-        <el-table-column prop="approvalNo" label="审批单号" min-width="180" show-overflow-tooltip />
+        <el-table-column label="审批事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'allocation') }}</template></el-table-column>
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.entName || row.contactName || '未命名客户' }}</div>
@@ -168,7 +170,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="contactName" label="联系人" width="120" show-overflow-tooltip />
-        <el-table-column prop="contactPhone" label="联系电话" width="140" show-overflow-tooltip />
+        <el-table-column label="联系电话" width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ desensitizePhone(row.contactPhone) }}</template>
+        </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="160" sortable>
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
@@ -185,8 +189,8 @@
     <!-- 通用审核弹窗（产品 / 下载 / 分配共用） -->
     <AppDialog v-model:visible="auditVisible" title="审核" :loading="auditing" @confirm="onAudit">
       <el-form ref="auditFormRef" :model="auditForm" :rules="auditRules" label-width="100px" label-position="right">
-        <el-form-item label="单号">
-          <span class="mono">{{ auditForm.approvalNo }}</span>
+        <el-form-item label="审批事项">
+          <span>{{ auditForm.matter }}</span>
         </el-form-item>
         <el-form-item label="审核结果" prop="approve">
           <el-radio-group v-model="auditForm.approve">
@@ -204,7 +208,7 @@
     <AppDialog v-model:visible="applyVisible" title="发起无水印下载申请" :loading="applying" @confirm="onApply">
       <el-form ref="applyFormRef" :model="applyForm" :rules="applyRules" label-width="110px" label-position="right">
         <el-form-item label="资料清单" prop="attachmentIds">
-          <el-select v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或工单号搜索" style="width: 100%" @visible-change="(v) => { if (v) searchAttachments('') }">
+          <el-select v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或客户名称搜索" style="width: 100%" placement="top-start" @visible-change="(v) => { if (v) searchAttachments('') }">
             <el-option v-for="item in attachmentOptions" :key="item.value" :label="item.label" :value="item.value" />
             <div v-if="!attachmentFinished && attachmentOptions.length" class="remote-more" @mousedown.prevent @click="loadMoreAttachments">{{ attachmentLoading ? '加载中…' : '加载更多' }}</div>
           </el-select>
@@ -233,8 +237,8 @@ import AppTableState from '@/components/AppTableState.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { useRemoteOptions } from '@/composables/useRemoteOptions';
-import { formatDateTime } from '@/utils/format';
-import { copyText } from '@/utils/clipboard';
+import { formatDateTime, desensitizePhone } from '@/utils/format';
+import { approvalMatter } from '@/utils/display';
 import { useUserStore } from '@/store/user';
 import { ACTION_PERMISSION, approvalActionState } from '@/utils/access';
 import {
@@ -258,15 +262,6 @@ function attachmentCount(value) {
   try { return Array.isArray(value) ? value.length : JSON.parse(value || '[]').length; } catch { return 0; }
 }
 
-async function onCopy(val) {
-  try {
-    await copyText(val || '');
-    ElMessage.success('已复制');
-  } catch {
-    ElMessage.warning('复制失败');
-  }
-}
-
 /** 产品审核表 */
 const { loading: loadingP, error: errorP, data: dataP, total: totalP, query: queryP, load: loadP, onSearch: searchP, onReset: resetP, handleSortChange } =
   useTable(pageProductApprovals, { status: '', keyword: '' });
@@ -276,7 +271,7 @@ const { loading: loadingD, error: errorD, data: dataD, total: totalD, query: que
   useTable(pageDownloadApprovals, { status: '', keyword: '' });
 
 /** 客户分配审批表 */
-const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA } =
+const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA, handleSortChange: handleSortChangeA } =
   useTable(pageAllocationApprovals, { keyword: '' });
 
 const { loading: loadingCL, error: errorCL, data: dataCL, total: totalCL, query: queryCL, load: loadCL, onSearch: searchCL, onReset: resetCL } =
@@ -284,7 +279,6 @@ const { loading: loadingCL, error: errorCL, data: dataCL, total: totalCL, query:
 
 function productActions(row) {
   const actions = [];
-  actions.push({ key: 'copy', label: '复制单号', onClick: () => onCopy(row.approvalNo) });
   if (approvalActionState('product', row, userStore.permissions).canAudit) {
     actions.push({ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('product', row) });
   }
@@ -293,7 +287,6 @@ function productActions(row) {
 
 function downloadActions(row) {
   const actions = [];
-  actions.push({ key: 'copy', label: '复制单号', onClick: () => onCopy(row.approvalNo) });
   const state = approvalActionState('download', row, userStore.permissions);
   if (state.canAudit) {
     actions.push({ key: 'audit', label: '审批', type: 'success', onClick: () => openAudit('download', row) });
@@ -303,7 +296,7 @@ function downloadActions(row) {
       key: 'void',
       label: '作废',
       type: 'danger',
-      confirm: `确认作废申请单「${row.approvalNo}」？`,
+      confirm: `确认作废「${approvalMatter(row, 'download')}」？`,
       onClick: () => onVoid(row),
     });
   }
@@ -312,7 +305,6 @@ function downloadActions(row) {
 
 function allocationActions(row) {
   const actions = [];
-  actions.push({ key: 'copy', label: '复制单号', onClick: () => onCopy(row.approvalNo) });
   // 待审列表仅返回 PENDING 记录，故统一展示审核入口
   if (approvalActionState('allocation', row, userStore.permissions).canAudit) {
     actions.push({ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('allocation', row) });
@@ -325,7 +317,7 @@ function allocationActions(row) {
 // ============================================================
 const auditVisible = ref(false);
 const auditing = ref(false);
-const auditForm = reactive({ kind: 'product', approvalNo: '', approve: true, opinion: '' });
+const auditForm = reactive({ kind: 'product', approvalNo: '', matter: '', approve: true, opinion: '' });
 const auditFormRef = ref();
 const auditRules = {
   opinion: [
@@ -345,6 +337,7 @@ const auditRules = {
 function openAudit(kind, row) {
   auditForm.kind = kind;
   auditForm.approvalNo = row.approvalNo;
+  auditForm.matter = approvalMatter(row, kind);
   auditForm.approve = true;
   auditForm.opinion = '';
   auditFormRef.value?.clearValidate();

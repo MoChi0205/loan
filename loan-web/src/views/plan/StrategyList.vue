@@ -20,10 +20,10 @@
           <el-option label="企业" value="ENTERPRISE" />
           <el-option label="个人" value="PERSONAL" />
         </el-select>
-        <el-input v-model="query.keyword" placeholder="策略编码 / 名称" clearable style="width: 200px" @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" placeholder="策略名称" clearable style="width: 200px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
-      <el-table :data="data" v-loading="loading" stripe row-key="strategyCode">
+      <el-table :data="data" v-loading="loading" stripe row-key="strategyCode" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无策略" desc="新增渠道策略，配置产品与执行计划" />
         </template>
@@ -38,7 +38,6 @@
             <DictTag type="customerGroup" :value="row.customerGroup" />
           </template>
         </el-table-column>
-        <el-table-column prop="strategyCode" label="策略编码" width="160" />
         <el-table-column prop="strategyName" label="策略名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="执行计划" width="180">
           <template #default="{ row }">{{ planName(row.executionPlanCode) }}</template>
@@ -50,7 +49,7 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="rowActions(row)" />
           </template>
@@ -64,15 +63,15 @@
     <AppDialog v-model:visible="dialogVisible" :title="editing ? '编辑策略' : '新增策略'" width="520px" :loading="saving" @confirm="onSave">
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
         <el-form-item label="渠道" prop="channelCode">
-          <el-select v-model="form.channelCode" placeholder="选择渠道" style="width: 100%" :disabled="editing">
+          <el-select v-model="form.channelCode" placeholder="选择渠道" style="width: 100%" :disabled="editing" placement="top-start">
             <el-option v-for="c in channels" :key="c.channelCode" :label="c.bankName" :value="c.channelCode" />
           </el-select>
         </el-form-item>
         <el-form-item label="产品" prop="bankProductCode">
-          <RemoteProductSelect v-model="form.bankProductCode" :customer-group="form.customerGroup" />
+          <RemoteProductSelect v-model="form.bankProductCode" :customer-group="form.customerGroup" placement="top-start" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
-          <el-select v-model="form.customerGroup" placeholder="选择客群" style="width: 100%">
+          <el-select v-model="form.customerGroup" placeholder="选择客群" style="width: 100%" placement="top-start">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
           </el-select>
@@ -84,7 +83,7 @@
           <el-input v-model="form.strategyName" placeholder="如 武汉某行企业税贷准入策略" />
         </el-form-item>
         <el-form-item label="执行计划" prop="executionPlanCode">
-          <el-select v-model="form.executionPlanCode" placeholder="选择计划(1:1)" style="width: 100%">
+          <el-select v-model="form.executionPlanCode" placeholder="选择计划(1:1)" style="width: 100%" placement="top-start">
             <el-option v-for="p in plans" :key="p.planCode" :label="`${p.planName}（${p.planCode}）`" :value="p.planCode" />
           </el-select>
         </el-form-item>

@@ -19,25 +19,30 @@
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
           </template>
         </el-input>
-        <el-select v-model="query.customerGroup" placeholder="客群" clearable style="width: 120px">
-          <el-option v-for="o in groupOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-        <el-select v-model="query.totalResult" placeholder="总结果" clearable style="width: 130px">
-          <el-option v-for="o in resultOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-        <el-select v-model="query.mismatchFlag" placeholder="异常标记" clearable style="width: 120px">
-          <el-option label="有异常" :value="1" />
-          <el-option label="无异常" :value="0" />
-        </el-select>
-        <el-date-picker
-          v-model="timeRange"
-          type="datetimerange"
-          value-format="YYYY-MM-DD HH:mm:ss"
-          range-separator="至"
-          start-placeholder="开始时间"
-          end-placeholder="结束时间"
-          style="width: 360px"
-        />
+        <el-button text type="primary" @click="showMore = !showMore" style="margin-left: 4px">
+          {{ showMore ? '收起筛选 ▴' : '更多筛选 ▾' }}
+        </el-button>
+        <template v-if="showMore">
+          <el-select v-model="query.customerGroup" placeholder="客群" clearable style="width: 120px">
+            <el-option v-for="o in groupOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <el-select v-model="query.totalResult" placeholder="总结果" clearable style="width: 130px">
+            <el-option v-for="o in resultOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <el-select v-model="query.mismatchFlag" placeholder="异常标记" clearable style="width: 120px">
+            <el-option label="有异常" :value="1" />
+            <el-option label="无异常" :value="0" />
+          </el-select>
+          <el-date-picker
+            v-model="timeRange"
+            type="datetimerange"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            style="width: 360px"
+          />
+        </template>
         <template #append>
           <el-button @click="load">刷新</el-button>
         </template>
@@ -191,6 +196,9 @@ const timeRange = computed({
     query.endTime = v?.[1] || '';
   },
 });
+
+/** 次级筛选（客群/总结果/异常/时间区间）默认收起，点「更多筛选」展开，释放表格空间 */
+const showMore = ref(false);
 
 /** 详情弹窗 */
 const detailVisible = ref(false);

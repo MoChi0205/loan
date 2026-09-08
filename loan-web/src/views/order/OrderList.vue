@@ -16,16 +16,15 @@
         <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px">
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
-        <el-input v-model="query.keyword" placeholder="工单号 / 客户姓名 / 手机号 / 企业名" style="width: 240px" clearable @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" placeholder="客户姓名 / 手机号 / 企业名" style="width: 240px" clearable @keyup.enter="onSearch" />
         <el-checkbox v-model="query.mineOnly" style="margin-right: 8px">仅我的工单</el-checkbox>
       </AppSearchBar>
 
       <AppTableState :error="error" @retry="load">
-      <el-table :data="data" v-loading="loading" stripe row-key="orderNo" @sort-change="handleSortChange">
+      <el-table :data="data" v-loading="loading" stripe row-key="orderNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无工单" desc="为客户发起服务工单后在此跟踪进度" />
         </template>
-        <el-table-column prop="orderNo" label="工单号" min-width="180" show-overflow-tooltip />
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</div>
@@ -84,6 +83,7 @@
             :loading="clientLoading"
             placeholder="搜索客户（姓名 / 手机号 / 企业名）"
             style="width: 100%"
+            placement="top-start"
           >
             <el-option v-for="c in clientOptions" :key="c.clientCode" :label="clientLabel(c)" :value="c.clientCode" />
           </el-select>
@@ -95,10 +95,10 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="关联产品">
-          <RemoteProductSelect v-model="createForm.bankProductCode" scope="cooperate" :customer-group="createForm.customerGroup" placeholder="可选，输入产品名称搜索（仅合作中且未到期）" />
+          <RemoteProductSelect v-model="createForm.bankProductCode" scope="cooperate" :customer-group="createForm.customerGroup" placeholder="可选，输入产品名称搜索（仅合作中且未到期）" placement="top-start" />
         </el-form-item>
         <el-form-item label="来源">
-          <el-select v-model="createForm.source" style="width: 100%">
+          <el-select v-model="createForm.source" style="width: 100%" placement="top-start">
             <el-option label="手工建单" value="MANUAL" />
             <el-option label="线下补录" value="OFFLINE_SUPPLEMENT" />
           </el-select>
@@ -121,8 +121,8 @@
     <!-- 成交弹窗（IN_SERVICE → DEAL） -->
     <AppDialog v-model:visible="dealVisible" title="确认成交" :loading="dealing" @confirm="onDeal">
       <el-form label-width="100px" label-position="right">
-        <el-form-item label="工单号">
-          <span class="mono">{{ dealForm.orderNo }}</span>
+        <el-form-item label="服务事项">
+          <span>{{ dealForm.clientName || '当前客户' }}的服务单</span>
         </el-form-item>
         <el-form-item label="成交金额" required>
           <el-input-number v-model="dealForm.dealAmount" :min="0.01" :precision="2" :controls="false" style="width: 200px" placeholder="元" />
@@ -141,7 +141,6 @@
     <el-drawer v-model="detailVisible" title="工单详情" size="480px">
       <template v-if="detail">
         <el-descriptions :column="1" border>
-          <el-descriptions-item label="工单号">{{ detail.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="客户">{{ detail.clientName || detail.enterpriseName || detail.contactName || '—' }}<template v-if="detail.phone"><br><span class="cell-sub">{{ desensitizePhone(detail.phone) }}</span></template></el-descriptions-item>
           <el-descriptions-item label="客群">{{ detail.customerGroup === 'ENTERPRISE' ? '企业' : '个人' }}</el-descriptions-item>
           <el-descriptions-item label="关联产品">{{ detail.bankProductName || '—' }}</el-descriptions-item>
@@ -155,7 +154,7 @@
           <el-descriptions-item label="内部备注">{{ detail.internalRemark || '—' }}</el-descriptions-item>
           <el-descriptions-item label="支付方式">{{ detail.payType || '—' }}</el-descriptions-item>
           <el-descriptions-item label="奖励结算">{{ detail.rewardSettledFlag ? '已结算' : '待结算' }}</el-descriptions-item>
-          <el-descriptions-item label="创建人">{{ detail.createdBy }}（{{ formatDateTime(detail.createdAt) }}）</el-descriptions-item>
+          <el-descriptions-item label="创建人">{{ detail.createdByName || detail.createdBy }}（{{ formatDateTime(detail.createdAt) }}）</el-descriptions-item>
         </el-descriptions>
       </template>
     </el-drawer>
@@ -175,7 +174,6 @@ import AppDialog from '@/components/AppDialog.vue';
 import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
 import { useTable } from '@/composables/useTable';
 import { appConfirm } from '@/utils/confirm';
-import { copyText } from '@/utils/clipboard';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { clientDisplayLabel } from '@/utils/display';
 import { useUserStore } from '@/store/user';
@@ -217,13 +215,12 @@ const { loading, error, data, total, query, load, onSearch, onReset, handleSortC
 function rowActions(row) {
   const actions = [
     { key: 'detail', label: '详情', onClick: () => onDetail(row) },
-    { key: 'copy', label: '复制单号', onClick: () => onCopy(row) },
   ];
   const transitions = availableOrderTransitions(row.status, userStore.permissions);
-  if (transitions.includes('IN_SERVICE')) actions.push({ key: 'start', label: '开始服务', type: 'success', confirm: `确认开始服务「${row.orderNo}」？`, onClick: () => onStart(row) });
+  if (transitions.includes('IN_SERVICE')) actions.push({ key: 'start', label: '开始服务', type: 'success', confirm: `确认开始服务「${row.clientName || row.enterpriseName || row.contactName || '当前工单'}」？`, onClick: () => onStart(row) });
   if (transitions.includes('DEAL')) actions.push({ key: 'deal', label: '成交', type: 'success', onClick: () => openDeal(row) });
-  if (transitions.includes('CANCEL')) actions.push({ key: 'cancel', label: '取消', type: 'danger', confirm: `确认取消工单「${row.orderNo}」？`, onClick: () => onCancel(row) });
-  if (transitions.includes('REFUND')) actions.push({ key: 'refund', label: '退款冲正', type: 'danger', confirm: `确认将成交工单「${row.orderNo}」退款冲正？营收与奖励将联动冲减。`, onClick: () => onRefund(row) });
+  if (transitions.includes('CANCEL')) actions.push({ key: 'cancel', label: '取消', type: 'danger', confirm: `确认取消「${row.clientName || row.enterpriseName || row.contactName || '当前工单'}」的工单？`, onClick: () => onCancel(row) });
+  if (transitions.includes('REFUND')) actions.push({ key: 'refund', label: '退款冲正', type: 'danger', confirm: `确认将「${row.clientName || row.enterpriseName || row.contactName || '当前工单'}」的成交工单退款冲正？营收与奖励将联动冲减。`, onClick: () => onRefund(row) });
   return actions;
 }
 
@@ -249,15 +246,6 @@ async function onRefund(row) {
     ElMessage.success('已退款冲正');
     load();
   } catch (e) { /* 拦截器已提示 */ }
-}
-
-async function onCopy(row) {
-  try {
-    await copyText(row.orderNo);
-    ElMessage.success('单号已复制');
-  } catch {
-    ElMessage.warning('复制失败');
-  }
 }
 
 // ============================================================
@@ -334,10 +322,11 @@ async function onCreate() {
 // ============================================================
 const dealVisible = ref(false);
 const dealing = ref(false);
-const dealForm = reactive({ orderNo: '', dealAmount: null, dealTime: '', rewardAmount: null });
+const dealForm = reactive({ orderNo: '', clientName: '', dealAmount: null, dealTime: '', rewardAmount: null });
 
 function openDeal(row) {
   dealForm.orderNo = row.orderNo;
+  dealForm.clientName = row.clientName || row.enterpriseName || row.contactName || '';
   dealForm.dealAmount = null;
   dealForm.dealTime = '';
   dealForm.rewardAmount = null;

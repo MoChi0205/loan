@@ -59,14 +59,14 @@
           <el-option label="小程序提交" value="MINI" />
           <el-option label="Web 录入" value="WEB" />
         </el-select>
-        <el-input v-model="queryS.keyword" placeholder="报告编号 / 客户姓名 / 手机号 / 企业名" style="width: 260px" clearable @keyup.enter="searchS" />
+        <el-input v-model="queryS.keyword" placeholder="客户姓名 / 手机号 / 企业名" style="width: 260px" clearable @keyup.enter="searchS" />
       </AppSearchBar>
 
       <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无初筛报告" desc="执行初筛并生成报告后，可在此查看报告详情" />
         </template>
-        <el-table-column prop="reportNo" label="报告编号" width="120" show-overflow-tooltip />
+        <el-table-column label="报告" min-width="210" show-overflow-tooltip><template #default="{ row }">{{ reportDisplayTitle(row) }}</template></el-table-column>
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</div>
@@ -124,7 +124,7 @@
     <el-drawer v-model="detailVisible" title="初筛报告详情" size="480px">
       <template v-if="detail">
         <el-descriptions :column="1" border>
-          <el-descriptions-item label="报告编号">{{ detail.reportNo }}</el-descriptions-item>
+          <el-descriptions-item label="报告名称">{{ reportDisplayTitle(detail) }}</el-descriptions-item>
           <el-descriptions-item label="来源">
             <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
           </el-descriptions-item>
@@ -132,7 +132,7 @@
           <el-descriptions-item label="档位">{{ gradeText[detail.grade] || detail.grade }}</el-descriptions-item>
           <el-descriptions-item label="可进件银行">{{ detail.bankCount }}</el-descriptions-item>
           <el-descriptions-item label="命中产品">{{ detail.productCount }}</el-descriptions-item>
-          <el-descriptions-item label="PASS / CONDITION / REJECT">{{ detail.passCount }} / {{ detail.conditionCount }} / {{ detail.rejectCount }}</el-descriptions-item>
+          <el-descriptions-item label="通过 / 有条件 / 拒绝">{{ detail.passCount }} / {{ detail.conditionCount }} / {{ detail.rejectCount }}</el-descriptions-item>
           <el-descriptions-item label="状态">{{ detail.status === 'VIEWED' ? '已查看' : '已生成' }}</el-descriptions-item>
           <el-descriptions-item label="建议清单">
             <pre class="advice">{{ prettyJson(detail.adviceJson) }}</pre>
@@ -152,6 +152,7 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import AppEChart from '@/components/AppEChart.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
+import { reportDisplayTitle } from '@/utils/display';
 import { reportOverview, orderTrend, rewardTrend, pageScreenings, screeningDetail } from '@/api/report';
 
 const gradeText = { HIGH: '高', MIDDLE: '中', LOW: '低' };

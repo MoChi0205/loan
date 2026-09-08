@@ -32,7 +32,6 @@
         <template #empty>
           <AppEmpty title="暂无短信模板" desc="新增短信模板后，可在业务节点触发发送" />
         </template>
-        <el-table-column prop="templateCode" label="模板编码" width="120"  show-overflow-tooltip />
         <el-table-column prop="templateName" label="模板名称" min-width="150" />
         <el-table-column prop="content" label="模板内容" min-width="220" show-overflow-tooltip />
         <el-table-column prop="signName" label="签名" width="110" />
@@ -76,7 +75,6 @@
         <el-table-column label="手机号" width="130">
           <template #default="{ row }">{{ desensitizePhone(row.phone) }}</template>
         </el-table-column>
-        <el-table-column prop="templateCode" label="模板" width="110"  show-overflow-tooltip />
         <el-table-column prop="content" label="内容" min-width="240" show-overflow-tooltip />
         <el-table-column label="类型" width="100">
           <template #default="{ row }">

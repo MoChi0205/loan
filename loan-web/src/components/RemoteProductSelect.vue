@@ -5,6 +5,7 @@
     :remote-method="search"
     :loading="loading"
     :placeholder="placeholder"
+    :placement="placement"
     style="width: 100%"
     @update:model-value="$emit('update:modelValue', $event)"
     @visible-change="onVisibleChange"
@@ -29,6 +30,8 @@ const props = defineProps({
   customerGroup: { type: String, default: '' },
   status: { type: String, default: '' },
   placeholder: { type: String, default: '输入产品名称搜索' },
+  /** 下拉弹出位置（弹窗内建议 top-start，避免下拉被遮挡/吐舌头） */
+  placement: { type: String, default: undefined },
 });
 defineEmits(['update:modelValue']);
 const normalize = (p) => ({ value: p.productCode, label: productDisplayLabel(p), raw: p });

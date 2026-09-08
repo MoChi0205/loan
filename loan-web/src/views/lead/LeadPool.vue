@@ -29,7 +29,7 @@
         <el-select v-if="activeTab !== 'clients'" v-model="query.followStatus" placeholder="跟进状态" clearable style="width: 140px">
           <el-option v-for="(v, k) in followStatusMap" :key="k" :label="v.label" :value="k" />
         </el-select>
-        <el-input v-model="query.keyword" :placeholder="activeTab === 'clients' ? '客户姓名 / 企业名称' : '联系人 / 手机号 / 线索编号'" clearable style="width: 220px" @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" :placeholder="activeTab === 'clients' ? '客户姓名 / 企业名称' : '联系人 / 手机号 / 企业名称'" clearable style="width: 220px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
       <template v-if="loading && !data.length">
@@ -56,6 +56,7 @@
 
         <el-table
           ref="tableRef"
+          style="height: calc(100vh - 320px); min-height: 360px"
           :data="data"
           v-loading="loading"
           stripe
@@ -70,7 +71,6 @@
             />
           </template>
           <el-table-column v-if="activeTab !== 'clients' && !isChannel" type="selection" width="44" fixed="left" reserve-selection />
-          <el-table-column v-if="activeTab !== 'clients' && !isChannel" prop="leadNo" label="线索编号" width="120" show-overflow-tooltip />
         <el-table-column v-if="activeTab === 'clients'" label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.enterpriseName || row.customerName || '微信客户' }}</div>
@@ -156,7 +156,7 @@
       <p class="assign-hint">
         {{ assignBatchMode ? `将选中的 ${selectedRows.length} 条线索` : `将「${currentLead?.contactName}」` }}指派给员工（仅顾问/主管可被指派）
       </p>
-      <el-select v-model="targetStaffCode" filterable remote :remote-method="searchAssignableStaff" :loading="staffLoading" placeholder="输入员工姓名搜索" style="width: 100%" @visible-change="(v) => { if (v) searchAssignableStaff('') }">
+      <el-select v-model="targetStaffCode" filterable remote :remote-method="searchAssignableStaff" :loading="staffLoading" placeholder="输入员工姓名搜索" style="width: 100%" placement="top-start" @visible-change="(v) => { if (v) searchAssignableStaff('') }">
         <el-option
           v-for="s in staffOptions"
           :key="s.value"
@@ -176,6 +176,7 @@
         :loading="adviserLoading"
         placeholder="输入顾问姓名搜索"
         style="width: 100%"
+        placement="top-start"
       >
         <el-option v-for="s in adviserOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
@@ -195,7 +196,6 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { copyText } from '@/utils/clipboard';
 import { pageLead, createLead, claimLead, assignLead, batchClaimLead, batchAssignLead, batchDeleteLead } from '@/api/lead';
 import { staffPage } from '@/api/org';
 import { pageUnassignedClients, claimUnassignedClient, assignClient } from '@/api/client';
@@ -311,9 +311,6 @@ function rowActions(row) {
   // 邀请绑定生成的小程序客户：可从线索直接进入客户档案
   if (row.clientCode) {
     actions.push({ key: 'profile', label: '档案', onClick: () => goProfile(row.clientCode) });
-  }
-  if (!isChannel.value) {
-    actions.push({ key: 'copy', label: '复制线索编号', onClick: () => onCopy(row.leadNo) });
   }
   if (activeTab.value === 'pool' && userStore.hasPerm(ACTION_PERMISSION.LEAD_CLAIM)) {
     actions.push({ key: 'claim', label: '认领', type: 'success', confirm: `确认认领「${row.contactName}」？`, onClick: () => onClaim(row) });
@@ -556,14 +553,6 @@ function authStatusTag(code) {
 }
 
 
-async function onCopy(val) {
-  try {
-    await copyText(val || '');
-    ElMessage.success('已复制');
-  } catch {
-    ElMessage.warning('复制失败');
-  }
-}
 onMounted(load);
 </script>
 

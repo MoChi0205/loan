@@ -12,31 +12,35 @@
         <el-select v-model="query.status" placeholder="状态" clearable style="width: 130px">
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
-        <AppDateRange
-          v-model="query.dateRange"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          width="250px"
-          style="margin-left: 8px"
-        />
-        <el-input v-model="query.keyword" placeholder="奖励单号 / 工单号 / 客户姓名 / 手机号 / 企业名" style="width: 300px" clearable @keyup.enter="onSearch" />
+        <el-button text type="primary" @click="showMore = !showMore" style="margin-left: 4px">
+          {{ showMore ? '收起筛选 ▴' : '更多筛选 ▾' }}
+        </el-button>
+        <template v-if="showMore">
+          <AppDateRange
+            v-model="query.dateRange"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            width="250px"
+            style="margin-left: 8px"
+          />
+        </template>
+        <el-input v-model="query.keyword" placeholder="客户姓名 / 手机号 / 企业名 / 获奖人" style="width: 300px" clearable @keyup.enter="onSearch" />
       </AppSearchBar>
 
-      <el-table :data="data" v-loading="loading" stripe row-key="rewardNo" @sort-change="handleSortChange">
+      <el-table :data="data" v-loading="loading" stripe row-key="rewardNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无奖励记录" desc="工单成交并完成结算后，奖励记录将在此展示" />
         </template>
-        <el-table-column prop="rewardNo" label="奖励单号" min-width="140" show-overflow-tooltip />
         <el-table-column label="推荐人" min-width="150">
           <template #default="{ row }">
             <div class="cell-main">{{ row.referrerName || '—' }}</div>
-            <div v-if="row.referrerPhone" class="cell-sub">{{ row.referrerPhone }}</div>
+            <div v-if="row.referrerPhone" class="cell-sub">{{ desensitizePhone(row.referrerPhone) }}</div>
           </template>
         </el-table-column>
         <el-table-column label="被推荐人" min-width="150">
           <template #default="{ row }">
             <div class="cell-main">{{ row.refereeName || '—' }}</div>
-            <div v-if="row.refereePhone" class="cell-sub">{{ row.refereePhone }}</div>
+            <div v-if="row.refereePhone" class="cell-sub">{{ desensitizePhone(row.refereePhone) }}</div>
           </template>
         </el-table-column>
         <el-table-column label="层级" width="60" align="center">
@@ -44,8 +48,8 @@
             <span class="loan-tag loan-tag-info">L{{ row.level }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="serviceOrderNo" label="关联工单" min-width="130" show-overflow-tooltip />
-        <el-table-column label="基数(元)" width="100" align="right">
+        <el-table-column label="关联客户" min-width="140" show-overflow-tooltip><template #default="{ row }">{{ row.refereeName || '客户待补充' }}</template></el-table-column>
+        <el-table-column label="基数(元)" width="130" align="right">
           <template #default="{ row }">
             <span class="mono">{{ fmtAmount(row.baseAmount) }}</span>
           </template>
@@ -53,7 +57,7 @@
         <el-table-column label="比例" width="70" align="right">
           <template #default="{ row }">{{ fmtPercent(row.rateSnapshot) }}</template>
         </el-table-column>
-        <el-table-column label="奖励金额" width="110" align="right">
+        <el-table-column label="奖励金额" width="130" align="right">
           <template #default="{ row }">
             <span class="mono reward-amount">¥{{ fmtAmount(row.rewardAmount) }}</span>
           </template>
@@ -68,7 +72,7 @@
             <span class="status-tag" :class="statusTagClass(row.status)">{{ statusText[row.status] || row.status }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="rowActions(row)" />
           </template>
@@ -79,10 +83,10 @@
     </div>
 
     <!-- 审核弹窗（通过 / 驳回） -->
-    <AppDialog v-model:visible="auditVisible" :title="`审核奖励单`" :loading="auditing" @confirm="onAudit">
+    <AppDialog v-model:visible="auditVisible" title="审核奖励" :loading="auditing" @confirm="onAudit">
       <el-form ref="auditFormRef" :model="auditForm" :rules="auditRules" label-width="110px" label-position="right">
-        <el-form-item label="奖励单号">
-          <span class="mono">{{ auditForm.rewardNo }}</span>
+        <el-form-item label="奖励事项">
+          <span>{{ auditForm.referrerName || auditForm.refereeName || '当前人员' }}的奖励事项</span>
         </el-form-item>
         <el-form-item label="系统计算金额">
           <span class="mono">{{ auditForm.systemAmount != null ? '¥' + fmtAmount(auditForm.systemAmount) : '—' }}</span>
@@ -121,7 +125,6 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { copyText } from '@/utils/clipboard';
 import { pageRewards, auditReward, voidReward } from '@/api/reward';
 
 const statusText = {
@@ -165,16 +168,18 @@ const { loading, data, total, query, load, onSearch, onReset, handleSortChange }
   dateRange: null,
 });
 
+/** 次级筛选（日期区间）默认收起，点「更多筛选」展开，释放表格空间 */
+const showMore = ref(false);
+
 function rowActions(row) {
   const actions = [];
-  actions.push({ key: "copy", label: "复制奖励单号", onClick: () => onCopy(row.rewardNo) });
   if (row.status === 'PENDING_AUDIT') {
     actions.push({ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit(row) });
     actions.push({
       key: 'void',
       label: '作废',
       type: 'danger',
-      confirm: `确认作废奖励单「${row.rewardNo}」？`,
+      confirm: `确认作废「${row.referrerName || row.refereeName || '当前人员'}」的奖励事项？`,
       onClick: () => onVoid(row),
     });
   } else if (row.status === 'GRANTED') {
@@ -182,7 +187,7 @@ function rowActions(row) {
       key: 'void',
       label: '作废',
       type: 'danger',
-      confirm: `确认作废已发放奖励单「${row.rewardNo}」？`,
+      confirm: `确认作废「${row.referrerName || row.refereeName || '当前人员'}」已发放的奖励事项？`,
       onClick: () => onVoid(row),
     });
   }
@@ -191,7 +196,7 @@ function rowActions(row) {
 
 const auditVisible = ref(false);
 const auditing = ref(false);
-const auditForm = reactive({ rewardNo: '', rewardAmount: null, systemAmount: null, manualAdjustFlag: 0, approve: true, opinion: '', manualAdjustReason: '' });
+const auditForm = reactive({ rewardNo: '', referrerName: '', refereeName: '', rewardAmount: null, systemAmount: null, manualAdjustFlag: 0, approve: true, opinion: '', manualAdjustReason: '' });
 const auditFormRef = ref();
 const amountChanged = computed(() => auditForm.systemAmount != null
   && Number(auditForm.rewardAmount) !== Number(auditForm.systemAmount));
@@ -225,6 +230,8 @@ const auditRules = {
 
 function openAudit(row) {
   auditForm.rewardNo = row.rewardNo;
+  auditForm.referrerName = row.referrerName || '';
+  auditForm.refereeName = row.refereeName || '';
   auditForm.rewardAmount = row.rewardAmount;
   auditForm.systemAmount = row.rewardAmount;
   auditForm.manualAdjustFlag = row.manualAdjustFlag;
@@ -266,14 +273,6 @@ async function onVoid(row) {
 }
 
 
-async function onCopy(val) {
-  try {
-    await copyText(val || '');
-    ElMessage.success('已复制');
-  } catch {
-    ElMessage.warning('复制失败');
-  }
-}
 onMounted(load);
 </script>
 

@@ -9,6 +9,7 @@
     :remote-method="onRemoteMethod"
     :loading="remoteLoading"
     :style="style"
+    :placement="placement"
     @update:model-value="onChange"
   >
     <el-option
@@ -59,6 +60,8 @@ const props = defineProps({
   remoteLoading: { type: Boolean, default: false },
   /** 自定义宽度 */
   style: { type: [String, Object], default: undefined },
+  /** 下拉弹出位置（弹窗内建议 top-start，避免下拉被遮挡/吐舌头） */
+  placement: { type: String, default: undefined },
 });
 
 const emit = defineEmits(['update:modelValue']);

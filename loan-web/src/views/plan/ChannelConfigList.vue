@@ -20,7 +20,6 @@
               <template v-else>
                 <div v-if="!strategyMap[row.channelCode]?.length" class="cc-empty">该渠道暂无准入策略，点右上角「进入向导」创建</div>
                 <el-table v-else :data="strategyMap[row.channelCode]" size="small" stripe>
-                  <el-table-column prop="strategyCode" label="策略编码" min-width="150" show-overflow-tooltip />
                   <el-table-column prop="strategyName" label="策略名称" min-width="150" show-overflow-tooltip />
                   <el-table-column label="产品" min-width="160">
                     <template #default="{ row: s }">{{ s.bankProductName || '产品信息待补充' }}</template>
@@ -53,7 +52,6 @@
           </template>
         </el-table-column>
         <el-table-column prop="bankName" label="银行渠道" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="channelCode" label="渠道编码" width="140" />
         <el-table-column label="策略数" width="90" align="center">
           <template #default="{ row }">{{ row.strategyCount }}</template>
         </el-table-column>

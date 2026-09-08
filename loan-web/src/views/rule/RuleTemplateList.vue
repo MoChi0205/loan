@@ -17,14 +17,13 @@
           <el-option label="企业" value="ENTERPRISE" />
           <el-option label="个人" value="PERSONAL" />
         </el-select>
-        <el-input v-model="query.keyword" placeholder="模版编码 / 名称" clearable style="width: 200px" @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" placeholder="模版名称" clearable style="width: 200px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
       <el-table :data="data" v-loading="loading" stripe row-key="templateCode">
         <template #empty>
           <AppEmpty title="暂无规则模版" desc="创建规则模版并发布后，可一键导入为规则" />
         </template>
-        <el-table-column prop="templateCode" label="模版编码" width="180" show-overflow-tooltip />
         <el-table-column prop="templateName" label="模版名称" min-width="160" show-overflow-tooltip />
         <el-table-column label="分类" width="130">
           <template #default="{ row }">{{ categoryName(row.categoryId) }}</template>
@@ -37,7 +36,7 @@
             <span class="loan-tag" :class="row.status === 'ACTIVE' ? 'loan-tag-success' : 'loan-tag-muted'">{{ row.status === 'ACTIVE' ? '已上线' : '草稿' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="rowActions(row)" />
           </template>
@@ -182,7 +181,7 @@ async function onOffline(row) { await offlineTemplate(row.templateCode); ElMessa
 async function onDelete(row) { await deleteTemplate(row.templateCode); ElMessage.success('已删除'); load(); }
 
 // 模版 CRUD
-const tplDialog = reactive({ visible: false, title: '', saving: false, editingId: null, form: { templateCode: '', templateName: '', categoryId: null, customerGroup: 'ENTERPRISE', description: '' } });
+const tplDialog = reactive({ visible: false, title: '', saving: false, editingCode: null, form: { templateCode: '', templateName: '', categoryId: null, customerGroup: 'ENTERPRISE', description: '' } });
 const tplFormRef = ref();
 const tplRules = {
   templateCode: [{ required: true, message: '请输入模版编码', trigger: 'blur' }],
@@ -197,7 +196,7 @@ function openCreate() {
 }
 function openTplDialog(row) {
   tplDialog.title = '编辑模版';
-  tplDialog.editingId = row.id;
+  tplDialog.editingCode = row.templateCode;
   Object.assign(tplDialog.form, { templateCode: row.templateCode, templateName: row.templateName, categoryId: row.categoryId, customerGroup: row.customerGroup, description: row.description });
   tplDialog.visible = true;
 }
@@ -205,7 +204,7 @@ async function onSaveTpl() {
   await tplFormRef.value.validate();
   tplDialog.saving = true;
   try {
-    if (tplDialog.editingId) await updateTemplate(tplDialog.form.templateCode, { ...tplDialog.form });
+    if (tplDialog.editingCode) await updateTemplate(tplDialog.form.templateCode, { ...tplDialog.form });
     else await createTemplate({ ...tplDialog.form });
     ElMessage.success('已保存');
     tplDialog.visible = false;

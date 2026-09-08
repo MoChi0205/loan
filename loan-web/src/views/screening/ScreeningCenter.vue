@@ -119,20 +119,20 @@
             </div>
             <div class="result-item result-item--pass">
               <div class="result-num mono">{{ result.passCount }}</div>
-              <div class="result-label">可进件 PASS</div>
+              <div class="result-label">通过</div>
             </div>
             <div class="result-item result-item--cond">
               <div class="result-num mono">{{ result.conditionCount }}</div>
-              <div class="result-label">需补料 CONDITION</div>
+              <div class="result-label">有条件</div>
             </div>
             <div class="result-item result-item--reject">
               <div class="result-num mono">{{ result.rejectCount }}</div>
-              <div class="result-label">暂不匹配 REJECT</div>
+              <div class="result-label">拒绝</div>
             </div>
           </div>
 
           <div class="result-foot">
-            <span class="mono report-no">{{ result.reportNo }}</span>
+            <span class="report-no">{{ reportDisplayTitle({ ...result, ...selectedClient }) }}</span>
             <el-button size="small" type="primary" plain @click="goReport">查看报告</el-button>
           </div>
         </div>
@@ -148,14 +148,14 @@
           <el-option label="Web 录入" value="WEB" />
           <el-option label="邀请提交" value="INVITE" />
         </el-select>
-        <el-input v-model="queryR.keyword" placeholder="报告编号 / 客户姓名 / 手机号 / 企业名" clearable style="width: 240px" @keyup.enter="searchR" />
+        <el-input v-model="queryR.keyword" placeholder="客户姓名 / 手机号 / 企业名" clearable style="width: 240px" @keyup.enter="searchR" />
       </AppSearchBar>
 
-      <el-table :data="dataR" v-loading="loadingR" stripe row-key="reportNo">
+      <el-table :data="dataR" v-loading="loadingR" stripe row-key="reportNo" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无初筛记录" desc="执行初筛或小程序客户提交后展示于此" />
         </template>
-        <el-table-column prop="reportNo" label="报告编号" width="140" show-overflow-tooltip />
+        <el-table-column label="报告" min-width="210" show-overflow-tooltip><template #default="{ row }">{{ reportDisplayTitle(row) }}</template></el-table-column>
         <el-table-column label="客户" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</template>
         </el-table-column>
@@ -205,7 +205,7 @@ import { formatDateTime } from '@/utils/format';
 import { pageClientLite } from '@/api/order';
 import { runScreening } from '@/api/dashboard';
 import { pageScreenings, screeningDetail } from '@/api/report';
-import { clientDisplayLabel } from '@/utils/display';
+import { clientDisplayLabel, reportDisplayTitle } from '@/utils/display';
 
 const route = useRoute();
 const router = useRouter();

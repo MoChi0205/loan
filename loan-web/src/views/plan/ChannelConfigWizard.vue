@@ -12,7 +12,6 @@
     <div v-if="channelCode" class="loan-card wiz-channel-banner">
       <span class="wiz-channel-label">当前渠道</span>
       <span class="wiz-channel-name">{{ currentChannelName }}</span>
-      <span class="loan-tag loan-tag-info">{{ channelCode }}</span>
       <el-button link type="primary" style="margin-left: auto" @click="changeChannel">更换渠道</el-button>
     </div>
 
@@ -27,7 +26,6 @@
     <div v-show="step === 0" class="loan-card">
       <el-table :data="channels" stripe row-key="channelCode" class="wiz-pick-table" @row-click="pickChannel">
         <el-table-column prop="bankName" label="银行渠道" min-width="200" />
-        <el-table-column prop="channelCode" label="渠道编码" min-width="160" />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="[{ key: 'pick', label: '选择此渠道', onClick: () => pickChannel(row) }]" />
@@ -51,7 +49,6 @@
         <el-table-column label="客群" width="90">
           <template #default="{ row }"><DictTag type="customerGroup" :value="row.customerGroup" /></template>
         </el-table-column>
-        <el-table-column prop="strategyCode" label="策略编码" min-width="150" show-overflow-tooltip />
         <el-table-column prop="strategyName" label="策略名称" min-width="150" show-overflow-tooltip />
         <el-table-column label="执行计划" min-width="150">
           <template #default="{ row }">{{ planName(row.executionPlanCode) }}</template>

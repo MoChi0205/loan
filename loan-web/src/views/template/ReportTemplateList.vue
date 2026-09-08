@@ -13,11 +13,10 @@
 
     <div class="loan-card">
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
-        <el-input v-model="query.keyword" placeholder="模板编码 / 名称" style="width: 220px" clearable @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" placeholder="模板名称" style="width: 220px" clearable @keyup.enter="onSearch" />
       </AppSearchBar>
 
-      <el-table :data="data" v-loading="loading" stripe row-key="templateCode" @sort-change="handleSortChange">
-        <el-table-column prop="templateCode" label="模板编码" width="120"  show-overflow-tooltip />
+      <el-table :data="data" v-loading="loading" stripe row-key="templateCode" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
         <el-table-column prop="versionNo" label="版本" width="70">
           <template #default="{ row }">v{{ row.versionNo }}</template>
         </el-table-column>
@@ -33,7 +32,7 @@
         <el-table-column prop="publishedAt" label="发布时间" width="160" sortable>
           <template #default="{ row }">{{ row.publishedAt ? formatDateTime(row.publishedAt) : '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="rowActions(row)" />
           </template>
@@ -78,28 +77,17 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime } from '@/utils/format';
-import { copyText } from '@/utils/clipboard';
 import { pageReportTemplates, saveReportTemplate, toggleReportTemplate } from '@/api/report-template';
 
 const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageReportTemplates, { keyword: '' });
 
 function rowActions(row) {
   return [
-    { key: 'copy', label: '复制编码', onClick: () => onCopy(row.templateCode) },
     { key: 'edit', label: '编辑', onClick: () => onEdit(row) },
     row.status === 'ACTIVE'
       ? { key: 'disable', label: '停用', type: 'danger', confirm: `确认停用模板「${row.templateName}」？`, onClick: () => onToggle(row, false) }
       : { key: 'publish', label: '发布', type: 'success', confirm: `确认发布模板「${row.templateName}」？`, onClick: () => onToggle(row, true) },
   ];
-}
-
-async function onCopy(val) {
-  try {
-    await copyText(val || '');
-    ElMessage.success('已复制');
-  } catch {
-    ElMessage.warning('复制失败');
-  }
 }
 
 async function onToggle(row, active) {
