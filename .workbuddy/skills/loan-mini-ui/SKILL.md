@@ -2,7 +2,7 @@
 name: loan-mini-ui
 description: >-
   loan-main 小程序（loan-mini）UI 与交互规范。新增或修改 uni-app 小程序页面布局、
-  设计令牌（瑞幸风深蓝+暖金）、公共组件复用、AppIcon 图标、空状态、骨架屏、列表分页、
+  设计令牌（冷玻璃风格：冷调低饱和蓝 + 磨砂油画/毛玻璃质感）、公共组件复用、AppIcon 图标、空状态、骨架屏、列表分页、
   自绘 TabBar 时使用；违反将出现 emoji 渲染不一致 / 各页样式各写各的 / 空态插画不一致 /
   iconfont 豆腐块（static/ 无字体文件）/ 原生 TabBar 与角色化冲突等问题（2026-08-28 汇总）。
 ---
@@ -33,19 +33,25 @@ description: >-
 
 | 令牌 | 值 | 用途 |
 |---|---|---|
-| `--color-primary` | `#0B1D3A` 深海军蓝 | 主按钮 / 顶栏 / 强调 |
-| `--color-primary-light` | `#1A3A6E` | 渐变次色 / 选中态 |
-| `--color-accent` | `#C8A96E` 暖金 | 点缀 / 金额 / 等级金标 |
-| `--color-bg` | `#F5F6F8` | 页面底 |
-| `--color-card` | `#FFFFFF` | 卡片底 |
-| `--color-text` / `-secondary` / `-hint` | `#1A1A2E` / `#6B7280` / `#9CA3AF` | 三级文字 |
-| `--radius-card` / `-btn` / `-input` | `24rpx` / `20rpx` / `16rpx` | 圆角体系 |
-| `--shadow-card` | `0 4rpx 20rpx rgba(0,0,0,.05)` | 卡片阴影 |
+| `--brand-deep` | `#2443C2` | 唯一品牌强调色（选中态 / 按钮 / 图标字形） |
+| `--brand-mid` / `--brand-bright` | `#3D63E0` / `#5B7CFF` | 渐变次色 / 小面积点缀 |
+| `--gold` | `#FFB020` | 仅语义点缀（金额 / 等级金标），**不用于页面主色** |
+| `--glass-bg` | `#E8ECF5` | header 玻璃主底 |
+| `--glass-bg-deep` | `#D6DDEB` | 默认头像底 / 暗部 |
+| `--glass-hi` | `rgba(255,255,255,0.45)` | 高光斑 |
+| `--glass-edge` | `rgba(255,255,255,0.6)` | 细白边 |
+| `--glass-tint` | `#EAF0FF` | 功能图标浅底（统一品牌蓝字形容器） |
+| `--glass-gradient` | 多层 radial+linear 渐变 | header 油画光斑底 |
+| `--bg-page` / `--bg-card` | `#F8FAFC` / `#FFFFFF` | 页面底 / 卡片底 |
+| `--text-primary` / `-secondary` / `-placeholder` | `#1A2336` / `#5B6678` / `#B6C0CE` | 三级文字 |
+| `--radius-md` / `-lg` / `-full` | `24rpx` / `32rpx` / `999rpx` | 圆角体系 |
+| `--shadow-md` | `0 8rpx 24rpx rgba(15,23,42,0.06)` | 卡片阴影 |
 
 **规则**：
-- 新样式**必须引用 CSS 变量**，禁止裸色值（与 Web 端 `loan-web-ui` 同规则）
-- 字号体系：标题 34rpx / 正文 28rpx / 次要 25rpx / 提示 24rpx
-- 单位统一 **rpx**（750 设计稿），**禁止混用 px**
+- 完整令牌见 `App.vue` 的 `page` 块与 `docs/knowledge-base/小程序首页设计规范.md`（冷玻璃风格唯一真源）。
+- 新样式**必须引用 CSS 变量**，禁止裸色值（与 Web 端 `loan-web-ui` 同规则）。
+- 字号体系：标题 30rpx / 正文 26rpx / 次要 22~24rpx / 提示 22rpx。
+- 单位统一 **rpx**（750 设计稿），**禁止混用 px**。
 
 ## 二、公共组件（components/，easycom 自动注册）
 
@@ -59,7 +65,7 @@ description: >-
 | `AppTopBar` | 页面顶栏 | `title` / `showBack` |
 | `AppEmpty` | 空状态插画（CSS 绘制文件卡 + 放大镜） | `title` / `desc` / slot 放操作按钮 |
 | `AppSkeleton` | 列表骨架屏 | `rows` |
-| `AppIcon` | 单色图标（view/CSS 绘制，零依赖） | `name`(match/chart/bolt/lock/list/wechat/arrow) / `size`(sm/md/lg) |
+| `AppIcon` | 图标（PNG 资源版，兼容小程序；磁贴/单色两态） | `name`(home/match/chart/order/bank/users/mine/check/search/wechat/bolt/support 等) / `size`(sm/md/lg) / `color`(单色态传设计令牌) |
 
 **规则**：
 - 新增组件命名 **App 前缀**（自动注册），放 `loan-mini/components/`
@@ -67,7 +73,8 @@ description: >-
 
 ## 三、图标规范
 
-- **统一用 `<AppIcon name="..." />`**（view/CSS 绘制，跨端渲染一致）
+- **统一用 `<AppIcon name="..." />`**（PNG 资源渲染，跨端一致；`static/icons/` 下 144×144 高清图）
+- **功能入口图标统一用品牌蓝**：容器浅底 `--glass-tint` + 字形 `color="var(--brand-deep)"`，**禁止按功能/角色跳色**
 - **禁止 emoji 图标**（🎯📊⚡🔒 等在不同平台渲染不一致）
 - **禁止 iconfont 字符**（`&#xe900;` 等）—— `loan-mini/static/` **无字体文件**，微信端渲染为豆腐块（已踩坑修复）
 - 单纯色符号字符（`✓` `›` `!`）可保留，各平台渲染一致
@@ -131,7 +138,7 @@ description: >-
 
 ## 八、风格红线
 
-- 小程序是**客户端风格**（瑞幸风深蓝 + 暖金），Web 管理端是**企业风格**（蓝 `#3b82f6`）
+- 小程序是**客户端风格（冷玻璃体系：冷调低饱和蓝 + 磨砂油画/毛玻璃质感，唯一品牌色 `--brand-deep` #2443C2）**，Web 管理端是**企业风格**
   —— **两侧品牌色故意不统一**（用户确认），**互不套用**
 - 不引入 AI 模板感：避免纯白卡片堆叠、霓虹渐变、过多 emoji
 - 页面结构统一：`page-head`（标题 + 副标题）→ 内容卡 → 底部安全区
@@ -160,6 +167,8 @@ description: >-
 
 - `docs/knowledge-base/10-历史结论与决策日志.md#结论台账`（**Step 0 必查**）
 - `.workbuddy/skills/loan-code-standard/references/frontend-standard.md`（跨端复用、契约与展示唯一标准）
+- `docs/knowledge-base/小程序首页设计规范.md`（首页冷玻璃风格唯一真源）
+- `.workbuddy/skills/loan-mini-avatar/SKILL.md`（微信头像昵称填写能力、默认头像兜底、上传后端）
 - `docs/knowledge-base/05-前端工程要点.md#Token 体系（设计系统 v1.0，全在 App.vue 注入）`
 - `docs/knowledge-base/05-前端工程要点.md#AppIcon（已扩 16 个）`
 - `docs/knowledge-base/05-前端工程要点.md#自绘 TabBar（C17，禁用原生）`
