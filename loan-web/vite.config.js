@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import AutoImport from 'unplugin-auto-import/vite';
+import Components from 'unplugin-vue-components/vite';
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, URL } from 'node:url';
 
@@ -61,7 +64,20 @@ function buildCspPlugin() {
  * 直连后端调试：VITE_API_PROXY=http://localhost:8080
  */
 export default defineConfig({
-  plugins: [vue(), buildCspPlugin()],
+  plugins: [
+    vue(),
+    // Element Plus 按需引入：仅打包用到的组件/指令/样式，消除全量引入导致的超大 vendor 包。
+    // locale 通过 App.vue 的 <el-config-provider :locale="zhCn"> 注入（见 components resolver 不处理 locale）。
+    AutoImport({
+      resolvers: [ElementPlusResolver()],
+      dts: false,
+    }),
+    Components({
+      resolvers: [ElementPlusResolver()],
+      dts: false,
+    }),
+    buildCspPlugin(),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -75,7 +91,19 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
           if (id.includes('/echarts/')) return 'vendor-echarts';
-          if (id.includes('/element-plus/')) return 'vendor-element';
+          // element-plus 按需引入后按组件族拆分，避免单一 vendor 块超 500KB（按功能拆包）。
+          if (id.includes('/element-plus/')) {
+            if (id.includes('/table') || id.includes('/table-column') || id.includes('/table-v2') || id.includes('/grid')) {
+              return 'vendor-element-table';
+            }
+            if (id.includes('/form') || id.includes('/select') || id.includes('/cascader') || id.includes('/tree-select') || id.includes('/date-picker')) {
+              return 'vendor-element-form';
+            }
+            if (id.includes('/dialog') || id.includes('/drawer') || id.includes('/dropdown') || id.includes('/popover') || id.includes('/tooltip') || id.includes('/overlay')) {
+              return 'vendor-element-overlay';
+            }
+            return 'vendor-element';
+          }
           if (id.includes('/vue') || id.includes('/vue-router') || id.includes('/pinia')) return 'vendor-vue';
           if (id.includes('/axios/') || id.includes('/jsencrypt/')) return 'vendor-utils';
           return 'vendor';

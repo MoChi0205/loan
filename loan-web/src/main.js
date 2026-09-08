@@ -1,8 +1,5 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
-import ElementPlus from 'element-plus';
-import 'element-plus/dist/index.css';
-import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import App from './App.vue';
 import router from './router';
 import { applyTheme } from './theme';
@@ -23,7 +20,6 @@ const pinia = createPinia();
 
 app.use(pinia);
 app.use(router);
-app.use(ElementPlus, { locale: zhCn });
 
 // 权限 checker 接线：v-permission 指令与路由守卫（meta.permission）共用同一判定。
 // 登录下发权限码后按码校验；页面是否可进入独立由后端动态菜单决定。
