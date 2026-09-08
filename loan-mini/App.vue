@@ -82,10 +82,14 @@ export default {
    故统一用 page 定义全局 CSS 变量，双端生效。勿改回 :root。 */
 /* stylelint-disable color-no-hex -- 设计令牌定义源：裸 hex 为规范唯一来源，禁止 lint 拦截 */
 page {
-  /* ===== 品牌色（v2 明亮商务版：替换原深蓝/灰蓝，主色改为鲜亮电光蓝） ===== */
-  --brand-deep: #2C5BFF;
-  --brand-mid: #3A5BFF;
+  /* ===== 品牌色（v3 深蓝商务版：对齐登录页油画渐变家族，收敛 v2 过亮电光蓝） ===== */
+  /* 阶梯：navy(渐变起点) < deep(主交互色) < mid < bright(仅小面积点缀) */
+  --brand-navy: #17216B;
+  --brand-deep: #2443C2;
+  --brand-mid: #3D63E0;
   --brand-bright: #5B7CFF;
+  /* 登录页 hero 同款油画渐变：大面积 Hero（首页通栏/我的档案头/匹配守卫/工单状态卡）统一引用 */
+  --hero-gradient: linear-gradient(160deg, #17216B 0%, #2443C2 40%, #2C5BFF 100%);
   --gold: #FFB020;
   --gold-bg: #FFF1D6;
 
@@ -153,8 +157,19 @@ page {
   --transition-base: 200ms ease;
   --transition-slow: 280ms ease;
 
+  /* ===== 冷玻璃质感系列（首页 header / 我的页头 / 匹配守卫：磨砂油画 + 毛玻璃） =====
+     小程序端 backdrop-filter 不支持 → 降级为多层径向渐变油画光斑；H5 端启用 blur 真毛玻璃 */
+  --glass-bg: #E8ECF5;
+  --glass-bg-deep: #D6DDEB;
+  --glass-hi: rgba(255, 255, 255, 0.45);
+  --glass-edge: rgba(255, 255, 255, 0.6);
+  --glass-tint: #EAF0FF;
+  --glass-gradient: radial-gradient(circle at 18% 20%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 38%),
+                    radial-gradient(circle at 82% 88%, rgba(14,168,190,0.10) 0%, rgba(14,168,190,0) 42%),
+                    linear-gradient(160deg, #EEF2FA 0%, #DCE3F1 55%, #D2DBEC 100%);
+
   /* ===== 角色色板（v2 明亮商务版：原深蓝/灰黑 → 鲜亮区分色，白字 ΔE>20） ===== */
-  --role-customer: #2C5BFF;
+  --role-customer: #2443C2;
   --role-channel: #0E9CB0;
   --role-adviser: #C8841A;
   --role-deptmgr: #4F46E5;

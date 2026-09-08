@@ -17,7 +17,7 @@
       <!-- 选中态顶部指示条 -->
       <view class="tab-indicator" v-if="item.key === current" />
       <view class="tab-icon-wrap" :class="{ 'icon-active': item.key === current }">
-        <AppIcon :name="item.icon" size="md" :color="iconColor(item)" />
+        <AppIcon :name="item.icon" size="lg" :color="iconColor(item)" />
       </view>
       <text class="tab-label">{{ item.label }}</text>
     </view>
@@ -60,16 +60,16 @@ const props = defineProps({
 
 const store = useUserStore();
 
-/** TabBar 语义色：全部引用设计令牌（禁止裸色值）。
- *  选中态统一用 --brand-deep；智能匹配（MATCH）选中时改用 --gold 以作区分（见 item.activeColor）。 */
+/** TabBar 配色（冷玻璃体系，全局统一）：未选中统一中性灰，选中统一品牌蓝。
+ *  禁止按 tab 跳色，保证品牌识别一致。 */
 const COLOR = {
-  HOME: 'var(--brand-deep)',     // 品牌深蓝（首页）
-  MATCH: 'var(--info)',          // 青蓝（匹配/连接）
-  REPORT: 'var(--gold)',         // 暖金（数据/报告）
-  ORDER: 'var(--success)',       // 翠绿（服务/进行）
-  MINE: 'var(--info)',           // 青色（个人中心）
-  PRODUCT: 'var(--gold)',        // 暖金（产品）
-  CLIENT: 'var(--success)',      // 翠绿（客户/录入）
+  HOME: 'var(--text-secondary)',
+  MATCH: 'var(--text-secondary)',
+  REPORT: 'var(--text-secondary)',
+  ORDER: 'var(--text-secondary)',
+  MINE: 'var(--text-secondary)',
+  PRODUCT: 'var(--text-secondary)',
+  CLIENT: 'var(--text-secondary)',
 };
 
 const tabList = computed(() => {
@@ -84,7 +84,7 @@ const tabList = computed(() => {
   const isManager = ['deptmgr', 'boss', 'operator', 'super'].includes(store.role);
   return [
     { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: 'var(--brand-deep)' },
-    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH, activeColor: 'var(--gold)' },
+    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH, activeColor: 'var(--brand-deep)' },
     { key: 'report', label: isManager ? '报告中心' : store.role === 'adviser' ? '客户报告' : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT, activeColor: 'var(--brand-deep)' },
     { key: 'order', label: isManager ? '工单中心' : store.role === 'adviser' ? '客户工单' : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER, activeColor: 'var(--brand-deep)' },
     { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: 'var(--brand-deep)' },
@@ -152,8 +152,8 @@ function onTap(item) {
 /* 图标容器：选中态加柔和背景药丸（电商风格）
    注意：微信 wxss 不支持 color-mix()，用静态 rgba 替代 */
 .tab-icon-wrap {
-  width: 56rpx;
-  height: 56rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 16rpx;
   display: flex;
   align-items: center;

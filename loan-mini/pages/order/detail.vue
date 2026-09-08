@@ -151,7 +151,7 @@ function goBack() {
   margin-top: 24rpx;
   border-radius: 20rpx;
   padding: 44rpx 32rpx;
-  background: var(--brand-deep);
+  background: var(--hero-gradient);
   color: var(--text-invert);
   display: flex;
   flex-direction: column;

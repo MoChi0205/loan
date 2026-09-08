@@ -72,6 +72,8 @@ export const useUserStore = defineStore('user', {
     user: null,
     /** 档案摘要（/api/mini/me，敏感字段已脱敏） */
     profile: null,
+    /** 微信头像 URL（来自 /api/mini/me.avatarUrl；为空表示未设置，用默认头像兜底） */
+    avatarUrl: '',
     /** 是否被邀请（0/1） */
     invitedFlag: 0,
     /** 认证状态：UNAUTHED / ENTERPRISE / PERSONAL */
@@ -211,6 +213,8 @@ export const useUserStore = defineStore('user', {
       this.invitedFlag = (profile && profile.invitedFlag) || 0;
       this.authStatus = resolveAuthStatus(profile);
       this.referrerName = (profile && profile.referrerName) || '';
+      // 微信头像：后端 /api/mini/me 已返回 avatarUrl 则采用，否则保持默认头像兜底
+      this.avatarUrl = (profile && profile.avatarUrl) || this.avatarUrl || '';
       // 后端 /api/mini/me 已返回 roleInfo：以服务端角色为准并刷新本地缓存，
       // 避免清缓存 / 换设备登录后角色停留在旧值
       const roleInfo = profile && profile.roleInfo;
@@ -234,6 +238,22 @@ export const useUserStore = defineStore('user', {
     },
 
     /**
+     * 设置微信头像 URL（chooseAvatar 选择或后端回写）。
+     * 持久化到本地缓存，刷新后由 /api/mini/me 覆盖（后端有值时优先服务端）。
+     * 未登录态也能本地缓存，作为默认头像的兜底。
+     *
+     * @param {string} url 头像地址（服务端 URL 或本地临时路径）
+     */
+    setAvatar(url) {
+      this.avatarUrl = url || '';
+      try {
+        uni.setStorageSync('loan_avatar', this.avatarUrl);
+      } catch (e) {
+        /* storage 异常忽略 */
+      }
+    },
+
+    /**
      * 登出 / 会话失效：清空内存态并移除本地 token。
      */
     clear() {
@@ -244,6 +264,7 @@ export const useUserStore = defineStore('user', {
       this.invitedFlag = 0;
       this.authStatus = 'UNAUTHED';
       this.referrerName = '';
+      this.avatarUrl = '';
       this.role = 'customer';
       clearTokenStorage();
       try {

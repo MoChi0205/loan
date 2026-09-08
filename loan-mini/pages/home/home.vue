@@ -1,28 +1,33 @@
 <template>
   <view class="home-page" :class="{ 'u-shell': store.isTablet }">
-    <!-- 顶部欢迎区：深色品牌渐变 + 搜索栏 -->
+    <!-- 顶部欢迎区：冷玻璃磨砂质感（压缩 40%，头像+问候+认证一行） -->
     <view class="top-banner">
-      <view class="banner-decor" />
       <view class="banner-inner">
         <view class="user-row">
-          <view class="avatar-ring">
-            <text class="avatar-text">{{ avatarChar }}</text>
+          <!-- 微信头像：有头像显示图片，无则首字默认头像；小程序可点击选择 -->
+          <button v-if="canChooseAvatar" class="avatar-ring" open-type="chooseAvatar" @chooseavatar="onChooseAvatar" hover-class="avatar-hover">
+            <image v-if="avatarUrl" :src="avatarUrl" class="avatar-img" mode="aspectFill" />
+            <text v-else class="avatar-text">{{ avatarChar }}</text>
+          </button>
+          <view v-else class="avatar-ring" @click="onAvatarFallback">
+            <image v-if="avatarUrl" :src="avatarUrl" class="avatar-img" mode="aspectFill" />
+            <text v-else class="avatar-text">{{ avatarChar }}</text>
           </view>
           <view class="greeting-col">
             <text class="banner-hello">{{ greetingText }}，{{ shortName }}</text>
             <text class="banner-time">{{ timeGreeting }}</text>
           </view>
+          <!-- 认证状态：右侧小胶囊（仅客户） -->
+          <AppClickable v-if="!store.isChannel && !store.isStaff" class="auth-pill" :class="store.isAuthed ?' pill-ok' :' pill-todo'" @click="onGoAuth">
+            <text class="pill-icon">{{ store.isAuthed ? '✓' : '!' }}</text>
+            <text class="pill-text">{{ store.isAuthed ? '已认证' : '完成认证' }}</text>
+          </AppClickable>
         </view>
 
         <!-- 电商风格搜索栏 -->
         <AppClickable class="search-bar" @click="onSearch">
           <AppIcon name="search" size="sm" color="var(--text-secondary)" />
           <text class="search-ph">{{ searchPlaceholder }}</text>
-        </AppClickable>
-
-        <AppClickable class="auth-pill" v-if="!store.isChannel && !store.isStaff" :class="store.isAuthed ?' pill-ok' :' pill-todo'" @click="onGoAuth">
-          <text class="pill-icon">{{ store.isAuthed ? '✓' : '!' }}</text>
-          <text class="pill-text">{{ store.isAuthed ? '已认证' : '完成身份认证' }}</text>
         </AppClickable>
       </view>
     </view>
@@ -43,26 +48,23 @@
         <text class="promo-arrow">›</text>
       </AppClickable>
 
-      <!-- 动态数据卡片（电商风格：横向滚动 / 点击跳转） -->
+      <!-- 动态数据卡片（固定四列，不滚动，不折叠） -->
       <view class="stat-section" v-if="statCards.length">
         <view class="sec-header">
           <text class="sec-title">{{ roleSectionTitle }}</text>
-          <text class="sec-sub" v-if="statCards.length > 2">滑动查看更多</text>
         </view>
-        <scroll-view scroll-x class="stat-scroll" :show-scrollbar="false">
-          <view class="stat-track">
-            <AppClickable v-for="card in statCards" :key="card.key" class="stat-card u-hover" :class="`stat-${card.tone}`" @click="card.action">
-              <view class="stat-icon-wrap">
-                <AppIcon :name="card.icon" size="md" />
-              </view>
+        <view class="grid-4 stat-grid">
+          <AppClickable v-for="card in statCards" :key="card.key" class="stat-card" @click="card.action">
+            <view class="stat-icon-wrap">
+              <AppIcon :name="card.icon" size="md" color="var(--brand-deep)" />
+            </view>
             <text class="stat-num">{{ card.value }}</text>
             <text class="stat-name">{{ card.label }}</text>
-            </AppClickable>
-          </view>
-        </scroll-view>
+          </AppClickable>
+        </view>
       </view>
 
-      <!-- 角色化功能导航网格（电商宫格风格） -->
+      <!-- 角色化功能导航网格（固定四列，不折叠断层） -->
       <view class="nav-section">
         <view class="sec-header">
           <text class="sec-title">快捷功能</text>
@@ -70,7 +72,7 @@
         <view class="nav-grid">
           <AppClickable v-for="entry in navEntries" :key="entry.key" class="nav-cell u-hover" @click="entry.action">
             <view class="nav-icon-wrap">
-              <AppIcon :name="entry.icon" size="lg" />
+              <AppIcon :name="entry.icon" size="lg" color="var(--brand-deep)" />
             </view>
             <text class="nav-name">{{ entry.label }}</text>
           </AppClickable>
@@ -105,18 +107,29 @@ import { myProducts } from '../../api/product';
 import { consumePendingInvitation } from '../../utils/invitation';
 import { orderList } from '../../api/order';
 import { approvalCounts } from '../../api/approval';
+import { uploadAvatar } from '../../utils/avatar';
 
 /**
- * tabBar 首页：电商风格重设计。
- * - 深色品牌渐变头部 + 圆形头像环 + 搜索栏
- * - 横向滚动动态数据卡片（角色化：待办/报告/匹配数等）
- * - 宫格式功能导航（按角色差异化 4~8 项）
+ * tabBar 首页：冷玻璃风格重设计（压缩顶部 + 微信头像 + 固定四列网格）。
  */
 const store = useUserStore();
 
 const partnerCount = ref(0);
 const orderCount = ref(0);
 const approvalTotal = ref(0);
+
+/** 头像地址（后端 avatarUrl 优先，本地选择兜底） */
+const avatarUrl = computed(() => store.avatarUrl);
+
+/** 是否可主动选择微信头像（仅微信小程序 + 已登录） */
+const canChooseAvatar = computed(() => {
+  // #ifdef MP-WEIXIN
+  return !!store.token;
+  // #endif
+  // #ifndef MP-WEIXIN
+  return false;
+  // #endif
+});
 
 /** 展示名称截断 */
 const shortName = computed(() => {
@@ -125,8 +138,8 @@ const shortName = computed(() => {
   return name.length > 6 ? name.slice(0, 6) + '…' : name;
 });
 
-/** 头像字符 */
-const avatarChar = computed(() => (shortName.value || '用')[0]);
+/** 默认头像首字 */
+const avatarChar = computed(() => (shortName.value || '客')[0]);
 
 /** 问候语 + 时间段 */
 const greetingText = computed(() => {
@@ -165,25 +178,25 @@ const statCards = computed(() => {
   const cards = [];
 
   if (store.isChannel) {
-    cards.push({ key: 'product', label: '我的产品', value: partnerCount.value || 0, icon: 'bank', tone: 'blue', action: onProduct, extra: '点击管理' });
+    cards.push({ key: 'product', label: '我的产品', value: partnerCount.value || 0, icon: 'bank', action: onProduct, extra: '点击管理' });
     return cards;
   }
 
   if (store.isStaff) {
     const canApprove = ['adviser', 'deptmgr', 'boss', 'operator', 'super'].includes(store.role);
-    cards.push({ key: 'match', label: '匹配任务', value: '—', icon: 'match', tone: 'blue', action: onMatch, extra: '发起匹配' });
-    cards.push({ key: 'order', label: '服务工单', value: orderCount.value || 0, icon: 'order', tone: 'gold', action: onOrder, extra: orderCount.value ? '待处理' : '暂无' });
+    cards.push({ key: 'match', label: '匹配任务', value: '—', icon: 'match', action: onMatch, extra: '发起匹配' });
+    cards.push({ key: 'order', label: '服务工单', value: orderCount.value || 0, icon: 'order', action: onOrder, extra: orderCount.value ? '待处理' : '暂无' });
     if (canApprove) {
-      cards.push({ key: 'approval', label: '待审批', value: approvalTotal.value || 0, icon: 'check', tone: 'red', action: onApproval, extra: approvalTotal.value ? '待处理' : '已清' });
+      cards.push({ key: 'approval', label: '待审批', value: approvalTotal.value || 0, icon: 'check', action: onApproval, extra: approvalTotal.value ? '待处理' : '已清' });
     }
-    cards.push({ key: 'report', label: '客户报告', value: '—', icon: 'chart', tone: 'green', action: onReport, extra: '查看' });
+    cards.push({ key: 'report', label: '客户报告', value: '—', icon: 'chart', action: onReport, extra: '查看' });
     return cards;
   }
 
   // 客户
-  cards.push({ key: 'match', label: '智能匹配', value: '—', icon: 'match', tone: 'blue', action: onMatch, extra: '发起匹配' });
-  cards.push({ key: 'report', label: '我的报告', value: '—', icon: 'chart', tone: 'gold', action: onReport, extra: '查看历史' });
-  cards.push({ key: 'order', label: '服务单', value: orderCount.value || 0, icon: 'order', tone: 'green', action: onOrder, extra: orderCount.value ? '跟进中' : '暂无' });
+  cards.push({ key: 'match', label: '智能匹配', value: '—', icon: 'match', action: onMatch, extra: '发起匹配' });
+  cards.push({ key: 'report', label: '我的报告', value: '—', icon: 'chart', action: onReport, extra: '查看历史' });
+  cards.push({ key: 'order', label: '服务单', value: orderCount.value || 0, icon: 'order', action: onOrder, extra: orderCount.value ? '跟进中' : '暂无' });
   return cards;
 });
 
@@ -191,33 +204,33 @@ const statCards = computed(() => {
 const navEntries = computed(() => {
   if (store.isChannel) {
     return [
-      { key: 'product', label: '我的产品', icon: 'bank', tone: 'blue', desc: '录入·审批', action: onProduct },
-      { key: 'client', label: '录入客户', icon: 'users', tone: 'gold', desc: '线索录入', action: onClient },
-      { key: 'mine', label: '我的', icon: 'mine', tone: 'gray', desc: '账户设置', action: onMine },
+      { key: 'product', label: '我的产品', icon: 'bank', desc: '录入·审批', action: onProduct },
+      { key: 'client', label: '录入客户', icon: 'users', desc: '线索录入', action: onClient },
+      { key: 'mine', label: '我的', icon: 'mine', desc: '账户设置', action: onMine },
     ];
   }
 
   if (store.isStaff) {
     const canApprove = ['adviser', 'deptmgr', 'boss', 'operator', 'super'].includes(store.role);
     const entries = [
-      { key: 'match', label: '智能匹配', icon: 'match', tone: 'blue', desc: '替客匹配', action: onMatch },
-      { key: 'report', label: store.role === 'adviser' ? '客户报告' : '报告中心', icon: 'chart', tone: 'gold', desc: '匹配报告', action: onReport },
-      { key: 'order', label: store.role === 'adviser' ? '客户工单' : '工单中心', icon: 'order', tone: 'green', desc: '服务跟进', action: onOrder },
-      { key: 'client', label: '客户档案', icon: 'users', tone: 'red', desc: '客户管理', action: onClient },
+      { key: 'match', label: '智能匹配', icon: 'match', desc: '替客匹配', action: onMatch },
+      { key: 'report', label: store.role === 'adviser' ? '客户报告' : '报告中心', icon: 'chart', desc: '匹配报告', action: onReport },
+      { key: 'order', label: store.role === 'adviser' ? '客户工单' : '工单中心', icon: 'order', desc: '服务跟进', action: onOrder },
+      { key: 'client', label: '客户档案', icon: 'users', desc: '客户管理', action: onClient },
     ];
     if (canApprove) {
-      entries.push({ key: 'approval', label: '审批中心', icon: 'check', tone: 'red', desc: `${approvalTotal.value || 0} 待审`, action: onApproval });
+      entries.push({ key: 'approval', label: '审批中心', icon: 'check', desc: `${approvalTotal.value || 0} 待审`, action: onApproval });
     }
-    entries.push({ key: 'mine', label: '我的', icon: 'mine', tone: 'gray', desc: '账户设置', action: onMine });
+    entries.push({ key: 'mine', label: '我的', icon: 'mine', desc: '账户设置', action: onMine });
     return entries;
   }
 
   // 客户
   return [
-    { key: 'match', label: '智能匹配', icon: 'match', tone: 'blue', desc: '获取评级', action: onMatch },
-    { key: 'report', label: '我的报告', icon: 'chart', tone: 'gold', desc: '历史记录', action: onReport },
-    { key: 'order', label: '服务单', icon: 'order', tone: 'green', desc: '进度跟进', action: onOrder },
-    { key: 'mine', label: '我的', icon: 'mine', tone: 'gray', desc: '账户设置', action: onMine },
+    { key: 'match', label: '智能匹配', icon: 'match', desc: '获取评级', action: onMatch },
+    { key: 'report', label: '我的报告', icon: 'chart', desc: '历史记录', action: onReport },
+    { key: 'order', label: '服务单', icon: 'order', desc: '进度跟进', action: onOrder },
+    { key: 'mine', label: '我的', icon: 'mine', desc: '账户设置', action: onMine },
   ];
 });
 
@@ -286,8 +299,20 @@ async function loadApprovalCount() {
   }
 }
 
+/** 选择微信头像回调（button open-type=chooseAvatar） */
+function onChooseAvatar(e) {
+  const url = e.detail && e.detail.avatarUrl;
+  if (!url) return;
+  store.setAvatar(url); // 本地即时预览
+  uploadAvatar(url).then((remote) => { if (remote) store.setAvatar(remote); }).catch(() => {});
+}
+
+/** H5 端无微信头像能力，点击提示 */
+function onAvatarFallback() {
+  uni.showToast({ title: '请在微信小程序中选择头像', icon: 'none' });
+}
+
 function onSearch() {
-  // 渠道搜索产品；员工搜索客户；客户搜索报告
   if (store.isChannel) {
     uni.reLaunch({ url: '/pages/product/list' });
   } else if (store.isStaff) {
@@ -322,7 +347,6 @@ function onClient() {
   if (store.isChannel) {
     uni.navigateTo({ url: '/pages/client/create' });
   } else if (store.isStaff) {
-    // 员工暂无独立客户档案页，引导到匹配页的目标企业录入
     uni.reLaunch({ url: '/pages/match/match' });
   }
 }
@@ -349,22 +373,34 @@ function onMine() {
   background:var(--bg-page);
   box-sizing:border-box
 }
+/* ===== 冷玻璃顶部（磨砂油画质感，压缩高度） ===== */
 .top-banner{
   position:relative;
   margin:0;
-  padding:48rpx 40rpx 56rpx;
-  background:var(--brand-deep);
-  overflow:hidden
+  padding:28rpx 32rpx 32rpx;
+  background:var(--glass-gradient);
+  overflow:hidden;
+  border-bottom:1rpx solid var(--glass-edge)
 }
-.banner-decor{
+.top-banner::before{
+  content:'';
   position:absolute;
+  top:-60rpx;
+  right:-40rpx;
   width:280rpx;
   height:280rpx;
-  right:-60rpx;
-  top:-80rpx;
   border-radius:50%;
-  background:rgba(255,255,255,.06)
+  background:radial-gradient(circle at 50% 50%, var(--glass-hi) 0%, rgba(255,255,255,0) 70%);
+  pointer-events:none
 }
+/* H5 真毛玻璃（小程序不支持 backdrop-filter，降级为上方渐变） */
+/* #ifdef H5 */
+.top-banner{
+  backdrop-filter:blur(28rpx);
+  -webkit-backdrop-filter:blur(28rpx);
+  background:rgba(232,236,245,0.72)
+}
+/* #endif */
 .banner-inner{
   position:relative;
   z-index:1
@@ -372,24 +408,39 @@ function onMine() {
 .user-row{
   display:flex;
   align-items:center;
-  gap:24rpx
+  gap:20rpx
 }
 .avatar-ring{
-  width:88rpx;
-  height:88rpx;
+  width:84rpx;
+  height:84rpx;
   border-radius:50%;
-  background:rgba(255,255,255,.15);
-  border:2rpx solid rgba(255,255,255,.3);
+  background:var(--glass-bg-deep);
+  border:3rpx solid var(--glass-edge);
   display:flex;
   align-items:center;
   justify-content:center;
-  flex-shrink:0
+  flex-shrink:0;
+  padding:0;
+  margin:0;
+  overflow:hidden;
+  line-height:1
+}
+.avatar-ring::after{
+  border:none
+}
+.avatar-hover{
+  opacity:.85
+}
+.avatar-img{
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  display:block
 }
 .avatar-text{
-  color:var(--bg-card);
-  font-size:var(--fs-xl);
-  font-weight:700;
-  line-height:88rpx
+  color:var(--text-secondary);
+  font-size:32rpx;
+  font-weight:600
 }
 .greeting-col{
   display:flex;
@@ -398,26 +449,60 @@ function onMine() {
   min-width:0
 }
 .banner-hello{
-  color:var(--bg-card);
+  color:var(--text-primary);
   font-size:var(--fs-xl);
   font-weight:700
 }
 .banner-time{
-  margin-top:8rpx;
-  color:rgba(255,255,255,.55);
-  font-size:23rpx
+  margin-top:6rpx;
+  color:var(--text-secondary);
+  font-size:22rpx
+}
+/* 认证小胶囊（右侧，不占第二行） */
+.auth-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6rpx;
+  margin-left:8rpx;
+  padding:8rpx 18rpx;
+  border-radius:var(--radius-full);
+  flex-shrink:0;
+  background:var(--glass-tint);
+  color:var(--brand-deep);
+  font-size:22rpx;
+  font-weight:500;
+  transition:background .2s,transform .1s
+}
+.auth-pill:active{
+  transform:scale(.97)
+}
+.pill-icon{
+  font-size:20rpx;
+  font-weight:700
+}
+.pill-text{
+  font-size:22rpx;
+  font-weight:500
+}
+.pill-ok{
+  background:rgba(17,168,107,.14);
+  color:var(--success-text)
+}
+.pill-todo{
+  background:rgba(245,146,12,.18);
+  color:var(--warning-text)
 }
 /* 电商风格搜索栏 */
 .search-bar{
   display:flex;
   align-items:center;
   gap:12rpx;
-  margin-top:28rpx;
+  margin-top:24rpx;
   height:72rpx;
   padding:0 24rpx;
   background:var(--bg-card);
   border-radius:var(--radius-full);
-  box-shadow:var(--shadow-md)
+  box-shadow:var(--shadow-sm)
 }
 .search-bar:active{
   opacity:.92;
@@ -427,45 +512,9 @@ function onMine() {
   font-size:26rpx;
   color:var(--text-secondary)
 }
-.auth-pill{
-  display:inline-flex;
-  align-items:center;
-  gap:8rpx;
-  margin-top:20rpx;
-  padding:10rpx 22rpx;
-  border-radius: var(--radius-lg);
-  align-self:flex-start;
-  background:rgba(255,255,255,.1);
-  border:1rpx solid rgba(255,255,255,.3);
-  color:var(--bg-card);
-  transition:background .2s,transform .1s
-}
-.auth-pill:active{
-  background:rgba(255,255,255,.18);
-  transform:scale(.97)
-}
-.pill-icon{
-  font-size:22rpx;
-  font-weight:700;
-  opacity:.9
-}
-.pill-text{
-  font-size:24rpx;
-  font-weight:500
-}
-.pill-ok{
-  background:rgba(16,185,129,.22);
-  border-color:rgba(16,185,129,.5);
-  color:var(--success-text)
-}
-.pill-todo{
-  background:rgba(254,230,138,.12);
-  border-color:rgba(254,230,138,.4);
-  color:var(--warning-line)
-}
 .content{
   padding:0 32rpx 32rpx;
-  margin-top:32rpx;
+  margin-top:28rpx;
   position:relative;
   z-index:2
 }
@@ -480,18 +529,13 @@ function onMine() {
   display:flex;
   align-items:center;
   justify-content:space-between;
-  margin-bottom:32rpx;
+  margin-bottom:24rpx;
   min-height:44rpx
 }
 .sec-title{
   font-size:var(--fs-lg);
   font-weight:700;
   color:var(--text-primary);
-  line-height:1.2
-}
-.sec-sub{
-  font-size:var(--fs-xs);
-  color:var(--text-secondary);
   line-height:1.2
 }
 /* ===== 认证引导卡 ===== */
@@ -538,34 +582,28 @@ function onMine() {
   color:var(--warning-text);
   flex-shrink:0
 }
-/* ===== 动态数据卡片（横向滚动，电商风格） ===== */
-.stat-section{
-  margin-bottom:32rpx;
-  padding-top:8rpx
-}
-.stat-scroll{
-  width:100%;
-  white-space:nowrap
-}
-.stat-track{
+/* ===== 固定四列网格（动态数据 + 快捷功能通用） ===== */
+.grid-4{
   display:flex;
-  gap:20rpx;
-  padding:8rpx 0 12rpx
+  flex-wrap:wrap;
+  background:var(--bg-card);
+  border-radius:var(--radius-md);
+  padding:16rpx 4rpx;
+  box-shadow:var(--shadow-md)
+}
+.stat-grid{
+  margin-bottom:32rpx
 }
 .stat-card{
-  display:inline-flex;
+  display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  width:200rpx;
-  min-width:200rpx;
-  padding:24rpx 16rpx;
-  background:var(--bg-card);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  text-align:center;
-  position:relative;
-  overflow:hidden
+  width:25%;
+  padding:16rpx 4rpx;
+  background:transparent;
+  box-shadow:none;
+  text-align:center
 }
 .stat-card:active{
   transform:scale(.97)
@@ -574,10 +612,11 @@ function onMine() {
   width:64rpx;
   height:64rpx;
   border-radius:var(--radius-md);
+  background:var(--glass-tint);
   display:flex;
   align-items:center;
   justify-content:center;
-  margin-bottom:12rpx
+  margin-bottom:10rpx
 }
 .stat-num{
   font-size:var(--fs-2xl);
@@ -588,41 +627,20 @@ function onMine() {
 .stat-name{
   display:block;
   width:100%;
-  margin-top:6rpx;
+  margin-top:4rpx;
   font-size:23rpx;
   color:var(--text-secondary)
 }
-/* 色调（v2：图标自带磁贴色，外层仅作圆角容器，不叠底色） */
-.stat-blue .stat-icon-wrap,
-.stat-gold .stat-icon-wrap,
-.stat-green .stat-icon-wrap,
-.stat-red .stat-icon-wrap { background: transparent; }
-.stat-blue::before, .stat-gold::before, .stat-green::before, .stat-red::before{
-  content:'';
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  height:6rpx
-}
-.stat-blue::before{ background:var(--brand-deep) }
-.stat-gold::before{ background:var(--gold) }
-.stat-green::before{ background:var(--success) }
-.stat-red::before{ background:var(--danger) }
-
-/* ===== 宫格功能导航（电商风格） ===== */
+/* ===== 宫格功能导航（固定四列，统一品牌蓝） ===== */
 .nav-section{
-  margin-bottom:32rpx;
-  padding-top:8rpx
+  margin-bottom:32rpx
 }
-/* 微信小程序 WXSS 不支持 display:grid，改用 flex-wrap 兼容双端；
-   每格 width:25% 固定四列，杜绝 grid 被忽略后退化与文字重叠 */
 .nav-grid{
   display:flex;
   flex-wrap:wrap;
   background:var(--bg-card);
   border-radius:var(--radius-md);
-  padding:24rpx 16rpx;
+  padding:16rpx 4rpx;
   box-shadow:var(--shadow-md)
 }
 .nav-cell{
@@ -637,9 +655,10 @@ function onMine() {
   transform:scale(.94)
 }
 .nav-icon-wrap{
-  width:80rpx;
-  height:80rpx;
+  width:88rpx;
+  height:88rpx;
   border-radius:var(--radius-md);
+  background:var(--glass-tint);
   display:flex;
   align-items:center;
   justify-content:center;

@@ -12,7 +12,7 @@
          企业员工：客户姓名 + 手机号 + 状态 + 时间 -->
     <view class="filter-card" :class="{ collapsed: !filterOpen }">
       <view class="filter-bar" role="button" :aria-expanded="filterOpen" @click="filterOpen = !filterOpen">
-        <AppIcon name="search" size="sm" />
+        <AppIcon name="search" size="sm" color="var(--text-secondary)" />
         <text class="filter-bar-title">筛选条件</text>
         <text v-if="activeFilterCount" class="filter-count">{{ activeFilterCount }}</text>
         <text class="filter-chevron">{{ filterOpen ? '收起 ▴' : '展开 ▾' }}</text>

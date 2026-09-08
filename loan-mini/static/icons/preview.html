@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>loan-mini 图标族总览</title>
+<style>
+  body{font-family:-apple-system,"PingFang SC",sans-serif;background:#F5F7FA;margin:0;padding:32px;color:#1F2937}
+  h1{font-size:20px;margin:0 0 4px} p{color:#5B6678;font-size:13px;margin:0 0 28px}
+  h2{font-size:15px;margin:32px 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:14px}
+  .cell{background:#fff;border-radius:14px;padding:14px 8px;text-align:center;box-shadow:0 1px 4px rgba(15,23,42,.06)}
+  .cell img{width:56px;height:56px;display:block;margin:0 auto 8px}
+  .cell b{display:block;font-size:12px;font-weight:600}
+  .row{display:flex;gap:18px;flex-wrap:wrap;background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(15,23,42,.06)}
+  .row .it{text-align:center}.row img{width:40px;height:40px;display:block;margin:0 auto 6px}
+  .row span{font-size:11px;color:#5B6678}
+</style>
+</head>
+<body>
+<h1>loan-mini 图标族 v3</h1>
+<p>磁贴版：品牌色圆角底 + 白色线性字形（内容功能入口）· 单色版：TabBar / 搜索栏跟随语义色 · 144×144 高清 PNG</p>
+<h2>功能磁贴（认证页 / 首页 / 我的）</h2>
+<div class="grid" id="tiles"></div>
+<h2>TabBar 单色（未选中语义色 / 选中主色）</h2>
+<div class="row" id="tabs"></div>
+<script>
+const tiles=[['home','首页'],['match','智能匹配'],['chart','我的报告'],['order','服务单'],['mine','我的'],['bank','我的产品'],['users','录入客户'],['check','审批'],['enterprise','企业认证'],['person','个人认证'],['search','搜索'],['bolt','认证提醒'],['support','客服'],['list','清单'],['share','分享'],['wechat','微信'],['refresh','刷新'],['alert','警示'],['trend','经营趋势'],['doc','企业年报'],['file','附件'],['photo','照片'],['lock','加密'],['arrow','箭头']];
+document.getElementById('tiles').innerHTML=tiles.map(([n,l])=>`<div class="cell"><img src="${n}.png"><b>${l}</b><span style="font-size:11px;color:#94A3B8">${n}</span></div>`).join('');
+const tabs=[['home-brand','首页·选中'],['match-info','匹配·未选'],['match-gold','匹配·选中'],['chart-gold','报告·未选'],['chart-brand','报告·选中'],['order-success','工单·未选'],['order-brand','工单·选中'],['mine-info','我的·未选'],['mine-brand','我的·选中'],['bank-gold','产品·未选'],['bank-brand','产品·选中'],['users-success','客户·未选'],['users-brand','客户·选中'],['lock-white','信任条白']];
+document.getElementById('tabs').innerHTML=tabs.map(([n,l])=>`<div class="it"><img src="${n}.png"><span>${l}</span></div>`).join('');
+</script>
+</body>
+</html>

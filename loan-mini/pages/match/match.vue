@@ -855,7 +855,8 @@ onShow(() => {
   margin: var(--space-4) var(--space-3) var(--space-6);
   padding: var(--space-8) var(--space-5) var(--space-6);
   border-radius: var(--radius-lg);
-  background: var(--brand-deep);
+  /* 与登录页同款油画渐变（v3 统一：原 flat #2C5BFF 过亮） */
+  background: var(--hero-gradient);
   color: var(--text-invert);
   text-align: center;
   overflow: hidden;

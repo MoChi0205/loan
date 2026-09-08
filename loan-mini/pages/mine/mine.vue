@@ -378,7 +378,7 @@ function onLogout() {
   margin: 0;
   /* 底部 padding 由 48rpx 收到 32rpx：原值是给 .content 负 margin 上叠预留的空间 */
   padding: 56rpx 40rpx 32rpx;
-  background: var(--brand-deep);
+  background: var(--hero-gradient);
   overflow: hidden;
 }
 

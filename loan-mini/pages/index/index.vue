@@ -245,7 +245,7 @@ function onStart() {
     radial-gradient(ellipse 130% 120% at 85% 10%, rgba(255,255,255,.10) 0%, transparent 48%),
     radial-gradient(ellipse 100% 90% at 15% 100%, rgba(255,176,32,.18) 0%, transparent 42%),
     radial-gradient(ellipse 80% 80% at 55% 110%, rgba(79,70,229,.18) 0%, transparent 45%),
-    linear-gradient(160deg, #17216B 0%, #2443C2 40%, #2C5BFF 100%);
+    var(--hero-gradient);
 }
 .hero-blob{
   position:absolute;
