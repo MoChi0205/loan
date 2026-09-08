@@ -422,21 +422,28 @@ public class LeadService {
                 .and(w -> w.isNull(Lead::getLastFollowedAt)
                         .or().lt(Lead::getLastFollowedAt, threshold));
         List<Lead> overdue = leadMapper.selectList(wrapper);
+        List<Long> ids = new ArrayList<>();
+        List<LeadAllocationRecord> records = new ArrayList<>();
         for (Lead lead : overdue) {
             String from = lead.getOwnerStaffCode();
             String ownerNo = lead.getOwnerStaffCode();
-            lead.setOwnerStaffCode(null);
-            lead.setAssignBlockedUntil(LocalDateTime.now().plusDays(7));
-            lead.setUpdatedBy("system");
-            leadMapper.updateById(lead);
-            allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "RECYCLE", from, null, "system", "超期未跟进回收进公海"));
-            // 站内通知：线索已回收进公海
+            // 回收后冷却 7 天、操作人 system（owner_staff_code 维持不变，与 updateById 原行为一致）
+            ids.add(lead.getId());
+            records.add(buildRecord(lead.getLeadNo(), "RECYCLE", from, null, "system", "超期未跟进回收进公海"));
+            // 站内通知：线索已回收进公海（非 DB 操作，保持逐条、顺序与位置不变）
             if (ownerNo != null) {
                 notificationService.send(buildNotice(ownerNo, Notification.TYPE_LEAD_RECYCLE_WARN,
                         "线索已回收进公海",
                         "线索【" + lead.getLeadNo() + "】因超期未跟进已回收进公海，冷却期内不可认领。",
                         lead.getLeadNo()));
             }
+        }
+        // 批量写：一次 UPDATE 回收全部过期线索 + 一次多值 INSERT 落流转记录（消除循环 UPDATE-INSERT 的 N+1）
+        if (!ids.isEmpty()) {
+            leadMapper.recycleToPool(ids, LocalDateTime.now().plusDays(7));
+        }
+        if (!records.isEmpty()) {
+            allocationRecordMapper.insertBatch(records);
         }
         return overdue.size();
     }

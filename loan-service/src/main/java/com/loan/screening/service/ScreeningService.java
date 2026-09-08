@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -189,6 +190,8 @@ public class ScreeningService {
         if (vo.getProducts() == null || vo.getProducts().isEmpty()) {
             return;
         }
+        // 原循环内逐条 screeningProductMapper.insert(sp) → 聚合为一次批量多值 INSERT（消除 N+1）
+        List<ScreeningProduct> list = new ArrayList<>();
         for (ProductMatchVO p : vo.getProducts()) {
             ScreeningProduct sp = new ScreeningProduct();
             sp.setReportNo(reportNo);
@@ -196,7 +199,10 @@ public class ScreeningService {
             sp.setHitResult(p.getTotalResult());
             sp.setMatchScore(resolveMatchScore(p));
             sp.setCreatedAt(LocalDateTime.now());
-            screeningProductMapper.insert(sp);
+            list.add(sp);
+        }
+        if (!list.isEmpty()) {
+            screeningProductMapper.insertBatch(list);
         }
     }
 
@@ -236,6 +242,8 @@ public class ScreeningService {
         if (vo.getProducts() == null) {
             return;
         }
+        // 原三层循环内逐条 matchRuleLogMapper.insert(log) → 聚合为一次批量多值 INSERT（消除 N+1）
+        List<MatchRuleLog> list = new ArrayList<>();
         for (ProductMatchVO p : vo.getProducts()) {
             if (p.getModules() == null) {
                 continue;
@@ -257,9 +265,12 @@ public class ScreeningService {
                     log.setMismatchFlag(0);
                     log.setExecutedAt(LocalDateTime.now());
                     log.setCreatedAt(LocalDateTime.now());
-                    matchRuleLogMapper.insert(log);
+                    list.add(log);
                 }
             }
+        }
+        if (!list.isEmpty()) {
+            matchRuleLogMapper.insertBatch(list);
         }
     }
 

@@ -195,6 +195,7 @@ public class RuleTemplateService {
         result.put("template", template);
         fields.forEach(f -> { f.setId(null); });
         result.put("fields", fields);
+        versions.forEach(v -> v.setId(null));
         result.put("versions", versions);
         return result;
     }

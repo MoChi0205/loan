@@ -3,6 +3,7 @@ package com.loan.plan.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -19,7 +20,8 @@ public class AdmissionExecutionPlan implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 主键 ID */
+    /** 主键 ID（物理自增，禁止对外暴露，详见 #40 物理 Long id 接口迁移方案） */
+    @JsonIgnore
     @TableId(type = IdType.AUTO)
     private Long id;
 
