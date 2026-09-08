@@ -1,33 +1,39 @@
 <!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="UTF-8">
-<title>loan-mini 图标族总览</title>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>loan-mini 图标 v5 · 冷玻璃线性</title>
 <style>
-  body{font-family:-apple-system,"PingFang SC",sans-serif;background:#F5F7FA;margin:0;padding:32px;color:#1F2937}
-  h1{font-size:20px;margin:0 0 4px} p{color:#5B6678;font-size:13px;margin:0 0 28px}
-  h2{font-size:15px;margin:32px 0 12px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:14px}
-  .cell{background:#fff;border-radius:14px;padding:14px 8px;text-align:center;box-shadow:0 1px 4px rgba(15,23,42,.06)}
-  .cell img{width:56px;height:56px;display:block;margin:0 auto 8px}
-  .cell b{display:block;font-size:12px;font-weight:600}
-  .row{display:flex;gap:18px;flex-wrap:wrap;background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(15,23,42,.06)}
-  .row .it{text-align:center}.row img{width:40px;height:40px;display:block;margin:0 auto 6px}
-  .row span{font-size:11px;color:#5B6678}
-</style>
-</head>
-<body>
-<h1>loan-mini 图标族 v3</h1>
-<p>磁贴版：品牌色圆角底 + 白色线性字形（内容功能入口）· 单色版：TabBar / 搜索栏跟随语义色 · 144×144 高清 PNG</p>
-<h2>功能磁贴（认证页 / 首页 / 我的）</h2>
-<div class="grid" id="tiles"></div>
-<h2>TabBar 单色（未选中语义色 / 选中主色）</h2>
-<div class="row" id="tabs"></div>
-<script>
-const tiles=[['home','首页'],['match','智能匹配'],['chart','我的报告'],['order','服务单'],['mine','我的'],['bank','我的产品'],['users','录入客户'],['check','审批'],['enterprise','企业认证'],['person','个人认证'],['search','搜索'],['bolt','认证提醒'],['support','客服'],['list','清单'],['share','分享'],['wechat','微信'],['refresh','刷新'],['alert','警示'],['trend','经营趋势'],['doc','企业年报'],['file','附件'],['photo','照片'],['lock','加密'],['arrow','箭头']];
-document.getElementById('tiles').innerHTML=tiles.map(([n,l])=>`<div class="cell"><img src="${n}.png"><b>${l}</b><span style="font-size:11px;color:#94A3B8">${n}</span></div>`).join('');
-const tabs=[['home-brand','首页·选中'],['match-info','匹配·未选'],['match-gold','匹配·选中'],['chart-gold','报告·未选'],['chart-brand','报告·选中'],['order-success','工单·未选'],['order-brand','工单·选中'],['mine-info','我的·未选'],['mine-brand','我的·选中'],['bank-gold','产品·未选'],['bank-brand','产品·选中'],['users-success','客户·未选'],['users-brand','客户·选中'],['lock-white','信任条白']];
-document.getElementById('tabs').innerHTML=tabs.map(([n,l])=>`<div class="it"><img src="${n}.png"><span>${l}</span></div>`).join('');
-</script>
-</body>
-</html>
+  body{font-family:-apple-system,sans-serif;background:#F8FAFC;margin:0;padding:24px;color:#1A2336}
+  h1{font-size:18px} h2{font-size:14px;margin:28px 0 10px;color:#5B6678}
+  .row{display:flex;flex-wrap:wrap;gap:10px}
+  .cell{width:96px;text-align:center}
+  .cell img{width:64px;height:64px;display:block;margin:0 auto}
+  .cell span{font-size:10px;color:#5B6678;word-break:break-all}
+  .dark{background:#17216B;padding:14px;border-radius:12px;margin-top:6px}
+  .dark .cell span{color:#B9C4E2}
+  .phone{width:375px;border-radius:24px;background:#FFF;border:1px solid #E5EAF3;padding:16px;margin-top:8px}
+  .menu{display:flex;align-items:center;gap:12px;padding:10px 0}
+  .menu b{font-size:14px}.menu i{font-size:11px;color:#9AA4B4;font-style:normal}
+</style></head><body>
+<h1>loan-mini 图标 v5 · 冷玻璃·线性（144px @24grid / stroke 1.75 round）</h1>
+<h2>磁贴态（功能入口）</h2><div class="row"><div class="cell"><img src="home.png"><span>home</span></div><div class="cell"><img src="match.png"><span>match</span></div><div class="cell"><img src="chart.png"><span>chart</span></div><div class="cell"><img src="order.png"><span>order</span></div><div class="cell"><img src="bank.png"><span>bank</span></div><div class="cell"><img src="users.png"><span>users</span></div><div class="cell"><img src="mine.png"><span>mine</span></div><div class="cell"><img src="person.png"><span>person</span></div><div class="cell"><img src="check.png"><span>check</span></div><div class="cell"><img src="search.png"><span>search</span></div><div class="cell"><img src="wechat.png"><span>wechat</span></div><div class="cell"><img src="bolt.png"><span>bolt</span></div><div class="cell"><img src="support.png"><span>support</span></div><div class="cell"><img src="list.png"><span>list</span></div><div class="cell"><img src="share.png"><span>share</span></div><div class="cell"><img src="enterprise.png"><span>enterprise</span></div><div class="cell"><img src="refresh.png"><span>refresh</span></div><div class="cell"><img src="alert.png"><span>alert</span></div><div class="cell"><img src="trend.png"><span>trend</span></div><div class="cell"><img src="doc.png"><span>doc</span></div><div class="cell"><img src="file.png"><span>file</span></div><div class="cell"><img src="photo.png"><span>photo</span></div><div class="cell"><img src="lock.png"><span>lock</span></div><div class="cell"><img src="arrow.png"><span>arrow</span></div></div>
+<h2>单色态（全量）</h2><div class="row"><div class="cell"><img src="home-gray.png"><span>home-gray</span></div><div class="cell"><img src="home-brand.png"><span>home-brand</span></div><div class="cell"><img src="match-gray.png"><span>match-gray</span></div><div class="cell"><img src="match-brand.png"><span>match-brand</span></div><div class="cell"><img src="chart-gray.png"><span>chart-gray</span></div><div class="cell"><img src="chart-brand.png"><span>chart-brand</span></div><div class="cell"><img src="order-gray.png"><span>order-gray</span></div><div class="cell"><img src="order-brand.png"><span>order-brand</span></div><div class="cell"><img src="bank-gray.png"><span>bank-gray</span></div><div class="cell"><img src="bank-brand.png"><span>bank-brand</span></div><div class="cell"><img src="users-gray.png"><span>users-gray</span></div><div class="cell"><img src="users-brand.png"><span>users-brand</span></div><div class="cell"><img src="mine-gray.png"><span>mine-gray</span></div><div class="cell"><img src="mine-brand.png"><span>mine-brand</span></div><div class="cell"><img src="person-gray.png"><span>person-gray</span></div><div class="cell"><img src="person-brand.png"><span>person-brand</span></div><div class="cell"><img src="check-gray.png"><span>check-gray</span></div><div class="cell"><img src="check-brand.png"><span>check-brand</span></div><div class="cell"><img src="search-gray.png"><span>search-gray</span></div><div class="cell"><img src="search-brand.png"><span>search-brand</span></div><div class="cell"><img src="wechat-gray.png"><span>wechat-gray</span></div><div class="cell"><img src="wechat-brand.png"><span>wechat-brand</span></div><div class="cell"><img src="bolt-gray.png"><span>bolt-gray</span></div><div class="cell"><img src="bolt-brand.png"><span>bolt-brand</span></div><div class="cell"><img src="support-gray.png"><span>support-gray</span></div><div class="cell"><img src="support-brand.png"><span>support-brand</span></div><div class="cell"><img src="list-gray.png"><span>list-gray</span></div><div class="cell"><img src="list-brand.png"><span>list-brand</span></div><div class="cell"><img src="share-gray.png"><span>share-gray</span></div><div class="cell"><img src="share-brand.png"><span>share-brand</span></div><div class="cell"><img src="enterprise-gray.png"><span>enterprise-gray</span></div><div class="cell"><img src="enterprise-brand.png"><span>enterprise-brand</span></div><div class="cell"><img src="refresh-gray.png"><span>refresh-gray</span></div><div class="cell"><img src="refresh-brand.png"><span>refresh-brand</span></div><div class="cell"><img src="alert-gray.png"><span>alert-gray</span></div><div class="cell"><img src="alert-brand.png"><span>alert-brand</span></div><div class="cell"><img src="trend-gray.png"><span>trend-gray</span></div><div class="cell"><img src="trend-brand.png"><span>trend-brand</span></div><div class="cell"><img src="doc-gray.png"><span>doc-gray</span></div><div class="cell"><img src="doc-brand.png"><span>doc-brand</span></div><div class="cell"><img src="file-gray.png"><span>file-gray</span></div><div class="cell"><img src="file-brand.png"><span>file-brand</span></div><div class="cell"><img src="photo-gray.png"><span>photo-gray</span></div><div class="cell"><img src="photo-brand.png"><span>photo-brand</span></div><div class="cell"><img src="lock-gray.png"><span>lock-gray</span></div><div class="cell"><img src="lock-brand.png"><span>lock-brand</span></div><div class="cell"><img src="arrow-gray.png"><span>arrow-gray</span></div><div class="cell"><img src="arrow-brand.png"><span>arrow-brand</span></div><div class="cell"><img src="bank-gold.png"><span>bank-gold</span></div><div class="cell"><img src="match-gold.png"><span>match-gold</span></div><div class="cell"><img src="chart-gold.png"><span>chart-gold</span></div><div class="cell"><img src="bolt-gold.png"><span>bolt-gold</span></div><div class="cell"><img src="order-success.png"><span>order-success</span></div><div class="cell"><img src="users-success.png"><span>users-success</span></div><div class="cell"><img src="check-success.png"><span>check-success</span></div><div class="cell"><img src="mine-info.png"><span>mine-info</span></div><div class="cell"><img src="match-info.png"><span>match-info</span></div><div class="cell"><img src="home-info.png"><span>home-info</span></div><div class="cell"><img src="chart-info.png"><span>chart-info</span></div><div class="cell"><img src="order-info.png"><span>order-info</span></div><div class="cell"><img src="bank-info.png"><span>bank-info</span></div><div class="cell"><img src="users-info.png"><span>users-info</span></div><div class="cell"><img src="support-info.png"><span>support-info</span></div><div class="cell"><img src="lock-white.png"><span>lock-white</span></div><div class="cell"><img src="wechat-white.png"><span>wechat-white</span></div><div class="cell"><img src="arrow-white.png"><span>arrow-white</span></div><div class="cell"><img src="check-white.png"><span>check-white</span></div><div class="cell"><img src="search-white.png"><span>search-white</span></div><div class="cell"><img src="share-white.png"><span>share-white</span></div><div class="cell"><img src="bolt-white.png"><span>bolt-white</span></div></div>
+<h2>深底对照（white 档）</h2><div class="dark row">
+  <div class="cell"><img src="lock-white.png"><span>lock</span></div><div class="cell"><img src="wechat-white.png"><span>wechat</span></div><div class="cell"><img src="arrow-white.png"><span>arrow</span></div><div class="cell"><img src="check-white.png"><span>check</span></div><div class="cell"><img src="search-white.png"><span>search</span></div><div class="cell"><img src="share-white.png"><span>share</span></div>
+</div>
+<h2>页面场景模拟（72rpx 菜单行 / 88rpx TabBar）</h2>
+<div class="phone">
+  
+  <div class="menu"><img src="order.png" width="36" height="36" style="flex-shrink:0"><div><b>我的服务单</b><br><i>查看服务进度与跟进摘要</i></div></div>
+  <div class="menu"><img src="bank.png" width="36" height="36" style="flex-shrink:0"><div><b>我的产品</b><br><i>录入 / 撤销审批 / 申请删除</i></div></div>
+  <div class="menu"><img src="check.png" width="36" height="36" style="flex-shrink:0"><div><b>审批中心</b><br><i>无归宿客户分配申请</i></div></div>
+  <div style="display:flex;border-top:1px solid #EEF1F7;padding-top:10px;margin-top:6px">
+    
+    <div style="flex:1;text-align:center"><img src="home-brand.png" width="24" height="24"><div style="font-size:10px;color:#2443C2">home</div></div>
+    <div style="flex:1;text-align:center"><img src="match-gray.png" width="24" height="24"><div style="font-size:10px;color:#5B6678">match</div></div>
+    <div style="flex:1;text-align:center"><img src="chart-gray.png" width="24" height="24"><div style="font-size:10px;color:#5B6678">chart</div></div>
+    <div style="flex:1;text-align:center"><img src="order-gray.png" width="24" height="24"><div style="font-size:10px;color:#5B6678">order</div></div>
+    <div style="flex:1;text-align:center"><img src="mine-gray.png" width="24" height="24"><div style="font-size:10px;color:#5B6678">mine</div></div>
+  </div>
+</div>
+</body></html>
