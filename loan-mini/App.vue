@@ -168,6 +168,22 @@ page {
                     radial-gradient(circle at 82% 88%, rgba(14,168,190,0.10) 0%, rgba(14,168,190,0) 42%),
                     linear-gradient(160deg, #EEF2FA 0%, #DCE3F1 55%, #D2DBEC 100%);
 
+  /* ===== 按钮体系（v4 油画玻璃版：与登录页 hero 渐变同源，全局唯一真源） =====
+     所有按钮/类按钮控件（AppButton、胶囊、CTA）一律引用下列令牌，禁止页面内裸色值 */
+  --btn-primary-bg: linear-gradient(135deg, #2443C2 0%, #2C5BFF 55%, #3D63E0 100%);
+  --btn-primary-shadow: 0 12rpx 28rpx rgba(36, 67, 194, 0.28);
+  --btn-gold-bg: linear-gradient(135deg, #F5A524 0%, #FFC24D 100%);
+  --btn-gold-shadow: 0 12rpx 28rpx rgba(245, 165, 36, 0.30);
+  --btn-danger-bg: linear-gradient(135deg, #DC2626 0%, #EF4D5E 100%);
+  --btn-danger-shadow: 0 12rpx 28rpx rgba(220, 38, 38, 0.26);
+  /* 玻璃/描边按钮：浅底 + 细边，配冷玻璃卡片 */
+  --btn-glass-bg: rgba(255, 255, 255, 0.72);
+  --btn-glass-border: rgba(36, 67, 194, 0.28);
+  --btn-ghost-bg: transparent;
+  --btn-ghost-border: var(--brand-deep);
+  --btn-disabled-bg: #DDE3EC;
+  --btn-disabled-text: #9AA4B4;
+
   /* ===== 角色色板（v2 明亮商务版：原深蓝/灰黑 → 鲜亮区分色，白字 ΔE>20） ===== */
   --role-customer: #2443C2;
   --role-channel: #0E9CB0;

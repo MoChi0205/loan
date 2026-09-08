@@ -70,51 +70,71 @@ function onClick(e) {
 }
 
 /* 尺寸 */
-.btn-sm { height: 64rpx; font-size: 24rpx; padding: 0 24rpx; }
-.btn-md { height: 88rpx; font-size: var(--fs-em); padding: 0 32rpx; }
-.btn-lg { height: 100rpx; font-size: var(--fs-title); padding: 0 36rpx; }
+.btn-sm { height: 64rpx; font-size: 24rpx; padding: 0 24rpx; border-radius: var(--radius-full); }
+.btn-md { height: 88rpx; font-size: var(--fs-em); padding: 0 32rpx; border-radius: var(--radius-full); }
+.btn-lg { height: 100rpx; font-size: var(--fs-title); padding: 0 36rpx; border-radius: var(--radius-full); }
 
 /* 通栏 */
 .is-block { width: 100%; }
 
-/* 主按钮：深海军蓝 */
+/* 主按钮：油画渐变（与登录页 hero 同源），白字 + 柔和投影 */
 .btn-primary {
-  background: var(--brand-deep);
+  background: var(--btn-primary-bg);
   color: var(--text-invert);
-  box-shadow: 0 8rpx 24rpx rgba(11, 29, 58, 0.22);
+  box-shadow: var(--btn-primary-shadow);
+  border: none;
 }
 
-/* 暖金按钮（强调/CTA） */
+/* 暖金按钮（强调/CTA）：暖金渐变 + 深棕字（保证 AA 对比度） */
 .btn-gold {
-  background: var(--gold);
-  color: var(--text-invert);
-  box-shadow: 0 8rpx 24rpx rgba(200, 169, 110, 0.28);
+  background: var(--btn-gold-bg);
+  color: var(--gold-text);
+  box-shadow: var(--btn-gold-shadow);
+  border: none;
 }
 
-/* 次按钮：描边 */
-.btn-secondary,
-.btn-ghost {
-  background: var(--bg-card);
+/* 危险按钮：红色渐变 */
+.btn-danger {
+  background: var(--btn-danger-bg);
+  color: var(--text-invert);
+  box-shadow: var(--btn-danger-shadow);
+  border: none;
+}
+
+/* 次按钮：玻璃拟态（半透白底 + 品牌细边），配冷玻璃卡片 */
+.btn-secondary {
+  background: var(--btn-glass-bg);
   color: var(--brand-deep);
-  border: 2rpx solid var(--brand-deep);
+  border: 2rpx solid var(--btn-glass-border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 幽灵按钮：透明 + 实心品牌边 */
+.btn-ghost {
+  background: var(--btn-ghost-bg);
+  color: var(--brand-deep);
+  border: 2rpx solid var(--btn-ghost-border);
   box-shadow: none;
 }
-.btn-ghost { background: transparent; }
 
 /* 文字按钮 */
 .btn-text {
   background: transparent;
   color: var(--brand-deep);
   box-shadow: none;
+  border: none;
 }
 
-/* 状态 */
+/* 状态：禁用/加载改用专用灰底，避免渐变叠 opacity 发灰发脏 */
 .is-loading,
 .is-disabled {
-  opacity: 0.55;
+  background: var(--btn-disabled-bg) !important;
+  color: var(--btn-disabled-text) !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 .btn-hover {
-  opacity: 0.88;
+  opacity: 0.92;
   transform: scale(0.985);
 }
 </style>
