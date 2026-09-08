@@ -95,7 +95,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="关联产品">
-          <RemoteProductSelect v-model="createForm.bankProductCode" :customer-group="createForm.customerGroup" placeholder="可选，输入产品名称搜索" />
+          <RemoteProductSelect v-model="createForm.bankProductCode" scope="cooperate" :customer-group="createForm.customerGroup" placeholder="可选，输入产品名称搜索（仅合作中且未到期）" />
         </el-form-item>
         <el-form-item label="来源">
           <el-select v-model="createForm.source" style="width: 100%">

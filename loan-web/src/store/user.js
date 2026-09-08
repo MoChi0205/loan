@@ -99,7 +99,12 @@ export const useUserStore = defineStore('user', {
         return this.menuPaths;
       }
       const res = await menuTree(roleCode);
-      this.menuPaths = flattenMenuPaths(res?.data || []);
+      const set = flattenMenuPaths(res?.data || []);
+      // 临时补齐：BOSS 后端菜单未下发经营分析子菜单，但业务上需要可见（待后端 t_role_menu 同步后删除）
+      if (roleCode === 'BOSS') {
+        ['/report/center', '/report/trend', '/report/screening'].forEach((p) => set.add(p));
+      }
+      this.menuPaths = set;
       this.menuRoleCode = roleCode;
       return this.menuPaths;
     },

@@ -62,12 +62,39 @@ bash scripts/service.sh watchdog stop                 # 关闭守护
    网关参数在 `service.sh start_gateway`（8088 + Redis `124.221.116.28:9379`）。
 5. 改后端代码重启：`service.sh restart backend`；改前端代码 Vite HMR 自动生效，若挂载阶段已异常则 `restart web` 后浏览器强制刷新。
 
-### 本项目当前联调配置源（D41，强制）
+### 本项目当前联调配置源（D41，强制；用户 2026-09-07 再次明确，每次启动必须遵循）
 
-- 本地只运行当前代码，数据库、Redis 等后端基础设施配置由 Nacos `prd` 下发。
-- 禁止启动或使用本地 Nacos / MySQL / Redis，禁止切换 `dev` namespace，禁止增加本地数据源参数覆盖 Nacos。
+- **配置源唯一**：本地只运行当前代码；数据库 / Redis / 中间件连接信息一律由 Nacos `prd` 命名空间下发
+  （`124.221.150.239:9848`，namespace=prd）。启动时必须读取 prd 所属 Nacos 配置。
+- **禁止本地中间件**：禁止启动或使用本地 Nacos / MySQL / Redis；禁止切换 `dev` namespace；
+  禁止增加本地数据源参数覆盖 Nacos。
+- **禁止本地 Docker**：**不使用本地 Docker 拉起任何中间件容器**（MySQL / Redis / Nacos 等一律不装、不起、不用），
+  本地不需要 Docker Desktop 与任何容器编排；联调与回归全部直连 prd 环境基础设施。
 - 连接信息与密钥只检查是否成功加载，不复制到代码、脚本、日志或测试文档。
 - `scripts/run-dev-local.sh` 仅保留历史开发能力，不得用于当前项目联调与回归。
+- **启动入口唯一**：只走 `scripts/service.sh`（后端 / 网关参数已内置 prd Nacos 与远程 Redis）。
+  **严禁裸 `mvn spring-boot:run`** —— 实测裸跑网关会因 nacos-config starter 干扰落到随机端口（如 65143）。
+
+#### macOS 15+ 托管降级（2026-09-07 实测，必读）
+
+`service.sh` 原用 `launchctl submit` 托管，但 **macOS 15 已废弃该子命令**，执行报
+`Bootstrap failed: 5: Input/output error`，`launchctl list | grep com.loan.dev` 为 0，服务并不会真正起来。
+因此当前机器的可靠姿势是 **Bash `run_in_background` 托管**，但**启动参数必须照抄 `service.sh`**：
+
+```bash
+# 1) 先让 service.sh 完成构建并产出 /tmp 运行副本（构建可用，仅托管失效）
+bash scripts/service.sh start <backend|gateway>
+
+# 2) 再用 run_in_background 拉起，参数与 service.sh 保持一致
+# 网关（--server.port 必传，否则随机端口）
+$JAVA_HOME/bin/java -jar /tmp/loan-gateway-dev.jar \
+  --server.port=8088 --spring.redis.host=124.221.116.28 --spring.redis.port=9379 \
+  --spring.redis.password=CHANGE_ME_REDIS --jwt.secret=CHANGE_ME_JWT_SECRET
+```
+
+- 后端 loan-service 同理，核心是 **Nacos `prd` 参数**：`scripts/run-dev-prd.sh` 的
+  `-Dnacos.server-addr=124.221.150.239:9848 -Dnacos.namespace=prd`。
+- 判断存活一律用 `curl http://localhost:<port>/`，不要只看脚本"启动中"字样。
 
 ## 五、验证清单
 

@@ -28,6 +28,16 @@ public class PartnerProduct implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /**
+     * 银行产品内部物理主键（兼容旧库 t_partner_product.bank_product_id NOT NULL）。
+     *
+     * <p>评审决策后 t_partner_product 计划改为仅保留 bank_product_code 业务唯一键，
+     * 但在迁移 mvp-bizid-fk 落地前，旧库列仍然 NOT NULL 且无默认值——INSERT 时必须回填
+     * {@code t_bank_product.id}，否则触发 "Field 'bank_product_id' doesn't have a default value"
+     * 系统异常（D67）。迁移完成后本字段标记 {@code @TableField(exist = false)} 即可下线。</p>
+     */
+    private Long bankProductId;
+
     /** 银行产品业务编码（小写前缀+32位随机，业务唯一） */
     private String bankProductCode;
 

@@ -2,7 +2,7 @@
   <div class="report-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">数据概览</h2>
+        <h2 class="loan-page-title">经营概览</h2>
         <p class="loan-page-subtitle">经营核心指标 · 转化漏斗 · 客群 / 产品 / 工单分布 · 成交 / 奖励趋势</p>
       </div>
       <div class="range-hint">数据周期：截至 {{ today }}</div>

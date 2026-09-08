@@ -24,9 +24,9 @@ mkdir -p "$LOG_DIR"
 source "$BASE_DIR/scripts/lib/java8.sh"
 JAVA_HOME="$(loan_detect_java8)" || exit 1
 # 路径可用环境变量覆盖以适配不同机器（LOAN_MVN / LOAN_NODE / LOAN_NPM），默认保留原路径。
-MVN="${LOAN_MVN:-/Users/admin/Documents/developer/apache-maven-3.8.8/bin/mvn}"
-NODE="${LOAN_NODE:-/Users/admin/.workbuddy/binaries/node/versions/22.22.2/bin/node}"
-NPM="${LOAN_NPM:-/Users/admin/.workbuddy/binaries/node/versions/22.22.2/bin/npm}"
+MVN="${LOAN_MVN:-/Users/duantiangang/Documents/apache-maven-3.8.8/bin/mvn}"
+NODE="${LOAN_NODE:-/Users/duantiangang/.workbuddy/binaries/node/versions/22.22.2/bin/node}"
+NPM="${LOAN_NPM:-/Users/duantiangang/.workbuddy/binaries/node/versions/22.22.2/bin/npm}"
 GATEWAY_RUN_JAR="/tmp/loan-gateway-dev.jar"
 GATEWAY_RUN_LOG="/tmp/loan-gateway-dev.log"
 BACKEND_RUN_JAR="/tmp/loan-service-dev.jar"

@@ -416,6 +416,10 @@ async function loadRoleMenu() {
       return;
     }
     const set = await userStore.ensureMenuPaths();
+    // 临时补齐：BOSS 后端菜单未下发经营分析子菜单，但业务上需要可见（待后端 t_role_menu 同步后删除）
+    if (roleCode === 'BOSS') {
+      ['/report/center', '/report/trend', '/report/screening'].forEach((p) => set.add(p));
+    }
     // 成功加载：空 Set = 该角色无任何菜单（区别于 null=加载失败回退全集，T12）
     allowedCodes.value = set;
     // 按当前角色菜单过滤残留 tab（降权/角色切换后清理无权限 tab，T8）

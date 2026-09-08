@@ -116,21 +116,95 @@ public class ClientController {
     }
 
     /**
-     * 客户轻量分页（关键字：编码 / 联系人 / 企业 / 手机号）。
+     * 顾问主动释放自己的客户回公海（无需审批）。
      *
-     * @param keyword 关键字（可选）
-     * @param page    页码
-     * @param size    每页大小
+     * <p>仅客户当前归属本人可操作，清空归属并置冷却，不删档案。</p>
+     *
+     * @param clientCode 客户编码
+     * @param user 当前登录用户
+     * @return { clientCode, released=true, fromOwnerStaffCode }
+     */
+    @PostMapping("/{clientCode}/release")
+    @OpLog(bizType = "客户归属", action = "CLIENT_SELF_RELEASE")
+    public Result<Map<String, Object>> release(@PathVariable String clientCode,
+                                               @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        return Result.ok(clientAllocationService.selfRelease(clientCode, user));
+    }
+
+    /**
+     * 顾问记录客户跟进：刷新最后跟进时间，避免超期自动回收进公海。
+     *
+     * @param clientCode 客户编码
+     * @param body { content: 跟进内容（可选） }
+     * @param user 当前登录用户
+     * @return { clientCode, followedAt }
+     */
+    @PostMapping("/{clientCode}/follow")
+    @OpLog(bizType = "客户跟进", action = "FOLLOW_UP")
+    public Result<Map<String, Object>> follow(@PathVariable String clientCode,
+                                              @RequestBody(required = false) Map<String, String> body,
+                                              @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        String content = body == null ? null : body.get("content");
+        return Result.ok(clientAllocationService.followUp(clientCode, user, content));
+    }
+
+    /**
+     * 客户分配/跟进历史（t_lead_allocation_record 复用流水）。
+     *
+     * <p>返回按时间倒序的流转记录，含 actionType（CLAIM_APPLY / CLAIM_APPROVED /
+     * CLIENT_RECYCLE / FOLLOW_UP / CLIENT_RECYCLE_MANUAL / MANAGER_ASSIGN 等）、
+     * from/to 工号、remark 与操作人。</p>
+     *
+     * @param clientCode 客户编码
+     * @param page       页码
+     * @param size       每页大小
+     * @return 客户流转历史
+     */
+    @GetMapping("/{clientCode}/history")
+    public Result<Map<String, Object>> history(@PathVariable String clientCode,
+                                                @RequestParam(defaultValue = "1") int page,
+                                                @RequestParam(defaultValue = "50") int size) {
+        return Result.ok(clientAllocationService.history(clientCode, PageParams.page(page), PageParams.size(size)));
+    }
+
+    /**
+     * 客户轻量分页（多维筛选：关键字 / 姓名 / 手机号 / 企业名 / 信用代码 / 建档时间）。
+     *
+     * @param keyword        关键字（可选：姓名 / 企业名 / 手机号哈希精确）
+     * @param name           联系人姓名模糊（可选）
+     * @param phone          手机号精确（可选，SHA-256 哈希匹配）
+     * @param enterpriseName 企业名称模糊（可选）
+     * @param creditCode     统一社会信用代码精确（可选，SHA-256 哈希匹配）
+     * @param ownerStaffCode 归属人工号（可选；顾问/渠道查本人客户时传入）
+     * @param createdAtStart 建档起始时间（可选）
+     * @param createdAtEnd   建档截止时间（可选）
+     * @param dealTimeStart  成交起始时间（可选，联表 t_service_order 已成交工单）
+     * @param dealTimeEnd    成交截止时间（可选，联表 t_service_order 已成交工单）
+     * @param page           页码
+     * @param size           每页大小
      * @return 客户轻量列表
      */
     @GetMapping("/page-lite")
     public Result<PageResult<Map<String, Object>>> pageLite(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String enterpriseName,
+            @RequestParam(required = false) String creditCode,
+            @RequestParam(required = false) String ownerStaffCode,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime createdAtStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime createdAtEnd,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dealTimeStart,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dealTimeEnd,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir) {
-        return Result.ok(clientService.pageLite(keyword, PageParams.page(page), PageParams.size(size), orderBy, orderDir));
+        return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
+                ownerStaffCode, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 
     /**

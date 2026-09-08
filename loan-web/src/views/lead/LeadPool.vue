@@ -292,15 +292,17 @@ function rowActions(row) {
   const actions = [];
   if (activeTab.value === 'clients') {
     actions.push({ key: 'profile', label: '查看档案', onClick: () => goProfile(row.clientCode) });
-    if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {
+    // 已有认领待审时：所有角色（含管理者）只展示「待审批：xxx」禁用按钮，
+    // 禁止「直接分配」绕开认领审批——必须走审批中心通过/驳回该认领申请。
+    if (row.allocationPending) {
+      actions.push({ key: 'pending', label: `待审批${row.applicantName ? `：${row.applicantName}` : ''}`, disabled: true });
+    } else if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {
       actions.push({
         key: 'assign-client',
-        label: row.allocationPending ? '直接分配' : '分配顾问',
+        label: '分配顾问',
         type: 'primary',
         onClick: () => openClientAssign(row),
       });
-    } else if (row.allocationPending) {
-      actions.push({ key: 'pending', label: `待审批${row.applicantName ? `：${row.applicantName}` : ''}`, disabled: true });
     } else if (canClaimClient.value && userStore.hasPerm(ACTION_PERMISSION.CLIENT_CLAIM)) {
       actions.push({ key: 'claim-client', label: '申请认领', type: 'success', confirm: '确认申请认领该客户？审批通过后将成为其服务顾问。', onClick: () => onClaimClient(row) });
     }

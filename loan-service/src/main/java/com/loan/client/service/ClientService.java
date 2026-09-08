@@ -50,6 +50,14 @@ public class ClientService {
         ORDER_FIELDS.put("createdAt", ClientProfile::getCreatedAt);
     }
 
+    /**
+     * 成交时间筛选的 EXISTS 子查询前缀：关联该客户名下「已成交(DEAL)」工单的成交时间。
+     * 与建档时间（created_at）区分，供 pageLite 的 dealTimeStart/dealTimeEnd 使用。
+     */
+    private static final String DEAL_EXISTS_SQL =
+            "SELECT 1 FROM t_service_order o WHERE o.client_profile_code = t_client_profile.client_code"
+                    + " AND o.status = 'DEAL'";
+
     private final ClientProfileMapper clientProfileMapper;
     private final PersonalProfileMapper personalProfileMapper;
     private final PersonalProfileService personalProfileService;
@@ -57,21 +65,76 @@ public class ClientService {
     private final BusinessNameService businessNameService;
 
     /**
-     * 客户轻量分页（建单下拉 / 客户选择）。
+     * 客户轻量分页（建单下拉 / 客户列表多维筛选）。
      *
-     * @param keyword 关键字：客户编码 / 联系人 / 企业名称 / 手机号（精确）
-     * @param page    页码
-     * @param size    每页大小
+     * <p>支持多维筛选（任一为空即忽略该条件，AND 关系）：
+     * <ul>
+     *   <li>{@code keyword} — 姓名 / 企业名 / 手机号哈希的复合模糊匹配（下拉搜索保留旧口径）</li>
+     *   <li>{@code name} — 联系人姓名模糊</li>
+     *   <li>{@code phone} — 手机号精确（SHA-256 哈希）</li>
+     *   <li>{@code enterpriseName} — 企业名称模糊</li>
+     *   <li>{@code creditCode} — 统一社会信用代码精确（SHA-256 哈希）</li>
+     *   <li>{@code ownerStaffCode} — 归属人；顾问/渠道查本人客户时传入</li>
+     *   <li>{@code createdAtStart}/{@code createdAtEnd} — 建档时间范围（t_client_profile.created_at）</li>
+     *   <li>{@code dealTimeStart}/{@code dealTimeEnd} — 成交时间范围：EXISTS 联表
+     *       {@code t_service_order}（status='DEAL'）按 deal_time 过滤，只返回该区间内有成交的客户</li>
+     * </ul>
+     *
+     * @param keyword        关键字（可选）
+     * @param name           联系人姓名模糊（可选）
+     * @param phone          手机号精确（可选）
+     * @param enterpriseName 企业名称模糊（可选）
+     * @param creditCode     信用代码精确（可选）
+     * @param ownerStaffCode 归属人工号（可选）
+     * @param createdAtStart 建档起始（可选）
+     * @param createdAtEnd   建档截止（可选）
+     * @param dealTimeStart  成交起始（可选）
+     * @param dealTimeEnd    成交截止（可选）
+     * @param page           页码
+     * @param size           每页大小
      * @return 客户轻量列表
      */
-    public PageResult<Map<String, Object>> pageLite(String keyword, int page, int size, String orderBy, String orderDir) {
+    public PageResult<Map<String, Object>> pageLite(String keyword, String name, String phone, String enterpriseName,
+                                                    String creditCode, String ownerStaffCode,
+                                                    java.time.LocalDateTime createdAtStart, java.time.LocalDateTime createdAtEnd,
+                                                    java.time.LocalDateTime dealTimeStart, java.time.LocalDateTime dealTimeEnd,
+                                                    int page, int size, String orderBy, String orderDir) {
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(ownerStaffCode)) {
+            wrapper.eq(ClientProfile::getOwnerStaffCode, ownerStaffCode.trim());
+        }
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
             // 以关键字查询客户：姓名 / 企业名 / 手机号（SHA-256 哈希精确）；不再按客户内部编码匹配。
             wrapper.and(w -> w.like(ClientProfile::getContactName, kw)
                     .or().like(ClientProfile::getEnterpriseName, kw)
                     .or().eq(ClientProfile::getPhoneHash, sha256(kw)));
+        }
+        if (StringUtils.hasText(name)) {
+            wrapper.like(ClientProfile::getContactName, name.trim());
+        }
+        if (StringUtils.hasText(phone)) {
+            wrapper.eq(ClientProfile::getPhoneHash, sha256(phone.trim()));
+        }
+        if (StringUtils.hasText(enterpriseName)) {
+            wrapper.like(ClientProfile::getEnterpriseName, enterpriseName.trim());
+        }
+        if (StringUtils.hasText(creditCode)) {
+            wrapper.eq(ClientProfile::getCreditCodeHash, sha256(creditCode.trim()));
+        }
+        if (createdAtStart != null) {
+            wrapper.ge(ClientProfile::getCreatedAt, createdAtStart);
+        }
+        if (createdAtEnd != null) {
+            wrapper.le(ClientProfile::getCreatedAt, createdAtEnd);
+        }
+        // 成交时间范围：EXISTS 联表 t_service_order（仅已成交工单），按 deal_time 过滤
+        if (dealTimeStart != null && dealTimeEnd != null) {
+            wrapper.exists(DEAL_EXISTS_SQL + " AND o.deal_time >= {0} AND o.deal_time <= {1}", dealTimeStart, dealTimeEnd);
+        } else if (dealTimeStart != null) {
+            wrapper.exists(DEAL_EXISTS_SQL + " AND o.deal_time >= {0}", dealTimeStart);
+        } else if (dealTimeEnd != null) {
+            wrapper.exists(DEAL_EXISTS_SQL + " AND o.deal_time <= {0}", dealTimeEnd);
         }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, ClientProfile::getCreatedAt);
         Page<ClientProfile> result = clientProfileMapper.selectPage(new Page<>(page, size), wrapper);
@@ -89,6 +152,8 @@ public class ClientService {
             m.put("ownerStaffCode", c.getOwnerStaffCode());
             m.put("ownerStaffName", ownerNames.get(c.getOwnerStaffCode()));
             m.put("status", c.getStatus());
+            m.put("lastFollowedAt", c.getLastFollowedAt());
+            m.put("createdAt", c.getCreatedAt());
             return m;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
