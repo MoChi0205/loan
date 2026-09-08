@@ -56,7 +56,7 @@
         <view class="grid-4 stat-grid">
           <AppClickable v-for="card in statCards" :key="card.key" class="stat-card" @click="card.action">
             <view class="stat-icon-wrap">
-              <AppIcon :name="card.icon" size="md" color="var(--brand-deep)" />
+              <AppIcon :name="card.icon" size="lg" />
             </view>
             <text class="stat-num">{{ card.value }}</text>
             <text class="stat-name">{{ card.label }}</text>
@@ -72,7 +72,7 @@
         <view class="nav-grid">
           <AppClickable v-for="entry in navEntries" :key="entry.key" class="nav-cell u-hover" @click="entry.action">
             <view class="nav-icon-wrap">
-              <AppIcon :name="entry.icon" size="lg" color="var(--brand-deep)" />
+              <AppIcon :name="entry.icon" size="xl" />
             </view>
             <text class="nav-name">{{ entry.label }}</text>
           </AppClickable>
@@ -464,10 +464,12 @@ function onMine() {
   align-items:center;
   gap:6rpx;
   margin-left:8rpx;
-  padding:8rpx 18rpx;
+  padding:8rpx 20rpx;
   border-radius:var(--radius-full);
   flex-shrink:0;
-  background:var(--glass-tint);
+  /* 玻璃底 + 品牌蓝字（默认/状态态） */
+  background:var(--btn-glass-bg);
+  border:1rpx solid var(--btn-glass-border);
   color:var(--brand-deep);
   font-size:22rpx;
   font-weight:500;
@@ -484,13 +486,18 @@ function onMine() {
   font-size:22rpx;
   font-weight:500
 }
+/* 已认证：状态徽标 —— 柔和绿玻璃，弱化不抢主视觉 */
 .pill-ok{
   background:rgba(17,168,107,.14);
+  border-color:rgba(17,168,107,.26);
   color:var(--success-text)
 }
+/* 完成认证：行动按钮 —— 与主 CTA 同源的油画渐变，白字 + 投影 */
 .pill-todo{
-  background:rgba(245,146,12,.18);
-  color:var(--warning-text)
+  background:var(--btn-primary-bg);
+  border:none;
+  color:var(--text-invert);
+  box-shadow:var(--btn-primary-shadow)
 }
 /* 电商风格搜索栏 */
 .search-bar{
@@ -553,11 +560,10 @@ function onMine() {
   gap:20rpx;
   flex:1
 }
+/* 认证引导卡图标：沿用 v4 玻璃圆底 + 品牌蓝渐变字形，去掉橙底方块 */
 .promo-icon-wrap{
   width:64rpx;
   height:64rpx;
-  border-radius:18rpx;
-  background:var(--warning);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -608,11 +614,10 @@ function onMine() {
 .stat-card:active{
   transform:scale(.97)
 }
+/* 图标自带圆形玻璃底（v4 油画玻璃），容器不再叠加方角浅底，避免双层底 */
 .stat-icon-wrap{
   width:64rpx;
   height:64rpx;
-  border-radius:var(--radius-md);
-  background:var(--glass-tint);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -654,11 +659,10 @@ function onMine() {
 .nav-cell:active{
   transform:scale(.94)
 }
+/* 图标自带圆形玻璃底（v4），容器透明 */
 .nav-icon-wrap{
   width:88rpx;
   height:88rpx;
-  border-radius:var(--radius-md);
-  background:var(--glass-tint);
   display:flex;
   align-items:center;
   justify-content:center;

@@ -36,7 +36,7 @@
 
       <!-- 主 CTA -->
       <AppButton class="cta-btn" variant="primary" size="lg" block :loading="loggingIn" @click="onStart">
-        <AppIcon name="wechat" size="md" />
+        <AppIcon name="wechat" size="md" color="rgba(255,255,255,.95)" />
         <text class="cta-text">{{ loggingIn ? '正在登录…' : '微信一键登录' }}</text>
       </AppButton>
 
@@ -406,7 +406,7 @@ function onStart() {
   color:var(--text-secondary);
   line-height:1.6
 }
-.cta-btn{ margin-top:28rpx; }
+.cta-btn{ margin-top:28rpx; gap:12rpx; }
 .cta-icon{
   font-size:36rpx
 }

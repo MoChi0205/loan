@@ -42,6 +42,13 @@ description: >-
 | `--glass-edge` | `rgba(255,255,255,0.6)` | 细白边 |
 | `--glass-tint` | `#EAF0FF` | 功能图标浅底（统一品牌蓝字形容器） |
 | `--glass-gradient` | 多层 radial+linear 渐变 | header 油画光斑底 |
+| `--hero-gradient` | `linear-gradient(160deg,#17216B,#2443C2 40%,#2C5BFF)` | Hero 通栏 / 主按钮同源渐变 |
+| `--btn-primary-bg` | `linear-gradient(135deg,#2443C2,#2C5BFF 55%,#3D63E0)` | **主按钮唯一底色**（与 hero 同源） |
+| `--btn-primary-shadow` | `0 12rpx 28rpx rgba(36,67,194,.28)` | 主按钮投影 |
+| `--btn-gold-bg` / `--btn-gold-shadow` | 暖金渐变 / 投影 | 强调 CTA（配 `--gold-text` 深棕字保证对比度） |
+| `--btn-danger-bg` / `--btn-danger-shadow` | 红渐变 / 投影 | 危险操作 |
+| `--btn-glass-bg` / `--btn-glass-border` | `rgba(255,255,255,.72)` / `rgba(36,67,194,.28)` | 玻璃次按钮 / 状态胶囊 |
+| `--btn-disabled-bg` / `--btn-disabled-text` | `#DDE3EC` / `#9AA4B4` | 禁用态（**不用 opacity 压渐变**） |
 | `--bg-page` / `--bg-card` | `#F8FAFC` / `#FFFFFF` | 页面底 / 卡片底 |
 | `--text-primary` / `-secondary` / `-placeholder` | `#1A2336` / `#5B6678` / `#B6C0CE` | 三级文字 |
 | `--radius-md` / `-lg` / `-full` | `24rpx` / `32rpx` / `999rpx` | 圆角体系 |
@@ -65,19 +72,45 @@ description: >-
 | `AppTopBar` | 页面顶栏 | `title` / `showBack` |
 | `AppEmpty` | 空状态插画（CSS 绘制文件卡 + 放大镜） | `title` / `desc` / slot 放操作按钮 |
 | `AppSkeleton` | 列表骨架屏 | `rows` |
-| `AppIcon` | 图标（PNG 资源版，兼容小程序；磁贴/单色两态） | `name`(home/match/chart/order/bank/users/mine/check/search/wechat/bolt/support 等) / `size`(sm/md/lg) / `color`(单色态传设计令牌) |
+| `AppIcon` | 图标（PNG 资源版 v5 冷玻璃线性；磁贴/单色两态） | `name`(home/match/chart/order/bank/users/mine/check/search/wechat/bolt/support/list/share/enterprise/person/refresh/alert/trend/doc/file/photo/lock/arrow，共 24 枚) / `size`(sm32/md48/lg64/**xl88** rpx) / `color`(单色态传设计令牌；传了走 `-gray/-brand/-gold/-success/-info/-white` 单色资源，不传走磁贴) |
 
 **规则**：
 - 新增组件命名 **App 前缀**（自动注册），放 `loan-mini/components/`
 - 卡片 / 按钮 / 空态 / 骨架屏 / 图标**一律用组件**，**禁止页面内复制样式**
 
-## 三、图标规范
+## 三、图标规范（v5 冷玻璃·线性）
 
 - **统一用 `<AppIcon name="..." />`**（PNG 资源渲染，跨端一致；`static/icons/` 下 144×144 高清图）
-- **功能入口图标统一用品牌蓝**：容器浅底 `--glass-tint` + 字形 `color="var(--brand-deep)"`，**禁止按功能/角色跳色**
+- **字形设计语言**：手写线性 SVG 字形，24×24 网格、stroke 1.75、round cap/join、安全边距 3u；
+  语义细节齐全（doc 折角+行、order 单据+勾、bank 柱廊、enterprise 双楼+窗）。
+  **禁止退回实心色块字形**。
+- **两态**：
+  - **磁贴态（不传 `color`）**：PNG 自带「圆形冷玻璃底（#F3F6FD→#DDE4F4 渐变 + 顶部高光 +
+    细白边 + 品牌柔投影）+ 品牌窄幅渐变字形 `#2443C2→#3D63E0`」。
+    用于首页数据卡 / 快捷功能 / 认证引导卡 / 菜单行等**内容功能入口**。
+    ⚠️ **容器禁止再叠浅底方块**（会形成双层底）—— `.stat-icon-wrap` / `.nav-icon-wrap` /
+    `.menu-icon-wrap` / `.advisor-empty-icon` 等一律 `background:transparent`。
+  - **单色态（传 `color`）**：同一字形纯色渲染无底，用于 TabBar、搜索栏、深底按钮（`-white`）。
+- **禁止按功能/角色跳色**：磁贴态字形统一品牌渐变；单色态只用 `brand / gray / gold / success / info / white` 六档。
+- **图标资源由脚本生成**：`loan-mini/scripts/gen-icons-v5.mjs`（resvg-js 栅格化，运行命令见脚本头注释；
+  resvg-js 装在 WorkBuddy 托管 node workspace：`/Users/admin/.workbuddy/binaries/node/workspace/node_modules`）。
+  字形 SVG path 真源内嵌在脚本 `GLYPHS` 中，改图标形状/配色**改脚本后重跑**，勿手改 PNG。
+  脚本会**全量重建**：24 磁贴 + 全量 gray/brand 单色 + 按需语义色（PLAIN_EXTRA），保证任意
+  `<AppIcon color="X">` 组合不裂图（v4 曾因资源不全导致 TabBar 选中态裂图，已修复，勿回退）。
+  新增 color 组合：先在 `PLAIN_EXTRA` 登记再重跑。
 - **禁止 emoji 图标**（🎯📊⚡🔒 等在不同平台渲染不一致）
 - **禁止 iconfont 字符**（`&#xe900;` 等）—— `loan-mini/static/` **无字体文件**，微信端渲染为豆腐块（已踩坑修复）
+- **禁止内联 SVG 标签**（微信 WXML 不支持，v2 已踩坑）
 - 单纯色符号字符（`✓` `›` `!`）可保留，各平台渲染一致
+
+## 三·补、按钮规范
+
+- **所有按钮走 `AppButton`**，variant：`primary`（油画渐变+白字+投影）/ `gold`（暖金渐变+深棕字）/ `danger` /
+  `secondary`（玻璃半透白底+品牌细边）/ `ghost`（透明+实心边）/ `text`。
+- **主按钮必须与登录页 hero 同源渐变**（`--btn-primary-bg`），禁止裸 `--brand-deep` 平色。
+- **禁用/加载态用 `--btn-disabled-bg` 灰底**，禁止仅靠 `opacity` 压渐变（会发灰发脏）。
+- 类按钮控件（首页「完成认证」胶囊等）**同样引用 `--btn-*` 令牌**：
+  行动类 → `--btn-primary-bg`；状态类（已认证）→ 柔和语义色 + `--btn-glass-border` 弱化，不抢主视觉。
 
 ## 四、空状态与骨架屏规范
 

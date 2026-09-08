@@ -61,7 +61,7 @@
       <AppClickable v-if="!isChannelRole" class="card menu-card u-hover" @click="goOrder">
         <view class="menu-left">
           <view class="menu-icon-wrap">
-            <AppIcon name="list" size="md" />
+            <AppIcon name="list" size="lg" />
           </view>
           <view class="menu-body">
             <text class="menu-title">我的服务单</text>
@@ -75,7 +75,7 @@
       <AppClickable v-if="isChannelRole" class="card menu-card" @click="goProduct">
         <view class="menu-left">
           <view class="menu-icon-wrap">
-            <AppIcon name="bank" size="md" />
+            <AppIcon name="bank" size="lg" />
           </view>
           <view class="menu-body">
             <text class="menu-title">我的产品</text>
@@ -89,7 +89,7 @@
       <AppClickable v-if="isApproverRole" class="card menu-card" @click="goApproval">
         <view class="menu-left">
           <view class="menu-icon-wrap">
-            <AppIcon name="check" size="md" />
+            <AppIcon name="check" size="lg" />
           </view>
           <view class="menu-body">
             <text class="menu-title">审批中心</text>
@@ -110,13 +110,13 @@
         <view class="share-actions" v-if="inviteCode">
           <!-- #ifdef MP-WEIXIN -->
           <AppButton class="share-btn" variant="secondary" size="sm" open-type="share">
-            <AppIcon name="share" size="sm" />
+            <AppIcon name="share" size="sm" color="var(--brand-deep)" />
             <text>分享给好友</text>
           </AppButton>
           <!-- #endif -->
           <!-- #ifdef H5 -->
           <AppButton class="share-btn" variant="secondary" size="sm" @click="onCopyShareLink">
-            <AppIcon name="share" size="sm" />
+            <AppIcon name="share" size="sm" color="var(--brand-deep)" />
             <text>复制分享链接</text>
           </AppButton>
           <!-- #endif -->
@@ -502,7 +502,8 @@ function onLogout() {
 .status-led { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--success); flex-shrink: 0; }
 
 .bind-empty { display: flex; align-items: center; gap: var(--space-3); }
-.advisor-empty-icon { width: 72rpx; height: 72rpx; border-radius: var(--radius-md); background: var(--gold-bg); color: var(--gold-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* 图标自带玻璃底（v5），容器透明，禁止叠浅色方块形成双层底 */
+.advisor-empty-icon { width: 72rpx; height: 72rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .advisor-empty-body { display: flex; flex-direction: column; min-width: 0; }
 .bind-empty-title { font-size: var(--fs-md); font-weight: 600; color: var(--text-primary); }
 .bind-empty-text { margin-top: var(--space-1); font-size: var(--fs-sm); line-height: var(--lh-base); color: var(--text-secondary); }
@@ -510,11 +511,10 @@ function onLogout() {
 .menu-card { display: flex; align-items: center; justify-content: space-between; }
 .menu-left { display: flex; align-items: center; gap: 20rpx; }
 
+/* 图标自带圆形玻璃底（v4），容器不再叠加方角浅底，避免双层底 */
 .menu-icon-wrap {
   width: 72rpx;
   height: 72rpx;
-  border-radius: 18rpx;
-  background: var(--bg-input);
   display: flex;
   align-items: center;
   justify-content: center;

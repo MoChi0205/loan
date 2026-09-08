@@ -244,18 +244,19 @@ async function onSubmit() {
   background:var(--bg-card);
   box-shadow:0 8rpx 24rpx rgba(11,29,58,.12)
 }
+/* 图标自带圆形玻璃底（v4），容器不再叠加方角浅底 */
 .type-icon-wrap{
   width:88rpx;
   height:88rpx;
-  border-radius: var(--radius-md);
-  background:var(--bg-input);
   display:flex;
   align-items:center;
   justify-content:center;
-  margin-bottom:20rpx
+  margin-bottom:20rpx;
+  transition:transform .2s
 }
+/* 选中：磁贴图标无法运行时换色，改用微缩放 + 卡片边框/标签色表达选中态 */
 .type-icon-wrap.icon-active{
-  background:var(--brand-deep)
+  transform:scale(1.08)
 }
 .type-label{
   font-size:29rpx;
