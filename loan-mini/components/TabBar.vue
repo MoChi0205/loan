@@ -5,7 +5,7 @@
       :key="item.key"
       class="tab-item"
       :class="{ 'tab-active': item.key === current }"
-      :style="{ '--tab-color': item.color }"
+      :style="{ '--tab-color': item.color, '--tab-active-color': item.activeColor }"
       role="tab"
       :aria-selected="item.key === current"
       :aria-label="item.label"
@@ -60,33 +60,34 @@ const props = defineProps({
 
 const store = useUserStore();
 
-/** TabBar 语义色（明亮饱和，避免深灰/深海军蓝在白色底上显得发灰） */
+/** TabBar 语义色：全部引用设计令牌（禁止裸色值）。
+ *  选中态统一用 --brand-deep；智能匹配（MATCH）选中时改用 --gold 以作区分（见 item.activeColor）。 */
 const COLOR = {
-  HOME: 'rgba(59,130,246,1)',     // 明亮蓝（首页）
-  MATCH: 'rgba(96,165,250,1)',   // 更亮蓝（匹配/连接）
-  REPORT: 'rgba(245,158,11,1)',  // 亮琥珀金（数据/报告）
-  ORDER: 'rgba(16,185,129,1)',   // 翠绿（服务/进行）
-  MINE: 'rgba(6,182,212,1)',     // 青色（个人中心）
-  PRODUCT: 'rgba(245,158,11,1)', // 亮琥珀金（产品）
-  CLIENT: 'rgba(16,185,129,1)',  // 翠绿（客户/录入）
+  HOME: 'var(--brand-deep)',     // 品牌深蓝（首页）
+  MATCH: 'var(--info)',          // 青蓝（匹配/连接）
+  REPORT: 'var(--gold)',         // 暖金（数据/报告）
+  ORDER: 'var(--success)',       // 翠绿（服务/进行）
+  MINE: 'var(--info)',           // 青色（个人中心）
+  PRODUCT: 'var(--gold)',        // 暖金（产品）
+  CLIENT: 'var(--success)',      // 翠绿（客户/录入）
 };
 
 const tabList = computed(() => {
   if (store.isChannel) {
     return [
-      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME },
-      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: COLOR.PRODUCT },
-      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: COLOR.CLIENT },
-      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE },
+      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: 'var(--brand-deep)' },
+      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: COLOR.PRODUCT, activeColor: 'var(--brand-deep)' },
+      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: COLOR.CLIENT, activeColor: 'var(--brand-deep)' },
+      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: 'var(--brand-deep)' },
     ];
   }
   const isManager = ['deptmgr', 'boss', 'operator', 'super'].includes(store.role);
   return [
-    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME },
-    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH },
-    { key: 'report', label: isManager ? '报告中心' : store.role === 'adviser' ? '客户报告' : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT },
-    { key: 'order', label: isManager ? '工单中心' : store.role === 'adviser' ? '客户工单' : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER },
-    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE },
+    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: 'var(--brand-deep)' },
+    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH, activeColor: 'var(--gold)' },
+    { key: 'report', label: isManager ? '报告中心' : store.role === 'adviser' ? '客户报告' : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT, activeColor: 'var(--brand-deep)' },
+    { key: 'order', label: isManager ? '工单中心' : store.role === 'adviser' ? '客户工单' : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER, activeColor: 'var(--brand-deep)' },
+    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: 'var(--brand-deep)' },
   ];
 });
 
@@ -95,7 +96,7 @@ const tabList = computed(() => {
  * 通过 CSS 自定义属性 --tab-color 传递，样式表中可统一引用。
  */
 function iconColor(item) {
-  if (item.key === props.current) return COLOR.HOME;
+  if (item.key === props.current) return item.activeColor;
   return item.color;
 }
 
@@ -145,7 +146,7 @@ function onTap(item) {
   width: 48rpx;
   height: 6rpx;
   border-radius: 0 0 6rpx 6rpx;
-  background: rgba(59,130,246,1);
+  background: var(--tab-active-color, var(--brand-deep));
 }
 
 /* 图标容器：选中态加柔和背景药丸（电商风格）
@@ -161,7 +162,7 @@ function onTap(item) {
 }
 
 .tab-icon-wrap.icon-active {
-  background: rgba(59, 130, 246, 0.12);
+  background: transparent;
 }
 
 .tab-label {
@@ -178,7 +179,7 @@ function onTap(item) {
 }
 
 .tab-active .tab-label {
-  color: rgba(59,130,246,1);
+  color: var(--tab-active-color, var(--brand-deep));
   font-weight: 600;
 }
 

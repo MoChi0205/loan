@@ -10,7 +10,15 @@
     <!-- 筛选区（C7 四维 · UI v2：下拉选代替 chip 块）
          客户：仅状态 + 时间（无客户姓名/手机号——客户无权检索他人工单）
          企业员工：客户姓名 + 手机号 + 状态 + 时间 -->
-    <view class="filter-card">
+    <view class="filter-card" :class="{ collapsed: !filterOpen }">
+      <view class="filter-bar" role="button" :aria-expanded="filterOpen" @click="filterOpen = !filterOpen">
+        <AppIcon name="search" size="sm" />
+        <text class="filter-bar-title">筛选条件</text>
+        <text v-if="activeFilterCount" class="filter-count">{{ activeFilterCount }}</text>
+        <text class="filter-chevron">{{ filterOpen ? '收起 ▴' : '展开 ▾' }}</text>
+      </view>
+
+      <view v-show="filterOpen" class="filter-body">
       <template v-if="isStaff">
         <input
           class="filter-input"
@@ -57,6 +65,7 @@
         <AppButton variant="primary" size="sm" @click="onSearch">查询</AppButton>
         <AppButton variant="secondary" size="sm" @click="onReset">重置</AppButton>
       </view>
+      </view>
     </view>
 
     <!-- 骨架屏（P1-5 Loading 态） -->
@@ -80,10 +89,9 @@
     <view v-else class="order-list">
       <AppListItem
         v-for="item in orders" :key="item.orderNo"
-        :id="item.orderNo"
         :title="itemTitle(item)"
         tappable
-        :aria-label="`服务单 ${item.orderNo}，状态 ${statusLabel(item.status)}`"
+        :aria-label="`${itemTitle(item)}，状态 ${statusLabel(item.status)}`"
         @click="goDetail(item)"
       >
         <template #leading>
@@ -161,6 +169,18 @@ const filters = reactive({
   clientName: '',
   phone: '',
   dateRange: 'all',
+});
+
+/** UI v3：筛选区默认收起，点「筛选条件」下拉展开，释放列表空间 */
+const filterOpen = ref(false);
+/** 已激活的筛选项数量（用于收起态角标提示） */
+const activeFilterCount = computed(() => {
+  let n = 0;
+  if (isStaff.value && filters.clientName) n += 1;
+  if (isStaff.value && filters.phone) n += 1;
+  if (filters.status !== 'all') n += 1;
+  if (filters.dateRange !== 'all') n += 1;
+  return n;
 });
 
 /** 是否处于筛选态（区分两种空态） */
@@ -311,6 +331,8 @@ function formatTime(t) {
 }
 
 onShow(() => {
+  // 入口级守卫：渠道不可直达工单列表（D50 沙箱），H5 深链重定向回首页
+  if (store.isChannel) { uni.reLaunch({ url: '/pages/home/home' }); return; }
   page.value = 1;
   finished.value = false;
   fetchList(false);
@@ -336,7 +358,7 @@ onPullDownRefresh(async () => {
   box-sizing: border-box;
 }
 
-/* ===== 筛选区（C7） ===== */
+/* ===== 筛选区（C7 · UI v3 收起式） ===== */
 .filter-card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -344,6 +366,39 @@ onPullDownRefresh(async () => {
   margin-bottom: var(--space-3);
   box-shadow: var(--shadow-md);
 }
+/* 收起态：仅保留一行筛选条，padding 收紧 */
+.filter-card.collapsed { padding: var(--space-2) var(--space-4); }
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 72rpx;
+  color: var(--text-primary);
+}
+.filter-bar:active { opacity: 0.75; }
+.filter-bar-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+.filter-count {
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: var(--brand-deep);
+  color: var(--text-invert);
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  text-align: center;
+}
+.filter-chevron {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.filter-body { margin-top: var(--space-2); }
 
 .filter-input {
   width: 100%;

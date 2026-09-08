@@ -9,7 +9,15 @@
     <!-- 筛选区（C3 角色二分 + C11 四维查询）
          客户：仅日期筛选（无搜索框、无归属筛选——客户无权跨用户检索）
          企业员工：手机号/客户姓名 + 公司名/信用代码 + 归属 + 日期 -->
-    <view class="filter-card">
+    <view class="filter-card" :class="{ collapsed: !filterOpen }">
+      <view class="filter-bar" role="button" :aria-expanded="filterOpen" @click="filterOpen = !filterOpen">
+        <AppIcon name="search" size="sm" />
+        <text class="filter-bar-title">筛选条件</text>
+        <text v-if="activeFilterCount" class="filter-count">{{ activeFilterCount }}</text>
+        <text class="filter-chevron">{{ filterOpen ? '收起 ▴' : '展开 ▾' }}</text>
+      </view>
+
+      <view v-show="filterOpen" class="filter-body">
       <!-- 员工专属：关键词检索 -->
       <template v-if="isStaff">
         <input
@@ -47,6 +55,7 @@
         <AppButton variant="primary" size="sm" @click="onSearch">查询</AppButton>
         <AppButton variant="secondary" size="sm" @click="onReset">重置</AppButton>
       </view>
+      </view>
     </view>
 
     <!-- 骨架屏 -->
@@ -75,7 +84,7 @@
         v-for="item in reports" :key="item.reportNo"
         :title="itemTitle(item)"
         tappable
-        :aria-label="`报告 ${item.reportNo}，评级 ${gradeLabel(item.grade)}`"
+        :aria-label="`${itemTitle(item)}，评级 ${gradeLabel(item.grade)}`"
         @click="goDetail(item)"
       >
         <template #leading>
@@ -116,15 +125,14 @@ import { reportList } from '../../api/match';
  *   客户无权跨用户检索他人报告，后端也会忽略这些参数。
  * - 企业员工（C11）：手机号 / 客户姓名 / 公司名称 / 统一社会信用代码 + 归属 + 日期。
  *
- * 列表仅展示报告号、评级、产品数、银行覆盖数等脱敏信息，
+ * 列表仅展示客户名称、报告日期、评级、产品数、银行覆盖数等脱敏信息，
  * 命中产品明细在「报告详情」查看（C4）。
  */
 const PAGE_SIZE = 10;
 
 /** 企业员工（C1/C3/C4）：可查全量报告与命中产品；客户与渠道除外 */
-const STAFF_ROLES = ['adviser', 'deptmgr', 'boss', 'operator', 'super'];
 const store = useUserStore();
-const isStaff = computed(() => STAFF_ROLES.indexOf(store.role) >= 0);
+const isStaff = computed(() => store.isStaff);
 
 /** 归属筛选项（仅员工可见） */
 const ownerOptions = [
@@ -144,8 +152,20 @@ const dateOptions = [
 const filters = reactive({
   query: '',
   credit: '',
-  owner: (STAFF_ROLES.indexOf(store.role) >= 0 && store.role !== 'adviser') ? 'all' : 'all',
+  owner: 'all',
   dateRange: 'all',
+});
+
+/** UI v3：筛选区默认收起，点「筛选条件」下拉展开，释放列表空间 */
+const filterOpen = ref(false);
+/** 已激活的筛选项数量（用于收起态角标提示） */
+const activeFilterCount = computed(() => {
+  let n = 0;
+  if (isStaff.value && filters.query) n += 1;
+  if (isStaff.value && filters.credit) n += 1;
+  if (isStaff.value && filters.owner !== 'all') n += 1;
+  if (filters.dateRange !== 'all') n += 1;
+  return n;
 });
 
 /** 是否处于筛选态（用于区分「从未有报告」与「筛选无结果」两种空态） */
@@ -278,11 +298,14 @@ function tagType(t) {
  * 客户视角只显示中性标题（不暴露他人信息，其本就看的是自己的报告）。
  */
 function itemTitle(item) {
-  if (!isStaff.value) return '综合匹配报告';
-  const name = item.clientName || '';
-  const ent = item.entName || '';
-  if (name && ent) return `${name} · ${ent}`;
-  return name || ent || '综合匹配报告';
+  const name = item.clientName || item.entName || '我的';
+  return `【${name}】【${formatDateTitle(item.createdAt)}】`;
+}
+
+function formatDateTitle(t) {
+  if (!t) return '日期待补充';
+  const date = String(t).slice(0, 10).split('-');
+  return date.length === 3 ? `${date[0]}年${date[1]}月${date[2]}日` : '日期待补充';
 }
 
 function formatTime(t) {
@@ -292,6 +315,8 @@ function formatTime(t) {
 }
 
 onShow(() => {
+  // 入口级守卫：渠道不可直达报告列表（D50 沙箱），H5 深链重定向回首页
+  if (store.isChannel) { uni.reLaunch({ url: '/pages/home/home' }); return; }
   uni.setNavigationBarTitle({ title: isStaff.value ? '报告中心' : '我的报告' });
   page.value = 1;
   finished.value = false;
@@ -318,7 +343,7 @@ onPullDownRefresh(async () => {
   box-sizing: border-box;
 }
 
-/* ===== 筛选区（C3 角色二分 / C11 四维） ===== */
+/* ===== 筛选区（C3 角色二分 / C11 四维 · UI v3 收起式） ===== */
 .filter-card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -326,6 +351,38 @@ onPullDownRefresh(async () => {
   margin-bottom: var(--space-3);
   box-shadow: var(--shadow-md);
 }
+.filter-card.collapsed { padding: var(--space-2) var(--space-4); }
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 72rpx;
+  color: var(--text-primary);
+}
+.filter-bar:active { opacity: 0.75; }
+.filter-bar-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+.filter-count {
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: var(--brand-deep);
+  color: var(--text-invert);
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 32rpx;
+  text-align: center;
+}
+.filter-chevron {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.filter-body { margin-top: var(--space-2); }
 
 .filter-input {
   width: 100%;

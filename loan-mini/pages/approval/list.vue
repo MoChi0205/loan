@@ -27,14 +27,15 @@
         <view class="item-head">
           <text class="item-ent">{{ approvalTitle(it) }}</text>
           <view class="head-tags">
-            <AppTag type="muted" size="sm">{{ it.type }}</AppTag>
+            <AppTag type="muted" size="sm">{{ typeLabel(it.type) }}</AppTag>
             <AppTag type="warning" size="sm">待审批</AppTag>
           </view>
         </view>
         <view class="item-meta">
           <text class="meta-line">申请人：{{ applicantName(it) }}</text>
           <text v-if="it.contactName" class="meta-line">联系人：{{ it.contactName }} {{ it.contactPhone || '' }}</text>
-          <text v-if="it.reportNo" class="meta-line">关联报告：{{ it.reportNo }}</text>
+          <text class="meta-line">审批事项：{{ approvalMatter(it) }}</text>
+          <text v-if="it.approveOpinion" class="meta-line">审批信息：{{ it.approveOpinion }}</text>
           <text v-if="it.purpose" class="meta-line">申请用途：{{ it.purpose }}</text>
           <text class="meta-line">申请时间：{{ formatTime(it.createdAt) }}</text>
         </view>
@@ -55,9 +56,12 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
+import { useUserStore } from '../../store/user';
 import {
   pendingApprovals, auditApproval, approvalCounts, normalizeApprovalItem,
 } from '../../api/approval';
+
+const store = useUserStore();
 
 /** 类型分段 tab 定义（当前四类审批均开放） */
 const segTabs = [
@@ -67,6 +71,17 @@ const segTabs = [
   { value: 'ALLOCATION', label: '分配' },
   { value: 'MATERIAL_REVIEW', label: '材料复核' },
 ];
+
+/** 审批类型中文映射（替代原始枚举直接展示，见 P1-3） */
+const TYPE_LABEL = {
+  PRODUCT: '产品录入',
+  DOWNLOAD: '资料下载',
+  ALLOCATION: '客户归属分配',
+  MATERIAL_REVIEW: '材料复核',
+};
+function typeLabel(t) {
+  return TYPE_LABEL[t] || (t || '其他');
+}
 
 /** 当前选中类型（默认分配，其他审批可按类型查看） */
 const activeType = ref('ALLOCATION');
@@ -139,6 +154,14 @@ function applicantName(item) {
   return item.applicantName || item.applicantStaffName || item.createdBy || '待补充姓名';
 }
 
+function approvalMatter(item) {
+  if (item.type === 'PRODUCT') return item.bankProductName ? `产品录入：${item.bankProductName}` : '产品录入';
+  if (item.type === 'DOWNLOAD') return item.purpose ? `资料下载：${item.purpose}` : '资料下载';
+  if (item.type === 'ALLOCATION') return `客户归属：${item.entName || item.contactName || '客户姓名待补充'}`;
+  if (item.type === 'MATERIAL_REVIEW') return `材料复核：${item.entName || item.contactName || '客户姓名待补充'}`;
+  return '业务审批';
+}
+
 function switchType(v) {
   if (v === activeType.value) return;
   activeType.value = v;
@@ -188,6 +211,8 @@ function onReject(it) {
 }
 
 onLoad(async () => {
+  // 入口级守卫：渠道不可直达审批中心（D50 沙箱），H5 深链重定向回首页
+  if (store.isChannel) { uni.reLaunch({ url: '/pages/home/home' }); return; }
   await loadCounts();
   load('ALLOCATION');
 });

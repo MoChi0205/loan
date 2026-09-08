@@ -7,7 +7,7 @@
       <!-- 状态头卡 -->
       <view class="status-card">
         <text class="status-label" :class="`sl-${tone}`">{{ statusLabel(order.status) }}</text>
-        <text class="status-no">{{ order.orderNo }}</text>
+        <text class="status-no">{{ order.clientName || order.enterpriseName || '我的服务进度' }}</text>
         <text class="status-time">{{ formatTime(order.createdAt) }} 创建</text>
       </view>
 

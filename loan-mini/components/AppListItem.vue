@@ -53,7 +53,7 @@
  *   </AppListItem>
  */
 const props = defineProps({
-  /** 顶部小字（报告号 / 工单号 / 产品编码，等宽字体） */
+  /** 顶部小字（状态、日期或其他可理解的业务摘要） */
   id: { type: String, default: '' },
   /** 主标题（单行省略） */
   title: { type: String, default: '' },

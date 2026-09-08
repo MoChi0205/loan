@@ -800,10 +800,12 @@ onShow(() => {
 
 /* ===== 上传材料（步骤 2） ===== */
 .upload-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr);
+  display: flex; flex-wrap: wrap;
   gap: var(--space-3); margin-bottom: var(--space-2);
 }
 .upload-tile {
+  width: calc(50% - var(--space-3) / 2);
+  box-sizing: border-box;
   background: var(--bg-card); border: 2rpx dashed var(--line);
   border-radius: var(--radius-md); padding: var(--space-4) var(--space-2);
   text-align: center; min-height: 176rpx;

@@ -69,8 +69,8 @@
         </view>
         <view class="nav-grid">
           <AppClickable v-for="entry in navEntries" :key="entry.key" class="nav-cell u-hover" @click="entry.action">
-            <view class="nav-icon-wrap" :class="`nav-ic-${entry.tone}`">
-              <AppIcon :name="entry.icon" size="md" />
+            <view class="nav-icon-wrap">
+              <AppIcon :name="entry.icon" size="lg" />
             </view>
             <text class="nav-name">{{ entry.label }}</text>
           </AppClickable>
@@ -170,10 +170,10 @@ const statCards = computed(() => {
   }
 
   if (store.isStaff) {
-    const isManager = ['deptmgr', 'boss', 'operator', 'super'].includes(store.role);
+    const canApprove = ['adviser', 'deptmgr', 'boss', 'operator', 'super'].includes(store.role);
     cards.push({ key: 'match', label: '匹配任务', value: '—', icon: 'match', tone: 'blue', action: onMatch, extra: '发起匹配' });
     cards.push({ key: 'order', label: '服务工单', value: orderCount.value || 0, icon: 'order', tone: 'gold', action: onOrder, extra: orderCount.value ? '待处理' : '暂无' });
-    if (isManager) {
+    if (canApprove) {
       cards.push({ key: 'approval', label: '待审批', value: approvalTotal.value || 0, icon: 'check', tone: 'red', action: onApproval, extra: approvalTotal.value ? '待处理' : '已清' });
     }
     cards.push({ key: 'report', label: '客户报告', value: '—', icon: 'chart', tone: 'green', action: onReport, extra: '查看' });
@@ -198,14 +198,14 @@ const navEntries = computed(() => {
   }
 
   if (store.isStaff) {
-    const isManager = ['deptmgr', 'boss', 'operator', 'super'].includes(store.role);
+    const canApprove = ['adviser', 'deptmgr', 'boss', 'operator', 'super'].includes(store.role);
     const entries = [
       { key: 'match', label: '智能匹配', icon: 'match', tone: 'blue', desc: '替客匹配', action: onMatch },
       { key: 'report', label: store.role === 'adviser' ? '客户报告' : '报告中心', icon: 'chart', tone: 'gold', desc: '匹配报告', action: onReport },
       { key: 'order', label: store.role === 'adviser' ? '客户工单' : '工单中心', icon: 'order', tone: 'green', desc: '服务跟进', action: onOrder },
       { key: 'client', label: '客户档案', icon: 'users', tone: 'red', desc: '客户管理', action: onClient },
     ];
-    if (isManager) {
+    if (canApprove) {
       entries.push({ key: 'approval', label: '审批中心', icon: 'check', tone: 'red', desc: `${approvalTotal.value || 0} 待审`, action: onApproval });
     }
     entries.push({ key: 'mine', label: '我的', icon: 'mine', tone: 'gray', desc: '账户设置', action: onMine });
@@ -276,7 +276,7 @@ async function loadOrderCount() {
 }
 
 async function loadApprovalCount() {
-  if (!['deptmgr', 'boss', 'operator', 'super'].includes(store.role)) return;
+  if (!['adviser', 'deptmgr', 'boss', 'operator', 'super'].includes(store.role)) return;
   try {
     const c = await approvalCounts();
     const total = (c && typeof c.TOTAL === 'number') ? c.TOTAL : ((c && c.ALLOCATION) || 0);
@@ -571,9 +571,9 @@ function onMine() {
   transform:scale(.97)
 }
 .stat-icon-wrap{
-  width:56rpx;
-  height:56rpx;
-  border-radius:50%;
+  width:64rpx;
+  height:64rpx;
+  border-radius:var(--radius-md);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -592,11 +592,11 @@ function onMine() {
   font-size:23rpx;
   color:var(--text-secondary)
 }
-/* 色调（引用设计令牌，禁止裸色值） */
-.stat-blue .stat-icon-wrap{ background:rgba(37,99,235,.10); color:rgba(37,99,235,1) }
-.stat-gold .stat-icon-wrap{ background:rgba(217,119,6,.12); color:rgba(217,119,6,1) }
-.stat-green .stat-icon-wrap{ background:rgba(16,185,129,.10); color:rgba(5,150,105,1) }
-.stat-red .stat-icon-wrap{ background:rgba(239,68,68,.10); color:rgba(220,38,38,1) }
+/* 色调（v2：图标自带磁贴色，外层仅作圆角容器，不叠底色） */
+.stat-blue .stat-icon-wrap,
+.stat-gold .stat-icon-wrap,
+.stat-green .stat-icon-wrap,
+.stat-red .stat-icon-wrap { background: transparent; }
 .stat-blue::before, .stat-gold::before, .stat-green::before, .stat-red::before{
   content:'';
   position:absolute;
@@ -639,7 +639,7 @@ function onMine() {
 .nav-icon-wrap{
   width:80rpx;
   height:80rpx;
-  border-radius:24rpx;
+  border-radius:var(--radius-md);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -655,12 +655,6 @@ function onMine() {
   flex-shrink:0;
   text-align:center
 }
-/* 宫格图标色调（引用设计令牌） */
-.nav-ic-blue{ background:rgba(37,99,235,.10); color:rgba(37,99,235,1) }
-.nav-ic-gold{ background:rgba(217,119,6,.12); color:rgba(217,119,6,1) }
-.nav-ic-green{ background:rgba(16,185,129,.10); color:rgba(5,150,105,1) }
-.nav-ic-red{ background:rgba(239,68,68,.10); color:rgba(220,38,38,1) }
-.nav-ic-gray{ background:var(--bg-input); color:rgba(100,116,139,1) }
 
 /* ===== 合作产品提示 ===== */
 .partner-tip{

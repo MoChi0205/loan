@@ -82,29 +82,29 @@ export default {
    故统一用 page 定义全局 CSS 变量，双端生效。勿改回 :root。 */
 /* stylelint-disable color-no-hex -- 设计令牌定义源：裸 hex 为规范唯一来源，禁止 lint 拦截 */
 page {
-  /* ===== 品牌色 ===== */
-  --brand-deep: #0B1D3A;
-  --brand-mid: #132D56;
-  --brand-bright: #1A3A6E;
-  --gold: #C8A96E;
-  --gold-bg: #F5E6C4;
+  /* ===== 品牌色（v2 明亮商务版：替换原深蓝/灰蓝，主色改为鲜亮电光蓝） ===== */
+  --brand-deep: #2C5BFF;
+  --brand-mid: #3A5BFF;
+  --brand-bright: #5B7CFF;
+  --gold: #FFB020;
+  --gold-bg: #FFF1D6;
 
   /* ===== 中性色 ===== */
   --bg-page: #F8FAFC;
   --bg-card: #FFFFFF;
   --bg-input: #F1F5F9;
   --line: #E2E8F0;
-  --text-primary: #1E293B;
-  --text-body: #475569;
-  --text-secondary: #64748B;
-  --text-placeholder: #CBD5E1;
+  --text-primary: #1A2336;
+  --text-body: #44506A;
+  --text-secondary: #5B6678;
+  --text-placeholder: #B6C0CE;
   --text-invert: #FFFFFF;
 
-  /* ===== 语义色（仅用于图标/底色，文字请用 -text 变量） ===== */
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --info: #06B6D4;
+  /* ===== 语义色（仅用于图标/底色，文字请用 -text 变量；v2 调亮） ===== */
+  --success: #11A86B;
+  --warning: #F5920C;
+  --danger: #EF4D5E;
+  --info: #0EA8BE;
 
   /* ===== 无障碍文字色（对比度已验证 ≥4.5:1，WCAG AA） ===== */
   --warning-text: #B45309;
@@ -117,6 +117,7 @@ page {
   --success-bg: #ECFDF5;
   --warning-bg: #FFFBEB;
   --warning-line: #FDE68A;
+  --brand-bg: #EAF0FF;
 
   /* ===== 间距（4px 基准 → rpx） ===== */
   --space-1: 8rpx;    --space-2: 16rpx;   --space-3: 24rpx;  --space-4: 32rpx;
@@ -152,14 +153,14 @@ page {
   --transition-base: 200ms ease;
   --transition-slow: 280ms ease;
 
-  /* ===== 角色色板（7 角色，深色底 + 白字，ΔE > 20） ===== */
-  --role-customer: #0B1D3A;
-  --role-channel: #0E7490;
-  --role-adviser: #8A6D3A;
-  --role-deptmgr: #1D4ED8;
-  --role-boss: #6D28D9;
-  --role-operator: #3A2E12;
-  --role-super: #1F2937;
+  /* ===== 角色色板（v2 明亮商务版：原深蓝/灰黑 → 鲜亮区分色，白字 ΔE>20） ===== */
+  --role-customer: #2C5BFF;
+  --role-channel: #0E9CB0;
+  --role-adviser: #C8841A;
+  --role-deptmgr: #4F46E5;
+  --role-boss: #9333EA;
+  --role-operator: #059669;
+  --role-super: #DB2777;
 
   /* ============================================================
      向后兼容别名：旧页面仍在用的令牌名，映射到新体系。

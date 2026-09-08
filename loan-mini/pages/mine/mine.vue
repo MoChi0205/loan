@@ -193,9 +193,9 @@ const isChannelRole = computed(() => role.value === 'channel');
 const isStaffRole = computed(
   () => ['adviser', 'deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
-/** 审批中心可操作角色：D39 纳入部门经理；后端限制其仅审批本团队。 */
+/** 审批中心可操作角色：D39 纳入部门经理；08-矩阵「四类审批均开放」含顾问 adviser。 */
 const isApproverRole = computed(
-  () => ['deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
+  () => ['adviser', 'deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
 
 /** 审批中心待审总数（角标，来自 approvalCounts 的 TOTAL） */
@@ -292,9 +292,13 @@ async function loadOrderTip() {
     const data = await orderList({ page: 1, size: 1 });
     const records = (data && data.records) || [];
     if (records.length && records[0].status) {
-      orderTip.value = `${records[0].orderNo} · ${records[0].status}`;
+      orderTip.value = `${records[0].clientName || records[0].enterpriseName || '服务进度'} · ${statusText(records[0].status)}`;
     }
   } catch (e) { orderTip.value = '暂无服务单'; }
+}
+
+function statusText(status) {
+  return { NEW: '新建', IN_SERVICE: '服务中', DEAL: '已成交', CANCEL: '已取消', REFUND: '已退款' }[status] || '处理中';
 }
 
 async function loadSummary() {

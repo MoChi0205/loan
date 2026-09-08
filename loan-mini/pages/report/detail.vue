@@ -71,8 +71,8 @@
       <view v-else-if="activeTab === 'info'" class="stack">
         <view class="card">
           <view class="info-row">
-            <text class="info-label">报告编号</text>
-            <text class="info-value">{{ report.reportNo }}</text>
+            <text class="info-label">报告名称</text>
+            <text class="info-value">{{ reportTitle }}</text>
           </view>
           <view class="info-row">
             <text class="info-label">生成时间</text>
@@ -87,7 +87,6 @@
         <view class="card" v-if="report.ruleLogs && report.ruleLogs.length">
           <text class="card-title">规则命中说明</text>
           <view class="rule-item" v-for="(log, i) in report.ruleLogs" :key="i">
-            <text class="rule-code">{{ log.ruleCode }}</text>
             <text class="rule-expr">{{ log.expression }}</text>
             <AppTag :type="tagType(log.result)" size="sm">{{ statusLabel(log.result) }}</AppTag>
           </view>
@@ -99,7 +98,7 @@
         </view>
       </view>
 
-      <!-- ===== Tab 3：经营诊断（C5，按报告 ID 关联） ===== -->
+      <!-- ===== Tab 3：经营诊断（内部按报告业务编码关联，客户端不展示编码） ===== -->
       <view v-else class="stack">
         <AppSkeleton v-if="diagLoading" :rows="3" />
 
@@ -107,9 +106,9 @@
           <!-- 诊断头：报告关联 + 材料时效提示（P2-1） -->
           <view class="card diag-header">
             <view class="diag-header-l">
-              <text class="diag-id">DIAG · {{ report.reportNo.slice(-8) }}</text>
+              <text class="diag-id">{{ reportTitle }}</text>
               <text class="diag-time">
-                基于「报告 {{ report.reportNo.slice(-8) }}」上传材料生成 · {{ formatTime(diagnosis.generatedAt) }}
+                基于本报告上传材料生成 · {{ formatTime(diagnosis.generatedAt) }}
               </text>
             </view>
             <AppButton variant="secondary" size="sm" @click="onUploadMaterial">上传最新材料</AppButton>
@@ -229,6 +228,13 @@ const isStaff = computed(() => STAFF_ROLES.indexOf(store.role) >= 0);
 
 const loading = ref(true);
 const report = ref(null);
+const reportTitle = computed(() => {
+  const current = report.value || {};
+  const name = current.clientName || current.entName || current.enterpriseName || '我的';
+  const parts = String(current.createdAt || '').slice(0, 10).split('-');
+  const date = parts.length === 3 ? `${parts[0]}年${parts[1]}月${parts[2]}日` : '日期待补充';
+  return `【${name}】【${date}】`;
+});
 const activeTab = ref('info');
 
 /* 命中产品（C4） */
@@ -524,7 +530,6 @@ function goBack() { uni.navigateBack(); }
   border-bottom: 2rpx solid var(--line);
 }
 .rule-item:last-child { border-bottom: none; }
-.rule-code { font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); flex-shrink: 0; }
 .rule-expr { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
 
 .tip-card {

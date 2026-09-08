@@ -1,15 +1,15 @@
 <template>
   <view class="index-page" :class="{ 'u-shell': store.isTablet }">
-    <!-- 品牌英雄区：全宽深色渐变 + 几何装饰 -->
+    <!-- 品牌英雄区：油画质感渐变 + 玻璃拟态文字卡 + 柔和装饰 -->
     <view class="hero">
-      <view class="hero-decor decor-1" />
-      <view class="hero-decor decor-2" />
+      <view class="hero-blob blob-a" />
+      <view class="hero-blob blob-b" />
+      <view class="hero-blob blob-c" />
       <view class="hero-content">
-        <view class="brand-badge">
-          <text class="badge-text">企融通</text>
+        <view class="hero-glass">
+          <text class="hero-title">企业融资服务平台</text>
+          <text class="hero-sub">多银行产品智能匹配 · 经营数据驱动准入分析</text>
         </view>
-        <text class="hero-title">企业融资服务平台</text>
-        <text class="hero-sub">多银行产品智能匹配 · 经营数据驱动准入分析</text>
       </view>
     </view>
 
@@ -82,7 +82,7 @@ import {
 
 /**
  * 落地页（P0-1/P0-2）：微信登录 + 邀请码绑定。
- * 设计语言：瑞幸风格 —— 深色品牌主调、大圆角阴影卡片、横向时间线、去模板味。
+ * 设计语言：柔和玻璃拟态 —— 油画质感渐变、模糊光斑、圆润玻璃文字卡、通透不刺眼。
  *
  * - onLoad 读取扫码带参 query.inviteCode 自动填充
  * - 已持有有效 token 直接进入 tabBar 首页
@@ -238,28 +238,42 @@ function onStart() {
 .hero{
   position:relative;
   margin:0;
-  padding:120rpx 48rpx 72rpx;
-  background:var(--brand-deep);
-  overflow:hidden
+  padding:140rpx 48rpx 96rpx;
+  overflow:hidden;
+  /* 油画质感：多层径向渐变晕染 + 深→亮蓝线性过渡，降低整体刺眼度 */
+  background:
+    radial-gradient(ellipse 130% 120% at 85% 10%, rgba(255,255,255,.10) 0%, transparent 48%),
+    radial-gradient(ellipse 100% 90% at 15% 100%, rgba(255,176,32,.18) 0%, transparent 42%),
+    radial-gradient(ellipse 80% 80% at 55% 110%, rgba(79,70,229,.18) 0%, transparent 45%),
+    linear-gradient(160deg, #17216B 0%, #2443C2 40%, #2C5BFF 100%);
 }
-.hero-decor{
+.hero-blob{
   position:absolute;
   border-radius:50%;
-  opacity:.08
+  filter:blur(70rpx);
+  pointer-events:none;
+  z-index:0
 }
-.decor-1{
-  width:320rpx;
-  height:320rpx;
-  right:-80rpx;
-  top:-100rpx;
-  background:var(--bg-card)
+.blob-a{
+  width:380rpx;
+  height:380rpx;
+  right:-100rpx;
+  top:-130rpx;
+  background:rgba(255,255,255,.10)
 }
-.decor-2{
-  width:200rpx;
-  height:200rpx;
-  left:-40rpx;
-  bottom:-60rpx;
-  background:var(--gold)
+.blob-b{
+  width:280rpx;
+  height:280rpx;
+  left:-90rpx;
+  bottom:-90rpx;
+  background:rgba(255,176,32,.22)
+}
+.blob-c{
+  width:220rpx;
+  height:220rpx;
+  left:42%;
+  top:46%;
+  background:rgba(14,156,176,.16)
 }
 .hero-content{
   position:relative;
@@ -268,60 +282,64 @@ function onStart() {
   flex-direction:column;
   align-items:center
 }
-.brand-badge{
-  padding:14rpx 36rpx;
-  background:rgba(255,255,255,.12);
-  border:1rpx solid rgba(255,255,255,.18);
-  border-radius:40rpx;
-  margin-bottom:32rpx
-}
-.badge-text{
-  font-size:22rpx;
-  color:rgba(255,255,255,.85);
-  letter-spacing:4rpx;
-  font-weight:500
+.hero-glass{
+  padding:50rpx 56rpx;
+  border-radius:var(--radius-lg);
+  background:rgba(255,255,255,.08);
+  border:1rpx solid rgba(255,255,255,.16);
+  box-shadow:0 16rpx 48rpx rgba(0,0,0,.14), inset 0 1rpx 0 rgba(255,255,255,.10);
+  text-align:center;
+  /* #ifdef H5 */
+  -webkit-backdrop-filter:blur(28rpx);
+  backdrop-filter:blur(28rpx);
+  /* #endif */
 }
 .hero-title{
-  font-size: var(--fs-display);
-  font-weight:800;
+  font-size:var(--fs-display);
+  font-weight:900;
   color:var(--bg-card);
-  letter-spacing:2rpx;
-  line-height:1.3
+  letter-spacing:4rpx;
+  line-height:1.25;
+  text-shadow:0 4rpx 18rpx rgba(0,0,0,.18)
 }
 .hero-sub{
-  margin-top:20rpx;
-  font-size:26rpx;
-  color:rgba(255,255,255,.65);
-  line-height:1.6
+  display:block;
+  margin-top:32rpx;
+  font-size:27rpx;
+  color:rgba(255,255,255,.88);
+  line-height:1.65;
+  letter-spacing:1rpx;
+  font-weight:500
 }
 .main-body{
-  padding:0 40rpx 56rpx;
-  margin-top:32rpx;
+  padding:0 40rpx 72rpx;
+  margin-top:52rpx;
   position:relative;
   z-index:2
 }
 .card{
   background:var(--bg-card);
-  border-radius: var(--radius-md);
-  padding:40rpx 36rpx;
-  margin-bottom:28rpx;
-  box-shadow: var(--shadow-md)
+  border-radius:var(--radius-md);
+  padding:48rpx 40rpx;
+  margin-bottom:36rpx;
+  box-shadow:var(--shadow-md)
 }
 .card-label{
-  font-size:30rpx;
+  font-size:32rpx;
   font-weight:700;
-  color:var(--text-primary)
+  color:var(--text-primary);
+  letter-spacing:1rpx
 }
 .timeline{
   display:flex;
   flex-direction:column;
   gap:0;
-  margin-top:12rpx
+  margin-top:36rpx
 }
 .tl-step{
   display:flex;
   align-items:flex-start;
-  gap:28rpx;
+  gap:32rpx;
   position:relative
 }
 .tl-node{
@@ -329,43 +347,44 @@ function onStart() {
   flex-direction:column;
   align-items:center;
   flex-shrink:0;
-  width:48rpx
+  width:52rpx
 }
 .tl-dot{
-  width:48rpx;
-  height:48rpx;
+  width:52rpx;
+  height:52rpx;
   border-radius:50%;
   display:flex;
   align-items:center;
   justify-content:center;
-  flex-shrink:0
+  flex-shrink:0;
+  box-shadow:0 6rpx 18rpx rgba(0,0,0,.10)
 }
 .dot-1{
-  background:rgba(59,130,246,1)
+  background:var(--brand-bright)
 }
 .dot-2{
-  background:rgba(14,165,233,1)
+  background:var(--info)
 }
 .dot-3{
-  background:rgba(245,158,11,1)
+  background:var(--gold)
 }
 .tl-num{
   color:var(--bg-card);
-  font-size:24rpx;
-  font-weight:700
+  font-size:26rpx;
+  font-weight:800
 }
 .tl-line{
   width:2rpx;
   flex:1;
-  min-height:40rpx;
+  min-height:52rpx;
   background:var(--line);
-  margin:10rpx 0
+  margin:14rpx 0
 }
 .tl-body{
   display:flex;
   flex-direction:column;
-  padding-top:10rpx;
-  padding-bottom:24rpx;
+  padding-top:8rpx;
+  padding-bottom:32rpx;
   border-bottom:1rpx solid var(--line)
 }
 .tl-step:last-child .tl-body{
@@ -376,17 +395,18 @@ function onStart() {
   display:none
 }
 .tl-title{
-  font-size:29rpx;
-  font-weight:600;
-  color:var(--text-primary)
+  font-size:30rpx;
+  font-weight:700;
+  color:var(--text-primary);
+  letter-spacing:1rpx
 }
 .tl-desc{
-  margin-top:8rpx;
-  font-size:24rpx;
+  margin-top:12rpx;
+  font-size:25rpx;
   color:var(--text-secondary);
-  line-height:1.5
+  line-height:1.6
 }
-.cta-btn{ margin-top:16rpx; }
+.cta-btn{ margin-top:28rpx; }
 .cta-icon{
   font-size:36rpx
 }
@@ -483,8 +503,8 @@ to{
   border-bottom:none
 }
 .role-item.active .role-dot{
-  background:rgba(59,130,246,1);
-  box-shadow:0 0 0 6rpx rgba(59,130,246,.22)
+  background:var(--brand-deep);
+  box-shadow:0 0 0 6rpx var(--brand-bg)
 }
 .role-dot{
   width:20rpx;
@@ -510,7 +530,7 @@ to{
   margin-top:4rpx
 }
 .role-check{
-  color:rgba(59,130,246,1);
+  color:var(--brand-deep);
   font-size: var(--fs-title);
   font-weight:700
 }

@@ -8,6 +8,8 @@
   -->
   <view
     class="app-clickable"
+    hover-class="app-clickable--hover"
+    hover-stay-time="80"
     :role="role"
     :tabindex="disabled ? -1 : tabindex"
     :aria-disabled="disabled || undefined"
@@ -46,6 +48,11 @@ function onKeydown(e) {
 <style scoped>
 .app-clickable {
   outline: none;
+  transition: opacity var(--transition-fast);
+}
+/* 按压反馈（P2-1）：触摸按下时轻微透明，提供可点反馈且不破坏既有事件 */
+.app-clickable--hover {
+  opacity: 0.88;
 }
 /* 键盘焦点可见（WCAG 2.4.7）：仅 H5 生效，小程序 wxss 不支持 :focus-visible */
 /* #ifdef H5 */
