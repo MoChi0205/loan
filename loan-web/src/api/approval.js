@@ -46,3 +46,10 @@ export function auditAllocationApproval(approvalNo, data) {
   const action = data && data.approve ? 'approve' : 'reject';
   return request({ url: `/api/admin/approval/allocation/${approvalNo}/${action}`, method: 'post', data });
 }
+
+export function pageContentApprovals(type, params = {}) {
+  return request({ url: '/api/admin/approval/unified/pending', method: 'get', params: { ...params, type } });
+}
+export function auditContentApproval(type, approvalNo, data) {
+  return request({ url: `/api/admin/approval/unified/${type}/${approvalNo}/audit`, method: 'post', data });
+}

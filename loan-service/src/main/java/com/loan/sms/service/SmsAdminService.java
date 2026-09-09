@@ -10,6 +10,9 @@ import com.loan.sms.entity.SmsRecord;
 import com.loan.sms.entity.SmsTemplate;
 import com.loan.sms.mapper.SmsRecordMapper;
 import com.loan.sms.mapper.SmsTemplateMapper;
+import com.loan.approval.mapper.ContentApprovalMapper;
+import com.loan.approval.entity.ContentApproval;
+import com.loan.common.util.BizIdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,6 +55,7 @@ public class SmsAdminService {
 
     private final SmsTemplateMapper smsTemplateMapper;
     private final SmsRecordMapper smsRecordMapper;
+    private final ContentApprovalMapper contentApprovalMapper;
 
     // ============================================================
     // 模板管理
@@ -131,6 +135,10 @@ public class SmsAdminService {
             if (!canActivate) exist.setEnabled(0);
             exist.setUpdatedBy(operator);
             smsTemplateMapper.updateById(exist);
+        }
+        if (!canActivate) {
+            Long pending = contentApprovalMapper.selectCount(new LambdaQueryWrapper<ContentApproval>().eq(ContentApproval::getApprovalType,"SMS_TEMPLATE").eq(ContentApproval::getTargetCode,req.getTemplateCode()).eq(ContentApproval::getStatus,"PENDING"));
+            if (pending == 0) { ContentApproval a=new ContentApproval(); a.setApprovalNo(BizIdGenerator.generate("cntapr")); a.setApprovalType("SMS_TEMPLATE"); a.setTargetCode(req.getTemplateCode()); a.setApplicantStaffCode(operator); a.setStatus("PENDING"); a.setCreatedAt(LocalDateTime.now()); a.setUpdatedAt(LocalDateTime.now()); contentApprovalMapper.insert(a); }
         }
     }
 

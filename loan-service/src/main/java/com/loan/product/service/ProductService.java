@@ -40,6 +40,12 @@ public class ProductService {
     public String create(ProductSaveReq req, String operator) {
         validate(req);
         if (bankProductMapper.selectCount(new LambdaQueryWrapper<BankProduct>()
+                .eq(BankProduct::getProductName, req.getProductName())
+                .eq(BankProduct::getCustomerGroup, req.getCustomerGroup())
+                .eq(BankProduct::getBankChannelCode, resolveChannel(req.getBankName()))) > 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "同银行、同产品名和客群的产品已存在");
+        }
+        if (bankProductMapper.selectCount(new LambdaQueryWrapper<BankProduct>()
                 .eq(BankProduct::getProductCode, req.getProductCode())) > 0) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "产品编码已存在");
         }

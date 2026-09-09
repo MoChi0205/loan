@@ -7,6 +7,9 @@ import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
 import com.loan.report.entity.ReportTemplate;
 import com.loan.report.mapper.ReportTemplateMapper;
+import com.loan.approval.mapper.ContentApprovalMapper;
+import com.loan.approval.entity.ContentApproval;
+import com.loan.common.util.BizIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +31,7 @@ import java.util.stream.Collectors;
 public class ReportTemplateService {
 
     private final ReportTemplateMapper templateMapper;
+    private final ContentApprovalMapper contentApprovalMapper;
 
     /**
      * 模板分页。
@@ -84,6 +88,10 @@ public class ReportTemplateService {
             if (!canActivate) exist.setStatus("PENDING_APPROVAL");
             exist.setUpdatedBy(operator);
             templateMapper.updateById(exist);
+        }
+        if (!canActivate) {
+            Long pending=contentApprovalMapper.selectCount(new LambdaQueryWrapper<ContentApproval>().eq(ContentApproval::getApprovalType,"REPORT_TEMPLATE").eq(ContentApproval::getTargetCode,req.getTemplateCode()).eq(ContentApproval::getTargetVersion,req.getVersionNo()).eq(ContentApproval::getStatus,"PENDING"));
+            if(pending==0){ ContentApproval a=new ContentApproval(); a.setApprovalNo(BizIdGenerator.generate("cntapr")); a.setApprovalType("REPORT_TEMPLATE"); a.setTargetCode(req.getTemplateCode()); a.setTargetVersion(req.getVersionNo()); a.setApplicantStaffCode(operator); a.setStatus("PENDING"); a.setCreatedAt(LocalDateTime.now()); a.setUpdatedAt(LocalDateTime.now()); contentApprovalMapper.insert(a); }
         }
     }
 

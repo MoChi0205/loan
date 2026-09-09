@@ -12,7 +12,21 @@
       <el-tab-pane label="附件下载审批" name="download" />
       <el-tab-pane v-if="canAuditAllocation" label="客户分配审批" name="allocation" />
       <el-tab-pane v-if="canAuditChannelContent" label="渠道线索审批" name="channelLead" />
+      <el-tab-pane v-if="canAuditChannelContent" label="短信模板审批" name="smsTemplate" />
+      <el-tab-pane v-if="canAuditChannelContent" label="报告模板审批" name="reportTemplate" />
     </el-tabs>
+
+    <div v-for="kind in ['smsTemplate','reportTemplate']" :key="kind" v-show="activeTab === kind" class="loan-card">
+      <el-table :data="contentRows[kind]" v-loading="contentLoading[kind]" stripe row-key="approvalNo">
+        <template #empty><AppEmpty title="暂无待审批模板" desc="运营提交后将在此等待审批" /></template>
+        <el-table-column label="审批事项" min-width="180"><template #default>模板发布审批</template></el-table-column>
+        <el-table-column label="模板名称" prop="templateName" min-width="180" />
+        <el-table-column label="版本" prop="versionNo" width="90" />
+        <el-table-column label="提交人" prop="applicantName" width="140" />
+        <el-table-column label="提交时间" prop="createdAt" width="180" />
+        <el-table-column label="操作" width="100"><template #default="{row}"><el-button v-permission="ACTION_PERMISSION.CHANNEL_CONTENT_AUDIT" type="success" link @click="openAudit(kind === 'smsTemplate' ? 'SMS_TEMPLATE' : 'REPORT_TEMPLATE', row)">审批</el-button></template></el-table-column>
+      </el-table>
+    </div>
 
     <!-- ============ 产品审核 ============ -->
     <div v-if="canAuditChannelContent" v-show="activeTab === 'product'" class="loan-card">
@@ -246,6 +260,7 @@ import {
   pageDownloadApprovals, auditDownloadApproval, voidDownloadApproval, applyDownload,
   pageAllocationApprovals, auditAllocationApproval,
   pageChannelLeadApprovals, auditChannelLeadApproval,
+  pageContentApprovals, auditContentApproval,
 } from '@/api/approval';
 import { pageAttachments } from '@/api/attachment';
 
@@ -255,7 +270,14 @@ const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.AL
 const canAuditChannelContent = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
 
 const activeTab = ref(canAuditChannelContent.value ? 'product' : 'download');
-const loadedTabs = reactive({ product: false, download: false, allocation: false, channelLead: false });
+const loadedTabs = reactive({ product: false, download: false, allocation: false, channelLead: false, smsTemplate: false, reportTemplate: false });
+const contentRows = reactive({ smsTemplate: [], reportTemplate: [] });
+const contentLoading = reactive({ smsTemplate: false, reportTemplate: false });
+async function loadContent(kind) {
+  contentLoading[kind] = true;
+  try { const type = kind === 'smsTemplate' ? 'SMS_TEMPLATE' : 'REPORT_TEMPLATE'; const res = await pageContentApprovals(type, { page: 1, size: 100 }); contentRows[kind] = res?.records || res?.data?.records || []; }
+  finally { contentLoading[kind] = false; }
+}
 const statusText = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' };
 const statusTag = (s) => ({ PENDING: 'loan-tag-warning', APPROVED: 'loan-tag-success', REJECTED: 'loan-tag-danger' }[s] || 'loan-tag-muted');
 function attachmentCount(value) {
@@ -365,6 +387,10 @@ async function onAudit() {
       await auditChannelLeadApproval(auditForm.approvalNo, payload);
       ElMessage.success(auditForm.approve ? '已通过，线索进入公海' : '已驳回');
       loadCL();
+    } else if (auditForm.kind === 'SMS_TEMPLATE' || auditForm.kind === 'REPORT_TEMPLATE') {
+      await auditContentApproval(auditForm.kind, auditForm.approvalNo, payload);
+      ElMessage.success(auditForm.approve ? '模板已启用/发布' : '已驳回并保留意见');
+      await loadContent(auditForm.kind === 'SMS_TEMPLATE' ? 'smsTemplate' : 'reportTemplate');
     } else {
       await auditDownloadApproval(auditForm.approvalNo, payload);
       ElMessage.success(auditForm.approve ? '已通过，24h 限时链接已生成' : '已驳回');
@@ -466,7 +492,8 @@ watch(activeTab, async (tab) => {
     if (tab === 'product') await loadP();
     else if (tab === 'download') await loadD();
     else if (tab === 'allocation') await loadA();
-    else await loadCL();
+    else if (tab === 'channelLead') await loadCL();
+    else await loadContent(tab);
   } catch {
     loadedTabs[tab] = false;
   }

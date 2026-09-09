@@ -1,0 +1,1 @@
+package com.loan.importing.mapper; import com.baomidou.mybatisplus.core.mapper.BaseMapper; import com.loan.importing.entity.BatchImportTask; import org.apache.ibatis.annotations.Mapper; @Mapper public interface BatchImportTaskMapper extends BaseMapper<BatchImportTask>{}

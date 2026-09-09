@@ -41,6 +41,14 @@ public class ExcelTemplateService {
             if (header == null || header.getLastCellNum() <= 0) {
                 throw new IllegalArgumentException("首行必须为模板表头");
             }
+            java.util.Set<String> actual = new java.util.HashSet<>();
+            for (int c = 0; c < header.getLastCellNum(); c++) {
+                if (header.getCell(c) != null) actual.add(header.getCell(c).getStringCellValue().trim());
+            }
+            String[] required = "PRODUCT".equalsIgnoreCase(type)
+                    ? new String[]{"产品名称*", "银行名称*", "客群*"}
+                    : new String[]{"客群*", "联系人*", "手机号*"};
+            for (String key : required) if (!actual.contains(key)) throw new IllegalArgumentException("缺少模板列：" + key);
             int count = 0;
             for (int i = 1; i <= sheet.getLastRowNum() && count < MAX_ROWS; i++) {
                 Row row = sheet.getRow(i);

@@ -27,7 +27,9 @@ import com.loan.staff.mapper.StaffMapper;
 import com.loan.utils.DesensitizeUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -40,6 +42,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.Duration;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -54,6 +58,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ClientAllocationService {
+    private final StringRedisTemplate redisTemplate;
+    @Value("${loan.client.claim.max-holding:100}")
+    private int maxHolding;
+    @Value("${loan.client.claim.daily-limit:30}")
+    private int dailyLimit;
     private static final int MAX_BATCH_SIZE = 500;
 
     /** 分配审批状态。 */
@@ -185,6 +194,7 @@ public class ClientAllocationService {
                     throw new BusinessException(ResultCode.FORBIDDEN, "该客户属于其他团队公海，不可直接认领");
                 }
             }
+            enforceClaimQuota(targetStaffCode);
             // 公海认领即时生效，不进入审批；乐观更新避免多人并发认领覆盖。
             return directAssign(clientCode, targetStaffCode, operator);
         }
@@ -226,6 +236,21 @@ public class ClientAllocationService {
         record(clientCode, client.getOwnerStaffCode(), targetStaffCode, "TRANSFER_APPLY",
                 operator == null ? "system" : operator.getName(), "已有归属客户转移申请，等待审批");
         return applyResult(approval, target.getStaffName(), false);
+    }
+
+    /** 认领配额：持有上限由数据库实时统计，每日上限由 Redis 原子计数控制。 */
+    private void enforceClaimQuota(String staffCode) {
+        if (!StringUtils.hasText(staffCode)) return;
+        long holding = clientProfileMapper.selectCount(new LambdaQueryWrapper<ClientProfile>()
+                .eq(ClientProfile::getOwnerStaffCode, staffCode));
+        if (holding >= maxHolding) throw new BusinessException(ResultCode.PARAM_ERROR, "已达到客户持有上限");
+        String key = "loan:client:claim:daily:" + staffCode + ":" + java.time.LocalDate.now();
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1L) redisTemplate.expire(key, Duration.ofDays(2));
+        if (count != null && count > dailyLimit) {
+            redisTemplate.opsForValue().decrement(key);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "已达到今日认领上限");
+        }
     }
 
     /**
@@ -299,7 +324,17 @@ public class ClientAllocationService {
     public Map<String, Object> batchClaim(List<String> clientCodes, LoanUser operator) {
         List<String> codes = normalizeBatch(clientCodes);
         String target = operator == null ? null : operator.getUserNo();
-        for (String code : codes) applyTransfer(code, target, operator);
+        String token = UUID.randomUUID().toString();
+        String key = "loan:client:claim:batch:" + String.join(",", codes).hashCode();
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(key, token, Duration.ofSeconds(15));
+        if (!Boolean.TRUE.equals(locked)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "客户正在被其他人员认领，请稍后重试");
+        }
+        try {
+            for (String code : codes) applyTransfer(code, target, operator);
+        } finally {
+            if (token.equals(redisTemplate.opsForValue().get(key))) redisTemplate.delete(key);
+        }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("successCount", codes.size());
         return result;

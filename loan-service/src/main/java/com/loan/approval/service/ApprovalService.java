@@ -9,6 +9,14 @@ import com.loan.approval.entity.ProductApproval;
 import com.loan.approval.mapper.AttachmentDownloadApprovalMapper;
 import com.loan.approval.mapper.MaterialReviewMapper;
 import com.loan.approval.mapper.ProductApprovalMapper;
+import com.loan.approval.mapper.ContentApprovalMapper;
+import com.loan.approval.entity.ContentApproval;
+import com.loan.sms.mapper.SmsTemplateMapper;
+import com.loan.report.mapper.ReportTemplateMapper;
+import com.loan.sms.entity.SmsTemplate;
+import com.loan.report.entity.ReportTemplate;
+import com.loan.notification.service.NotificationService;
+import com.loan.notification.dto.NotificationReq;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.common.util.PageOrder;
@@ -82,6 +90,8 @@ public class ApprovalService {
     public static final String TYPE_ALLOCATION = "ALLOCATION";
     /** 审批类型：材料复核（上传材料经大模型识别后，我司审批通过才回灌客数据）。 */
     public static final String TYPE_MATERIAL_REVIEW = "MATERIAL_REVIEW";
+    public static final String TYPE_SMS_TEMPLATE = "SMS_TEMPLATE";
+    public static final String TYPE_REPORT_TEMPLATE = "REPORT_TEMPLATE";
     /** 统一审批「全部类型」入参值。 */
     public static final String TYPE_ALL = "ALL";
 
@@ -96,7 +106,7 @@ public class ApprovalService {
 
     /** 统一审批支持的全部类型（顺序对外稳定：产品 → 下载 → 分配 → 材料复核）。 */
     private static final List<String> ALL_TYPES =
-            Collections.unmodifiableList(Arrays.asList(TYPE_PRODUCT, TYPE_DOWNLOAD, TYPE_ALLOCATION, TYPE_MATERIAL_REVIEW));
+            Collections.unmodifiableList(Arrays.asList(TYPE_PRODUCT, TYPE_DOWNLOAD, TYPE_ALLOCATION, TYPE_MATERIAL_REVIEW, TYPE_SMS_TEMPLATE, TYPE_REPORT_TEMPLATE));
 
     private final ProductApprovalMapper productApprovalMapper;
     private final AttachmentDownloadApprovalMapper downloadApprovalMapper;
@@ -107,6 +117,10 @@ public class ApprovalService {
     private final StaffMapper staffMapper;
     private final BusinessNameService businessNameService;
     private final PartnerProductService partnerProductService;
+    private final ContentApprovalMapper contentApprovalMapper;
+    private final SmsTemplateMapper smsTemplateMapper;
+    private final ReportTemplateMapper reportTemplateMapper;
+    private final NotificationService notificationService;
 
     /**
      * 已开放的审批类型白名单（配置 {@code loan.mini.approval.types}，逗号分隔）。
@@ -656,6 +670,10 @@ public class ApprovalService {
             materialReviewAudit(approvalNo, approve, opinion, operator);
             return;
         }
+        if (TYPE_SMS_TEMPLATE.equals(t) || TYPE_REPORT_TEMPLATE.equals(t)) {
+            contentAudit(t, approvalNo, approve, opinion, operator);
+            return;
+        }
         downloadAudit(approvalNo, approve, opinion, operator);
     }
 
@@ -703,7 +721,40 @@ public class ApprovalService {
         if (TYPE_MATERIAL_REVIEW.equals(type)) {
             return materialReviewPage(MaterialReviewService.STATUS_PENDING, null, page, size);
         }
+        if (TYPE_SMS_TEMPLATE.equals(type) || TYPE_REPORT_TEMPLATE.equals(type)) {
+            Page<ContentApproval> p = contentApprovalMapper.selectPage(new Page<>(page, size), new LambdaQueryWrapper<ContentApproval>()
+                    .eq(ContentApproval::getApprovalType, type).eq(ContentApproval::getStatus, STATUS_PENDING)
+                    .orderByDesc(ContentApproval::getCreatedAt));
+            List<String> codes = p.getRecords().stream().map(ContentApproval::getTargetCode).collect(Collectors.toList());
+            Map<String,String> names = TYPE_SMS_TEMPLATE.equals(type)
+                    ? smsTemplateMapper.selectList(new LambdaQueryWrapper<SmsTemplate>().in(SmsTemplate::getTemplateCode, codes)).stream().collect(Collectors.toMap(SmsTemplate::getTemplateCode,SmsTemplate::getTemplateName,(a,b)->a))
+                    : reportTemplateMapper.selectList(new LambdaQueryWrapper<ReportTemplate>().in(ReportTemplate::getTemplateCode, codes)).stream().collect(Collectors.toMap(ReportTemplate::getTemplateCode,ReportTemplate::getTemplateName,(a,b)->a));
+            Map<String,String> staff = businessNameService.staffNames(p.getRecords().stream().map(ContentApproval::getApplicantStaffCode).collect(Collectors.toSet()));
+            List<Map<String,Object>> rows = p.getRecords().stream().map(a->{ Map<String,Object> m=new LinkedHashMap<>(); m.put("approvalNo",a.getApprovalNo()); m.put("templateCode",a.getTargetCode()); m.put("templateName",names.get(a.getTargetCode())); m.put("versionNo",a.getTargetVersion()); m.put("applicantName",staff.get(a.getApplicantStaffCode())); m.put("opinion",a.getOpinion()); m.put("createdAt",a.getCreatedAt()); return m; }).collect(Collectors.toList());
+            return PageResult.build(page,size,p.getTotal(),rows);
+        }
         return allocationPage(page, size);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    private void contentAudit(String type, String no, boolean approve, String opinion, String operator) {
+        if (!approve && !StringUtils.hasText(opinion)) throw new BusinessException(ResultCode.PARAM_ERROR, "驳回意见必填");
+        ContentApproval a = contentApprovalMapper.selectOne(new LambdaQueryWrapper<ContentApproval>().eq(ContentApproval::getApprovalNo,no));
+        if (a == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "审批单不存在");
+        String status = approve ? "APPROVED" : "REJECTED"; LocalDateTime now=LocalDateTime.now();
+        int n=contentApprovalMapper.update(null,new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<ContentApproval>().eq(ContentApproval::getApprovalNo,no).eq(ContentApproval::getStatus,STATUS_PENDING).set(ContentApproval::getStatus,status).set(ContentApproval::getOpinion,opinion).set(ContentApproval::getApproverStaffCode,operator).set(ContentApproval::getApprovedAt,now).set(ContentApproval::getUpdatedAt,now));
+        if(n==0) throw new BusinessException(ResultCode.PARAM_ERROR,"审批单已处理");
+        if (TYPE_SMS_TEMPLATE.equals(type)) smsTemplateMapper.update(null,new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<SmsTemplate>().eq(SmsTemplate::getTemplateCode,a.getTargetCode()).set(SmsTemplate::getEnabled,approve?1:0));
+        else reportTemplateMapper.update(null,new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<ReportTemplate>().eq(ReportTemplate::getTemplateCode,a.getTargetCode()).eq(ReportTemplate::getVersionNo,a.getTargetVersion()).set(ReportTemplate::getStatus,approve?"ACTIVE":"PENDING_APPROVAL").set(ReportTemplate::getPublishedAt,approve?now:null).set(ReportTemplate::getPublishedBy,approve?operator:null));
+        if (StringUtils.hasText(a.getApplicantStaffCode())) {
+            NotificationReq req = new NotificationReq();
+            req.setUserNo(a.getApplicantStaffCode());
+            req.setType("CONTENT_APPROVAL");
+            req.setTitle(approve ? "运营模板审批通过" : "运营模板审批驳回");
+            req.setContent((TYPE_SMS_TEMPLATE.equals(type) ? "短信模板" : "报告模板") + "「" + a.getTargetCode() + "」" + (approve ? "已通过审批并生效" : "未通过审批：" + (opinion == null ? "" : opinion)));
+            req.setRelatedId(a.getApprovalNo());
+            if (!notificationService.exists(a.getApplicantStaffCode(), "CONTENT_APPROVAL", a.getApprovalNo())) notificationService.send(req);
+        }
     }
 
     /** 解析请求类型：空 / ALL → 全部类型；否则单类型（校验合法性）。 */

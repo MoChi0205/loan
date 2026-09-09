@@ -2,7 +2,7 @@
   <view class="approval-page">
     <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有审批权限，请联系管理员" />
     <template v-else>
-    <!-- 类型分段 tab（审批中心统一：ALL / PRODUCT / DOWNLOAD / ALLOCATION / MATERIAL_REVIEW） -->
+    <!-- 类型分段 tab（审批中心统一） -->
     <view class="seg-tabs">
       <AppClickable v-for="t in segTabs" :key="t.value" class="seg-tab" :class="{ active: activeType === t.value }" @click="switchType(t.value)">
         <text class="seg-label">{{ t.label }}</text>
@@ -73,10 +73,13 @@ const allSegTabs = [
   { value: 'DOWNLOAD', label: '资料下载' },
   { value: 'ALLOCATION', label: '分配' },
   { value: 'MATERIAL_REVIEW', label: '材料复核' },
+  { value: 'SMS_TEMPLATE', label: '短信模板' },
+  { value: 'REPORT_TEMPLATE', label: '报告模板' },
 ];
 const segTabs = computed(() => allSegTabs.filter((tab) => {
   if (tab.value === 'ALL') return true;
-  if (tab.value === 'PRODUCT') return ['deptmgr', 'boss', 'super'].includes(store.role);
+  if (tab.value === 'PRODUCT') return store.hasPermission('mini:approval:product');
+  if (['SMS_TEMPLATE','REPORT_TEMPLATE'].includes(tab.value)) return store.hasPermission(`mini:approval:${tab.value === 'SMS_TEMPLATE' ? 'sms-template' : 'report-template'}`);
   return store.hasPermission('mini:approval:audit');
 }));
 
@@ -86,6 +89,8 @@ const TYPE_LABEL = {
   DOWNLOAD: '资料下载',
   ALLOCATION: '客户归属分配',
   MATERIAL_REVIEW: '材料复核',
+  SMS_TEMPLATE: '短信模板',
+  REPORT_TEMPLATE: '报告模板',
 };
 function typeLabel(t) {
   return TYPE_LABEL[t] || (t || '其他');
