@@ -726,9 +726,10 @@ public class ApprovalService {
                     .eq(ContentApproval::getApprovalType, type).eq(ContentApproval::getStatus, STATUS_PENDING)
                     .orderByDesc(ContentApproval::getCreatedAt));
             List<String> codes = p.getRecords().stream().map(ContentApproval::getTargetCode).collect(Collectors.toList());
-            Map<String,String> names = TYPE_SMS_TEMPLATE.equals(type)
-                    ? smsTemplateMapper.selectList(new LambdaQueryWrapper<SmsTemplate>().in(SmsTemplate::getTemplateCode, codes)).stream().collect(Collectors.toMap(SmsTemplate::getTemplateCode,SmsTemplate::getTemplateName,(a,b)->a))
-                    : reportTemplateMapper.selectList(new LambdaQueryWrapper<ReportTemplate>().in(ReportTemplate::getTemplateCode, codes)).stream().collect(Collectors.toMap(ReportTemplate::getTemplateCode,ReportTemplate::getTemplateName,(a,b)->a));
+            Map<String,String> names = codes.isEmpty() ? Collections.emptyMap()
+                    : TYPE_SMS_TEMPLATE.equals(type)
+                        ? smsTemplateMapper.selectList(new LambdaQueryWrapper<SmsTemplate>().in(SmsTemplate::getTemplateCode, codes)).stream().collect(Collectors.toMap(SmsTemplate::getTemplateCode,SmsTemplate::getTemplateName,(a,b)->a))
+                        : reportTemplateMapper.selectList(new LambdaQueryWrapper<ReportTemplate>().in(ReportTemplate::getTemplateCode, codes)).stream().collect(Collectors.toMap(ReportTemplate::getTemplateCode,ReportTemplate::getTemplateName,(a,b)->a));
             Map<String,String> staff = businessNameService.staffNames(p.getRecords().stream().map(ContentApproval::getApplicantStaffCode).collect(Collectors.toSet()));
             List<Map<String,Object>> rows = p.getRecords().stream().map(a->{ Map<String,Object> m=new LinkedHashMap<>(); m.put("approvalNo",a.getApprovalNo()); m.put("templateCode",a.getTargetCode()); m.put("templateName",names.get(a.getTargetCode())); m.put("versionNo",a.getTargetVersion()); m.put("applicantName",staff.get(a.getApplicantStaffCode())); m.put("opinion",a.getOpinion()); m.put("createdAt",a.getCreatedAt()); return m; }).collect(Collectors.toList());
             return PageResult.build(page,size,p.getTotal(),rows);
