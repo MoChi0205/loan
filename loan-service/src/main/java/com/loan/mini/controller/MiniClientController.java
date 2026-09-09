@@ -96,6 +96,13 @@ public class MiniClientController {
         return Result.ok(miniClientService.claimStatus(clientCode, user));
     }
 
+    /** 顾问释放本人客户回公海（无需审批）。 */
+    @PostMapping("/{clientCode}/release")
+    public Result<Map<String, Object>> release(@PathVariable String clientCode, @CurrentUser LoanUser user) {
+        requireStaff(user);
+        return Result.ok(miniClientService.release(clientCode, user));
+    }
+
     /* ==================== B3：无归宿分配审批（运营/超管） ==================== */
 
     /**

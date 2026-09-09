@@ -81,7 +81,9 @@ public class ApprovalController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
-            @RequestParam(required = false) String orderDir) {
+            @RequestParam(required = false) String orderDir,
+            @CurrentUser LoanUser user) {
+        requireApprovalRole("PRODUCT", user);
         return Result.ok(approvalService.productPage(status, keyword,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
@@ -90,7 +92,9 @@ public class ApprovalController {
      * 产品审核详情。
      */
     @GetMapping("/product/{approvalNo}")
-    public Result<Map<String, Object>> productDetail(@PathVariable String approvalNo) {
+    public Result<Map<String, Object>> productDetail(@PathVariable String approvalNo,
+                                                     @CurrentUser LoanUser user) {
+        requireApprovalRole("PRODUCT", user);
         return Result.ok(approvalService.productDetail(approvalNo));
     }
 
@@ -146,9 +150,12 @@ public class ApprovalController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
-            @RequestParam(required = false) String orderDir) {
+            @RequestParam(required = false) String orderDir,
+            @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        String applicantScope = miniRoleGuard.isApprovalRole(user) ? null : user.getUserNo();
         return Result.ok(approvalService.downloadPage(status, keyword,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, applicantScope));
     }
 
     /**
@@ -193,7 +200,7 @@ public class ApprovalController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
-        // D0-4：分配审批仅 OPERATOR / SUPER_ADMIN / SUPER / BOSS 可见可审（不含 DEPT_MANAGER）
+        // D39：部门经理可审本人团队分配，其余管理角色按既有范围审批。
         miniRoleGuard.requireApprover(user);
         return Result.ok(miniClientService.pendingAllocations(
                 PageParams.page(page), PageParams.size(size)));
@@ -251,8 +258,11 @@ public class ApprovalController {
     public Result<Map<String, Object>> unifiedPending(
             @RequestParam(defaultValue = "ALL") String type,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(approvalService.unifiedPending(type, page, size));
+            @RequestParam(defaultValue = "10") int size,
+            @CurrentUser LoanUser user) {
+        requireApprovalRole("DOWNLOAD", user);
+        return Result.ok(approvalService.unifiedPending(type, page, size,
+                miniRoleGuard.isChannelFinalApprover(user)));
     }
 
     /**
@@ -261,8 +271,9 @@ public class ApprovalController {
      * @return { PRODUCT, DOWNLOAD, ALLOCATION, TOTAL }
      */
     @GetMapping("/unified/counts")
-    public Result<Map<String, Object>> unifiedCounts() {
-        return Result.ok(approvalService.pendingCounts());
+    public Result<Map<String, Object>> unifiedCounts(@CurrentUser LoanUser user) {
+        requireApprovalRole("DOWNLOAD", user);
+        return Result.ok(approvalService.pendingCounts(miniRoleGuard.isChannelFinalApprover(user)));
     }
 
     /**
@@ -279,7 +290,7 @@ public class ApprovalController {
     public Result<Void> unifiedAudit(@PathVariable String type, @PathVariable String approvalNo,
                                     @RequestBody(required = false) Map<String, Object> body,
                                     @CurrentUser LoanUser user) {
-        // D0-4：ALLOCATION 类型按审批分配管理员校验（不含 DEPT_MANAGER）；其余类型含部门经理
+        // D39/D60：ALLOCATION 含部门经理但限本人团队；PRODUCT 仅渠道内容终审角色。
         miniRoleGuard.requireApproverFor(type, user);
         boolean approve = body == null || body.get("approve") == null
                 || Boolean.parseBoolean(String.valueOf(body.get("approve")));

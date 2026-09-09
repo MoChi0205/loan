@@ -179,6 +179,7 @@ function request({ url, method = 'GET', data = {}, header = {}, showError = true
 
         const err = new Error(friendlyMsg);
         err.code = code;
+        err.permissionDenied = statusCode === 403 || code === 403 || code === 4030;
         err.traceUuid = bodyObj.traceUuid;
         if (showError && code !== 2000) {
           // 系统异常：仅在 dev 环境 console 详细日志，UI 提示用友好文案

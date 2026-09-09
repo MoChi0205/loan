@@ -183,7 +183,7 @@ const statCards = computed(() => {
   }
 
   if (store.isStaff) {
-    const canApprove = ['adviser', 'deptmgr', 'boss', 'operator', 'super'].includes(store.role);
+    const canApprove = store.hasPermission('mini:approval:view');
     cards.push({ key: 'match', label: '匹配任务', value: '—', icon: 'match', action: onMatch, extra: '发起匹配' });
     cards.push({ key: 'order', label: '服务工单', value: orderCount.value || 0, icon: 'order', action: onOrder, extra: orderCount.value ? '待处理' : '暂无' });
     if (canApprove) {
@@ -211,7 +211,7 @@ const navEntries = computed(() => {
   }
 
   if (store.isStaff) {
-    const canApprove = ['adviser', 'deptmgr', 'boss', 'operator', 'super'].includes(store.role);
+    const canApprove = store.hasPermission('mini:approval:view');
     const entries = [
       { key: 'match', label: '智能匹配', icon: 'match', desc: '替客匹配', action: onMatch },
       { key: 'report', label: store.role === 'adviser' ? '客户报告' : '报告中心', icon: 'chart', desc: '匹配报告', action: onReport },
@@ -289,7 +289,7 @@ async function loadOrderCount() {
 }
 
 async function loadApprovalCount() {
-  if (!['adviser', 'deptmgr', 'boss', 'operator', 'super'].includes(store.role)) return;
+  if (!store.hasPermission('mini:approval:view')) return;
   try {
     const c = await approvalCounts();
     const total = (c && typeof c.TOTAL === 'number') ? c.TOTAL : ((c && c.ALLOCATION) || 0);

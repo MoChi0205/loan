@@ -14,7 +14,7 @@ description: >-
    从**最新条目往下**读（台账按时间倒序，最新在最上方）；**命中即遵守**；状态为「已被 Dxx 替代」则跳读 Dxx。
    > ⚠️ 取号前必须自己刚跑 `grep -o "^| D[0-9-]*" docs/knowledge-base/10-历史结论与决策日志.md` 取实时最大编号（禁采信转述 / 记忆 / 分配表）。
 2. **无结论且不确定 → 停下来问用户**，禁止臆断。
-   > 🚨 **本角色是全项目最高频的权限误判点**。直觉上"经理能审"，但代码**不允许审 ALLOCATION**。
+   > 🚨 **本角色是全项目最高频的权限误判点**。部门经理仅可审批本人团队 `ALLOCATION`，不可审批渠道 `PRODUCT`。
    > 任何涉及 deptmgr 审批能力的需求，**动手前必须读 `MiniRoleGuard.java` 原文**。
 3. **再读元技能** `loan-knowledge`，按其 Step 1–5 执行。
 4. 回复开头输出：`【结论核对】命中 Dx-x / Cx（…）/ 未命中（grep 关键词：…）`。
@@ -28,7 +28,7 @@ description: >-
 | `roleCode` | `DEPT_MANAGER` |
 | 后端推导 | `MiniAuthController.resolveRoleInfo()`：`TYPE_STAFF` + `"DEPT_MANAGER"` → `role = "deptmgr"` |
 | 前端推导 | `store/user.js resolveRole()`：同上 |
-| getter | `isStaff` 含 deptmgr；`isChannel` 为 false；**`isApproverRole` 不含 deptmgr** |
+| getter | `isStaff` 含 deptmgr；`isChannel` 为 false；`isApproverRole` 含 deptmgr，但服务端仍按审批类型和团队范围校验 |
 | 展示名 | `roleLabel` = `部门经理` |
 
 ## 2. 功能边界（能做什么）
@@ -66,7 +66,7 @@ description: >-
 
 依据 `loan-mini/components/TabBar.vue:55-61`（非渠道分支，deptmgr 走 `isStaff` 默认分支）。
 
-> ⚠️ **无 mine 页「审批中心」入口**（`isApproverRole` 不含 deptmgr）—— 这是与 boss/operator/super 的**可见差异**。
+> 审批入口是否展示属于客户端实现；权限真值始终由后端审批类型守卫和团队数据范围决定。
 > 自绘 TabBar（C17）；切换一律 `uni.reLaunch`，禁用 `uni.switchTab`。
 
 ## 6. 相关接口清单
@@ -89,7 +89,7 @@ description: >-
 
 ## 8. 必读文档指针
 
-- `docs/knowledge-base/10-历史结论与决策日志.md#结论台账`（**Step 0 必查**；**D0-4 为本角色第一依据**）
+- `docs/knowledge-base/10-历史结论与决策日志.md#结论台账`（**Step 0 必查**；D39/D60 为本角色第一依据）
 - `docs/knowledge-base/01-角色权限模型.md#7 角色体系（必须严格区分）`
 - `docs/knowledge-base/08-小程序角色功能矩阵.md#矩阵`（部门经理列 + 审批中心行）
 - `docs/knowledge-base/04-后端 API 契约.md#审批中心（统一，T5）`

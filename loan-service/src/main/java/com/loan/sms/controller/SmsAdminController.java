@@ -28,6 +28,7 @@ import java.util.Map;
 @RequestMapping("/api/admin/sms")
 @RequiredArgsConstructor
 public class SmsAdminController {
+    private final com.loan.common.service.FullAdminRoleGuard fullAdminRoleGuard;
 
     private final SmsAdminService smsAdminService;
 
@@ -59,7 +60,7 @@ public class SmsAdminController {
     @PostMapping("/template/save")
     @OpLog(bizType = "短信中心", action = "TEMPLATE_SAVE")
     public Result<Void> saveTemplate(@RequestBody SmsTemplate req, @CurrentUser LoanUser user) {
-        smsAdminService.saveTemplate(req, user == null ? "system" : user.getName());
+        smsAdminService.saveTemplate(req, user == null ? "system" : user.getName(), fullAdminRoleGuard.isFullAdmin(user));
         return Result.ok();
     }
 
@@ -69,6 +70,7 @@ public class SmsAdminController {
     @PostMapping("/template/toggle")
     @OpLog(bizType = "短信中心", action = "TEMPLATE_TOGGLE")
     public Result<Void> toggleTemplate(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        fullAdminRoleGuard.requireFullAdmin(user);
         smsAdminService.toggleTemplate((String) body.get("templateCode"),
                 Boolean.TRUE.equals(body.get("enabled")),
                 user == null ? "system" : user.getName());

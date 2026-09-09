@@ -5,7 +5,7 @@
         <h2 class="loan-page-title">风控黑名单</h2>
         <p class="loan-page-subtitle">全局前置风控命中直接 REJECT · 提交即全局生效留痕到人 · 解禁仅老板</p>
       </div>
-      <el-button type="primary" @click="openAdd">
+      <el-button v-permission="ACTION_PERMISSION.BLACKLIST_ADD" type="primary" @click="openAdd">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
         新增黑名单
       </el-button>
@@ -22,7 +22,7 @@
         <el-input v-model="query.keyword" placeholder="手机号 / 证件 / 信用代码（精确）" style="width: 240px" clearable @keyup.enter="onSearch" />
       </AppSearchBar>
 
-      <el-table :data="data" v-loading="loading" stripe row-key="id" @sort-change="handleSortChange">
+      <el-table :data="data" v-loading="loading" stripe row-key="id" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无名单记录" desc="添加个人或企业至名单后，将按维度拦截匹配" />
         </template>
@@ -96,9 +96,12 @@ import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime } from '@/utils/format';
 import { pageBlacklist, addBlacklist, releaseBlacklist } from '@/api/blacklist';
+import { useUserStore } from '@/store/user';
+import { ACTION_PERMISSION } from '@/utils/access';
 
 const dimensionText = { PHONE: '手机号', ID_CARD: '身份证', CREDIT_CODE: '企业信用代码', LEGAL_PERSON: '法人' };
 const reasonText = { FRAUD: '欺诈', DISHONEST: '失信', SENSITIVE: '敏感', OTHER: '其他' };
+const userStore = useUserStore();
 
 const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageBlacklist, {
   dimension: '', status: '', keyword: '',
@@ -110,6 +113,7 @@ function rowActions(row) {
     key: 'release',
     label: '解禁',
     type: 'danger',
+    hidden: !userStore.hasPerm(ACTION_PERMISSION.BLACKLIST_RELEASE),
     confirm: `确认解禁「${row.value}」？解禁仅老板可操作。`,
     onClick: () => onRelease(row),
   }];

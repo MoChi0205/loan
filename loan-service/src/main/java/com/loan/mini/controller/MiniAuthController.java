@@ -94,6 +94,7 @@ public class MiniAuthController {
             roleInfo.put("userType", LoanUser.TYPE_CUSTOMER);
             roleInfo.put("roleCode", "");
             roleInfo.put("role", "customer");
+            roleInfo.put("permissions", java.util.Collections.emptyList());
             return roleInfo;
         }
         String userType = user.getUserType() == null ? LoanUser.TYPE_CUSTOMER : user.getUserType();
@@ -122,7 +123,21 @@ public class MiniAuthController {
             }
         }
         roleInfo.put("role", role);
+        roleInfo.put("permissions", miniPermissions(role));
         return roleInfo;
+    }
+
+    private java.util.List<String> miniPermissions(String role) {
+        java.util.Map<String, String[]> matrix = new java.util.HashMap<>();
+        matrix.put("customer", new String[]{"mini:active-product:view", "mini:match:view", "mini:report:view", "mini:order:view"});
+        matrix.put("channel", new String[]{"mini:active-product:view", "mini:lead:create", "mini:product:view", "mini:product:create"});
+        matrix.put("adviser", new String[]{"mini:active-product:view", "mini:match:view", "mini:lead:create", "mini:lead:mine", "mini:client:search", "mini:client:view", "mini:client:claim", "mini:client:batch-claim", "mini:client:release", "mini:product:view", "mini:product:create", "mini:report:view", "mini:order:view", "mini:invitation:create"});
+        matrix.put("deptmgr", new String[]{"mini:active-product:view", "mini:match:view", "mini:lead:create", "mini:lead:mine", "mini:client:search", "mini:client:view", "mini:client:claim", "mini:client:batch-claim", "mini:client:assign", "mini:client:recycle", "mini:product:view", "mini:product:create", "mini:approval:view", "mini:approval:audit", "mini:report:view", "mini:order:view", "mini:invitation:create"});
+        matrix.put("boss", new String[]{"mini:active-product:view", "mini:match:view", "mini:lead:create", "mini:lead:mine", "mini:client:search", "mini:client:view", "mini:client:claim", "mini:client:batch-claim", "mini:client:release", "mini:client:assign", "mini:client:recycle", "mini:product:view", "mini:product:create", "mini:batch-import", "mini:import-template", "mini:import-result-export", "mini:approval:view", "mini:approval:audit", "mini:report:view", "mini:order:view", "mini:invitation:create"});
+        matrix.put("operator", new String[]{"mini:active-product:view", "mini:match:view", "mini:lead:create", "mini:lead:mine", "mini:client:search", "mini:client:view", "mini:client:claim", "mini:client:batch-claim", "mini:client:release", "mini:product:view", "mini:product:create", "mini:approval:view", "mini:approval:audit", "mini:report:view", "mini:order:view", "mini:invitation:create"});
+        matrix.put("super", matrix.get("boss"));
+        String[] values = matrix.get(role);
+        return values == null ? java.util.Collections.emptyList() : java.util.Arrays.asList(values);
     }
 
     /**

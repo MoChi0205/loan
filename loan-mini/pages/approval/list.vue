@@ -1,5 +1,7 @@
 <template>
   <view class="approval-page">
+    <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有审批权限，请联系管理员" />
+    <template v-else>
     <!-- 类型分段 tab（审批中心统一：ALL / PRODUCT / DOWNLOAD / ALLOCATION / MATERIAL_REVIEW） -->
     <view class="seg-tabs">
       <AppClickable v-for="t in segTabs" :key="t.value" class="seg-tab" :class="{ active: activeType === t.value }" @click="switchType(t.value)">
@@ -7,7 +9,6 @@
         <text v-if="countMap[t.value] > 0" class="seg-badge">{{ countMap[t.value] }}</text>
       </AppClickable>
     </view>
-
     <!-- 加载中 -->
     <AppSkeleton v-if="loading && !items.length" :rows="3" />
 
@@ -50,6 +51,7 @@
       </view>
       <view v-else-if="finished" class="list-end">没有更多了</view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -62,6 +64,7 @@ import {
 } from '../../api/approval';
 
 const store = useUserStore();
+const canView = computed(() => store.hasPermission('mini:approval:view'));
 
 /** 类型分段 tab 定义（当前四类审批均开放） */
 const segTabs = [
@@ -212,7 +215,7 @@ function onReject(it) {
 
 onLoad(async () => {
   // 入口级守卫：渠道不可直达审批中心（D50 沙箱），H5 深链重定向回首页
-  if (store.isChannel) { uni.reLaunch({ url: '/pages/home/home' }); return; }
+  if (store.isChannel || !canView.value) { uni.reLaunch({ url: '/pages/home/home' }); return; }
   await loadCounts();
   load('ALLOCATION');
 });

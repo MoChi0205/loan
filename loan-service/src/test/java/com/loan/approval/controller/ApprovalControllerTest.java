@@ -80,15 +80,27 @@ class ApprovalControllerTest {
     @Test
     @DisplayName("GET /api/admin/approval/product/page")
     void get_api_admin_approval_product_page() throws Exception {
-        mvc.perform(get("/api/admin/approval/product/page"))
-            .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(get("/api/admin/approval/product/page"))
+                .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+            Mockito.verify(miniRoleGuard).requireApproverFor(Mockito.eq("PRODUCT"), Mockito.any(LoanUser.class));
+        } finally {
+            UserContext.clear();
+        }
     }
 
     @Test
     @DisplayName("GET /api/admin/approval/product/test")
     void get_api_admin_approval_product_test() throws Exception {
-        mvc.perform(get("/api/admin/approval/product/test"))
-            .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").exists());
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(get("/api/admin/approval/product/test"))
+                .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").exists());
+            Mockito.verify(miniRoleGuard).requireApproverFor(Mockito.eq("PRODUCT"), Mockito.any(LoanUser.class));
+        } finally {
+            UserContext.clear();
+        }
     }
 
     @Test
@@ -119,8 +131,16 @@ class ApprovalControllerTest {
     @Test
     @DisplayName("GET /api/admin/approval/download/page")
     void get_api_admin_approval_download_page() throws Exception {
-        mvc.perform(get("/api/admin/approval/download/page"))
-            .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(get("/api/admin/approval/download/page"))
+                .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+            Mockito.verify(miniRoleGuard).requireStaff(Mockito.any(LoanUser.class));
+            Mockito.verify(approvalService).downloadPage(Mockito.any(), Mockito.any(), Mockito.anyInt(), Mockito.anyInt(),
+                    Mockito.any(), Mockito.any(), Mockito.eq(TestUsers.staffUser().getUserNo()));
+        } finally {
+            UserContext.clear();
+        }
     }
 
     @Test

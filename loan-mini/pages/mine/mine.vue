@@ -101,7 +101,7 @@
       </AppClickable>
 
       <!-- 分享邀请：分享链接自动携带邀请码，接收方无需手填 -->
-      <view v-if="role === 'customer'" class="card share-card">
+      <view v-if="role === 'customer' || role === 'channel'" class="card share-card">
         <view class="sec-header">
           <text class="sec-title">分享邀请</text>
           <text class="sec-sub">推荐有礼 · 7 天有效</text>
@@ -194,9 +194,7 @@ const isStaffRole = computed(
   () => ['adviser', 'deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
 /** 审批中心可操作角色：D39 纳入部门经理；08-矩阵「四类审批均开放」含顾问 adviser。 */
-const isApproverRole = computed(
-  () => ['adviser', 'deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
-);
+const isApproverRole = computed(() => store.hasPermission('mini:approval:view'));
 
 /** 审批中心待审总数（角标，来自 approvalCounts 的 TOTAL） */
 const approvalTotal = ref(0);
@@ -260,7 +258,7 @@ onShow(() => {
     if (ok) {
       consumePendingInvitation(store);
       // 邀请码 / 奖励汇总为客户专属接口：仅客户角色调用，员工/渠道不触发（避免报错 toast）
-      if (store.role === 'customer') {
+      if (store.role === 'customer' || store.role === 'channel') {
         loadInviteCode();
         loadSummary();
       }

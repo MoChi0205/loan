@@ -60,7 +60,7 @@ public class ReportTemplateService {
      * 新增 / 编辑模板（templateCode + versionNo 唯一）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void save(ReportTemplate req, String operator) {
+    public void save(ReportTemplate req, String operator, boolean canActivate) {
         if (!StringUtils.hasText(req.getTemplateCode())
                 || req.getVersionNo() == null
                 || !StringUtils.hasText(req.getTemplateName())) {
@@ -70,7 +70,7 @@ public class ReportTemplateService {
                 .eq(ReportTemplate::getTemplateCode, req.getTemplateCode())
                 .eq(ReportTemplate::getVersionNo, req.getVersionNo()));
         if (exist == null) {
-            req.setStatus(StringUtils.hasText(req.getStatus()) ? req.getStatus() : "ACTIVE");
+            req.setStatus(canActivate && "ACTIVE".equalsIgnoreCase(req.getStatus()) ? "ACTIVE" : "PENDING_APPROVAL");
             req.setCreatedBy(operator);
             req.setUpdatedBy(operator);
             templateMapper.insert(req);
@@ -81,6 +81,7 @@ public class ReportTemplateService {
             exist.setAdviceRulesJson(req.getAdviceRulesJson());
             exist.setWecomGuideConfig(req.getWecomGuideConfig());
             exist.setWatermarkConfig(req.getWatermarkConfig());
+            if (!canActivate) exist.setStatus("PENDING_APPROVAL");
             exist.setUpdatedBy(operator);
             templateMapper.updateById(exist);
         }

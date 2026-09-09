@@ -98,10 +98,15 @@ public class ClientService {
                                                     String creditCode, String ownerStaffCode,
                                                     java.time.LocalDateTime createdAtStart, java.time.LocalDateTime createdAtEnd,
                                                     java.time.LocalDateTime dealTimeStart, java.time.LocalDateTime dealTimeEnd,
-                                                    int page, int size, String orderBy, String orderDir) {
+                                                    int page, int size, String orderBy, String orderDir, String ownerDeptCode) {
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(ownerStaffCode)) {
             wrapper.eq(ClientProfile::getOwnerStaffCode, ownerStaffCode.trim());
+        }
+        if (StringUtils.hasText(ownerDeptCode)) {
+            wrapper.inSql(ClientProfile::getOwnerStaffCode,
+                    "SELECT staff_code FROM t_staff WHERE status = 'ACTIVE' AND dept_code = '"
+                            + safeSqlLiteral(ownerDeptCode.trim()) + "'");
         }
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
@@ -157,6 +162,10 @@ public class ClientService {
             return m;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    private String safeSqlLiteral(String value) {
+        return value == null ? "" : value.replace("'", "''");
     }
 
     /**

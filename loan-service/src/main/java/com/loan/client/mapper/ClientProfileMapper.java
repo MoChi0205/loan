@@ -75,6 +75,7 @@ public interface ClientProfileMapper extends BaseMapper<ClientProfile> {
 
     /** 客户仍未分配时原子写入服务顾问，防止并发审批覆盖已生效归属。 */
     @Update("UPDATE t_client_profile SET owner_staff_code = #{staffCode}, "
+            + "sea_level = NULL, sea_dept_code = NULL, "
             + "updated_by = #{updatedBy}, updated_at = #{updatedAt} "
             + "WHERE client_code = #{clientCode} AND owner_staff_code IS NULL")
     int assignOwnerIfUnassigned(@Param("clientCode") String clientCode,
@@ -84,6 +85,7 @@ public interface ClientProfileMapper extends BaseMapper<ClientProfile> {
 
     /** 管理者直接分配：仅当归属仍等于读取时的值才更新，避免覆盖并发变更。 */
     @Update("UPDATE t_client_profile SET owner_staff_code = #{staffCode}, "
+            + "sea_level = NULL, sea_dept_code = NULL, "
             + "updated_by = #{updatedBy}, updated_at = #{updatedAt} "
             + "WHERE client_code = #{clientCode} "
             + "AND ((owner_staff_code = #{expectedOwner}) OR (owner_staff_code IS NULL AND #{expectedOwner} IS NULL))")
@@ -95,6 +97,7 @@ public interface ClientProfileMapper extends BaseMapper<ClientProfile> {
 
     /** 转移审批通过：仅当客户仍归属申请时的原顾问才允许转移。 */
     @Update("UPDATE t_client_profile SET owner_staff_code = #{staffCode}, "
+            + "sea_level = NULL, sea_dept_code = NULL, "
             + "updated_by = #{updatedBy}, updated_at = #{updatedAt} "
             + "WHERE client_code = #{clientCode} AND owner_staff_code = #{expectedOwner}")
     int transferOwnerIfUnchanged(@Param("clientCode") String clientCode,

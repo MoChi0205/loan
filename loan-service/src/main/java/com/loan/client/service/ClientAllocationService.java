@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ClientAllocationService {
+    private static final int MAX_BATCH_SIZE = 500;
 
     /** 分配审批状态。 */
     public static final String PENDING = "PENDING";
@@ -66,7 +67,8 @@ public class ClientAllocationService {
      * <p>业务规则变更：管理者/老板「指定归属人」改为<b>直接落归属、无需审批</b>，
      * 且目标不再局限于顾问，团队管理者本人也可作为客户归属人。</p>
      */
-    private static final List<String> ASSIGNABLE_ROLES = Arrays.asList("ADVISER", "DEPT_MANAGER");
+    private static final List<String> ASSIGNABLE_ROLES = Arrays.asList(
+            "ADVISER", "DEPT_MANAGER", "BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER");
 
     private final ClientProfileMapper clientProfileMapper;
     private final ClientAllocationApprovalMapper approvalMapper;
@@ -177,7 +179,14 @@ public class ClientAllocationService {
                                               LoanUser operator) {
         ClientProfile client = requireClient(clientCode);
         if (!StringUtils.hasText(client.getOwnerStaffCode())) {
-            return apply(clientCode, targetStaffCode, operator, "ADVISER_CLAIM");
+            if ("TEAM".equalsIgnoreCase(client.getSeaLevel())) {
+                String targetDept = deptCodeOf(targetStaffCode);
+                if (!StringUtils.hasText(targetDept) || !targetDept.equalsIgnoreCase(client.getSeaDeptCode())) {
+                    throw new BusinessException(ResultCode.FORBIDDEN, "该客户属于其他团队公海，不可直接认领");
+                }
+            }
+            // 公海认领即时生效，不进入审批；乐观更新避免多人并发认领覆盖。
+            return directAssign(clientCode, targetStaffCode, operator);
         }
         if (client.getOwnerStaffCode().equals(targetStaffCode)) {
             Map<String, Object> result = new LinkedHashMap<>();
@@ -233,6 +242,15 @@ public class ClientAllocationService {
     public Map<String, Object> directAssign(String clientCode, String targetStaffCode, LoanUser operator) {
         ClientProfile client = requireClient(clientCode);
         Staff target = requireActiveAssignee(targetStaffCode);
+        if (isDeptManager(operator)) {
+            String myDept = operator.getDeptCode();
+            String targetDept = target.getDeptCode();
+            String ownerDept = deptCodeOf(client.getOwnerStaffCode());
+            if (!StringUtils.hasText(myDept) || !myDept.equalsIgnoreCase(targetDept)
+                    || (StringUtils.hasText(ownerDept) && !myDept.equalsIgnoreCase(ownerDept))) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "跨团队客户不可直接分配，需提交申请并由老板审批");
+            }
+        }
         String expectedOwner = client.getOwnerStaffCode();
         int changed = clientProfileMapper.assignOwnerIfUnchanged(clientCode, targetStaffCode, expectedOwner,
                 operator == null ? "system" : operator.getName(), LocalDateTime.now());
@@ -254,6 +272,49 @@ public class ClientAllocationService {
         result.put("direct", true);
         result.put("needApproval", false);
         return result;
+    }
+
+    /** 批量分配：复用单条范围与并发校验，任一失败整批回滚。 */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> batchAssign(List<String> clientCodes, String targetStaffCode, LoanUser operator) {
+        List<String> codes = normalizeBatch(clientCodes);
+        for (String code : codes) directAssign(code, targetStaffCode, operator);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("successCount", codes.size());
+        return result;
+    }
+
+    /** 批量回收：复用单条团队范围校验，任一失败整批回滚。 */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> batchRecycle(List<String> clientCodes, LoanUser operator) {
+        List<String> codes = normalizeBatch(clientCodes);
+        for (String code : codes) manualRecycle(code, operator);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("successCount", codes.size());
+        return result;
+    }
+
+    /** 公司员工批量认领可见公海客户到本人；团队公海范围由单条认领校验。 */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> batchClaim(List<String> clientCodes, LoanUser operator) {
+        List<String> codes = normalizeBatch(clientCodes);
+        String target = operator == null ? null : operator.getUserNo();
+        for (String code : codes) applyTransfer(code, target, operator);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("successCount", codes.size());
+        return result;
+    }
+
+    private List<String> normalizeBatch(List<String> clientCodes) {
+        if (clientCodes == null || clientCodes.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择客户");
+        }
+        List<String> codes = clientCodes.stream().filter(StringUtils::hasText).map(String::trim)
+                .distinct().collect(Collectors.toList());
+        if (codes.isEmpty() || codes.size() > MAX_BATCH_SIZE) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "单次批量操作须为1至500个客户");
+        }
+        return codes;
     }
 
     /** 查询指定客户最近一次分配状态。 */
@@ -303,6 +364,10 @@ public class ClientAllocationService {
                             && myDept.equalsIgnoreCase(codeToDept.get(a.getApplicantStaffCode())))
                     .collect(Collectors.toList());
         }
+        // 跨团队转分配只向老板展示；运营、超管及部门经理均不得代审。
+        if (!isCrossTeamApprover(operator)) {
+            all = all.stream().filter(a -> !isCrossTeamTransfer(a)).collect(Collectors.toList());
+        }
         Set<String> clientCodes = all.stream().map(ClientAllocationApproval::getClientCode)
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
         Set<String> staffCodes = all.stream().map(ClientAllocationApproval::getApplicantStaffCode)
@@ -344,6 +409,7 @@ public class ClientAllocationService {
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> approve(String approvalNo, LoanUser user) {
         ClientAllocationApproval approval = requirePending(approvalNo);
+        assertCrossTeamBoss(user, approval);
         // 团队管理者仅可审批本人团队（申请人部门 == 本人部门）的客户，跨团队需 BOSS 审批
         assertDeptManagerScope(user, approval.getApplicantStaffCode());
         int changed = approvalMapper.update(null, new LambdaUpdateWrapper<ClientAllocationApproval>()
@@ -379,6 +445,7 @@ public class ClientAllocationService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "驳回意见不能为空");
         }
         ClientAllocationApproval approval = requirePending(approvalNo);
+        assertCrossTeamBoss(user, approval);
         // 团队管理者仅可驳回本人团队（申请人部门 == 本人部门）的客户，跨团队需 BOSS 审批
         assertDeptManagerScope(user, approval.getApplicantStaffCode());
         int changed = approvalMapper.update(null, new LambdaUpdateWrapper<ClientAllocationApproval>()
@@ -455,6 +522,33 @@ public class ClientAllocationService {
     private boolean isDeptManager(LoanUser user) {
         return user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())
                 && "DEPT_MANAGER".equalsIgnoreCase(user.getRoleCode());
+    }
+
+    private boolean isBoss(LoanUser user) {
+        return user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())
+                && "BOSS".equalsIgnoreCase(user.getRoleCode());
+    }
+
+    private boolean isCrossTeamApprover(LoanUser user) {
+        if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType()) || user.getRoleCode() == null) return false;
+        String role = user.getRoleCode().toUpperCase();
+        return "BOSS".equals(role) || "SUPER_ADMIN".equals(role) || "SUPER".equals(role);
+    }
+
+    private boolean isCrossTeamTransfer(ClientAllocationApproval approval) {
+        if (approval == null || !StringUtils.hasText(approval.getFromOwnerStaffCode())) {
+            return false;
+        }
+        String fromDept = deptCodeOf(approval.getFromOwnerStaffCode());
+        String targetDept = deptCodeOf(approval.getApplicantStaffCode());
+        return StringUtils.hasText(fromDept) && StringUtils.hasText(targetDept)
+                && !fromDept.equalsIgnoreCase(targetDept);
+    }
+
+    private void assertCrossTeamBoss(LoanUser user, ClientAllocationApproval approval) {
+        if (isCrossTeamTransfer(approval) && !isCrossTeamApprover(user)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "跨团队客户转分配仅可由老板或超级管理员审批");
+        }
     }
 
     /**
@@ -631,8 +725,17 @@ public class ClientAllocationService {
         if (!StringUtils.hasText(client.getOwnerStaffCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该客户无归属顾问，无需回收");
         }
+        if (isDeptManager(operator)) {
+            String ownerDept = deptCodeOf(client.getOwnerStaffCode());
+            if (!StringUtils.hasText(operator.getDeptCode())
+                    || !operator.getDeptCode().equalsIgnoreCase(ownerDept)) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "仅可回收本团队顾问的客户");
+            }
+        }
         String from = client.getOwnerStaffCode();
-        recycleClient(client, "已被管理员手动回收进公海", operator == null ? "system" : operator.getName());
+        recycleClient(client, "已被部门经理回收进团队公海", operator == null ? "system" : operator.getName(),
+                isDeptManager(operator) ? "TEAM" : "ENTERPRISE",
+                isDeptManager(operator) ? operator.getDeptCode() : null);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("clientCode", clientCode);
         result.put("recycled", true);
@@ -657,7 +760,8 @@ public class ClientAllocationService {
             throw new BusinessException(ResultCode.FORBIDDEN, "仅客户归属本人可释放回公海");
         }
         String from = client.getOwnerStaffCode();
-        recycleClient(client, "顾问主动释放回公海", operator == null ? "system" : operator.getName());
+        recycleClient(client, "顾问主动释放回公司公海", operator == null ? "system" : operator.getName(),
+                "ENTERPRISE", null);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("clientCode", clientCode);
         result.put("released", true);
@@ -755,6 +859,11 @@ public class ClientAllocationService {
      * {@code updateById} 下对 phone / creditCode 二次加密的隐患。</p>
      */
     private void recycleClient(ClientProfile client, String reason, String operatorName) {
+        recycleClient(client, reason, operatorName, "ENTERPRISE", null);
+    }
+
+    private void recycleClient(ClientProfile client, String reason, String operatorName,
+                               String seaLevel, String seaDeptCode) {
         String from = client.getOwnerStaffCode();
         ClientRecycleConfig cfg = recycleConfig();
         int cooldown = (cfg != null && cfg.getCooldownDays() != null && cfg.getCooldownDays() > 0)
@@ -762,6 +871,8 @@ public class ClientAllocationService {
         clientProfileMapper.update(null, new LambdaUpdateWrapper<ClientProfile>()
                 .eq(ClientProfile::getClientCode, client.getClientCode())
                 .set(ClientProfile::getOwnerStaffCode, (String) null)
+                .set(ClientProfile::getSeaLevel, seaLevel)
+                .set(ClientProfile::getSeaDeptCode, seaDeptCode)
                 .set(ClientProfile::getAssignBlockedUntil, LocalDateTime.now().plusDays(cooldown))
                 .set(ClientProfile::getUpdatedBy, operatorName));
         record(client.getClientCode(), from, null, "CLIENT_RECYCLE", operatorName, reason);

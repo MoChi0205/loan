@@ -113,4 +113,11 @@ public class MiniRoleGuard {
                 && user.getRoleCode() != null
                 && CHANNEL_FINAL_APPROVER_ROLES.contains(user.getRoleCode().toUpperCase());
     }
+
+    /** 是否具备普通审批查询权限（DOWNLOAD / MATERIAL_REVIEW）。 */
+    public boolean isApprovalRole(LoanUser user) {
+        return user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())
+                && user.getRoleCode() != null
+                && APPROVAL_ROLES.contains(user.getRoleCode().toUpperCase());
+    }
 }

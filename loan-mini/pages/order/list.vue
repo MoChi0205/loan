@@ -1,5 +1,6 @@
 <template>
   <view class="order-page" :class="{ 'u-shell': store.isTablet }">
+    <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有服务单查看权限，请联系管理员" />
     <view class="page-head">
       <text class="head-title">{{ isStaff ? '工单' : '我的服务单' }}</text>
       <text class="head-sub">
@@ -143,6 +144,7 @@ import { orderList } from '../../api/order';
 /** 企业员工（C7）：可查全量工单 */
 const STAFF_ROLES = ['adviser', 'deptmgr', 'boss', 'operator', 'super'];
 const store = useUserStore();
+const canView = computed(() => store.hasPermission('mini:order:view'));
 const isStaff = computed(() => STAFF_ROLES.indexOf(store.role) >= 0);
 
 /** 工单状态：与后端 ServiceOrder 状态真值一致。 */

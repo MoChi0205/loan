@@ -1,5 +1,7 @@
 <template>
   <view class="product-page" :class="{ 'u-shell': store.isTablet }">
+    <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有产品管理权限，请联系管理员" />
+    <template v-else>
     <!-- 电商风格搜索栏 -->
     <AppSearchBar
       v-model="keyword"
@@ -85,6 +87,7 @@
     <view class="footer">
       <AppButton variant="primary" size="lg" block @click="goEdit()">{{ isChannel ? '录入合作产品' : '录入银行产品' }}</AppButton>
     </view>
+    </template>
   </view>
 
   <!-- 角色化底部导航（自绘 tabBar，渠道：首页 / 我的产品 / 我的） -->
@@ -131,6 +134,7 @@ const acting = ref('');
 /** 用户状态（T3 · C 类：平板限宽标记 isTablet 驱动 u-shell） */
 const store = useUserStore();
 const isChannel = computed(() => store.isChannel);
+const canView = computed(() => store.hasPermission('mini:product:view'));
 
 /** 状态说明图例 */
 const legend = [

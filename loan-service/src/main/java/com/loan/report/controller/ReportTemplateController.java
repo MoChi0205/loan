@@ -27,6 +27,7 @@ import java.util.Map;
 @RequestMapping("/api/admin/report/template")
 @RequiredArgsConstructor
 public class ReportTemplateController {
+    private final com.loan.common.service.FullAdminRoleGuard fullAdminRoleGuard;
 
     private final ReportTemplateService templateService;
 
@@ -48,7 +49,7 @@ public class ReportTemplateController {
     @PostMapping("/save")
     @OpLog(bizType = "报告模板", action = "SAVE")
     public Result<Void> save(@RequestBody ReportTemplate req, @CurrentUser LoanUser user) {
-        templateService.save(req, user == null ? "system" : user.getName());
+        templateService.save(req, user == null ? "system" : user.getName(), fullAdminRoleGuard.isFullAdmin(user));
         return Result.ok();
     }
 
@@ -58,6 +59,7 @@ public class ReportTemplateController {
     @PostMapping("/toggle")
     @OpLog(bizType = "报告模板", action = "TOGGLE")
     public Result<Void> toggle(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        fullAdminRoleGuard.requireFullAdmin(user);
         templateService.toggle((String) body.get("templateCode"),
                 body.get("versionNo") == null ? null : Integer.valueOf(body.get("versionNo").toString()),
                 Boolean.TRUE.equals(body.get("active")),

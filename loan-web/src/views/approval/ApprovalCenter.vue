@@ -394,7 +394,8 @@ const {
   items: attachmentOptions, loading: attachmentLoading, finished: attachmentFinished,
   search: searchAttachments, loadMore: loadMoreAttachments,
 } = useRemoteOptions(pageAttachments, {
-  normalize: (a) => ({ value: a.id, label: `${a.fileName || '未命名资料'} · ${a.attachmentType || '其他资料'}${a.orderNo ? ` · 工单 ${a.orderNo}` : ''}` }),
+  // 业务编码仅作为提交值，用户侧只展示可理解的资料、客户信息。
+  normalize: (a) => ({ value: a.id, label: `${a.fileName || '未命名资料'} · ${a.attachmentType || '其他资料'}${a.clientName ? ` · ${a.clientName}` : ''}` }),
 });
 const applyFormRef = ref();
 const applyRules = {

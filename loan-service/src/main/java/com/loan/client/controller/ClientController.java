@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.List;
 
 /**
  * 客户档案 HTTP 接口（管理端：轻量查询切片 + P0-6 档案详情 / 编辑）。
@@ -51,7 +52,7 @@ public class ClientController {
     }
 
     /**
-     * 顾问申请认领：未归属客户创建分配审批，已归属本人幂等通过，
+     * 顾问申请认领：未归属客户直接认领，已归属本人幂等通过，
      * 已归属他人则创建转移审批，任何场景都不允许顾问直接覆盖归属。
      */
     @PostMapping("/{clientCode}/claim")
@@ -85,9 +86,9 @@ public class ClientController {
                                                @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
         String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
-        if (!java.util.Arrays.asList("DEPT_MANAGER", "BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER").contains(role)) {
+        if (!java.util.Arrays.asList("DEPT_MANAGER", "BOSS", "SUPER_ADMIN", "SUPER").contains(role)) {
             throw new com.loan.exception.BusinessException(
-                    com.loan.common.ResultCode.FORBIDDEN, "仅管理者或老板可直接指定客户归属人");
+                    com.loan.common.ResultCode.FORBIDDEN, "仅部门经理、老板或超级管理员可直接指定客户归属人");
         }
         // 兼容旧参数名 adviserStaffCode，新参数为 targetStaffCode
         String target = body == null ? null : body.get("targetStaffCode");
@@ -95,6 +96,34 @@ public class ClientController {
             target = body.get("adviserStaffCode");
         }
         return Result.ok(clientAllocationService.directAssign(clientCode, target, user));
+    }
+
+    @PostMapping("/batch-assign")
+    @OpLog(bizType = "客户归属", action = "BATCH_MANAGER_ASSIGN")
+    public Result<Map<String, Object>> batchAssign(@RequestBody Map<String, Object> body,
+                                                    @CurrentUser LoanUser user) {
+        miniRoleGuard.requireApprover(user);
+        @SuppressWarnings("unchecked") List<String> codes = body == null ? null : (List<String>) body.get("clientCodes");
+        String target = body == null ? null : String.valueOf(body.get("targetStaffCode"));
+        return Result.ok(clientAllocationService.batchAssign(codes, target, user));
+    }
+
+    @PostMapping("/batch-recycle")
+    @OpLog(bizType = "客户归属", action = "BATCH_CLIENT_RECYCLE")
+    public Result<Map<String, Object>> batchRecycle(@RequestBody Map<String, Object> body,
+                                                     @CurrentUser LoanUser user) {
+        miniRoleGuard.requireApprover(user);
+        @SuppressWarnings("unchecked") List<String> codes = body == null ? null : (List<String>) body.get("clientCodes");
+        return Result.ok(clientAllocationService.batchRecycle(codes, user));
+    }
+
+    @PostMapping("/batch-claim")
+    @OpLog(bizType = "客户归属", action = "BATCH_PUBLIC_SEA_CLAIM")
+    public Result<Map<String, Object>> batchClaim(@RequestBody Map<String, Object> body,
+                                                   @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        @SuppressWarnings("unchecked") List<String> codes = body == null ? null : (List<String>) body.get("clientCodes");
+        return Result.ok(clientAllocationService.batchClaim(codes, user));
     }
 
     /**
@@ -201,10 +230,25 @@ public class ClientController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
-            @RequestParam(required = false) String orderDir) {
+            @RequestParam(required = false) String orderDir,
+            @RequestParam(defaultValue = "ALL") String scope,
+            @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        String scopedOwner = ownerStaffCode;
+        String ownerDeptCode = null;
+        String normalizedScope = scope == null ? "ALL" : scope.trim().toUpperCase();
+        if ("MY".equals(normalizedScope)) {
+            scopedOwner = user.getUserNo();
+        } else if ("TEAM".equals(normalizedScope)) {
+            if (!"DEPT_MANAGER".equalsIgnoreCase(user.getRoleCode())) {
+                throw new com.loan.exception.BusinessException(
+                        com.loan.common.ResultCode.FORBIDDEN, "仅部门经理可查看团队客户");
+            }
+            ownerDeptCode = user.getDeptCode();
+        }
         return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
-                ownerStaffCode, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
+                scopedOwner, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, ownerDeptCode));
     }
 
     /**

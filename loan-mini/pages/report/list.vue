@@ -1,5 +1,6 @@
 <template>
   <view class="report-page" :class="{ 'u-shell': store.isTablet }">
+    <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有报告查看权限，请联系管理员" />
     <!-- 列表头：角色二分（C3） -->
     <view class="page-head">
       <text class="head-title">{{ isStaff ? '全部报告' : '我的报告' }}</text>
@@ -132,6 +133,7 @@ const PAGE_SIZE = 10;
 
 /** 企业员工（C1/C3/C4）：可查全量报告与命中产品；客户与渠道除外 */
 const store = useUserStore();
+const canView = computed(() => store.hasPermission('mini:report:view'));
 const isStaff = computed(() => store.isStaff);
 
 /** 归属筛选项（仅员工可见） */

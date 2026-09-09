@@ -316,7 +316,16 @@ public class ApprovalService {
      * @return 审批单分页
      */
     public PageResult<Map<String, Object>> downloadPage(String status, String keyword, int page, int size, String orderBy, String orderDir) {
+        return downloadPage(status, keyword, page, size, orderBy, orderDir, null);
+    }
+
+    /** 下载审批分页；applicantScope 非空时强制限定为本人申请，避免普通员工读取全量。 */
+    public PageResult<Map<String, Object>> downloadPage(String status, String keyword, int page, int size,
+                                                         String orderBy, String orderDir, String applicantScope) {
         LambdaQueryWrapper<AttachmentDownloadApproval> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(applicantScope)) {
+            wrapper.eq(AttachmentDownloadApproval::getApplicantStaffCode, applicantScope);
+        }
         if (StringUtils.hasText(status)) {
             wrapper.eq(AttachmentDownloadApproval::getApproveStatus, status);
         }

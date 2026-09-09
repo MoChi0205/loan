@@ -49,8 +49,9 @@
 |------|------|------|
 | `GET /api/mini/client/search?keyword=...` | 查重（≥2 字） | 仅 STAFF；CHANNEL **禁止** |
 | `POST /api/mini/client` | 录入新客户；新客户不自动归属，响应 `action=CREATED_UNASSIGNED` 并进入未分配池 | 仅 STAFF |
-| `POST /api/mini/client/{clientCode}/claim` | 顾问申请认领：已归属本人幂等通过；未归属或已归属他人提交审批，不直接转移 | 仅 ADVISER |
+| `POST /api/mini/client/{clientCode}/claim` | 公司/本人团队公海直接认领；已归属本人幂等；已归属他人提交转分配审批 | STAFF（团队公海按部门校验） |
 | `GET /api/mini/client/{clientCode}/claim-status` | 分配审批状态轮询 | 仅 STAFF |
+| `POST /api/mini/client/{clientCode}/release` | 当前归属人释放本人客户回公司公海，设置冷却并保留流转记录 | STAFF；仅归属本人 |
 | ~~`GET /api/mini/client/allocation-approvals/pending`~~ ⚠️ 已废弃（兼容期） | 待审列表 → 改用 `GET /api/mini/approval/pending?type=ALLOCATION` | STAFF + OPERATOR/SUPER/BOSS |
 | ~~`POST /api/mini/client/allocation-approvals/{approvalNo}/approve`~~ ⚠️ 已废弃（兼容期） | 通过 → 改用 `POST /api/mini/approval/ALLOCATION/{approvalNo}/audit` | 同上 |
 | ~~`POST /api/mini/client/allocation-approvals/{approvalNo}/reject`~~ ⚠️ 已废弃（兼容期） | 驳回 → 改用 `POST /api/mini/approval/ALLOCATION/{approvalNo}/audit` | 同上 |
@@ -161,8 +162,8 @@
 | `GET /api/admin/approval/allocation/pending` | 管理端 allocation 待审 | OPERATOR/SUPER_ADMIN/SUPER/BOSS 全量；DEPT_MANAGER 仅本团队 |
 | `POST /api/admin/approval/allocation/{approvalNo}/approve` | 管理端 allocation 通过（`ApprovalController`，非 `/audit`） | 同上 |
 | `POST /api/admin/approval/allocation/{approvalNo}/reject` | 管理端 allocation 驳回 | 同上 |
-| `GET /api/admin/approval/unified/counts` | 管理端统一计数（**2026-08-31 校正**：实际路径带 unified 前缀，旧文写 `/approval/counts` 在代码中不存在） | OPERATOR/SUPER/BOSS |
-| `GET /api/admin/approval/unified/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 管理端统一待审（**2026-08-31 校正**：实际路径带 unified 前缀） | OPERATOR/SUPER/BOSS |
+| `GET /api/admin/approval/unified/counts` | 管理端统一计数（实际路径带 unified 前缀） | BOSS/OPERATOR/SUPER_ADMIN/SUPER；DEPT_MANAGER 可进入但 PRODUCT 不计入且 ALLOCATION 仍限本团队 |
+| `GET /api/admin/approval/unified/pending?type=ALL\|PRODUCT\|DOWNLOAD\|ALLOCATION&page&size` | 管理端统一待审；服务端按审批角色守卫，PRODUCT 仅对渠道终审角色合并 | BOSS/OPERATOR/SUPER_ADMIN/SUPER；DEPT_MANAGER 可查 DOWNLOAD/ALLOCATION（本团队），不可查 PRODUCT；ADVISER 禁止 |
 | `POST /api/admin/approval/unified/{type}/{approvalNo}/audit` | 管理端统一终审 body `{approve, opinion}`（**2026-08-31 校正**：`type` 为路径变量，旧文写死 `allocation/{approvalNo}/audit` 不存在） | OPERATOR/SUPER/BOSS |
 
 ## 错误码（ResultCode）

@@ -501,6 +501,8 @@ CREATE TABLE `t_client_profile` (
   `owner_staff_code` varchar(64) DEFAULT NULL COMMENT '归属顾问工号(业务编码;为空表示公海未分配)',
   `last_followed_at` datetime DEFAULT NULL COMMENT '最后跟进时间(超期回收判定基准;归属/转移/跟进刷新)',
   `assign_blocked_until` datetime DEFAULT NULL COMMENT '回收冷却到期时间(回收进公海后原归属人不可认领/不可被直接分配)',
+  `sea_level` varchar(16) DEFAULT NULL COMMENT '公海层级: ENTERPRISE/TEAM; 已分配为空',
+  `sea_dept_code` varchar(16) DEFAULT NULL COMMENT '团队公海所属部门编码',
   `vip_level` varchar(16) DEFAULT NULL COMMENT 'VIP等级(NULL非会员/VIP)',
   `vip_expire_at` datetime DEFAULT NULL COMMENT 'VIP到期时间(T-7提醒续费,到期自动降级)',
   `invited_flag` tinyint NOT NULL DEFAULT '0' COMMENT '受邀标记(受邀用户免费自动VIP+独享分享推荐奖励)',

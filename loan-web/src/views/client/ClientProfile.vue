@@ -45,7 +45,7 @@
           style="width: 260px"
         />
       </AppSearchBar>
-      <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode">
+      <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode" @sort-change="handleClientSortChange">
         <template #empty>
           <AppEmpty
             :title="showOwnClientList ? '暂无客户' : '暂无符合条件的客户'"
@@ -139,8 +139,8 @@
               <span class="loan-tag" :class="historyActionTag(row.actionType)">{{ historyActionText(row.actionType) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="原归属" width="140"><template #default="{ row }">{{ row.fromStaffName || row.fromStaffCode || '—' }}</template></el-table-column>
-          <el-table-column label="新归属" width="140"><template #default="{ row }">{{ row.toStaffName || row.toStaffCode || '—' }}</template></el-table-column>
+          <el-table-column label="原归属" width="140"><template #default="{ row }">{{ row.fromStaffName || '姓名待补充' }}</template></el-table-column>
+          <el-table-column label="新归属" width="140"><template #default="{ row }">{{ row.toStaffName || '姓名待补充' }}</template></el-table-column>
           <el-table-column label="操作人" width="120"><template #default="{ row }">{{ row.operator || '—' }}</template></el-table-column>
           <el-table-column label="备注" min-width="200" show-overflow-tooltip><template #default="{ row }">{{ row.remark || '—' }}</template></el-table-column>
         </el-table>
@@ -189,7 +189,7 @@
         <el-form-item label="目标角色">
           <el-radio-group v-model="assignRole" @change="onAssignRoleChange">
             <el-radio value="ADVISER">顾问</el-radio>
-            <el-radio value="DEPT_MANAGER">团队管理者</el-radio>
+            <el-radio value="DEPT_MANAGER">部门经理</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="归属人">
@@ -262,6 +262,7 @@ const {
   load: loadClients,
   onSearch: searchClients,
   onReset: resetClients,
+  handleSortChange: handleClientSortChange,
 } = useTable(pageClients, {
   keyword: '',
   name: '',

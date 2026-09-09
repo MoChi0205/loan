@@ -1,11 +1,20 @@
 <template>
   <view class="client-page" :class="{ 'u-shell': store.isTablet }">
+    <AppEmpty v-if="!canCreate" title="暂无权限" desc="当前账号没有线索录入权限，请联系管理员" />
     <!-- 内容区 -->
-    <view class="content">
+    <view v-else class="content">
       <!-- 提示条：录入客户进入公海，由顾问跟进（渠道沙箱隔离） -->
       <view class="tip-bar">
         <AppIcon name="users" size="md" />
         <text class="tip-text">新增后仅本人立即可见，待公司审批通过后进入公海并由顾问跟进</text>
+      </view>
+
+      <view class="card" v-if="form.leadType === 'PERSONAL'">
+        <text class="card-title">个人信息</text>
+        <view class="field">
+          <text class="field-label">身份证号</text>
+          <input class="field-input" v-model="form.idCardNo" placeholder="选填，用于唯一身份校验" placeholder-class="ph" maxlength="18" />
+        </view>
       </view>
 
       <!-- 基本信息 -->
@@ -25,8 +34,8 @@
         <view class="field">
           <text class="field-label">客群</text>
           <view class="seg">
-            <AppClickable class="seg-item" :class="{ active: form.leadType ===' ENTERPRISE' }" @click="onPickGroup(' ENTERPRISE')">企业</AppClickable>
-            <AppClickable class="seg-item" :class="{ active: form.leadType ===' PERSONAL' }" @click="onPickGroup(' PERSONAL')">个人</AppClickable>
+            <AppClickable class="seg-item" :class="{ active: form.leadType === 'ENTERPRISE' }" @click="onPickGroup('ENTERPRISE')">企业</AppClickable>
+            <AppClickable class="seg-item" :class="{ active: form.leadType === 'PERSONAL' }" @click="onPickGroup('PERSONAL')">个人</AppClickable>
           </view>
         </view>
       </view>
@@ -111,7 +120,7 @@
  * 渠道合作方录入后本人立即可见，待公司终审通过才进入公海（沙箱隔离：列表仅返回本人录入）。
  * 对接 api/lead.js 的 submitLead / myLeads。
  */
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
 import { submitLead, myLeads } from '../../api/lead';
@@ -123,6 +132,7 @@ import AppSkeleton from '../../components/AppSkeleton.vue';
 import AppLoadMore from '../../components/AppLoadMore.vue';
 
 const store = useUserStore();
+const canCreate = computed(() => store.hasPermission('mini:lead:create'));
 
 const page = ref(1);
 const size = ref(10);
@@ -140,6 +150,7 @@ const form = reactive({
   leadType: 'ENTERPRISE',
   entName: '',
   creditCode: '',
+  idCardNo: '',
   industry: '',
   foundYears: '',
   annualTaxAmount: '',
@@ -173,6 +184,7 @@ function buildPayload() {
     payload.annualTaxAmount = String(form.annualTaxAmount || '');
     payload.annualInvoiceAmount = String(form.annualInvoiceAmount || '');
   }
+  if (form.leadType === 'PERSONAL' && form.idCardNo.trim()) payload.idCardNo = form.idCardNo.trim();
   return payload;
 }
 
@@ -205,6 +217,7 @@ function resetForm() {
   form.phone = '';
   form.entName = '';
   form.creditCode = '';
+  form.idCardNo = '';
   form.industry = '';
   form.foundYears = '';
   form.annualTaxAmount = '';
@@ -266,10 +279,10 @@ async function onSubmit() {
     const res = await submitLead(buildPayload());
     // 重复线索：HTTP 200 + duplicated=true，沙箱脱敏不泄归属人，显示友好文案而非报错
     if (res && res.duplicated) {
-      uni.showToast({ title: '该客户已被录入，请联系运营', icon: 'none', duration: 2500 });
+      uni.showToast({ title: '该客户已存在，可申请认领', icon: 'none', duration: 2500 });
       return;
     }
-    uni.showToast({ title: '录入成功，等待公司审批', icon: 'none', duration: 2200 });
+    uni.showToast({ title: res && res.sameNameWarning ? '录入成功，存在同名客户请注意核对' : '录入成功，等待公司审批', icon: 'none', duration: 2600 });
     resetForm();
     loadLeads();
   } catch (e) {

@@ -70,8 +70,8 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     /** 顾问（ADVISER）默认可访问接口（一线业务） */
     private static final String[] ADVISER_APIS = {
             "order:page", "order:create", "order:detail", "order:updateStatus",
-            "lead:page", "lead:create", "lead:claim", "lead:assign", "lead:applyView", "lead:quota",
-            "client:pageLite",
+            "lead:page", "lead:create", "lead:claim", "lead:batchClaim", "lead:applyView", "lead:quota",
+            "client:pageLite", "client:detail", "client:update", "client:release", "client:follow", "client:history",
             "attachment:page",
             "screening:run",
             "notification:mine", "notification:unreadCount", "notification:markAsRead",
@@ -90,18 +90,36 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     /** 主管（DEPT_MANAGER）在顾问基础上追加管理接口 */
     private static final String[] MANAGER_APIS = {
             "org:staffPage", "org:departmentTree", "org:roleList", "org:permissionList",
-            "approval:productPage", "approval:productDetail", "approval:productAudit",
+            "lead:assign", "lead:batchAssign", "lead:batchDelete",
+            "client:claim", "client:assign", "client:recycle", "client:unassignedPage",
             "approval:downloadPage", "approval:downloadApply", "approval:downloadAudit",
             "approval:downloadVoid",
+            "approval:allocationPending", "approval:allocationApprove", "approval:allocationReject",
+            "approval:unifiedPending", "approval:unifiedCounts", "approval:unifiedAudit",
             "reward:page", "reward:audit", "reward:voidReward",
             "sms:templatePage", "sms:templateList", "sms:saveTemplate", "sms:toggleTemplate",
             "sms:recordPage", "sms:send",
-            "blacklist:page",
             "report:page", "report:save", "report:toggle",
             "ocr:fieldDefs", "ocr:saveRecord",
             "product:page", "product:get", "product:create", "product:update", "product:delete",
             "product-city:list", "product-city:page", "product-city:detail", "product-city:batchQuery",
             "product-city:bind", "product-city:update", "product-city:unbind",
+            "rule:list", "rule:get", "rule:create", "rule:update", "rule:delete", "rule:batchStatus",
+            "rule-template:page", "rule-template:detail", "rule-template:create", "rule-template:update",
+            "rule-template:delete", "rule-template:publish", "rule-template:offline", "rule-template:batch",
+            "rule-template:categories", "rule-template:createField", "rule-template:updateField",
+            "rule-template:deleteField", "rule-template:importToRule",
+            "strategy-template:page", "strategy-template:detail", "strategy-template:create",
+            "strategy-template:update", "strategy-template:delete", "strategy-template:publish",
+            "strategy-template:offline", "strategy-template:batch", "strategy-template:createModule",
+            "strategy-template:updateModule", "strategy-template:deleteModule",
+            "strategy-template:createStep", "strategy-template:updateStep", "strategy-template:deleteStep",
+            "strategy-template:snapshotFromChannel",
+            "execution-plan:list", "execution-plan:detail", "execution-plan:createPlan",
+            "execution-plan:updatePlan", "execution-plan:deletePlan", "execution-plan:copyPlan",
+            "execution-plan:createModule", "execution-plan:updateModule", "execution-plan:deleteModule",
+            "execution-plan:createStep", "execution-plan:updateStep", "execution-plan:deleteStep",
+            "execution-plan:applyTemplate", "execution-plan:saveAsTemplate",
     };
 
     private final RequestMappingHandlerMapping handlerMapping;
@@ -234,22 +252,10 @@ public class ApiPermissionSyncService implements ApplicationRunner {
         if (cnt != null && cnt > 0) {
             return;
         }
-        List<String> adviserKeys = new ArrayList<>();
-        List<String> managerKeys = new ArrayList<>();
-        // 通配：授权按前缀（如 order: 全授权）
-        seedByPrefix(adviserKeys, new String[]{"order:", "lead:", "client:", "attachment:", "screening:",
-                "notification:", "dashboard:", "audit:", "report:", "auth:", "dict:", "sms:", "config:"});
-        addExistingKeys(adviserKeys, ADVISER_APIS);
-        seedByPrefix(managerKeys, new String[]{"org:", "approval:", "reward:", "blacklist:", "ocr:"});
-        seedByPrefix(managerKeys, new String[]{"product:", "product-city:", "partner-product:", "rule:",
-                "rule-template:", "strategy-template:", "execution-plan:", "channel:", "channel-strategy:"});
-        managerKeys.addAll(adviserKeys);
-
-        Map<String, List<String>> map = new LinkedHashMap<>();
-        map.put("ADVISER", adviserKeys);
-        map.put("DEPT_MANAGER", managerKeys);
+        Map<String, List<String>> map = defaultRoleApis(loadActiveApiKeys());
         apiPermissionService.saveRoleApis(map, "system");
-        log.info("[ApiPerm] 首次默认授权完成 ADVISER={} DEPT_MANAGER={}", adviserKeys.size(), managerKeys.size());
+        log.info("[ApiPerm] 首次默认授权完成 ADVISER={} DEPT_MANAGER={}",
+                map.get("ADVISER").size(), map.get("DEPT_MANAGER").size());
     }
 
     /**
@@ -257,19 +263,33 @@ public class ApiPermissionSyncService implements ApplicationRunner {
      * 解决 seedRoleApis 仅在 t_role_api 为空时播种、存量数据无法补齐的问题。
      */
     public void backfillRoleApis() {
-        List<String> adviserKeys = new ArrayList<>();
-        List<String> managerKeys = new ArrayList<>();
-        seedByPrefix(adviserKeys, new String[]{"order:", "lead:", "client:", "attachment:", "screening:",
-                "notification:", "dashboard:", "audit:", "report:", "auth:", "dict:", "sms:", "config:"});
-        addExistingKeys(adviserKeys, ADVISER_APIS);
-        seedByPrefix(managerKeys, new String[]{"org:", "approval:", "reward:", "blacklist:", "ocr:"});
-        seedByPrefix(managerKeys, new String[]{"product:", "product-city:", "partner-product:", "rule:",
-                "rule-template:", "strategy-template:", "execution-plan:", "channel:", "channel-strategy:"});
-        managerKeys.addAll(adviserKeys);
+        Map<String, List<String>> defaults = defaultRoleApis(loadActiveApiKeys());
 
-        backfillRole("ADVISER", adviserKeys);
-        backfillRole("DEPT_MANAGER", managerKeys);
+        backfillRole("ADVISER", defaults.get("ADVISER"));
+        backfillRole("DEPT_MANAGER", defaults.get("DEPT_MANAGER"));
         log.info("[ApiPerm] DM/ADVISER 默认授权补齐完成");
+    }
+
+    /**
+     * 根据已登记的有效接口构建角色最小默认授权矩阵。
+     *
+     * <p>只接受精确接口键，禁止按业务模块前缀授权，避免新增高权限接口时被低权限角色自动继承。</p>
+     *
+     * @param registered 已登记的有效接口键
+     * @return ADVISER / DEPT_MANAGER 默认授权
+     */
+    Map<String, List<String>> defaultRoleApis(Set<String> registered) {
+        List<String> adviserKeys = selectRegisteredKeys(registered, ADVISER_APIS);
+        List<String> managerKeys = selectRegisteredKeys(registered, MANAGER_APIS);
+        for (String key : adviserKeys) {
+            if (!managerKeys.contains(key)) {
+                managerKeys.add(key);
+            }
+        }
+        Map<String, List<String>> defaults = new LinkedHashMap<>();
+        defaults.put("ADVISER", adviserKeys);
+        defaults.put("DEPT_MANAGER", managerKeys);
+        return defaults;
     }
 
     /**
@@ -299,34 +319,21 @@ public class ApiPermissionSyncService implements ApplicationRunner {
         }
     }
 
-    /**
-     * 按 api_key 前缀收集接口键。
-     *
-     * @param out    输出集合
-     * @param prefix 前缀数组（如 order: / lead:）
-     */
-    private void seedByPrefix(List<String> out, String[] prefix) {
-        Set<String> keys = apiPermissionMapper.selectList(
+    /** 一次加载全部有效接口键，避免构建角色矩阵时重复查询。 */
+    private Set<String> loadActiveApiKeys() {
+        return apiPermissionMapper.selectList(
                         new LambdaQueryWrapper<ApiPermission>().eq(ApiPermission::getStatus, "ACTIVE"))
                 .stream().map(ApiPermission::getApiKey).collect(Collectors.toSet());
-        for (String p : prefix) {
-            for (String k : keys) {
-                if (k.startsWith(p) && !out.contains(k)) {
-                    out.add(k);
-                }
-            }
-        }
     }
 
-    /** 从已登记接口中追加指定键；用于不宜整模块放开的最小权限。 */
-    private void addExistingKeys(List<String> out, String[] keys) {
-        Set<String> registered = apiPermissionMapper.selectList(
-                        new LambdaQueryWrapper<ApiPermission>().eq(ApiPermission::getStatus, "ACTIVE"))
-                .stream().map(ApiPermission::getApiKey).collect(Collectors.toSet());
+    /** 从已登记接口中选择指定键；用于最小权限授权。 */
+    private List<String> selectRegisteredKeys(Set<String> registered, String[] keys) {
+        List<String> selected = new ArrayList<>();
         for (String key : keys) {
-            if (registered.contains(key) && !out.contains(key)) {
-                out.add(key);
+            if (registered.contains(key) && !selected.contains(key)) {
+                selected.add(key);
             }
         }
+        return selected;
     }
 }

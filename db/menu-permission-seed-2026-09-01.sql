@@ -72,7 +72,7 @@ INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`)
 SELECT 'SUPER', m.`id`, 'system' FROM `t_menu` m WHERE m.`path` IN
 ('/workbench','/lead','/client','/ocr','/screening','/order','/approval','/product','/rule-template','/rule','/strategy-template','/plan-edit','/channel-config','/channel-strategy','/channel-user-list','/blacklist','/report-template','/sms','/reward','/reward-rule','/audit','/report/center','/report/trend','/report/screening','/org','/config-wizard','/debug');
 
--- DEPT_MANAGER：部门视角 20 项（不含渠道域/风控/系统管理；审批含 PRODUCT/DOWNLOAD，D0-4）
+-- DEPT_MANAGER：部门视角 20 项（不含渠道域/风控/系统管理；审批含本团队 ALLOCATION、DOWNLOAD/MATERIAL_REVIEW，不含渠道 PRODUCT，D39/D60）
 INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`)
 SELECT 'DEPT_MANAGER', m.`id`, 'system' FROM `t_menu` m WHERE m.`path` IN
 ('/workbench','/lead','/client','/ocr','/screening','/order','/approval','/product','/rule-template','/rule','/strategy-template','/plan-edit','/report-template','/sms','/reward','/reward-rule','/audit','/report/center','/report/trend','/report/screening');

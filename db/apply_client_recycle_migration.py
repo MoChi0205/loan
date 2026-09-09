@@ -53,6 +53,26 @@ def main():
                 "ALTER TABLE t_client_profile ADD COLUMN assign_blocked_until datetime DEFAULT NULL "
                 "COMMENT '回收冷却到期时间(回收进公海后原归属人不可认领/不可被直接分配)'")
             added.append("assign_blocked_until")
+        if not col_exists(conn, "t_client_profile", "sea_level"):
+            conn.cursor().execute(
+                "ALTER TABLE t_client_profile ADD COLUMN sea_level VARCHAR(16) DEFAULT NULL "
+                "COMMENT '公海层级: ENTERPRISE/TEAM; 已分配为空'")
+            added.append("sea_level")
+        if not col_exists(conn, "t_client_profile", "sea_dept_code"):
+            conn.cursor().execute(
+                "ALTER TABLE t_client_profile ADD COLUMN sea_dept_code VARCHAR(16) DEFAULT NULL "
+                "COMMENT '团队公海所属部门编码'")
+            added.append("sea_dept_code")
+        with conn.cursor() as cur:
+            cur.execute("UPDATE t_client_profile SET sea_level='ENTERPRISE', sea_dept_code=NULL "
+                        "WHERE owner_staff_code IS NULL AND (sea_level IS NULL OR sea_level='')")
+            cur.execute("UPDATE t_client_profile SET sea_level=NULL, sea_dept_code=NULL "
+                        "WHERE owner_staff_code IS NOT NULL")
+            cur.execute("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() "
+                        "AND TABLE_NAME='t_client_profile' AND INDEX_NAME='idx_client_sea_scope'")
+            if cur.fetchone() is None:
+                cur.execute("CREATE INDEX idx_client_sea_scope ON t_client_profile "
+                            "(sea_level, sea_dept_code, owner_staff_code, status)")
 
         conn.cursor().execute(
             "CREATE TABLE IF NOT EXISTS t_client_recycle_config ("

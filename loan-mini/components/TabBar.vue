@@ -79,16 +79,20 @@ const tabList = computed(() => {
       { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: COLOR.PRODUCT, activeColor: 'var(--brand-deep)' },
       { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: COLOR.CLIENT, activeColor: 'var(--brand-deep)' },
       { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: 'var(--brand-deep)' },
-    ];
+    ].filter((item) => item.key === 'home' || item.key === 'mine'
+      || (item.key === 'product' && store.hasPermission('mini:product:view'))
+      || (item.key === 'client' && store.hasPermission('mini:lead:create')));
   }
-  const isManager = ['deptmgr', 'boss', 'operator', 'super'].includes(store.role);
   return [
     { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: 'var(--brand-deep)' },
     { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH, activeColor: 'var(--brand-deep)' },
-    { key: 'report', label: isManager ? '报告中心' : store.role === 'adviser' ? '客户报告' : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT, activeColor: 'var(--brand-deep)' },
-    { key: 'order', label: isManager ? '工单中心' : store.role === 'adviser' ? '客户工单' : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER, activeColor: 'var(--brand-deep)' },
+    { key: 'report', label: store.isStaff ? (store.role === 'adviser' ? '客户报告' : '报告中心') : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT, activeColor: 'var(--brand-deep)' },
+    { key: 'order', label: store.isStaff ? (store.role === 'adviser' ? '客户工单' : '工单中心') : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER, activeColor: 'var(--brand-deep)' },
     { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: 'var(--brand-deep)' },
-  ];
+  ].filter((item) => item.key === 'home' || item.key === 'mine'
+    || (item.key === 'match' && store.hasPermission('mini:match:view'))
+    || (item.key === 'report' && store.hasPermission('mini:report:view'))
+    || (item.key === 'order' && store.hasPermission('mini:order:view')));
 });
 
 /**

@@ -4,8 +4,8 @@
  * 契约对齐「小程序模块结论沉淀」C2 / C10：
  * - GET  /api/mini/client/search?keyword=  查重（企业名模糊 / 手机号精确 / 信用代码精确）
  * - POST /api/mini/client                  录入新客户（自动归属当前用户，C2 情形 A）
- * - POST /api/mini/client/{clientCode}/claim 申请分配（C2 情形 B：
- *       有归属人 → 自动归属无需审批；无归宿/公海 → 走上级或运营审批）
+ * - POST /api/mini/client/{clientCode}/claim 认领/申请转分配：
+ *       无归属/公海 → 直接认领；已归属本人 → 幂等；已归属他人 → 申请审批
  * - GET  /api/mini/client/{clientCode}/claim-status 查询分配申请审批状态
  */
 import { requestGet, requestPost } from './request';
@@ -50,7 +50,7 @@ export function createClient(payload) {
  *
  * 后端按当前归属分流：
  * - 已归属本人 → 幂等返回 { result:'AUTO_CLAIMED' }
- * - 已归属他人或无归属 → 提交审批，返回 { result:'PENDING_APPROVAL', approvalNo }
+ * - 无归属公海客户 → 直接认领；已归属他人 → 提交审批
  *
  * @param {string} clientCode 客户编号
  * @param {string} [reason]   申请理由
@@ -68,6 +68,11 @@ export function claimClient(clientCode, reason) {
  */
 export function claimStatus(clientCode) {
   return requestGet(`/api/mini/client/${clientCode}/claim-status`, {}, { showError: false });
+}
+
+/** 释放本人客户回公海，无需审批。 */
+export function releaseClient(clientCode) {
+  return requestPost(`/api/mini/client/${clientCode}/release`, {});
 }
 
 /* ==================== C19-B3：无归宿分配审批（运营/超管/老板） ==================== */

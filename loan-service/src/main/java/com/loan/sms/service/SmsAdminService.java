@@ -106,7 +106,7 @@ public class SmsAdminService {
      * 新增 / 编辑模板（templateCode 存在则编辑）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void saveTemplate(SmsTemplate req, String operator) {
+    public void saveTemplate(SmsTemplate req, String operator, boolean canActivate) {
         if (!StringUtils.hasText(req.getTemplateCode())
                 || !StringUtils.hasText(req.getTemplateName())
                 || !StringUtils.hasText(req.getContent())
@@ -116,7 +116,7 @@ public class SmsAdminService {
         SmsTemplate exist = smsTemplateMapper.selectOne(new LambdaQueryWrapper<SmsTemplate>()
                 .eq(SmsTemplate::getTemplateCode, req.getTemplateCode()));
         if (exist == null) {
-            req.setEnabled(req.getEnabled() == null ? 1 : req.getEnabled());
+            req.setEnabled(canActivate && Integer.valueOf(1).equals(req.getEnabled()) ? 1 : 0);
             req.setUnsubscribeRequired(req.getUnsubscribeRequired() == null ? 0 : req.getUnsubscribeRequired());
             req.setCreatedBy(operator);
             req.setUpdatedBy(operator);
@@ -128,6 +128,7 @@ public class SmsAdminService {
             exist.setSmsType(req.getSmsType());
             exist.setProviderTemplateId(req.getProviderTemplateId());
             exist.setFreqStrategy(req.getFreqStrategy());
+            if (!canActivate) exist.setEnabled(0);
             exist.setUpdatedBy(operator);
             smsTemplateMapper.updateById(exist);
         }

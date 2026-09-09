@@ -54,7 +54,7 @@ description: >-
 
 - `ApiPermissionSyncService`（`ApplicationRunner`）：启动时扫描 `RequestMappingHandlerMapping` 全部映射，
   自动 upsert 到 `t_api_permission`，`api_key = {模块}:{方法名}`（模块从 `/api/admin/{模块}/…` 提取）
-- 首次运行自动给 ADVISER（一线）/ DEPT_MANAGER（管理）插默认授权
+- 首次运行自动给 ADVISER（一线）/ DEPT_MANAGER（管理）插入**精确接口键**的最小默认授权；禁止按 `lead:`、`client:`、`approval:`、`org:` 等整模块前缀播种，避免模块新增高权限接口时被低权限角色自动继承
 - 新增 Controller 接口后**重启服务即自动登记**；也可用 OPERATOR / SUPER_ADMIN / SUPER 调 `POST /api/admin/api-perm/sync` 手动同步（BOSS 禁止系统配置）
 - CHANNEL Web 业务接口必须定义在 `/api/channel/**`，同步后 `api_key` 必须稳定为 `channel:*`；禁止为渠道放宽通用 `/api/admin/**`。服务内还须校验 `userType=CHANNEL` 并按 `userNo` 做本人数据隔离，网关前缀仅解决“能否进入接口”，不解决数据范围。
 - CHANNEL 小程序跨域能力使用 `typeApiRules` 的 HTTP method + pathPattern 精确白名单，只开放自有产品、本人线索和必要公共入口；禁止给 CHANNEL 增加 `mini:` 前缀，否则会越权到匹配、报告和工单。
@@ -68,6 +68,7 @@ description: >-
       > ⚠️ `clientTypes` 参数是**逗号分隔 String**（不是数组），传数组会 5000 错误
 - [ ] 角色授权是否合理：ADVISER 只给一线接口
       （order / lead / client / screening / notification / dashboard / audit / report 部分 / sms 验证码）
+- [ ] DM/ADVISER 默认授权是否仍为精确接口键？是否出现整模块前缀授权或存量自动播种越权？
 - [ ] 系统配置接口（org 写、角色/菜单/接口权限、debug）是否仅 OPERATOR / SUPER_ADMIN / SUPER，且 BOSS 显式拒绝？业务审批另按审批类型角色表校验。
 - [ ] 网关匹配优先级：**精确路径优先于通配**（`/order/page` 不会被 `/order/{orderNo}` 抢占，网关已两轮匹配）
 - [ ] 服务重启后确认日志 `[ApiPerm] 接口清单同步完成，共 N 个接口`，N 与预期一致

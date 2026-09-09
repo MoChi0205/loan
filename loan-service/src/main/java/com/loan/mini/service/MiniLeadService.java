@@ -14,6 +14,9 @@ import com.loan.lead.entity.LeadEntExt;
 import com.loan.lead.mapper.LeadEntExtMapper;
 import com.loan.lead.mapper.LeadMapper;
 import com.loan.lead.service.LeadService;
+import com.loan.client.entity.ClientProfile;
+import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.personal.mapper.PersonalProfileMapper;
 import com.loan.utils.DesensitizeUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -48,6 +51,8 @@ public class MiniLeadService {
     private final LeadService leadService;
     private final LeadMapper leadMapper;
     private final LeadEntExtMapper leadEntExtMapper;
+    private final ClientProfileMapper clientProfileMapper;
+    private final PersonalProfileMapper personalProfileMapper;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -89,6 +94,35 @@ public class MiniLeadService {
         lead.setExtJson(toJson(ext));
         lead.setFollowStatus(LoanUser.TYPE_CHANNEL.equals(user.getUserType()) ? "PENDING_APPROVAL" : "NEW");
 
+        String phoneHash = HashUtils.sha256Hex(phone.trim());
+        ClientProfile existingClient = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                .eq(ClientProfile::getPhoneHash, phoneHash).last("limit 1"));
+        if (existingClient != null) {
+            return duplicateResult(existingClient.getClientCode(), existingClient.getOwnerStaffCode() == null, user);
+        }
+        Lead existingLead = leadMapper.selectOne(new LambdaQueryWrapper<Lead>()
+                .eq(Lead::getPhoneHash, phoneHash).last("limit 1"));
+        if (existingLead != null) {
+            return duplicateResult(existingLead.getClientProfileCode(), existingLead.getOwnerStaffCode() == null, user);
+        }
+        if ("ENTERPRISE".equals(lead.getLeadType()) && StringUtils.hasText(body.get("creditCode"))) {
+            String creditHash = HashUtils.sha256Hex(body.get("creditCode").trim());
+            ClientProfile creditClient = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                    .eq(ClientProfile::getCreditCodeHash, creditHash).last("limit 1"));
+            if (creditClient != null) return duplicateResult(creditClient.getClientCode(), creditClient.getOwnerStaffCode() == null, user);
+            LeadEntExt creditLead = leadEntExtMapper.selectOne(new LambdaQueryWrapper<LeadEntExt>()
+                    .eq(LeadEntExt::getCreditCodeHash, creditHash).last("limit 1"));
+            if (creditLead != null) return duplicateResult(null, true, user);
+        }
+        if ("PERSONAL".equals(lead.getLeadType()) && StringUtils.hasText(body.get("idCardNo"))) {
+            String idHash = HashUtils.sha256Hex(body.get("idCardNo").trim());
+            com.loan.personal.entity.PersonalProfile personal = personalProfileMapper.selectOne(
+                    new LambdaQueryWrapper<com.loan.personal.entity.PersonalProfile>()
+                            .eq(com.loan.personal.entity.PersonalProfile::getIdCardHash, idHash).last("limit 1"));
+            if (personal != null) return duplicateResult(personal.getClientProfileCode(), true, user);
+        }
+        boolean sameNameWarning = hasSameName(contactName, body.get("entName"), lead.getLeadType());
+
         // 唯一索引冲突（uk_phone_hash_type）兜底：返回 duplicated=true，不泄露归属人（沙箱隔离）
         try {
             String leadNo = leadService.create(lead, recorderCodeOf(user), user.getName());
@@ -96,6 +130,7 @@ public class MiniLeadService {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("leadNo", leadNo);
             result.put("duplicated", false);
+            result.put("sameNameWarning", sameNameWarning);
             return result;
         } catch (DuplicateKeyException e) {
             Map<String, Object> result = new LinkedHashMap<>();
@@ -103,6 +138,30 @@ public class MiniLeadService {
             result.put("duplicated", true);
             return result;
         }
+    }
+
+    private boolean hasSameName(String contactName, String entName, String leadType) {
+        LambdaQueryWrapper<ClientProfile> clients = new LambdaQueryWrapper<>();
+        if ("ENTERPRISE".equals(leadType) && StringUtils.hasText(entName)) {
+            clients.eq(ClientProfile::getEnterpriseName, entName.trim());
+        } else {
+            clients.eq(ClientProfile::getContactName, contactName.trim());
+        }
+        if (clientProfileMapper.selectCount(clients) > 0) return true;
+        return leadMapper.selectCount(new LambdaQueryWrapper<Lead>()
+                .eq(Lead::getContactName, contactName.trim())) > 0;
+    }
+
+    private Map<String, Object> duplicateResult(String clientCode, boolean claimable, LoanUser user) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("leadNo", null);
+        result.put("duplicated", true);
+        // 渠道沙箱不得获知公司客户内部关联或认领状态。
+        if (user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())) {
+            result.put("clientCode", clientCode);
+            result.put("claimable", claimable);
+        }
+        return result;
     }
 
     /**

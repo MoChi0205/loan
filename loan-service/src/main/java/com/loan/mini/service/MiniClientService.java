@@ -206,6 +206,10 @@ public class MiniClientService {
         return clientAllocationService.status(clientCode, user == null ? null : user.getUserNo());
     }
 
+    public Map<String, Object> release(String clientCode, LoanUser user) {
+        return clientAllocationService.selfRelease(clientCode, user);
+    }
+
     /* ==================== B3：无归宿分配审批（运营/超管） ==================== */
 
     /**

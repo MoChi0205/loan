@@ -97,6 +97,7 @@ export const useUserStore = defineStore('user', {
      * 若不持久化，刷新后角色会丢失导致所有差异化判定失效。
      */
     role: 'customer',
+    permissions: [],
   }),
 
   getters: {
@@ -116,6 +117,33 @@ export const useUserStore = defineStore('user', {
       customer: '客户', channel: '渠道合作方', adviser: '顾问',
       deptmgr: '部门经理', boss: '老板', operator: '运营管理员', super: '超级管理员',
     }[state.role] || '客户'),
+    /** 页面级精确能力判断；后端仍是最终授权方。 */
+    hasPermission: (state) => (key) => {
+      if (Array.isArray(state.permissions) && state.permissions.length) return state.permissions.includes(key);
+      const matrix = {
+        'mini:active-product:view': ['customer', 'channel', 'adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:match:view': ['customer', 'adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:client:view': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:lead:create': ['channel', 'adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:product:view': ['channel', 'operator', 'super'],
+        'mini:product:create': ['channel', 'operator', 'super'],
+        'mini:approval:view': ['deptmgr', 'boss', 'operator', 'super'],
+        'mini:approval:audit': ['deptmgr', 'boss', 'operator', 'super'],
+        'mini:lead:mine': ['channel', 'adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:client:claim': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:client:batch-claim': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:client:release': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:client:search': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:client:assign': ['deptmgr', 'boss', 'super'],
+        'mini:batch-import': ['boss', 'super'],
+        'mini:import-template': ['boss', 'super'],
+        'mini:import-result-export': ['boss', 'super'],
+        'mini:invitation:create': ['customer', 'adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:report:view': ['customer', 'adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:order:view': ['customer', 'adviser', 'deptmgr', 'boss', 'operator', 'super'],
+      };
+      return (matrix[key] || []).includes(state.role);
+    },
   },
 
   actions: {
@@ -220,6 +248,7 @@ export const useUserStore = defineStore('user', {
       const roleInfo = profile && profile.roleInfo;
       if (roleInfo && roleInfo.role) {
         this.role = roleInfo.role;
+        this.permissions = Array.isArray(roleInfo.permissions) ? roleInfo.permissions : [];
         try {
           uni.setStorageSync(ROLE_KEY, this.role);
         } catch (e) {

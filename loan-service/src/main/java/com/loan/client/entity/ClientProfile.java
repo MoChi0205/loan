@@ -55,6 +55,12 @@ public class ClientProfile implements Serializable {
     /** 回收冷却到期时间（回收后进公海，冷却期内原归属人不可认领/不可被直接分配） */
     private LocalDateTime assignBlockedUntil;
 
+    /** 公海层级：ENTERPRISE / TEAM；已分配时为空。 */
+    private String seaLevel;
+
+    /** TEAM 公海所属部门编码；其他状态为空。 */
+    private String seaDeptCode;
+
     /** 来源（线索转正 / 渠道等） */
     private String source;
 

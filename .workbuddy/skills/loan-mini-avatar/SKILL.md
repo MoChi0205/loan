@@ -49,7 +49,7 @@ description: 小程序微信头像与昵称填写能力封装（open-type=choose
 ## 默认头像策略
 - 优先 `store.avatarUrl`（后端/本地选择）。
 - 为空 → 首字占位（圆形玻璃底 + 姓名首字），**不依赖额外 PNG 资源**。
-- 如需图片版默认头像，放 `static/avatar-default.png` 并以 `v-if` 切换。
+- 如需图片版默认头像，必须先将资源纳入 `loan-mini/static/` 并在提交前通过资源存在性检查；当前默认使用微信头像能力与纯色占位，不引用不存在的固定文件。
 
 ## 注意
 - 临时路径 `avatarUrl` 仅本次会话有效；刷新后由 `/api/mini/me` 覆盖（后端有值优先）。
