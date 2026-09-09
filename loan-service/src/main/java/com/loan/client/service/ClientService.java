@@ -99,7 +99,27 @@ public class ClientService {
                                                     java.time.LocalDateTime createdAtStart, java.time.LocalDateTime createdAtEnd,
                                                     java.time.LocalDateTime dealTimeStart, java.time.LocalDateTime dealTimeEnd,
                                                     int page, int size, String orderBy, String orderDir, String ownerDeptCode) {
+        return pageLite(keyword, name, phone, enterpriseName, creditCode, ownerStaffCode,
+                createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd, page, size, orderBy, orderDir,
+                ownerDeptCode, null);
+    }
+
+    /** 客户视图查询：在既有范围条件上增加公司/团队公海过滤。 */
+    public PageResult<Map<String, Object>> pageLite(String keyword, String name, String phone, String enterpriseName,
+                                                    String creditCode, String ownerStaffCode,
+                                                    java.time.LocalDateTime createdAtStart, java.time.LocalDateTime createdAtEnd,
+                                                    java.time.LocalDateTime dealTimeStart, java.time.LocalDateTime dealTimeEnd,
+                                                    int page, int size, String orderBy, String orderDir, String ownerDeptCode,
+                                                    String seaLevel) {
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(seaLevel)) {
+            wrapper.eq(ClientProfile::getSeaLevel, seaLevel.trim().toUpperCase())
+                    .isNull(ClientProfile::getOwnerStaffCode);
+            if ("TEAM".equalsIgnoreCase(seaLevel) && StringUtils.hasText(ownerDeptCode)) {
+                wrapper.eq(ClientProfile::getSeaDeptCode, ownerDeptCode.trim());
+                ownerDeptCode = null;
+            }
+        }
         if (StringUtils.hasText(ownerStaffCode)) {
             wrapper.eq(ClientProfile::getOwnerStaffCode, ownerStaffCode.trim());
         }

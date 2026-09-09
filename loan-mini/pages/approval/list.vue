@@ -67,13 +67,18 @@ const store = useUserStore();
 const canView = computed(() => store.hasPermission('mini:approval:view'));
 
 /** 类型分段 tab 定义（当前四类审批均开放） */
-const segTabs = [
+const allSegTabs = [
   { value: 'ALL', label: '全部' },
   { value: 'PRODUCT', label: '产品' },
   { value: 'DOWNLOAD', label: '资料下载' },
   { value: 'ALLOCATION', label: '分配' },
   { value: 'MATERIAL_REVIEW', label: '材料复核' },
 ];
+const segTabs = computed(() => allSegTabs.filter((tab) => {
+  if (tab.value === 'ALL') return true;
+  if (tab.value === 'PRODUCT') return ['deptmgr', 'boss', 'super'].includes(store.role);
+  return store.hasPermission('mini:approval:audit');
+}));
 
 /** 审批类型中文映射（替代原始枚举直接展示，见 P1-3） */
 const TYPE_LABEL = {
@@ -217,7 +222,9 @@ onLoad(async () => {
   // 入口级守卫：渠道不可直达审批中心（D50 沙箱），H5 深链重定向回首页
   if (store.isChannel || !canView.value) { uni.reLaunch({ url: '/pages/home/home' }); return; }
   await loadCounts();
-  load('ALLOCATION');
+  const first = segTabs.value.find((tab) => tab.value !== 'ALL') || segTabs.value[0];
+  activeType.value = first ? first.value : 'ALL';
+  load(activeType.value);
 });
 </script>
 

@@ -222,6 +222,10 @@ async function onAction(p, action) {
 }
 
 function goEdit(p) {
+  if (!store.hasPermission('mini:product:create')) {
+    uni.showToast({ title: '当前账号没有产品编辑权限', icon: 'none' });
+    return;
+  }
   const url = p && p.code
     ? `/pages/product/edit?code=${p.code}`
     : '/pages/product/edit';

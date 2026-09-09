@@ -1,5 +1,7 @@
 <template>
   <view class="edit-page">
+    <AppEmpty v-if="!canEdit" title="暂无权限" desc="当前账号没有产品录入或编辑权限，请联系管理员" />
+    <template v-else>
     <view class="card">
       <text class="card-title">{{ isEdit ? '编辑产品' : '录入产品' }}</text>
 
@@ -84,6 +86,7 @@
         驳回会显示原因，编辑后可重新提交。
       </text>
     </view>
+    </template>
   </view>
 </template>
 
@@ -100,7 +103,11 @@
 import { ref, reactive, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { createProduct, updateProduct, getProductDetail } from '../../api/product';
+import { useUserStore } from '../../store/user';
+import AppEmpty from '../../components/AppEmpty.vue';
 
+const store = useUserStore();
+const canEdit = computed(() => store.hasPermission('mini:product:create'));
 const code = ref('');
 const isEdit = computed(() => !!code.value);
 const submitting = ref(false);
@@ -129,6 +136,7 @@ const customerGroupLabel = computed(() => customerGroupOptions.find(item => item
 const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
 onLoad((query) => {
+  if (!canEdit.value) return;
   if (query && query.code) {
     code.value = query.code;
     // 编辑态：按审批单号拉取详情回填表单（C9 编辑/重提）

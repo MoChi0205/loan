@@ -21,6 +21,13 @@
     </div>
 
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
+      <el-tabs v-model="clientScope" class="client-scope-tabs" @tab-change="onScopeChange">
+        <el-tab-pane label="我的客户" name="MY" />
+        <el-tab-pane v-if="isDeptManager" label="团队客户" name="TEAM" />
+        <el-tab-pane label="公司客户" name="ALL" />
+        <el-tab-pane label="公司公海" name="COMPANY_SEA" />
+        <el-tab-pane v-if="isDeptManager" label="团队公海" name="TEAM_SEA" />
+      </el-tabs>
       <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
         <el-input v-model="clientQuery.name" placeholder="联系人姓名" clearable style="width: 160px" @keyup.enter="searchClients" />
         <el-input v-model="clientQuery.phone" placeholder="手机号" clearable style="width: 160px" @keyup.enter="searchClients" />
@@ -251,6 +258,8 @@ const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 const isAdviser = computed(() => userStore.roleCode === 'ADVISER');
 const showOwnClientList = computed(() => isChannel.value || isAdviser.value);
+const isDeptManager = computed(() => userStore.roleCode === 'DEPT_MANAGER');
+const clientScope = ref(isAdviser.value ? 'MY' : 'ALL');
 const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
@@ -273,7 +282,14 @@ const {
   createdAtEnd: '',
   dealTimeStart: '',
   dealTimeEnd: '',
+  scope: isAdviser.value ? 'MY' : 'ALL',
 });
+
+function onScopeChange(scope) {
+  clientQuery.scope = scope;
+  clientQuery.page = 1;
+  loadClients();
+}
 
 /** 建档时间范围（daterange）→ 拆成起止两个查询参数 */
 const createdAtRange = ref(null);

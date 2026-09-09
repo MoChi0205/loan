@@ -89,7 +89,13 @@ public class MiniRoleGuard {
             return;
         }
         if ("PRODUCT".equalsIgnoreCase(type)) {
-            requireChannelFinalApprover(user);
+            // 部门经理可审批本团队产品；老板/超管可审批全部产品。
+            // 渠道合作方提交的产品仍由业务层按 channelUserId 做终审范围校验。
+            requireStaff(user);
+            String code = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
+            if (!APPROVAL_ROLES.contains(code)) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "无产品审批权限");
+            }
             return;
         }
         requireStaff(user);

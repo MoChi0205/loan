@@ -236,6 +236,7 @@ public class ClientController {
         miniRoleGuard.requireStaff(user);
         String scopedOwner = ownerStaffCode;
         String ownerDeptCode = null;
+        String seaLevel = null;
         String normalizedScope = scope == null ? "ALL" : scope.trim().toUpperCase();
         if ("MY".equals(normalizedScope)) {
             scopedOwner = user.getUserNo();
@@ -245,10 +246,19 @@ public class ClientController {
                         com.loan.common.ResultCode.FORBIDDEN, "仅部门经理可查看团队客户");
             }
             ownerDeptCode = user.getDeptCode();
+        } else if ("COMPANY_SEA".equals(normalizedScope)) {
+            seaLevel = "COMPANY";
+        } else if ("TEAM_SEA".equals(normalizedScope)) {
+            if (!"DEPT_MANAGER".equalsIgnoreCase(user.getRoleCode())) {
+                throw new com.loan.exception.BusinessException(
+                        com.loan.common.ResultCode.FORBIDDEN, "仅部门经理可查看团队公海");
+            }
+            seaLevel = "TEAM";
+            ownerDeptCode = user.getDeptCode();
         }
         return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
                 scopedOwner, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir, ownerDeptCode));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, ownerDeptCode, seaLevel));
     }
 
     /**
