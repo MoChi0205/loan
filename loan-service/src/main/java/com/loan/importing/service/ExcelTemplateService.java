@@ -7,10 +7,16 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /** 产品、线索导入模板生成，避免维护静态二进制文件。 */
 @Service
 public class ExcelTemplateService {
+    private static final int MAX_ROWS = 5000;
     public byte[] template(String type) {
         String[] headers = "PRODUCT".equalsIgnoreCase(type)
                 ? new String[]{"产品名称*", "银行名称*", "客群*", "额度下限", "额度上限", "利率下限", "利率上限", "期限下限(月)", "期限上限(月)"}
@@ -23,6 +29,36 @@ public class ExcelTemplateService {
             return out.toByteArray();
         } catch (IOException e) {
             throw new IllegalStateException("生成导入模板失败", e);
+        }
+    }
+
+    public Map<String, Object> preview(String type, MultipartFile file) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        List<Map<String, String>> rows = new ArrayList<>();
+        try (XSSFWorkbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Row header = sheet.getRow(0);
+            if (header == null || header.getLastCellNum() <= 0) {
+                throw new IllegalArgumentException("首行必须为模板表头");
+            }
+            int count = 0;
+            for (int i = 1; i <= sheet.getLastRowNum() && count < MAX_ROWS; i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || row.getLastCellNum() <= 0) continue;
+                Map<String, String> item = new LinkedHashMap<>();
+                for (int c = 0; c < header.getLastCellNum(); c++) {
+                    String key = header.getCell(c) == null ? "列" + c : header.getCell(c).getStringCellValue().trim();
+                    String value = row.getCell(c) == null ? "" : row.getCell(c).toString().trim();
+                    item.put(key, value);
+                }
+                rows.add(item); count++;
+            }
+            result.put("type", type); result.put("totalRows", rows.size());
+            result.put("truncated", sheet.getLastRowNum() > MAX_ROWS);
+            result.put("rows", rows);
+            return result;
+        } catch (IOException | RuntimeException e) {
+            throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.PARAM_ERROR, "Excel 文件解析失败：" + e.getMessage());
         }
     }
 }
