@@ -17,6 +17,8 @@ export const sceneries = {
   skyline: `${BASE}login-bg/skyline.jpg`,
   office: `${BASE}login-bg/office.jpg`,
   twilight: `${BASE}login-bg/twilight.jpg`,
+  inkDark: `${BASE}login-bg/login-bg-dark.png`,
+  inkLight: `${BASE}login-bg/login-bg-light.png`,
 };
 
 export const sceneryKeys = Object.keys(sceneries);

@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">我的产品</h2>
-        <p class="loan-page-subtitle">仅展示本渠道录入产品；提交后由平台超级管理员或老板审批</p>
+        <p class="loan-page-subtitle">仅展示本渠道录入产品；提交后由平台超级管理员或老板审核</p>
       </div>
       <el-button type="primary" @click="openCreate">
         <AppIcon name="add" :size="14" />录入产品
@@ -14,7 +14,7 @@
       <AppTableState :error="error" @retry="load">
         <el-table :data="rows" v-loading="loading" stripe row-key="code">
           <template #empty>
-            <AppEmpty title="暂无产品" desc="录入第一项合作产品，保存草稿后提交平台审批" />
+            <AppEmpty title="暂无产品" desc="录入第一项合作产品，保存草稿后提交平台审核" />
           </template>
           <el-table-column prop="productName" label="产品名称" min-width="180">
             <template #default="{ row }">{{ row.productName || '—' }}</template>
@@ -24,12 +24,12 @@
           </el-table-column>
           <el-table-column prop="amountRange" label="额度区间" width="150" />
           <el-table-column prop="rate" label="利率区间" width="130" />
-          <el-table-column label="审批状态" width="110">
+          <el-table-column label="审核状态" width="110">
             <template #default="{ row }">
               <span class="loan-tag" :class="statusTone(row.status)">{{ statusText(row.status) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="审批意见" min-width="180">
+          <el-table-column label="审核意见" min-width="180">
             <template #default="{ row }">{{ row.rejectReason || '—' }}</template>
           </el-table-column>
           <el-table-column label="录入时间" width="165">
@@ -134,7 +134,7 @@ const rules = {
   customerGroup: [{ required: true, message: '请选择适用客群', trigger: 'change' }],
 };
 
-const statusText = (status) => ({ DRAFT: '草稿', PENDING: '待审批', APPROVED: '已上架', REJECTED: '已驳回', PENDING_DELETE: '待删除' }[status] || status || '—');
+const statusText = (status) => ({ DRAFT: '草稿', PENDING: '待审核', APPROVED: '已上架', REJECTED: '已驳回', PENDING_DELETE: '待删除' }[status] || status || '—');
 const statusTone = (status) => ({ DRAFT: 'loan-tag-muted', PENDING: 'loan-tag-warning', APPROVED: 'loan-tag-success', REJECTED: 'loan-tag-danger', PENDING_DELETE: 'loan-tag-danger' }[status] || 'loan-tag-muted');
 
 async function load() {
@@ -206,7 +206,7 @@ async function act(action, row) {
     if (action === 'submit') await submitChannelProduct(row.code);
     if (action === 'revoke') await revokeChannelProduct(row.code);
     if (action === 'delete') {
-      const ok = await appConfirm('申请删除后需平台审批，审批通过后产品将下架。确认提交申请？', '申请删除');
+      const ok = await appConfirm('申请删除后需平台审核，审核通过后产品将下架。确认提交申请？', '申请删除');
       if (!ok) return;
       await applyDeleteChannelProduct(row.code, '渠道 Web 申请下架');
     }
@@ -219,9 +219,9 @@ async function act(action, row) {
 function rowActions(row) {
   if (row.status === 'DRAFT') return [
     { key: 'edit', label: '编辑', onClick: () => openEdit(row) },
-    { key: 'submit', label: '提交审批', type: 'primary', onClick: () => act('submit', row) },
+    { key: 'submit', label: '提交审核', type: 'primary', onClick: () => act('submit', row) },
   ];
-  if (row.status === 'PENDING') return [{ key: 'revoke', label: '撤销审批', onClick: () => act('revoke', row) }];
+  if (row.status === 'PENDING') return [{ key: 'revoke', label: '撤销审核', onClick: () => act('revoke', row) }];
   if (row.status === 'REJECTED') return [{ key: 'edit', label: '编辑重提', type: 'primary', onClick: () => openEdit(row) }];
   if (row.status === 'APPROVED') return [{ key: 'delete', label: '申请删除', type: 'danger', onClick: () => act('delete', row) }];
   if (row.status === 'PENDING_DELETE') return [{ key: 'cancel', label: '撤销删除', onClick: () => act('cancelDelete', row) }];

@@ -648,7 +648,7 @@ async function onAssignConfirm() {
   }
   try {
     await ElMessageBox.confirm(
-      `确认将客户【${detail.enterpriseName || detail.name || clientCode.value}】的归属调整为「${picked ? picked.staffName : assignTarget.value}」？此操作立即生效，无需审批。`,
+      `确认将客户【${detail.enterpriseName || detail.name || clientCode.value}】的归属调整为「${picked ? picked.staffName : assignTarget.value}」？此操作立即生效，无需审核。`,
       '分配归属确认',
       { type: 'warning' },
     );

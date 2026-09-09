@@ -43,12 +43,12 @@ export function pageUnassignedClients(params) {
   return request({ url: '/api/admin/client/unassigned/page', method: 'get', params });
 }
 
-/** 顾问申请认领未分配客户，审批通过后才建立归属。 */
+/** 顾问申请认领未分配客户，审核通过后才建立归属。 */
 export function claimUnassignedClient(clientCode) {
   return request({ url: `/api/admin/client/${clientCode}/claim`, method: 'post' });
 }
 
-/** 管理者直接指定归属（D39/C23）：立即落归属、无需审批。body 兼容 adviserStaffCode，新前端统一用 targetStaffCode。 */
+/** 管理者直接指定归属（D39/C23）：立即落归属、无需审核。body 兼容 adviserStaffCode，新前端统一用 targetStaffCode。 */
 export function assignClient(clientCode, targetStaffCode) {
   return request({
     url: `/api/admin/client/${clientCode}/assign`,
@@ -65,7 +65,7 @@ export function recycleClient(clientCode) {
   });
 }
 
-/** 顾问主动释放自己的客户回公海（无需审批，仅归属本人可操作）。 */
+/** 顾问主动释放自己的客户回公海（无需审核，仅归属本人可操作）。 */
 export function releaseClient(clientCode) {
   return request({
     url: `/api/admin/client/${clientCode}/release`,

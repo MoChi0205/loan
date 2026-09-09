@@ -1,5 +1,5 @@
 <template>
-  <view class="auth-page">
+  <view class="auth-page theme-root" :data-theme="themeMode">
     <!-- 页面头 -->
     <view class="page-head">
       <text class="head-title">身份认证</text>
@@ -96,7 +96,7 @@
       <view class="checkbox" :class="{ checked: agreed }">
         <text v-if="agreed" class="check-mark">✓</text>
       </view>
-      <text class="compliance-text">我已阅读并同意《用户授权与隐私协议》，授权平台使用上述信息进行贷款匹配分析</text>
+      <text class="compliance-text">我已阅读并同意《用户授权与隐私协议》，授权平台使用上述信息进行资金匹配分析</text>
     </AppClickable>
 
     <AppButton class="submit-btn" variant="primary" size="lg" block :loading="submitting" @click="onSubmit">
@@ -111,6 +111,7 @@
 import { ref, reactive } from 'vue';
 import { enterpriseAuth, personalAuth } from '../../api/auth';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import { isUnifiedSocialCreditCode, isIdCardNo } from '../../utils/validation';
 
 /**
@@ -118,6 +119,7 @@ import { isUnifiedSocialCreditCode, isIdCardNo } from '../../utils/validation';
  * 设计语言：瑞幸风格 —— 双卡片类型选择、阴影大圆角卡片、深色主按钮。
  */
 const store = useUserStore();
+const themeMode = useThemeMode();
 
 const authType = ref('enterprise');
 const submitting = ref(false);

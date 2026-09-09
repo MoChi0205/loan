@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">{{ isChannel ? '我的线索' : '线索公海' }}</h2>
-        <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审批通过后进入公海' : '线索认领与客户顾问分配统一管理' }}</p>
+        <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审核通过后进入公海' : '线索认领与客户顾问分配统一管理' }}</p>
       </div>
       <el-button v-permission="ACTION_PERMISSION.LEAD_CREATE" type="primary" @click="openCreate">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
@@ -67,7 +67,7 @@
           <template #empty>
             <AppEmpty
               :title="activeTab === 'clients' ? '暂无未分配客户' : (isChannel ? '暂无本人录入的线索' : '暂无线索')"
-              :desc="activeTab === 'clients' ? '新注册且尚未分配服务顾问的客户会显示在这里' : (isChannel ? '新增成功后会立即显示，审批通过后进入公司公海' : '点击右上角「新增线索」录入第一条客户线索')"
+              :desc="activeTab === 'clients' ? '新注册且尚未分配服务顾问的客户会显示在这里' : (isChannel ? '新增成功后会立即显示，审核通过后进入公司公海' : '点击右上角「新增线索」录入第一条客户线索')"
             />
           </template>
           <el-table-column v-if="activeTab !== 'clients' && !isChannel" type="selection" width="44" fixed="left" reserve-selection />
@@ -292,10 +292,10 @@ function rowActions(row) {
   const actions = [];
   if (activeTab.value === 'clients') {
     actions.push({ key: 'profile', label: '查看档案', onClick: () => goProfile(row.clientCode) });
-    // 已有认领待审时：所有角色（含管理者）只展示「待审批：xxx」禁用按钮，
-    // 禁止「直接分配」绕开认领审批——必须走审批中心通过/驳回该认领申请。
+    // 已有认领待审时：所有角色（含管理者）只展示「待审核：xxx」禁用按钮，
+    // 禁止「直接分配」绕开认领审核——必须走审核中心通过/驳回该认领申请。
     if (row.allocationPending) {
-      actions.push({ key: 'pending', label: `待审批${row.applicantName ? `：${row.applicantName}` : ''}`, disabled: true });
+      actions.push({ key: 'pending', label: `待审核${row.applicantName ? `：${row.applicantName}` : ''}`, disabled: true });
     } else if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {
       actions.push({
         key: 'assign-client',
@@ -304,7 +304,7 @@ function rowActions(row) {
         onClick: () => openClientAssign(row),
       });
     } else if (canClaimClient.value && userStore.hasPerm(ACTION_PERMISSION.CLIENT_CLAIM)) {
-      actions.push({ key: 'claim-client', label: '申请认领', type: 'success', confirm: '确认申请认领该客户？审批通过后将成为其服务顾问。', onClick: () => onClaimClient(row) });
+      actions.push({ key: 'claim-client', label: '申请认领', type: 'success', confirm: '确认申请认领该客户？审核通过后将成为其服务顾问。', onClick: () => onClaimClient(row) });
     }
     return actions;
   }
@@ -323,7 +323,7 @@ function rowActions(row) {
 async function onClaimClient(row) {
   try {
     await claimUnassignedClient(row.clientCode);
-    ElMessage.success('认领申请已提交，等待审批');
+    ElMessage.success('认领申请已提交，等待审核');
     load();
   } catch (e) { /* 拦截器已提示 */ }
 }
@@ -371,7 +371,7 @@ async function onAssignClient() {
   const target = adviserOptions.value.find((item) => item.value === targetAdviserCode.value);
   try {
     await ElMessageBox.confirm(
-      `确认将客户「${currentClient.value?.enterpriseName || currentClient.value?.customerName || '微信客户'}」直接分配给「${target?.label || '所选顾问'}」？分配后立即生效，无需审批。`,
+      `确认将客户「${currentClient.value?.enterpriseName || currentClient.value?.customerName || '微信客户'}」直接分配给「${target?.label || '所选顾问'}」？分配后立即生效，无需审核。`,
       '客户归属确认',
       { type: 'warning', confirmButtonText: '确认分配' },
     );
@@ -423,7 +423,7 @@ async function onCreate() {
   creating.value = true;
   try {
     await createLead({ ...form, source: isChannel.value ? 'CHANNEL' : form.source });
-    ElMessage.success(isChannel.value ? '已提交，等待公司审批' : '新增成功');
+    ElMessage.success(isChannel.value ? '已提交，等待公司审核' : '新增成功');
     createVisible.value = false;
     load();
   } catch (e) {
@@ -511,7 +511,7 @@ async function onAssign() {
 // 本地枚举映射（后端字典暂未覆盖线索跟进状态/来源，待后端补齐后改用 DictTag）
 // ============================================================
 const followStatusMap = {
-  PENDING_APPROVAL: { label: '待公司审批', type: 'warning' },
+  PENDING_APPROVAL: { label: '待公司审核', type: 'warning' },
   NEW: { label: '新线索', type: 'info' },
   INTENTION: { label: '有意向', type: 'primary' },
   POTENTIAL: { label: '潜力客户', type: 'success' },

@@ -2,29 +2,29 @@
   <div class="approval-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">审批中心</h2>
-        <p class="loan-page-subtitle">产品审核入全量库 · 附件无水印下载审批（通过生成 24h 限时链接）</p>
+        <h2 class="loan-page-title">审核中心</h2>
+        <p class="loan-page-subtitle">产品审核入全量库 · 附件无水印下载审核（通过生成 24h 限时链接）</p>
       </div>
     </div>
 
     <el-tabs v-model="activeTab">
       <el-tab-pane v-if="canAuditChannelContent" label="产品审核" name="product" />
-      <el-tab-pane label="附件下载审批" name="download" />
-      <el-tab-pane v-if="canAuditAllocation" label="客户分配审批" name="allocation" />
-      <el-tab-pane v-if="canAuditChannelContent" label="渠道线索审批" name="channelLead" />
-      <el-tab-pane v-if="canAuditChannelContent" label="短信模板审批" name="smsTemplate" />
-      <el-tab-pane v-if="canAuditChannelContent" label="报告模板审批" name="reportTemplate" />
+      <el-tab-pane label="附件下载审核" name="download" />
+      <el-tab-pane v-if="canAuditAllocation" label="客户分配审核" name="allocation" />
+      <el-tab-pane v-if="canAuditChannelContent" label="渠道线索审核" name="channelLead" />
+      <el-tab-pane v-if="canAuditChannelContent" label="短信模板审核" name="smsTemplate" />
+      <el-tab-pane v-if="canAuditChannelContent" label="报告模板审核" name="reportTemplate" />
     </el-tabs>
 
     <div v-for="kind in ['smsTemplate','reportTemplate']" :key="kind" v-show="activeTab === kind" class="loan-card">
       <el-table :data="contentRows[kind]" v-loading="contentLoading[kind]" stripe row-key="approvalNo">
-        <template #empty><AppEmpty title="暂无待审批模板" desc="运营提交后将在此等待审批" /></template>
-        <el-table-column label="审批事项" min-width="180"><template #default>模板发布审批</template></el-table-column>
+        <template #empty><AppEmpty title="暂无待审核模板" desc="运营提交后将在此等待审核" /></template>
+        <el-table-column label="审核事项" min-width="180"><template #default>模板发布审核</template></el-table-column>
         <el-table-column label="模板名称" prop="templateName" min-width="180" />
         <el-table-column label="版本" prop="versionNo" width="90" />
         <el-table-column label="提交人" prop="applicantName" width="140" />
         <el-table-column label="提交时间" prop="createdAt" width="180" />
-        <el-table-column label="操作" width="100"><template #default="{row}"><el-button v-permission="ACTION_PERMISSION.CHANNEL_CONTENT_AUDIT" type="success" link @click="openAudit(kind === 'smsTemplate' ? 'SMS_TEMPLATE' : 'REPORT_TEMPLATE', row)">审批</el-button></template></el-table-column>
+        <el-table-column label="操作" width="100"><template #default="{row}"><el-button v-permission="ACTION_PERMISSION.CHANNEL_CONTENT_AUDIT" type="success" link @click="openAudit(kind === 'smsTemplate' ? 'SMS_TEMPLATE' : 'REPORT_TEMPLATE', row)">审核</el-button></template></el-table-column>
       </el-table>
     </div>
 
@@ -42,7 +42,7 @@
         <template #empty>
           <AppEmpty title="暂无产品审核" desc="新产品申请入全量库后将在此等待审核" />
         </template>
-        <el-table-column label="审批事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'product') }}</template></el-table-column>
+        <el-table-column label="审核事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'product') }}</template></el-table-column>
         <el-table-column label="产品" min-width="170">
           <template #default="{ row }">
             <div class="cell-main">{{ row.bankProductName || '—' }}</div>
@@ -87,7 +87,7 @@
       </AppSearchBar>
       <AppTableState :error="errorCL" @retry="loadCL">
         <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo" style="height: calc(100vh - 320px); min-height: 360px">
-          <template #empty><AppEmpty title="暂无渠道线索审批" desc="渠道录入新线索后将在此等待终审" /></template>
+          <template #empty><AppEmpty title="暂无渠道线索审核" desc="渠道录入新线索后将在此等待终审" /></template>
           <el-table-column prop="contactName" label="联系人" width="130" />
           <el-table-column label="手机号" width="140">
             <template #default="{ row }">{{ desensitizePhone(row.phone) }}</template>
@@ -105,10 +105,10 @@
       <AppPagination v-if="!errorCL" v-model:page="queryCL.page" v-model:size="queryCL.size" :total="totalCL" @change="loadCL" />
     </div>
 
-    <!-- ============ 附件下载审批 ============ -->
+    <!-- ============ 附件下载审核 ============ -->
     <div v-show="activeTab === 'download'" class="loan-card">
       <AppSearchBar :loading="loadingD" @search="searchD" @reset="resetD">
-        <el-select v-model="queryD.status" placeholder="审批状态" clearable style="width: 140px">
+        <el-select v-model="queryD.status" placeholder="审核状态" clearable style="width: 140px">
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
         <el-input v-model="queryD.keyword" placeholder="申请人姓名 / 用途说明" style="width: 220px" clearable @keyup.enter="searchD" />
@@ -123,9 +123,9 @@
       <AppTableState :error="errorD" @retry="loadD">
       <el-table :data="dataD" v-loading="loadingD" stripe row-key="approvalNo" @sort-change="handleSortChangeD" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
-          <AppEmpty title="暂无下载审批" desc="员工发起无水印下载申请后将在此审批" />
+          <AppEmpty title="暂无下载审核" desc="员工发起无水印下载申请后将在此审核" />
         </template>
-        <el-table-column label="审批事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'download') }}</template></el-table-column>
+        <el-table-column label="审核事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'download') }}</template></el-table-column>
         <el-table-column prop="applicantStaffName" label="申请人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.applicantStaffName || '姓名待补充' }}</template>
         </el-table-column>
@@ -160,7 +160,7 @@
       <AppPagination v-if="!errorD" v-model:page="queryD.page" v-model:size="queryD.size" :total="totalD" @change="loadD" />
     </div>
 
-    <!-- ============ 客户分配审批（无归宿客户归属流转，仅审批分配管理员可见） ============ -->
+    <!-- ============ 客户分配审核（无归宿客户归属流转，仅审核分配管理员可见） ============ -->
     <div v-show="activeTab === 'allocation'" class="loan-card">
       <AppSearchBar :loading="loadingA" @search="searchA" @reset="resetA">
         <el-input v-model="queryA.keyword" placeholder="企业名称 / 客户姓名 / 申请人" style="width: 240px" clearable @keyup.enter="searchA" />
@@ -169,9 +169,9 @@
       <AppTableState :error="errorA" @retry="loadA">
       <el-table :data="dataA" v-loading="loadingA" stripe row-key="approvalNo" @sort-change="handleSortChangeA">
         <template #empty>
-          <AppEmpty title="暂无分配审批" desc="客户申请归属流转、无归宿客户分配将在此等待审批" />
+          <AppEmpty title="暂无分配审核" desc="客户申请归属流转、无归宿客户分配将在此等待审核" />
         </template>
-        <el-table-column label="审批事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'allocation') }}</template></el-table-column>
+        <el-table-column label="审核事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'allocation') }}</template></el-table-column>
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.entName || row.contactName || '未命名客户' }}</div>
@@ -203,7 +203,7 @@
     <!-- 通用审核弹窗（产品 / 下载 / 分配共用） -->
     <AppDialog v-model:visible="auditVisible" title="审核" :loading="auditing" @confirm="onAudit">
       <el-form ref="auditFormRef" :model="auditForm" :rules="auditRules" label-width="100px" label-position="right">
-        <el-form-item label="审批事项">
+        <el-form-item label="审核事项">
           <span>{{ auditForm.matter }}</span>
         </el-form-item>
         <el-form-item label="审核结果" prop="approve">
@@ -288,11 +288,11 @@ function attachmentCount(value) {
 const { loading: loadingP, error: errorP, data: dataP, total: totalP, query: queryP, load: loadP, onSearch: searchP, onReset: resetP, handleSortChange } =
   useTable(pageProductApprovals, { status: '', keyword: '' });
 
-/** 下载审批表 */
+/** 下载审核表 */
 const { loading: loadingD, error: errorD, data: dataD, total: totalD, query: queryD, load: loadD, onSearch: searchD, onReset: resetD, handleSortChange: handleSortChangeD } =
   useTable(pageDownloadApprovals, { status: '', keyword: '' });
 
-/** 客户分配审批表 */
+/** 客户分配审核表 */
 const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA, handleSortChange: handleSortChangeA } =
   useTable(pageAllocationApprovals, { keyword: '' });
 
@@ -311,7 +311,7 @@ function downloadActions(row) {
   const actions = [];
   const state = approvalActionState('download', row, userStore.permissions);
   if (state.canAudit) {
-    actions.push({ key: 'audit', label: '审批', type: 'success', onClick: () => openAudit('download', row) });
+    actions.push({ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('download', row) });
   }
   if (state.canVoid) {
     actions.push({
@@ -481,7 +481,7 @@ async function onApply() {
   }
 }
 
-/** 页签首次激活时再取数，避免审批中心首屏并发三套分页。 */
+/** 页签首次激活时再取数，避免审核中心首屏并发三套分页。 */
 watch(activeTab, async (tab) => {
   if (loadedTabs[tab]) return;
   if (tab === 'product' && !canAuditChannelContent.value) return;

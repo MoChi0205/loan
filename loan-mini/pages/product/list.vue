@@ -1,5 +1,5 @@
 <template>
-  <view class="product-page" :class="{ 'u-shell': store.isTablet }">
+  <view class="product-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有产品管理权限，请联系管理员" />
     <template v-else>
     <!-- 电商风格搜索栏 -->
@@ -30,7 +30,7 @@
       <AppButton variant="primary" size="md" @click="load()">重试</AppButton>
     </AppEmpty>
 
-    <AppEmpty v-else-if="!loading && !products.length" title="暂无产品" :desc="isChannel ? '录入第一笔合作产品，提交后由平台运营审批' : '当前暂无可管理的银行产品'">
+    <AppEmpty v-else-if="!loading && !products.length" title="暂无产品" :desc="isChannel ? '录入第一笔合作产品，提交后由平台运营审核' : '当前暂无可管理的银行产品'">
       <AppButton variant="primary" size="md" @click="goEdit()">{{ isChannel ? '录入合作产品' : '录入银行产品' }}</AppButton>
     </AppEmpty>
 
@@ -68,7 +68,7 @@
 
         <!-- 待删除提示 -->
         <view v-if="p.status === 'PENDING_DELETE'" class="pending-box">
-          待我司终审删除 · 审批通过后将从合作库下架，历史记录和审计留痕仍保留
+          待我司终审删除 · 审核通过后将从合作库下架，历史记录和审计留痕仍保留
         </view>
 
         <!-- 操作区（C9 状态机驱动，触控 44px） -->
@@ -96,11 +96,11 @@
 
 <script setup>
 /**
- * 渠道「我的产品」（C9 撤销审批 + 申请删除 + 撤销删除）。
+ * 渠道「我的产品」（C9 撤销审核 + 申请删除 + 撤销删除）。
  *
  * 状态机：
- *   DRAFT ─提交审批→ PENDING ─终审通过→ APPROVED ─申请删除→ PENDING_DELETE ─终审批准→ OFFLINE
- *     ↑               │（撤销审批）                              │（撤销删除 → APPROVED）
+ *   DRAFT ─提交审核→ PENDING ─终审通过→ APPROVED ─申请删除→ PENDING_DELETE ─终审核准→ OFFLINE
+ *     ↑               │（撤销审核）                              │（撤销删除 → APPROVED）
  *     └───────────────┘                                    └──────────────────┘
  *
  * 可用操作由状态推导（actionsOf），新增状态只需改一处映射表。
@@ -114,6 +114,7 @@ import TabBar from '../../components/TabBar.vue';
 import AppSearchBar from '../../components/AppSearchBar.vue';
 import { myProducts, submitProduct, revokeApproval, applyDelete, cancelDelete, PRODUCT_STATUS } from '../../api/product';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 
 const loading = ref(true);
 const products = ref([]);
@@ -133,14 +134,15 @@ const filteredProducts = computed(() => {
 const acting = ref('');
 /** 用户状态（T3 · C 类：平板限宽标记 isTablet 驱动 u-shell） */
 const store = useUserStore();
+const themeMode = useThemeMode();
 const isChannel = computed(() => store.isChannel);
 const canView = computed(() => store.hasPermission('mini:product:view'));
 
 /** 状态说明图例 */
 const legend = [
-  { label: '草稿', tone: 'muted', desc: '已保存未提交，可编辑或提交审批' },
-  { label: '待审批', tone: 'warning', desc: '已提交，等待平台终审，可撤销' },
-  { label: '已上架', tone: 'success', desc: '审批通过，在合作库展示，可申请删除' },
+  { label: '草稿', tone: 'muted', desc: '已保存未提交，可编辑或提交审核' },
+  { label: '待审核', tone: 'warning', desc: '已提交，等待平台终审，可撤销' },
+  { label: '已上架', tone: 'success', desc: '审核通过，在合作库展示，可申请删除' },
   { label: '已驳回', tone: 'danger', desc: '未通过，可见原因，编辑后可重新提交' },
   { label: '待删除', tone: 'danger', desc: '已申请删除，等待终审，可撤销' },
 ];
@@ -148,7 +150,7 @@ const legend = [
 function statusLabel(s) {
   return {
     [PRODUCT_STATUS.DRAFT]: '草稿',
-    [PRODUCT_STATUS.PENDING]: '待审批',
+    [PRODUCT_STATUS.PENDING]: '待审核',
     [PRODUCT_STATUS.APPROVED]: '已上架',
     [PRODUCT_STATUS.REJECTED]: '已驳回',
     [PRODUCT_STATUS.PENDING_DELETE]: '待删除',
@@ -171,12 +173,12 @@ function statusTagType(s) {
 function actionsOf(p) {
   const list = [];
   if (p.status === PRODUCT_STATUS.DRAFT) {
-    list.push({ key: 'submit', label: '提交审批', variant: 'primary' });
+    list.push({ key: 'submit', label: '提交审核', variant: 'primary' });
     list.push({ key: 'edit', label: '编辑', variant: 'secondary' });
   } else if (p.status === PRODUCT_STATUS.PENDING) {
-    list.push({ key: 'revoke', label: '撤销审批', variant: 'secondary' });
+    list.push({ key: 'revoke', label: '撤销审核', variant: 'secondary' });
   } else if (p.status === PRODUCT_STATUS.APPROVED) {
-    list.push({ key: 'delete', label: '申请删除', variant: 'secondary', confirm: '申请删除后需平台终审，审批通过后合作产品将下架并保留审核记录。确认申请？' });
+    list.push({ key: 'delete', label: '申请删除', variant: 'secondary', confirm: '申请删除后需平台终审，审核通过后合作产品将下架并保留审核记录。确认申请？' });
   } else if (p.status === PRODUCT_STATUS.REJECTED) {
     list.push({ key: 'edit', label: '编辑重提', variant: 'primary' });
   } else if (p.status === PRODUCT_STATUS.PENDING_DELETE) {
@@ -205,10 +207,10 @@ async function onAction(p, action) {
   try {
     if (action.key === 'submit') {
       await submitProduct(p.code);
-      uni.showToast({ title: '已提交，进入待审批', icon: 'none' });
+      uni.showToast({ title: '已提交，进入待审核', icon: 'none' });
     } else if (action.key === 'revoke') {
       await revokeApproval(p.code);
-      uni.showToast({ title: '已撤销审批，回到草稿', icon: 'none' });
+      uni.showToast({ title: '已撤销审核，回到草稿', icon: 'none' });
     } else if (action.key === 'delete') {
       await applyDelete(p.code, '渠道主动申请下架');
       uni.showToast({ title: '已申请删除，待我司终审', icon: 'none' });

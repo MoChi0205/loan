@@ -327,19 +327,19 @@ onMounted(load);
 }
 
 /* 深色模式下状态标签适配 */
-:global(html.dark) .status-success {
+:global([data-theme="dark"]) .status-success {
   background: rgba(47, 191, 113, 0.15);
   color: var(--loan-success);
 }
-:global(html.dark) .status-warning {
+:global([data-theme="dark"]) .status-warning {
   background: rgba(245, 158, 11, 0.15);
   color: var(--loan-warning);
 }
-:global(html.dark) .status-danger {
+:global([data-theme="dark"]) .status-danger {
   background: rgba(229, 72, 77, 0.15);
   color: var(--loan-danger);
 }
-:global(html.dark) .status-muted {
+:global([data-theme="dark"]) .status-muted {
   background: rgba(255, 255, 255, 0.06);
   color: var(--loan-text-secondary, var(--loan-text-muted));
 }

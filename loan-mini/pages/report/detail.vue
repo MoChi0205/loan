@@ -1,5 +1,5 @@
 <template>
-  <view class="detail-page">
+  <view class="detail-page theme-root" :data-theme="themeMode">
     <!-- 加载中：骨架屏替代纯文字（P1-5 Loading 态） -->
     <AppSkeleton v-if="loading" :rows="4" />
 
@@ -189,7 +189,7 @@
 
       <!-- 合规提示 -->
       <view class="card tip-card">
-        <text class="tip-text">本报告仅供融资参考，不构成任何银行通过承诺；具体产品额度与利率以顾问跟进为准。</text>
+        <text class="tip-text">本报告仅供资金参考，不构成任何银行通过承诺；具体产品额度与利率以顾问跟进为准。</text>
       </view>
 
       <AppButton variant="secondary" size="lg" block @click="goMatch">重新匹配</AppButton>
@@ -218,12 +218,14 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import { reportDetail, reportProducts, reportDiagnosis } from '../../api/match';
 import { uploadMaterial } from '../../api/upload';
 
 /** 企业员工（C1/C4）：可查看命中产品；客户对客脱敏 */
 const STAFF_ROLES = ['adviser', 'deptmgr', 'boss', 'operator', 'super'];
 const store = useUserStore();
+const themeMode = useThemeMode();
 const isStaff = computed(() => STAFF_ROLES.indexOf(store.role) >= 0);
 
 const loading = ref(true);

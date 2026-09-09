@@ -1,5 +1,5 @@
 <template>
-  <view class="match-page" :class="{ 'u-shell': store.isTablet }">
+  <view class="match-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <!-- 渠道合作方禁入（C1）：渠道是唯一不可操作智能匹配的角色 -->
     <AppEmpty v-if="isChannel" title="渠道不可操作智能匹配"
       desc="渠道合作方定位为产品供给方与客户线索录入方，匹配由客户与企业员工发起" />
@@ -116,18 +116,18 @@
             <text class="dup-d">{{ dupClient.entName }} · {{ dupClient.contactPhone }}</text>
             <text class="dup-d">
               {{ dupClient.hasOwner
-                ? `归属人：${dupClient.ownerStaffName || '其他员工'}。申请归属需审批，通过后你才能获得该客户的匹配权限`
-                : '归属人：无（公海 / 无主）。申请后需上级 / 运营审批，通过后通知你' }}
+                ? `归属人：${dupClient.ownerStaffName || '其他员工'}。申请归属需审核，通过后你才能获得该客户的匹配权限`
+                : '归属人：无（公海 / 无主）。申请后需上级 / 运营审核，通过后通知你' }}
             </text>
 
             <view v-if="claimPending" class="pending-box">
-              <text class="pending-text">分配申请已提交，等待上级 / 运营审批（未获归属前不可发起匹配）</text>
-              <AppButton variant="ghost" size="sm" :loading="checkingStatus" @click="onRefreshStatus">刷新审批状态</AppButton>
+              <text class="pending-text">分配申请已提交，等待上级 / 运营审核（未获归属前不可发起匹配）</text>
+              <AppButton variant="ghost" size="sm" :loading="checkingStatus" @click="onRefreshStatus">刷新审核状态</AppButton>
             </view>
             <AppButton v-else-if="isAdviser" variant="primary" size="lg" block :loading="claiming" @click="onClaim">
               申请分配给当前用户
             </AppButton>
-            <text v-else class="step-tip">管理角色请在 Web 管理端直接分配客户给指定顾问，无需发起认领审批。</text>
+            <text v-else class="step-tip">管理角色请在 Web 管理端直接分配客户给指定顾问，无需发起认领审核。</text>
           </view>
         </view>
 
@@ -156,7 +156,7 @@
           <AppButton variant="primary" size="lg" block :loading="creating" @click="onCreateClient">
             创建客户并申请认领
           </AppButton>
-          <text class="step-tip">系统无该企业数据，将先创建未分配客户；顾问认领审批通过后方可替客匹配</text>
+          <text class="step-tip">系统无该企业数据，将先创建未分配客户；顾问认领审核通过后方可替客匹配</text>
         </template>
 
         <!-- 未输入 -->
@@ -316,6 +316,7 @@
 import { ref, reactive, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import TabBar from '../../components/TabBar.vue';
 import AppCard from '../../components/AppCard.vue';
 import { runMatch } from '../../api/match';
@@ -325,6 +326,7 @@ import { chooseMaterialFile } from '../../utils/filePicker';
 import { isUnifiedSocialCreditCode, isMobile } from '../../utils/validation';
 
 const store = useUserStore();
+const themeMode = useThemeMode();
 
 /** 角色判定（C1）：渠道禁入；客户自身；其余企业员工可替客匹配 */
 const STAFF_ROLES = ['adviser', 'deptmgr', 'boss', 'operator', 'super'];
@@ -430,7 +432,7 @@ async function onCreateClient() {
   finally { creating.value = false; }
 }
 
-/** D39：本人归属幂等通过；他人归属或无归属均提交审批并停留。 */
+/** D39：本人归属幂等通过；他人归属或无归属均提交审核并停留。 */
 async function onClaim() {
   if (claiming.value || !dupClient.value) return;
   claiming.value = true;
@@ -443,13 +445,13 @@ async function onClaim() {
       currentStep.value = 1;
     } else {
       claimPending.value = true;
-      uni.showToast({ title: '已提交，需上级 / 运营审批', icon: 'none' });
+      uni.showToast({ title: '已提交，需上级 / 运营审核', icon: 'none' });
     }
   } catch (e) { /* toast 已弹出 */ }
   finally { claiming.value = false; }
 }
 
-/** C19-B3：刷新无归宿分配审批状态（APPROVED 后自动进入匹配） */
+/** C19-B3：刷新无归宿分配审核状态（APPROVED 后自动进入匹配） */
 async function onRefreshStatus() {
   if (checkingStatus.value || !dupClient.value) return;
   checkingStatus.value = true;
@@ -460,7 +462,7 @@ async function onRefreshStatus() {
       claimPending.value = false;
       targetClientCode.value = dupClient.value.clientCode;
       targetName.value = dupClient.value.entName;
-      uni.showToast({ title: '审批已通过，可发起匹配', icon: 'success' });
+      uni.showToast({ title: '审核已通过，可发起匹配', icon: 'success' });
       currentStep.value = 1;
     } else if (st.status === 'REJECTED') {
       claimPending.value = false;
@@ -471,7 +473,7 @@ async function onRefreshStatus() {
         confirmText: '知道了',
       });
     } else {
-      uni.showToast({ title: '仍在审批中，请稍后再试', icon: 'none' });
+      uni.showToast({ title: '仍在审核中，请稍后再试', icon: 'none' });
     }
   } catch (e) { /* toast 已弹出 */ }
   finally { checkingStatus.value = false; }
@@ -672,12 +674,12 @@ async function onSubmit() {
     );
     result.value = data || {};
   } catch (e) {
-    // P0-3（C25）：替客匹配他人已归属客户且无归属审批 → 引导先发起归属审批
+    // P0-3（C25）：替客匹配他人已归属客户且无归属审核 → 引导先发起归属审核
     const msg = (e && e.message) || '';
-    if (msg.indexOf('归属审批') !== -1) {
+    if (msg.indexOf('归属审核') !== -1) {
       uni.showModal({
-        title: '需要先发起归属审批',
-        content: '该客户已归属他人，请先在步骤 0「目标企业」中申请分配给当前用户，审批通过后再发起匹配。',
+        title: '需要先发起归属审核',
+        content: '该客户已归属他人，请先在步骤 0「目标企业」中申请分配给当前用户，审核通过后再发起匹配。',
         confirmText: '返回选择客户',
         success: (r) => { if (r.confirm) resetResult(); },
       });

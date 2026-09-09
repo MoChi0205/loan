@@ -1,5 +1,5 @@
 <template>
-  <view class="order-page" :class="{ 'u-shell': store.isTablet }">
+  <view class="order-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有服务单查看权限，请联系管理员" />
     <view class="page-head">
       <text class="head-title">{{ isStaff ? '工单' : '我的服务单' }}</text>
@@ -138,12 +138,14 @@
 import { ref, reactive, computed } from 'vue';
 import { onShow, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import TabBar from '../../components/TabBar.vue';
 import { orderList } from '../../api/order';
 
 /** 企业员工（C7）：可查全量工单 */
 const STAFF_ROLES = ['adviser', 'deptmgr', 'boss', 'operator', 'super'];
 const store = useUserStore();
+const themeMode = useThemeMode();
 const canView = computed(() => store.hasPermission('mini:order:view'));
 const isStaff = computed(() => STAFF_ROLES.indexOf(store.role) >= 0);
 

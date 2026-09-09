@@ -114,7 +114,7 @@ export function hasActionPermission(permissions, required) {
 }
 
 /**
- * 审批行的可操作状态。作废只允许针对已通过且仍有效的下载审批。
+ * 审核行的可操作状态。作废只允许针对已通过且仍有效的下载审核。
  */
 export function approvalActionState(kind, row, permissions) {
   const status = row?.approveStatus;

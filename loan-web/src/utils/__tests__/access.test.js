@@ -9,13 +9,13 @@ import {
 } from '@/utils/access';
 
 describe('Web 操作级权限矩阵', () => {
-  it('部门经理可审批本团队分配并直接分配客户', () => {
+  it('部门经理可审核本团队分配并直接分配客户', () => {
     const permissions = defaultPermissionsForRole('DEPT_MANAGER');
     expect(hasActionPermission(permissions, ACTION_PERMISSION.ALLOCATION_AUDIT)).toBe(true);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_ASSIGN)).toBe(true);
   });
 
-  it('顾问可申请认领客户，但不能直接分配或审批', () => {
+  it('顾问可申请认领客户，但不能直接分配或审核', () => {
     const permissions = defaultPermissionsForRole('ADVISER');
     expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_CLAIM)).toBe(true);
     expect(hasActionPermission(permissions, ACTION_PERMISSION.CLIENT_ASSIGN)).toBe(false);
@@ -40,10 +40,10 @@ describe('Web 操作级权限矩阵', () => {
   });
 });
 
-describe('审批与工单状态收口', () => {
+describe('审核与工单状态收口', () => {
   const all = ['*'];
 
-  it('下载审批仅待审可审批、仅已通过且有效可作废', () => {
+  it('下载审核仅待审可审核、仅已通过且有效可作废', () => {
     expect(approvalActionState('download', { approveStatus: 'PENDING', voidFlag: 0 }, all))
       .toEqual({ canAudit: true, canVoid: false });
     expect(approvalActionState('download', { approveStatus: 'APPROVED', voidFlag: 0 }, all))

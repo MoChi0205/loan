@@ -1,12 +1,12 @@
 <template>
-  <view class="client-page" :class="{ 'u-shell': store.isTablet }">
+  <view class="client-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <AppEmpty v-if="!canCreate" title="暂无权限" desc="当前账号没有线索录入权限，请联系管理员" />
     <!-- 内容区 -->
     <view v-else class="content">
       <!-- 提示条：录入客户进入公海，由顾问跟进（渠道沙箱隔离） -->
       <view class="tip-bar">
         <AppIcon name="users" size="md" />
-        <text class="tip-text">新增后仅本人立即可见，待公司审批通过后进入公海并由顾问跟进</text>
+        <text class="tip-text">新增后仅本人立即可见，待公司审核通过后进入公海并由顾问跟进</text>
       </view>
 
       <view class="card" v-if="form.leadType === 'PERSONAL'">
@@ -73,7 +73,7 @@
       <!-- 需求备注 -->
       <view class="card">
         <text class="card-title">需求备注</text>
-        <textarea class="field-input field-textarea" v-model="form.remark" placeholder="补充客户融资需求、意向产品等" placeholder-class="ph" maxlength="200" />
+        <textarea class="field-input field-textarea" v-model="form.remark" placeholder="补充客户资金需求、意向产品等" placeholder-class="ph" maxlength="200" />
       </view>
 
       <!-- 提交录入 -->
@@ -88,7 +88,7 @@
         <AppEmpty v-else-if="hasError && !records.length" title="加载失败" desc="网络异常，请重试">
           <AppButton variant="primary" size="md" @click="reload">重试</AppButton>
         </AppEmpty>
-        <AppEmpty v-else-if="!loading && !records.length" title="暂无本人录入的线索" desc="新增成功后会立即显示，审批通过后进入公司公海" />
+        <AppEmpty v-else-if="!loading && !records.length" title="暂无本人录入的线索" desc="新增成功后会立即显示，审核通过后进入公司公海" />
         <view v-else
           v-for="(item, index) in records"
           :key="item.leadNo"
@@ -123,6 +123,7 @@
 import { ref, reactive, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import { submitLead, myLeads } from '../../api/lead';
 import TabBar from '../../components/TabBar.vue';
 import AppIcon from '../../components/AppIcon.vue';
@@ -132,6 +133,7 @@ import AppSkeleton from '../../components/AppSkeleton.vue';
 import AppLoadMore from '../../components/AppLoadMore.vue';
 
 const store = useUserStore();
+const themeMode = useThemeMode();
 const canCreate = computed(() => store.hasPermission('mini:lead:create'));
 
 const page = ref(1);
@@ -191,8 +193,8 @@ function buildPayload() {
 /** 跟进状态中文标签（未知枚举回退原值） */
 function statusLabel(s) {
   const map = {
-    PENDING_APPROVAL: '待公司审批',
-    NEW: '审批通过',
+    PENDING_APPROVAL: '待公司审核',
+    NEW: '审核通过',
     REJECTED: '已驳回',
     PENDING: '待跟进',
     FOLLOWING: '跟进中',
@@ -282,7 +284,7 @@ async function onSubmit() {
       uni.showToast({ title: '该客户已存在，可申请认领', icon: 'none', duration: 2500 });
       return;
     }
-    uni.showToast({ title: res && res.sameNameWarning ? '录入成功，存在同名客户请注意核对' : '录入成功，等待公司审批', icon: 'none', duration: 2600 });
+    uni.showToast({ title: res && res.sameNameWarning ? '录入成功，存在同名客户请注意核对' : '录入成功，等待公司审核', icon: 'none', duration: 2600 });
     resetForm();
     loadLeads();
   } catch (e) {

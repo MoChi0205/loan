@@ -25,8 +25,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onUnmounted } from 'vue';
 import { useUserStore } from '../store/user';
+import { getThemeMode, onThemeChange } from '../theme';
 
 /**
  * 角色化底部导航（全端统一自绘，替代原生 tabBar）。
@@ -60,39 +61,41 @@ const props = defineProps({
 
 const store = useUserStore();
 
-/** TabBar 配色（冷玻璃体系，全局统一）：未选中统一中性灰，选中统一品牌蓝。
+/** 订阅主题：TabBar 颜色与背景须随明暗切换（SVG stroke 不解析 var()，须注入真实色）。 */
+const themeMode = ref(getThemeMode());
+const offTheme = onThemeChange((m) => { themeMode.value = m; });
+onUnmounted(() => { if (offTheme) offTheme(); });
+
+/** TabBar 配色（墨金体系，全局统一）：未选中统一中性灰，选中统一主色。
  *  禁止按 tab 跳色，保证品牌识别一致。
  *  ⚠️ 必须传真实色值（#RRGGBB / rgba），不能用 var(--…)：AppIcon v8 的 SVG stroke
- *     不解析 CSS 变量，传 var(--…) 会导致图标字形画不出来（用户 2026-09-09 反馈）。 */
-const COLOR = {
-  HOME: 'rgba(26, 35, 54, 0.55)',
-  MATCH: 'rgba(26, 35, 54, 0.55)',
-  REPORT: 'rgba(26, 35, 54, 0.55)',
-  ORDER: 'rgba(26, 35, 54, 0.55)',
-  MINE: 'rgba(26, 35, 54, 0.55)',
-  PRODUCT: 'rgba(26, 35, 54, 0.55)',
-  CLIENT: 'rgba(26, 35, 54, 0.55)',
-};
-/** 选中态统一品牌蓝（= --brand-deep #2443C2 的真实色值） */
-const ACTIVE_COLOR = '#2443C2';
+ *     不解析 CSS 变量，传 var(--…) 会导致图标字形画不出来（用户 2026-09-09 反馈）。
+ *  明暗双值：暗底用浅灰（保证可见）+ 主色转暖金（= 暗底 --brand-deep #E0AE4E）。 */
+const INACTIVE_LIGHT = '#6B7689';   // 浅底未选中（text-muted）
+const INACTIVE_DARK = 'rgba(232, 237, 245, 0.55)';
+const ACTIVE_LIGHT = '#D9A441';     // 浅底选中（暖金 gold-500）
+const ACTIVE_DARK = '#E0AE4E';      // 暗底主色（暖金，对齐 --brand-deep 暗值）
+
+const inactiveColor = computed(() => (themeMode.value === 'dark' ? INACTIVE_DARK : INACTIVE_LIGHT));
+const activeColor = computed(() => (themeMode.value === 'dark' ? ACTIVE_DARK : ACTIVE_LIGHT));
 
 const tabList = computed(() => {
   if (store.isChannel) {
     return [
-      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: ACTIVE_COLOR },
-      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: COLOR.PRODUCT, activeColor: ACTIVE_COLOR },
-      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: COLOR.CLIENT, activeColor: ACTIVE_COLOR },
-      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: ACTIVE_COLOR },
+      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: inactiveColor.value, activeColor: activeColor.value },
+      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: inactiveColor.value, activeColor: activeColor.value },
+      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: inactiveColor.value, activeColor: activeColor.value },
+      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: inactiveColor.value, activeColor: activeColor.value },
     ].filter((item) => item.key === 'home' || item.key === 'mine'
       || (item.key === 'product' && store.hasPermission('mini:product:view'))
       || (item.key === 'client' && store.hasPermission('mini:lead:create')));
   }
   return [
-    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: ACTIVE_COLOR },
-    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH, activeColor: ACTIVE_COLOR },
-    { key: 'report', label: store.isStaff ? (store.role === 'adviser' ? '客户报告' : '报告中心') : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT, activeColor: ACTIVE_COLOR },
-    { key: 'order', label: store.isStaff ? (store.role === 'adviser' ? '客户工单' : '工单中心') : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER, activeColor: ACTIVE_COLOR },
-    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: ACTIVE_COLOR },
+    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: inactiveColor.value, activeColor: activeColor.value },
+    { key: 'match', label: '匹配', icon: 'match', url: '/pages/match/match', color: inactiveColor.value, activeColor: activeColor.value },
+    { key: 'report', label: '报告', icon: 'chart', url: '/pages/report/list', color: inactiveColor.value, activeColor: activeColor.value },
+    { key: 'order', label: '服务单', icon: 'order', url: '/pages/order/list', color: inactiveColor.value, activeColor: activeColor.value },
+    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: inactiveColor.value, activeColor: activeColor.value },
   ].filter((item) => item.key === 'home' || item.key === 'mine'
     || (item.key === 'match' && store.hasPermission('mini:match:view'))
     || (item.key === 'report' && store.hasPermission('mini:report:view'))
@@ -123,7 +126,8 @@ function onTap(item) {
   z-index: 100;
   display: flex;
   align-items: stretch;
-  background: var(--text-invert);
+  /* 随主题变化：浅底=白(#FFFFFF)，暗底=墨金卡面(#131E33)，与卡片同色系 */
+  background: var(--bg-card);
   border-top: 1rpx solid var(--line);
   box-shadow: 0 -4rpx 24rpx rgba(15, 23, 42, 0.06);
   padding-bottom: constant(safe-area-inset-bottom);

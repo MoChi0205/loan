@@ -1,5 +1,5 @@
 <template>
-  <view class="mine-page" :class="{ 'u-shell': store.isTablet }">
+  <view class="mine-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <!-- 用户档案头：深色品牌渐变 -->
     <view class="profile-header">
       <view class="ph-decor" />
@@ -20,6 +20,22 @@
     </view>
 
     <view class="content">
+      <!-- 一键切换主题：墨金明暗双主题（H5/小程序双端持久化） -->
+      <AppClickable class="card theme-card u-hover" @click="onToggleTheme">
+        <view class="theme-left">
+          <view class="menu-icon-wrap">
+            <AppIcon name="bolt" size="lg" />
+          </view>
+          <view class="menu-body">
+            <text class="menu-title">主题模式</text>
+            <text class="menu-desc">{{ themeMode === 'dark' ? '暗色 · 墨金' : '浅色 · 默认' }}</text>
+          </view>
+        </view>
+        <view class="theme-switch" :class="{ 'is-dark': themeMode === 'dark' }" role="switch" :aria-checked="themeMode === 'dark'">
+          <view class="theme-knob" />
+        </view>
+      </AppClickable>
+
       <!-- 档案摘要（C8 角色化账户）
            客户：实名状态 / 绑定手机号 / 性别 / 注册时间 / 邀请人（已移除客户编号——系统内部 ID 对用户无意义）
            渠道：所属银行 / 合作开始 / 银行联系人
@@ -44,7 +60,7 @@
           <view class="advisor-avatar">{{ advisorName[0] || '顾' }}</view>
           <view class="advisor-info">
             <text class="advisor-name">{{ advisorName }}</text>
-            <text class="advisor-role">专属贷款顾问 · 全程跟进</text>
+            <text class="advisor-role">专属资金顾问 · 全程跟进</text>
           </view>
           <view class="status-led" />
         </view>
@@ -79,20 +95,20 @@
           </view>
           <view class="menu-body">
             <text class="menu-title">我的产品</text>
-            <text class="menu-desc">录入 / 撤销审批 / 申请删除</text>
+            <text class="menu-desc">录入 / 撤销审核 / 申请删除</text>
           </view>
         </view>
         <text class="menu-arrow">›</text>
       </AppClickable>
 
-      <!-- 审批中心（C19）：仅运营/超管/老板可见 -->
+      <!-- 审核中心（C19）：仅运营/超管/老板可见 -->
       <AppClickable v-if="isApproverRole" class="card menu-card" @click="goApproval">
         <view class="menu-left">
           <view class="menu-icon-wrap">
             <AppIcon name="check" size="lg" />
           </view>
           <view class="menu-body">
-            <text class="menu-title">审批中心</text>
+            <text class="menu-title">审核中心</text>
             <text class="menu-desc">无归宿客户分配申请 · 通过后归属流转</text>
           </view>
         </view>
@@ -156,16 +172,26 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
 import TabBar from '../../components/TabBar.vue';
+import { toggleThemeMode, useThemeMode } from '../../theme';
 import { mine as getMyInviteCode } from '../../api/invitation';
 import { orderList, rewardSummary } from '../../api/order';
 import { approvalCounts } from '../../api/approval';
 import { buildInviteSharePath, consumePendingInvitation } from '../../utils/invitation';
 
 const store = useUserStore();
+
+/** 主题模式（墨金明暗双主题）：模块级单例 ref，全端响应式同步 */
+const themeMode = useThemeMode();
+
+/** 一键切换明暗主题 */
+function onToggleTheme() {
+  const next = toggleThemeMode();
+  uni.showToast({ title: next === 'dark' ? '已切换暗色' : '已切换浅色', icon: 'none' });
+}
 
 const inviteCode = ref('');
 const orderTip = ref('查看服务进度与跟进摘要');
@@ -193,10 +219,10 @@ const isChannelRole = computed(() => role.value === 'channel');
 const isStaffRole = computed(
   () => ['adviser', 'deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
-/** 审批中心可操作角色：D39 纳入部门经理；08-矩阵「四类审批均开放」含顾问 adviser。 */
+/** 审核中心可操作角色：D39 纳入部门经理；08-矩阵「四类审核均开放」含顾问 adviser。 */
 const isApproverRole = computed(() => store.hasPermission('mini:approval:view'));
 
-/** 审批中心待审总数（角标，来自 approvalCounts 的 TOTAL） */
+/** 审核中心待审总数（角标，来自 approvalCounts 的 TOTAL） */
 const approvalTotal = ref(0);
 
 /** 档案卡标题 */
@@ -263,13 +289,13 @@ onShow(() => {
         loadSummary();
       }
       if (!isChannelRole.value) loadOrderTip();
-      // 审批中心角标：仅审批角色拉取待审总数
+      // 审核中心角标：仅审核角色拉取待审总数
       if (isApproverRole.value) loadApprovalCount();
     }
   }).catch(() => {});
 });
 
-/** 拉取审批中心待审总数（TOTAL），用于「我的」页菜单项角标 */
+/** 拉取审核中心待审总数（TOTAL），用于「我的」页菜单项角标 */
 async function loadApprovalCount() {
   try {
     const c = await approvalCounts();
@@ -321,12 +347,12 @@ function onCopyShareLink() {
 }
 
 onShareAppMessage(() => ({
-  title: '企融通 · 企业融资智能匹配',
+  title: '企融通 · 企业资金智能匹配',
   path: buildInviteSharePath(inviteCode.value),
 }));
 
 onShareTimeline(() => ({
-  title: '企融通 · 企业融资智能匹配',
+  title: '企融通 · 企业资金智能匹配',
   query: inviteCode.value ? `inviteCode=${encodeURIComponent(inviteCode.value)}` : '',
 }));
 
@@ -341,7 +367,7 @@ function goOrder() { uni.reLaunch({ url: '/pages/order/list' }); }
 function goProduct() {  uni.navigateTo({ url: '/pages/product/list' });
 }
 
-/** C19：审批中心入口（运营/超管/老板） */
+/** C19：审核中心入口（运营/超管/老板） */
 function goApproval() {
   uni.navigateTo({ url: '/pages/approval/list' });
 }
@@ -440,7 +466,8 @@ function onLogout() {
 }
 
 .card {
-  background: var(--text-invert);
+  /* 随主题变化：浅底=白(#FFFFFF)，暗底=墨金卡面(#131E33)；文本走 --text-primary 自动反色 */
+  background: var(--bg-card);
   border-radius: 24rpx;
   padding: 32rpx;
   /* 20rpx 小于阴影扩散半径（20rpx），相邻卡片阴影会连成一片，提到 32rpx */
@@ -554,4 +581,32 @@ function onLogout() {
 .reward-divider { width: 2rpx; height: 56rpx; background: var(--line); }
 
 .logout-btn { margin-top: 32rpx; color: var(--danger); }
+
+/* ===== 一键主题切换开关（墨金明暗） ===== */
+.theme-card { display: flex; align-items: center; justify-content: space-between; }
+.theme-left { display: flex; align-items: center; gap: 20rpx; }
+.theme-switch {
+  width: 96rpx;
+  height: 52rpx;
+  border-radius: 999rpx;
+  background: var(--bg-input);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.theme-switch.is-dark {
+  background: linear-gradient(135deg, #C98A2B 0%, #E0AE4E 55%, #F2C879 100%);
+}
+.theme-knob {
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+.theme-switch.is-dark .theme-knob { transform: translateX(44rpx); }
 </style>

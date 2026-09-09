@@ -2,7 +2,7 @@
   "name": "loan-web",
   "version": "1.0.0",
   "private": true,
-  "description": "企业贷款咨询服务产品系统 Web 管理端（Vue 3 + Element Plus，参考 tse-frontend）",
+  "description": "企业资金咨询服务产品系统 Web 管理端（Vue 3 + Element Plus，参考 tse-frontend）",
   "type": "module",
   "scripts": {
     "dev": "vite",

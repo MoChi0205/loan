@@ -1,5 +1,5 @@
 <template>
-  <view class="edit-page">
+  <view class="edit-page theme-root" :data-theme="themeMode">
     <AppEmpty v-if="!canEdit" title="暂无权限" desc="当前账号没有产品录入或编辑权限，请联系管理员" />
     <template v-else>
     <view class="card">
@@ -22,7 +22,7 @@
         <text class="field-label">合作有效期至</text>
         <picker mode="date" :value="form.cooperateUntil" :start="tomorrow" @change="form.cooperateUntil = $event.detail.value">
           <view class="field-input picker-value" :class="{ 'is-placeholder': !form.cooperateUntil }">
-            {{ form.cooperateUntil || '未选择时默认审批通过日起 1 年' }}
+            {{ form.cooperateUntil || '未选择时默认审核通过日起 1 年' }}
           </view>
         </picker>
       </view>
@@ -82,7 +82,7 @@
 
     <view class="card tip-card">
       <text class="tip-text">
-        保存为草稿后可在列表页「提交审批」，由我司老板 / 超级管理员终审；
+        保存为草稿后可在列表页「提交审核」，由我司老板 / 超级管理员终审；
         驳回会显示原因，编辑后可重新提交。
       </text>
     </view>
@@ -104,9 +104,11 @@ import { ref, reactive, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { createProduct, updateProduct, getProductDetail } from '../../api/product';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import AppEmpty from '../../components/AppEmpty.vue';
 
 const store = useUserStore();
+const themeMode = useThemeMode();
 const canEdit = computed(() => store.hasPermission('mini:product:create'));
 const code = ref('');
 const isEdit = computed(() => !!code.value);
@@ -139,7 +141,7 @@ onLoad((query) => {
   if (!canEdit.value) return;
   if (query && query.code) {
     code.value = query.code;
-    // 编辑态：按审批单号拉取详情回填表单（C9 编辑/重提）
+    // 编辑态：按审核单号拉取详情回填表单（C9 编辑/重提）
     getProductDetail(query.code)
       .then((d) => {
         if (!d) return;
@@ -204,7 +206,7 @@ async function onSubmit() {
     };
     if (isEdit.value) {
       await updateProduct(code.value, payload);
-      uni.showToast({ title: '已保存，可提交审批', icon: 'none' });
+      uni.showToast({ title: '已保存，可提交审核', icon: 'none' });
     } else {
       await createProduct(payload);
       uni.showToast({ title: '已保存为草稿', icon: 'none' });

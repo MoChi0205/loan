@@ -1,5 +1,5 @@
 <template>
-  <view class="index-page" :class="{ 'u-shell': store.isTablet }">
+  <view class="index-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <!-- 品牌英雄区：油画质感渐变 + 玻璃拟态文字卡 + 柔和装饰 -->
     <view class="hero">
       <view class="hero-blob blob-a" />
@@ -7,7 +7,7 @@
       <view class="hero-blob blob-c" />
       <view class="hero-content">
         <view class="hero-glass">
-          <text class="hero-title">企业融资服务平台</text>
+          <text class="hero-title">企业资金服务平台</text>
           <text class="hero-sub">多银行产品智能匹配 · 经营数据驱动准入分析</text>
         </view>
       </view>
@@ -17,7 +17,7 @@
     <view class="main-body">
       <!-- 三步流程：横向时间线风格 -->
       <view class="card flow-card">
-        <text class="card-label">三步开启贷款咨询</text>
+        <text class="card-label">三步开启资金咨询</text>
         <view class="timeline">
           <view v-for="(s, i) in flow" :key="s.title" class="tl-step">
             <view class="tl-node">
@@ -76,6 +76,7 @@ import { onLoad } from '@dcloudio/uni-app';
 import { wxLogin, isH5Env } from '../../utils/wx';
 import { loginByWx, loginByCrm } from '../../api/auth';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import {
   captureInvitation, clearPendingInviteCode, consumePendingInvitation, getPendingInviteCode,
 } from '../../utils/invitation';
@@ -90,6 +91,7 @@ import {
  * - 开发模式：长按 DEV 标签可切换角色（customer/staff/admin/boss）
  */
 const store = useUserStore();
+const themeMode = useThemeMode();
 
 /** H5 浏览器环境标识（wxLogin 在 H5 返回模拟 code，靠后端 wechat.mock 打通登录） */
 const isH5 = computed(() => isH5Env());

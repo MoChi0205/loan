@@ -57,14 +57,14 @@ const initial = getTheme();
 const isDark = ref(initial.mode === 'dark');
 const primary = ref(initial.primary);
 
-/** 可选主色（金融/商务友好） */
+/** 可选主色（墨金友好：以暖金为锚，保留一键切换主色能力） */
 const palette = [
-  { name: '电光蓝', value: '#3b82f6' },
-  { name: '靛蓝', value: '#6366f1' },
-  { name: '青', value: '#06b6d4' },
-  { name: '翠绿', value: '#10b981' },
-  { name: '紫罗兰', value: '#8b5cf6' },
-  { name: '金', value: '#f59e0b' },
+  { name: '暖金', value: '#D9A441' },
+  { name: '墨蓝', value: '#16203A' },
+  { name: '钢蓝', value: '#2443C2' },
+  { name: '青', value: '#0E7490' },
+  { name: '墨绿', value: '#15803D' },
+  { name: '暗紫', value: '#6D28D9' },
 ];
 
 function toggleMode() {

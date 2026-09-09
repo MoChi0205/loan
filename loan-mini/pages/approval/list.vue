@@ -1,8 +1,8 @@
 <template>
-  <view class="approval-page">
-    <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有审批权限，请联系管理员" />
+  <view class="approval-page theme-root" :data-theme="themeMode">
+    <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有审核权限，请联系管理员" />
     <template v-else>
-    <!-- 类型分段 tab（审批中心统一） -->
+    <!-- 类型分段 tab（审核中心统一） -->
     <view class="seg-tabs">
       <AppClickable v-for="t in segTabs" :key="t.value" class="seg-tab" :class="{ active: activeType === t.value }" @click="switchType(t.value)">
         <text class="seg-label">{{ t.label }}</text>
@@ -19,7 +19,7 @@
     </AppEmpty>
 
     <!-- 空态 -->
-    <AppEmpty v-else-if="!items.length" title="暂无待审批"
+    <AppEmpty v-else-if="!items.length" title="暂无待审核"
       desc="分配申请与材料复核会显示在这里" />
 
     <!-- 待审列表 -->
@@ -29,14 +29,14 @@
           <text class="item-ent">{{ approvalTitle(it) }}</text>
           <view class="head-tags">
             <AppTag type="muted" size="sm">{{ typeLabel(it.type) }}</AppTag>
-            <AppTag type="warning" size="sm">待审批</AppTag>
+            <AppTag type="warning" size="sm">待审核</AppTag>
           </view>
         </view>
         <view class="item-meta">
           <text class="meta-line">申请人：{{ applicantName(it) }}</text>
           <text v-if="it.contactName" class="meta-line">联系人：{{ it.contactName }} {{ it.contactPhone || '' }}</text>
-          <text class="meta-line">审批事项：{{ approvalMatter(it) }}</text>
-          <text v-if="it.approveOpinion" class="meta-line">审批信息：{{ it.approveOpinion }}</text>
+          <text class="meta-line">审核事项：{{ approvalMatter(it) }}</text>
+          <text v-if="it.approveOpinion" class="meta-line">审核信息：{{ it.approveOpinion }}</text>
           <text v-if="it.purpose" class="meta-line">申请用途：{{ it.purpose }}</text>
           <text class="meta-line">申请时间：{{ formatTime(it.createdAt) }}</text>
         </view>
@@ -59,14 +59,16 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import {
   pendingApprovals, auditApproval, approvalCounts, normalizeApprovalItem,
 } from '../../api/approval';
 
 const store = useUserStore();
+const themeMode = useThemeMode();
 const canView = computed(() => store.hasPermission('mini:approval:view'));
 
-/** 类型分段 tab 定义（当前四类审批均开放） */
+/** 类型分段 tab 定义（当前四类审核均开放） */
 const allSegTabs = [
   { value: 'ALL', label: '全部' },
   { value: 'PRODUCT', label: '产品' },
@@ -83,7 +85,7 @@ const segTabs = computed(() => allSegTabs.filter((tab) => {
   return store.hasPermission('mini:approval:audit');
 }));
 
-/** 审批类型中文映射（替代原始枚举直接展示，见 P1-3） */
+/** 审核类型中文映射（替代原始枚举直接展示，见 P1-3） */
 const TYPE_LABEL = {
   PRODUCT: '产品录入',
   DOWNLOAD: '资料下载',
@@ -96,7 +98,7 @@ function typeLabel(t) {
   return TYPE_LABEL[t] || (t || '其他');
 }
 
-/** 当前选中类型（默认分配，其他审批可按类型查看） */
+/** 当前选中类型（默认分配，其他审核可按类型查看） */
 const activeType = ref('ALLOCATION');
 
 /** 各类型待审数（来自 approvalCounts） */
@@ -154,13 +156,13 @@ async function load(type) {
   }
 }
 
-/** 审批记录主标题：优先中文业务信息，材料复核退回到可理解的业务描述。 */
+/** 审核记录主标题：优先中文业务信息，材料复核退回到可理解的业务描述。 */
 function approvalTitle(item) {
   if (item.entName || item.contactName) return item.entName || item.contactName;
   if (item.type === 'MATERIAL_REVIEW') return item.reportNo ? '报告材料复核' : '上传材料复核';
   if (item.type === 'PRODUCT') return item.bankProductName || '产品审核申请';
   if (item.type === 'DOWNLOAD') return '资料下载申请';
-  return '待审批申请';
+  return '待审核申请';
 }
 
 function applicantName(item) {
@@ -172,7 +174,7 @@ function approvalMatter(item) {
   if (item.type === 'DOWNLOAD') return item.purpose ? `资料下载：${item.purpose}` : '资料下载';
   if (item.type === 'ALLOCATION') return `客户归属：${item.entName || item.contactName || '客户姓名待补充'}`;
   if (item.type === 'MATERIAL_REVIEW') return `材料复核：${item.entName || item.contactName || '客户姓名待补充'}`;
-  return '业务审批';
+  return '业务审核';
 }
 
 function switchType(v) {
@@ -185,7 +187,7 @@ async function onApprove(it) {
   acting.value = it.approvalNo;
   try {
     await auditApproval(it.type, it.approvalNo, true);
-    uni.showToast({ title: '审批已通过', icon: 'success' });
+    uni.showToast({ title: '审核已通过', icon: 'success' });
     items.value = items.value.filter(x => x.approvalNo !== it.approvalNo);
     await load(activeType.value); // 重新拉取当前类型
     await loadCounts();           // 刷新角标
@@ -224,7 +226,7 @@ function onReject(it) {
 }
 
 onLoad(async () => {
-  // 入口级守卫：渠道不可直达审批中心（D50 沙箱），H5 深链重定向回首页
+  // 入口级守卫：渠道不可直达审核中心（D50 沙箱），H5 深链重定向回首页
   if (store.isChannel || !canView.value) { uni.reLaunch({ url: '/pages/home/home' }); return; }
   await loadCounts();
   const first = segTabs.value.find((tab) => tab.value !== 'ALL') || segTabs.value[0];

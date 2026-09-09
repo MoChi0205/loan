@@ -40,8 +40,8 @@ function darken(rgb, ratio) {
 /** 当前主题状态 */
 let current = {
   mode: 'dark',
-  primary: '#3b82f6',
-  accent: '#38bdf8',
+  primary: '#D9A441', // 墨金 · 暖金（主强调色：按钮 / 激活 / 高亮）
+  accent: '#4C7BD9',  // 墨金 · 信息蓝（渐变第二色 / info，语义色）
 };
 
 /** 读取用户偏好（localStorage） */
@@ -91,39 +91,44 @@ function applyVars(mode, primary, accent) {
     // 主渐变
     '--loan-gradient': gradient(primaryRgb, accentRgb),
 
-    // 表面与背景
-    '--loan-bg': isDark ? '#0b1220' : '#f5f7fa',
-    '--loan-card-bg': isDark ? '#131e33' : '#ffffff',
-    '--loan-surface': isDark ? '#0e1828' : '#f9fafb',
+    // 表面与背景（墨金 Ink & Gold：深墨蓝承载 + 暖金强调）
+    '--loan-bg': isDark ? '#0E1626' : '#F4F6FA',
+    '--loan-card-bg': isDark ? '#131E33' : '#FFFFFF',
+    '--loan-surface': isDark ? '#1B2945' : '#EEF2F8',
+
+    // 语义强调令牌（墨金二元：墨蓝 + 暖金）
+    '--loan-ink': isDark ? '#0E1626' : '#16203A',
+    '--loan-gold': primary,
+    '--loan-gold-strong': isDark ? '#E0AE4E' : '#B8861A',
 
     // 边框
-    '--loan-border': isDark ? '#243148' : '#e5e7eb',
-    '--loan-border-strong': isDark ? '#3b4a63' : '#d1d5db',
+    '--loan-border': isDark ? '#26344F' : '#E2E8F2',
+    '--loan-border-strong': isDark ? '#3A4D6E' : '#CBD5E6',
 
     // 文本（高对比）
-    '--loan-text': isDark ? '#f1f5f9' : '#1f2937',
-    '--loan-text-secondary': isDark ? '#cbd5e1' : '#4b5563',
-    '--loan-text-muted': isDark ? '#94a3b8' : '#5b6470',
+    '--loan-text': isDark ? '#E8EDF5' : '#16203A',
+    '--loan-text-secondary': isDark ? '#B6C2D6' : '#3A465C',
+    '--loan-text-muted': isDark ? '#93A0B8' : '#6B7689',
 
-    // 语义色
-    '--loan-success': isDark ? '#34d399' : '#15803d',
-    '--loan-warning': isDark ? '#fbbf24' : '#d97706',
-    '--loan-danger': isDark ? '#f87171' : '#dc2626',
-    '--loan-info': accent,
+    // 语义色（墨金语义色板）
+    '--loan-success': isDark ? '#3FB98A' : '#2FA37A',
+    '--loan-warning': isDark ? '#E0A441' : '#C98A2B',
+    '--loan-danger': isDark ? '#E0877D' : '#D8695F',
+    '--loan-info': isDark ? '#6E9BE0' : '#4C7BD9',
 
     // 语义柔和色（callout/徽标软底，暗色低透明叠加 / 浅色浅底）
-    '--loan-success-bg': isDark ? 'rgba(52, 211, 153, 0.14)' : '#ecfdf5',
-    '--loan-success-line': isDark ? 'rgba(52, 211, 153, 0.34)' : '#a7f3d0',
-    '--loan-success-text': isDark ? '#6ee7b7' : '#047857',
-    '--loan-warning-bg': isDark ? 'rgba(251, 191, 36, 0.14)' : '#fffbeb',
-    '--loan-warning-line': isDark ? 'rgba(251, 191, 36, 0.34)' : '#fde68a',
-    '--loan-warning-text': isDark ? '#fcd34d' : '#b45309',
-    '--loan-danger-bg': isDark ? 'rgba(248, 113, 113, 0.14)' : '#fef2f2',
-    '--loan-danger-line': isDark ? 'rgba(248, 113, 113, 0.34)' : '#fecaca',
-    '--loan-danger-text': isDark ? '#fca5a5' : '#b91c1c',
-    '--loan-info-bg': isDark ? 'rgba(56, 189, 248, 0.14)' : '#eff6ff',
-    '--loan-info-line': isDark ? 'rgba(56, 189, 248, 0.34)' : '#bfdbfe',
-    '--loan-info-text': isDark ? '#7dd3fc' : '#1d4ed8',
+    '--loan-success-bg': isDark ? 'rgba(47, 163, 122, 0.16)' : '#E7F4EF',
+    '--loan-success-line': isDark ? 'rgba(47, 163, 122, 0.38)' : '#A7D8C4',
+    '--loan-success-text': isDark ? '#6EE7B7' : '#1F7A5A',
+    '--loan-warning-bg': isDark ? 'rgba(224, 164, 65, 0.16)' : '#FBF1DE',
+    '--loan-warning-line': isDark ? 'rgba(224, 164, 65, 0.38)' : '#EBD2A0',
+    '--loan-warning-text': isDark ? '#F2C879' : '#9A6B1E',
+    '--loan-danger-bg': isDark ? 'rgba(216, 105, 95, 0.16)' : '#FBEDEB',
+    '--loan-danger-line': isDark ? 'rgba(216, 105, 95, 0.38)' : '#EBC3BD',
+    '--loan-danger-text': isDark ? '#F0A89F' : '#B0493F',
+    '--loan-info-bg': isDark ? 'rgba(76, 123, 217, 0.16)' : '#EAEEF9',
+    '--loan-info-line': isDark ? 'rgba(76, 123, 217, 0.38)' : '#B9C6EC',
+    '--loan-info-text': isDark ? '#9FBEF0' : '#2E5BB0',
 
     // 分类强调色（仪表盘多指标区分，稳定品牌邻近色）
     '--loan-cat-indigo': isDark ? '#818cf8' : '#6366f1',
@@ -132,10 +137,10 @@ function applyVars(mode, primary, accent) {
     '--loan-cat-purple': isDark ? '#c084fc' : '#a855f7',
 
     // 侧栏
-    '--loan-sider-bg': isDark ? '#0e1726' : '#ffffff',
-    '--loan-sider-text': isDark ? '#cbd5e1' : '#4b5563',
-    '--loan-sider-active-bg': rgba(primaryRgb, isDark ? 0.16 : 0.09),
-    '--loan-sider-active-text': isDark ? '#93c5fd' : primary,
+    '--loan-sider-bg': isDark ? '#0E1626' : '#FFFFFF',
+    '--loan-sider-text': isDark ? '#B6C2D6' : '#3A465C',
+    '--loan-sider-active-bg': rgba(primaryRgb, isDark ? 0.18 : 0.10),
+    '--loan-sider-active-text': isDark ? '#F2C879' : '#B8861A',
     '--loan-sider-active-bar': primary,
   };
 
@@ -159,8 +164,8 @@ function applyVars(mode, primary, accent) {
  */
 export function applyTheme() {
   const mode = readPref(KEYS.THEME_MODE) || import.meta.env.VITE_THEME_MODE || 'dark';
-  const primary = readPref(KEYS.THEME_PRIMARY) || import.meta.env.VITE_THEME_PRIMARY || '#3b82f6';
-  const accent = readPref(KEYS.THEME_ACCENT) || import.meta.env.VITE_THEME_ACCENT || '#38bdf8';
+  const primary = readPref(KEYS.THEME_PRIMARY) || import.meta.env.VITE_THEME_PRIMARY || '#D9A441';
+  const accent = readPref(KEYS.THEME_ACCENT) || import.meta.env.VITE_THEME_ACCENT || '#4C7BD9';
   current = {
     mode: mode === 'light' ? 'light' : 'dark',
     primary,

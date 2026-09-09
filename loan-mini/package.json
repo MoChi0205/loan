@@ -2,7 +2,7 @@
   "name": "loan-mini",
   "version": "1.0.0",
   "private": true,
-  "description": "企业贷款咨询服务产品系统小程序端（uni-app，一套代码发布微信小程序 + H5）",
+  "description": "企业资金咨询服务产品系统小程序端（uni-app，一套代码发布微信小程序 + H5）",
   "scripts": {
     "dev:h5": "UNI_INPUT_DIR=. uni",
     "dev:mp-weixin": "UNI_INPUT_DIR=. uni -p mp-weixin",

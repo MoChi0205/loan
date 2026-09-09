@@ -12,46 +12,50 @@
 
 /* stylelint-disable color-no-hex -- 令牌源：自定义属性声明与 Element Plus 变量覆盖允许裸 hex */
 :root {
-  /* 兜底默认值（正式值由 applyTheme 从环境配置覆盖）——深蓝金融高对比暗色 */
-  --loan-primary: #3b82f6;
-  --loan-primary-hover: #60a5fa;
-  --loan-primary-active: #93c5fd;
-  --loan-primary-soft: rgba(59, 130, 246, 0.16);
-  --loan-primary-deep: rgba(59, 130, 246, 0.26);
-  --loan-accent: #38bdf8;
-  --loan-accent-soft: rgba(56, 189, 248, 0.16);
-  --loan-gradient: linear-gradient(135deg, #3b82f6, #38bdf8);
+  /* 兜底默认值（正式值由 applyTheme 从环境配置注入）——墨金 Ink & Gold：深墨蓝承载 + 暖金强调 */
+  --loan-primary: #D9A441;
+  --loan-primary-hover: #E0AE4E;
+  --loan-primary-active: #F2C879;
+  --loan-primary-soft: rgba(217, 164, 65, 0.16);
+  --loan-primary-deep: rgba(217, 164, 65, 0.26);
+  --loan-accent: #4C7BD9;
+  --loan-accent-soft: rgba(76, 123, 217, 0.16);
+  --loan-gradient: linear-gradient(135deg, #D9A441, #4C7BD9);
 
-  --loan-bg: #0b1220;
-  --loan-card-bg: #131e33;
+  --loan-ink: #16203A;
+  --loan-gold: #D9A441;
+  --loan-gold-strong: #B8861A;
+
+  --loan-bg: #0E1626;
+  --loan-card-bg: #131E33;
   --loan-paper: #ffffff;      /* 白底/纸面：报表预览、打印区等刻意保留白色，明暗主题均白 */
   --loan-black: #000000;      /* 纯黑：color-mix 压暗、遮罩等，非主题相关，不随主题变化 */
-  --loan-surface: #0e1828;
-  --loan-border: #243148;
-  --loan-border-strong: #3b4a63;
+  --loan-surface: #1B2945;
+  --loan-border: #26344F;
+  --loan-border-strong: #3A4D6E;
 
-  --loan-text: #f1f5f9;
-  --loan-text-secondary: #cbd5e1;
-  --loan-text-muted: #94a3b8;
+  --loan-text: #E8EDF5;
+  --loan-text-secondary: #B6C2D6;
+  --loan-text-muted: #93A0B8;
 
-  --loan-success: #34d399;
-  --loan-warning: #fbbf24;
-  --loan-danger: #f87171;
-  --loan-info: #38bdf8;
+  --loan-success: #2FA37A;
+  --loan-warning: #C98A2B;
+  --loan-danger: #D8695F;
+  --loan-info: #4C7BD9;
 
   /* 语义柔和色（callout/徽标软底；暗色：低透明叠加，浅色：浅底） */
-  --loan-success-bg: rgba(52, 211, 153, 0.14);
-  --loan-success-line: rgba(52, 211, 153, 0.34);
-  --loan-success-text: #6ee7b7;
-  --loan-warning-bg: rgba(251, 191, 36, 0.14);
-  --loan-warning-line: rgba(251, 191, 36, 0.34);
-  --loan-warning-text: #fcd34d;
-  --loan-danger-bg: rgba(248, 113, 113, 0.14);
-  --loan-danger-line: rgba(248, 113, 113, 0.34);
-  --loan-danger-text: #fca5a5;
-  --loan-info-bg: rgba(56, 189, 248, 0.14);
-  --loan-info-line: rgba(56, 189, 248, 0.34);
-  --loan-info-text: #7dd3fc;
+  --loan-success-bg: rgba(47, 163, 122, 0.16);
+  --loan-success-line: rgba(47, 163, 122, 0.38);
+  --loan-success-text: #6EE7B7;
+  --loan-warning-bg: rgba(224, 164, 65, 0.16);
+  --loan-warning-line: rgba(224, 164, 65, 0.38);
+  --loan-warning-text: #F2C879;
+  --loan-danger-bg: rgba(216, 105, 95, 0.16);
+  --loan-danger-line: rgba(216, 105, 95, 0.38);
+  --loan-danger-text: #F0A89F;
+  --loan-info-bg: rgba(76, 123, 217, 0.16);
+  --loan-info-line: rgba(76, 123, 217, 0.38);
+  --loan-info-text: #9FBEF0;
 
   /* 分类强调色（仪表盘多指标区分，稳定品牌邻近色） */
   --loan-cat-indigo: #818cf8;
@@ -59,11 +63,11 @@
   --loan-cat-orange: #fb923c;
   --loan-cat-purple: #c084fc;
 
-  --loan-sider-bg: #0e1726;
-  --loan-sider-text: #cbd5e1;
-  --loan-sider-active-bg: rgba(59, 130, 246, 0.16);
-  --loan-sider-active-text: #93c5fd;
-  --loan-sider-active-bar: #3b82f6;
+  --loan-sider-bg: #0E1626;
+  --loan-sider-text: #B6C2D6;
+  --loan-sider-active-bg: rgba(217, 164, 65, 0.18);
+  --loan-sider-active-text: #B8861A;
+  --loan-sider-active-bar: #D9A441;
 
   /* 圆角令牌（8px 基线） */
   --loan-radius-sm: 6px;
@@ -85,49 +89,49 @@
  * 修复 el-tree 白盒、弹窗/下拉/消息/提示等"白窗闪现"
  * ============================================================ */
 :root[data-theme="dark"] {
-  --el-color-white: #131e33;
-  --el-color-black: #f1f5f9;
-  --el-bg-color: #131e33;
-  --el-bg-color-page: #0b1220;
-  --el-bg-color-overlay: #16233a;
+  --el-color-white: #131E33;
+  --el-color-black: #E8EDF5;
+  --el-bg-color: #131E33;
+  --el-bg-color-page: #0E1626;
+  --el-bg-color-overlay: #16233A;
 
-  --el-text-color-primary: #f1f5f9;
-  --el-text-color-regular: #cbd5e1;
-  --el-text-color-secondary: #94a3b8;
-  --el-text-color-placeholder: #64748b;
+  --el-text-color-primary: #E8EDF5;
+  --el-text-color-regular: #B6C2D6;
+  --el-text-color-secondary: #93A0B8;
+  --el-text-color-placeholder: #64748B;
   --el-text-color-disabled: #475569;
 
-  --el-border-color: #243148;
-  --el-border-color-light: #243148;
-  --el-border-color-lighter: #1e2a42;
-  --el-border-color-extra-light: #1a2438;
-  --el-border-color-hover: #3b4a63;
+  --el-border-color: #26344F;
+  --el-border-color-light: #26344F;
+  --el-border-color-lighter: #1E2A42;
+  --el-border-color-extra-light: #1A2438;
+  --el-border-color-hover: #3A4D6E;
 
-  --el-fill-color: #1a2440;
-  --el-fill-color-light: #162033;
-  --el-fill-color-lighter: #131c2e;
+  --el-fill-color: #1B2945;
+  --el-fill-color-light: #16223A;
+  --el-fill-color-lighter: #131C2E;
   --el-fill-color-extra-light: #101826;
-  --el-fill-color-dark: #243148;
-  --el-fill-color-blank: #131e33;
+  --el-fill-color-dark: #26344F;
+  --el-fill-color-blank: #131E33;
 
-  --el-mask-color: rgba(11, 18, 32, 0.6);
-  --el-mask-color-extra-light: rgba(11, 18, 32, 0.3);
-  --el-disabled-bg-color: #1a2440;
+  --el-mask-color: rgba(14, 22, 38, 0.6);
+  --el-mask-color-extra-light: rgba(14, 22, 38, 0.3);
+  --el-disabled-bg-color: #1B2945;
   --el-disabled-text-color: #475569;
-  --el-disabled-border-color: #243148;
+  --el-disabled-border-color: #26344F;
 
-  /* 表格（暗色） */
-  --el-table-border-color: #243148;
-  --el-table-header-bg-color: #0e1828;
-  --el-table-row-hover-bg-color: rgba(59, 130, 246, 0.14);
-  --el-table-current-row-bg-color: rgba(59, 130, 246, 0.16);
+  /* 表格（暗色 · 墨金：暖金 hover） */
+  --el-table-border-color: #26344F;
+  --el-table-header-bg-color: #1B2945;
+  --el-table-row-hover-bg-color: rgba(217, 164, 65, 0.14);
+  --el-table-current-row-bg-color: rgba(217, 164, 65, 0.16);
   --el-table-tr-bg-color: transparent;
-  --el-table-expanded-cell-bg-color: #0e1828;
+  --el-table-expanded-cell-bg-color: #1B2945;
 
   /* 消息 / 通知（暗色） */
-  --el-notification-bg-color: #16233a;
-  --el-notification-title-color: #f1f5f9;
-  --el-notification-content-color: #cbd5e1;
+  --el-notification-bg-color: #16233A;
+  --el-notification-title-color: #E8EDF5;
+  --el-notification-content-color: #B6C2D6;
 }
 
 * {
@@ -290,23 +294,23 @@ body {
 .el-button--primary {
   background: var(--loan-primary);
   border-color: var(--loan-primary);
-  color: #ffffff;
+  color: #16203A; /* 墨金：暖金底配深墨蓝字，保证 WCAG 对比度 */
 }
 
 .el-button--primary:hover {
   background: var(--loan-primary-hover);
   border-color: var(--loan-primary-hover);
-  color: #ffffff;
+  color: #16203A;
 }
 
 .el-button--primary:active {
   background: var(--loan-primary-active);
   border-color: var(--loan-primary-active);
-  color: #ffffff;
+  color: #16203A;
 }
 
-/* primary 按钮在 hover/active 上 SVG 颜色跟随白字 */
-.el-button--primary svg { stroke: #ffffff; }
+/* primary 按钮在 hover/active 上 SVG 颜色跟随深墨蓝字 */
+.el-button--primary svg { stroke: #16203A; }
 
 /* 卡片默认样式对齐 */
 .el-card {
@@ -534,7 +538,7 @@ body {
   .el-table__body-wrapper
   tr:hover
   td.el-table-fixed-column--right {
-  background-color: rgba(59, 130, 246, 0.14) !important;
+  background-color: rgba(217, 164, 65, 0.14) !important;
 }
 
 /* 滚动状态阴影（增强固定列与内容的分隔感） */

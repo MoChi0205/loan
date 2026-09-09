@@ -32,12 +32,12 @@ export function reportDisplayTitle(report) {
   return `【${client}】【${date}】`;
 }
 
-/** 审批事项：不以审批号作为可见标题。 */
+/** 审核事项：不以审核号作为可见标题。 */
 export function approvalMatter(row, kind) {
-  if (!row) return '业务审批';
+  if (!row) return '业务审核';
   if (kind === 'product') return `产品${row.applyType === 'DELETE' ? '删除' : '录入'}：${row.bankProductName || '产品名称待补充'}`;
   if (kind === 'download') return `资料下载：${row.purpose || '用途待补充'}`;
   if (kind === 'allocation') return `客户归属：${row.entName || row.contactName || '客户姓名待补充'}`;
   if (kind === 'channelLead') return `渠道线索：${row.contactName || row.entName || '客户姓名待补充'}`;
-  return '业务审批';
+  return '业务审核';
 }

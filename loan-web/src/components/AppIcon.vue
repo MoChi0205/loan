@@ -5,14 +5,28 @@
     role="img"
     :aria-label="name"
   >
+    <!-- 墨金单一来源：归档 icons.js 的 path 字符串（dashboard/home/match/...），统一 1.75 线宽 + 圆角 -->
     <svg
-      v-if="ICONS[name]"
+      v-if="PATHS[name]"
       viewBox="0 0 24 24"
       width="100%"
       height="100%"
       fill="none"
       stroke="currentColor"
-      stroke-width="1.7"
+      stroke-width="1.75"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      v-html="PATHS[name]"
+    ></svg>
+    <!-- 兼容现有图标名（workbench/lead/client/... 元素语法），过渡期并存 -->
+    <svg
+      v-else-if="ICONS[name]"
+      viewBox="0 0 24 24"
+      width="100%"
+      height="100%"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
       stroke-linecap="round"
       stroke-linejoin="round"
     >
@@ -28,15 +42,18 @@
 
 <script setup>
 /**
- * 图标组件（Web 端集中式 SVG registry，T13/D28）。
+ * 图标组件（Web 端集中式 SVG registry，墨金 Ink & Gold 统一规范）。
  *
- * <p>统一 24×24 viewBox + 线性描边风格（stroke=currentColor），消除 Layout.vue 内联 SVG
- * 散落、重复与 scoped CSS 尺寸失效问题；语义与小程序 AppIcon（match/chart/bank/order/...）对齐。
+ * <p>统一 24×24 viewBox + 线性描边风格（stroke=currentColor，线宽 1.75，圆角端点）。
+ * 双来源并存：PATHS（归档 icons.js 单一来源：dashboard/home/match/...）+ ICONS（既有元素语法，过渡期）。
+ * 目标：收敛散落内联 SVG，全站图标来自此处。
  *
  * 用法：
- *   <AppIcon name="workbench" :size="18" />
+ *   <AppIcon name="dashboard" :size="18" />
  *   <AppIcon name="lead" :size="16" color="var(--loan-primary)" />
  */
+import { ICON_PATHS as PATHS } from './icons.js';
+
 defineProps({
   /** 图标名（见 ICONS 键） */
   name: { type: String, required: true },
@@ -80,7 +97,7 @@ const ICONS = {
     { k: 'path', d: 'M9 12h6' },
     { k: 'path', d: 'M9 16h4' },
   ],
-  /** 审批：勾选+框 */
+  /** 审核：勾选+框 */
   approval: [{ k: 'path', d: 'M9 11l3 3 8-8' }, { k: 'path', d: 'M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9' }],
   /** 短信：气泡 */
   sms: [{ k: 'path', d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' }, { k: 'path', d: 'M8 9h8' }, { k: 'path', d: 'M8 13h5' }],

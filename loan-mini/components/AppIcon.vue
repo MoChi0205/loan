@@ -16,12 +16,13 @@
         3) background-size: contain 保留 viewBox 比例缩放
         4) 颜色仍然内联到 stroke（绕开 currentColor 继承坑）
     -->
-    <view class="ico-bg" :style="{ backgroundImage: `url(${src})` }" />
+    <view class="ico-bg" :style="{ backgroundImage: `url('${src}')` }" />
   </view>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onUnmounted } from 'vue';
+import { getThemeMode, onThemeChange } from '../theme';
 
 /**
  * 图标组件 v8（SVG data URI + CSS background-image 版）
@@ -55,10 +56,20 @@ const props = defineProps({
  * 注意：调用方**禁止**传 var(--…)——SVG stroke 不解析 CSS 变量，
  * 必须传真实色值（#RRGGBB / rgba()）；不识别则原样传入（兜底）。
  */
-// 浅色主题默认：深字色（页底白/浅灰时图标可见）；深底场景由调用方传白/金色
-const RESOLVED = '#1A2336';
+// 浅色主题默认：墨蓝字色（浅底上图标可见）
+const RESOLVED_LIGHT = '#16203A';
+// 暗色主题默认：浅字色（墨金暗底 #0E1626 / #131E33 上图标可见）
+const RESOLVED_DARK = '#E8EDF5';
+
+// 订阅主题变化：未显式传 props.color 的图标随明暗切换自动改色。
+// 原因：小程序 SVG stroke 不解析 CSS 变量（var()），必须注入真实色值，故需在运行时读取 mode。
+const themeMode = ref(getThemeMode());
+const offTheme = onThemeChange((m) => { themeMode.value = m; });
+onUnmounted(() => { if (offTheme) offTheme(); });
+
 const resolvedColor = computed(() => {
-  return (props.color || '').trim() || RESOLVED;
+  if ((props.color || '').trim()) return props.color.trim();
+  return themeMode.value === 'dark' ? RESOLVED_DARK : RESOLVED_LIGHT;
 });
 
 /* SVG 源：所有图均为 24×24 viewBox + stroke-width 1.75 + 圆头
@@ -96,19 +107,40 @@ const SVGS = {
 };
 
 function buildSvg(name, color) {
-  const path = SVGS[name] || SVGS.home;
+  const pathData = SVGS[name] || SVGS.home;
   // 关键：width/height 显式声明，让 mp-weixin 拿到 intrinsic 尺寸；
   // stroke 写死真实色值，不用 currentColor；fill="none" 保证只描边不填充
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+  // 注意：SVGS 存的是 path 的 d 属性值，必须包在 <path d="..."/> 里才是合法 SVG。
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="${pathData}"/></svg>`;
+}
+
+function toBase64(str) {
+  // H5 用 btoa；mp-weixin 旧基础库 fallback 到 uni.arrayBufferToBase64
+  if (typeof btoa === 'function') return btoa(str);
+  if (typeof uni !== 'undefined' && uni.arrayBufferToBase64) {
+    const buf = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) buf[i] = str.charCodeAt(i);
+    return uni.arrayBufferToBase64(buf.buffer);
+  }
+  // 最后兜底：纯 JS base64（极小 polyfill）
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let out = '';
+  for (let i = 0; i < str.length; i += 3) {
+    const a = str.charCodeAt(i);
+    const b = i + 1 < str.length ? str.charCodeAt(i + 1) : 0;
+    const c = i + 2 < str.length ? str.charCodeAt(i + 2) : 0;
+    out += chars[(a >> 2) & 0x3F];
+    out += chars[((a & 0x03) << 4) | ((b >> 4) & 0x0F)];
+    out += i + 1 < str.length ? chars[((b & 0x0F) << 2) | ((c >> 6) & 0x03)] : '=';
+    out += i + 2 < str.length ? chars[c & 0x3F] : '=';
+  }
+  return out;
 }
 
 const src = computed(() => {
   const svg = buildSvg(props.name, resolvedColor.value);
-  // data:image/svg+xml;utf8, 转义（# → %23 等号 → %3D 单引号转义）
-  const encoded = encodeURIComponent(svg)
-    .replace(/'/g, '%27')
-    .replace(/"/g, '%22');
-  return `data:image/svg+xml;charset=utf-8,${encoded}`;
+  // base64 data URI 在 H5/小程序渲染管线中最稳定（避免 url-encoded data URI 被部分浏览器截断）
+  return `data:image/svg+xml;base64,${toBase64(svg)}`;
 });
 </script>
 

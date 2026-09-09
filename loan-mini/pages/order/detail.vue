@@ -1,5 +1,5 @@
 <template>
-  <view class="detail-page">
+  <view class="detail-page theme-root" :data-theme="themeMode">
     <!-- 加载中 -->
     <AppSkeleton v-if="loading" :rows="4" />
 
@@ -69,11 +69,13 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { orderDetail } from '../../api/order';
+import { useThemeMode } from '../../theme';
 
 /**
  * 服务单详情（P0-6）：状态 / 顾问 / 跟进摘要。
  * 按合规决策不展示产品名/银行名/额度/利率明细（评审决策 08-28）。
  */
+const themeMode = useThemeMode();
 const loading = ref(true);
 const order = ref(null);
 

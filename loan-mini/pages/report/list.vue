@@ -1,5 +1,5 @@
 <template>
-  <view class="report-page" :class="{ 'u-shell': store.isTablet }">
+  <view class="report-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有报告查看权限，请联系管理员" />
     <!-- 列表头：角色二分（C3） -->
     <view class="page-head">
@@ -116,6 +116,7 @@
 import { ref, reactive, computed } from 'vue';
 import { onShow, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
+import { useThemeMode } from '../../theme';
 import TabBar from '../../components/TabBar.vue';
 import { reportList } from '../../api/match';
 
@@ -133,6 +134,7 @@ const PAGE_SIZE = 10;
 
 /** 企业员工（C1/C3/C4）：可查全量报告与命中产品；客户与渠道除外 */
 const store = useUserStore();
+const themeMode = useThemeMode();
 const canView = computed(() => store.hasPermission('mini:report:view'));
 const isStaff = computed(() => store.isStaff);
 

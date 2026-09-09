@@ -1,7 +1,7 @@
 import request from '@/utils/request';
 
 /**
- * 审批接口（对接 loan-service /api/admin/approval）。
+ * 审核接口（对接 loan-service /api/admin/approval）。
  */
 
 /** 产品审核 */
@@ -23,7 +23,7 @@ export function auditChannelLeadApproval(leadNo, data) {
   return request({ url: `/api/admin/approval/channel-lead/${leadNo}/audit`, method: 'post', data });
 }
 
-/** 附件下载审批 */
+/** 附件下载审核 */
 export function applyDownload(data) {
   return request({ url: '/api/admin/approval/download/apply', method: 'post', data });
 }
@@ -37,7 +37,7 @@ export function voidDownloadApproval(approvalNo) {
   return request({ url: `/api/admin/approval/download/${approvalNo}/void`, method: 'post' });
 }
 
-/** 客户分配审批（D39/C24：OPERATOR/SUPER_ADMIN/SUPER/BOSS 及团队管理者 DM 可见，DM 仅本团队） */
+/** 客户分配审核（D39/C24：OPERATOR/SUPER_ADMIN/SUPER/BOSS 及团队管理者 DM 可见，DM 仅本团队） */
 export function pageAllocationApprovals(params) {
   return request({ url: '/api/admin/approval/allocation/pending', method: 'get', params });
 }

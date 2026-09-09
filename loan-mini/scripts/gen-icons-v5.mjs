@@ -289,7 +289,7 @@ function main() {
 </div>
 <h2>页面场景模拟（72rpx 菜单行 / 88rpx TabBar）</h2>
 <div class="phone">
-  ${[['order', '我的服务单', '查看服务进度与跟进摘要'], ['bank', '我的产品', '录入 / 撤销审批 / 申请删除'], ['check', '审批中心', '无归宿客户分配申请']].map(([n, t, s]) => `
+  ${[['order', '我的服务单', '查看服务进度与跟进摘要'], ['bank', '我的产品', '录入 / 撤销提交 / 申请删除'], ['check', '审核中心', '无归宿客户分配申请']].map(([n, t, s]) => `
   <div class="menu"><img src="${n}.png" width="36" height="36" style="flex-shrink:0"><div><b>${t}</b><br><i>${s}</i></div></div>`).join('')}
   <div style="display:flex;border-top:1px solid #EEF1F7;padding-top:10px;margin-top:6px">
     ${[['home', 'brand'], ['match', 'gray'], ['chart', 'gray'], ['order', 'gray'], ['mine', 'gray']].map(([n, k]) => `

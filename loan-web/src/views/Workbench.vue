@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">我的工作台</h2>
-        <p class="loan-page-subtitle">{{ isChannel ? '管理本人录入的线索、客户、产品与分析报告' : '客户、产品、工单与审批的统一业务工作台' }}</p>
+        <p class="loan-page-subtitle">{{ isChannel ? '管理本人录入的线索、客户、产品与分析报告' : '客户、产品、工单与审核的统一业务工作台' }}</p>
       </div>
       <div class="header-meta">
         <el-tooltip :content="nowText" placement="bottom">
@@ -241,12 +241,12 @@ const metrics = computed(() => {
 const todos = computed(() => {
   const t = todo.value || {};
   return [
-    // 待我审批 X（仅当前用户作为审批人时显示非零；ADVISER 通常为 0）
-    { name: '待我审批产品', count: t.pendingProductApproval ?? 0, desc: '渠道产品入全量库审核', path: '/approval' },
-    { name: '待我审批下载', count: t.pendingDownloadApproval ?? 0, desc: '无水印下载申请审批', path: '/approval' },
-    { name: '待我审批分配', count: t.pendingAllocationApproval ?? 0, desc: '客户归属流转审批', path: '/approval' },
+    // 待我审核 X（仅当前用户作为审核人时显示非零；ADVISER 通常为 0）
+    { name: '待我审核产品', count: t.pendingProductApproval ?? 0, desc: '渠道产品入全量库审核', path: '/approval' },
+    { name: '待我审核下载', count: t.pendingDownloadApproval ?? 0, desc: '无水印下载申请审核', path: '/approval' },
+    { name: '待我审核分配', count: t.pendingAllocationApproval ?? 0, desc: '客户归属流转审核', path: '/approval' },
     { name: '待审核奖励', count: t.pendingReward ?? 0, desc: '成交自动结算待发放', path: '/reward' },
-    // 我的 X 申请（申请人视角：提交后等待审批的工单）
+    // 我的 X 申请（申请人视角：提交后等待审核的工单）
     { name: '我的下载申请', count: t.myDownloadApply ?? 0, desc: '我提交的无水印下载申请', path: '/approval?tab=download' },
     { name: '我的分配申请', count: t.myAllocationApply ?? 0, desc: '我提交的客户归属申请', path: '/approval?tab=allocation' },
     // 我的 X（owner 视角）
@@ -300,7 +300,7 @@ async function loadMenuAccess() {
 const channelQuick = [
   { path: '/lead', name: '我的线索', desc: '录入并查看本人提交的客户线索', icon: 'lead' },
   { path: '/client', name: '我的客户', desc: '查看本人线索形成的客户档案与归属', icon: 'client' },
-  { path: '/product', name: '我的产品', desc: '录入产品并跟踪平台审批进度', icon: 'product' },
+  { path: '/product', name: '我的产品', desc: '录入产品并跟踪平台审核进度', icon: 'product' },
   { path: '/report/screening', name: '客户分析报告', desc: '查看本人客户的分析结果', icon: 'reportDoc' },
 ];
 

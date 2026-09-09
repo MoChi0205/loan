@@ -138,7 +138,7 @@ const routes = [
         path: 'approval',
         name: 'ApprovalCenter',
         component: () => import('@/views/approval/ApprovalCenter.vue'),
-        meta: { title: '审批中心' },
+        meta: { title: '审核中心' },
       },
       {
         path: 'sms',

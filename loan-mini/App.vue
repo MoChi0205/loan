@@ -1,12 +1,13 @@
 <script>
 /**
  * 小程序根组件。
- * 全局样式：瑞幸风格 —— 深色品牌主调 #0B1D3A、暖金点缀 #C8A96E、
- * 大圆角阴影卡片、无 AI 模板感。
+ * 全局样式：墨金 Ink & Gold —— 深墨蓝 #16203A + 暖金 #D9A441、
+ * 明暗双主题，来源 docs/design-system/DesignSystemManifest.md。
  */
 import { useUserStore } from './store/user';
 import { initWxJsSdk } from './utils/wx-jssdk';
 import { captureInvitation, consumePendingInvitation } from './utils/invitation';
+import { applyThemeOnLaunch } from './theme';
 
 /**
  * H5 SPA 路由变化后重新注入 JS-SDK（签名须与当前页 URL 匹配）。
@@ -39,6 +40,8 @@ function bindH5RouteJsSdk() {
 export default {
   onLaunch(options) {
     captureInvitation(options);
+    // 墨金主题：应用已保存的明暗模式（H5 端写入根节点 data-theme 标记）
+    applyThemeOnLaunch();
     // 阶段三：接入 wx.login 静默换 token + 手机号一键登录
 
     // #ifdef H5
@@ -73,8 +76,8 @@ export default {
 
 <style>
 /* ============================================================
-   企融通 loan-mini · 设计系统 v1.0 全局令牌
-   来源：loan-mini-设计系统规范.md（唯一设计依据）
+   企融通 loan-mini · 墨金 Ink & Gold 全局令牌
+   来源：docs/design-system/DesignSystemManifest.md（已归档唯一设计依据）
    单位：rpx（750rpx = 屏宽，1px 逻辑像素 = 2rpx）
    一套代码编译 微信小程序 + H5，禁止页面内写裸值
    ============================================================ */
@@ -82,46 +85,46 @@ export default {
    故统一用 page 定义全局 CSS 变量，双端生效。勿改回 :root。 */
 /* stylelint-disable color-no-hex -- 设计令牌定义源：裸 hex 为规范唯一来源，禁止 lint 拦截 */
 page {
-  /* ===== 品牌色（v3 深蓝商务版：对齐登录页油画渐变家族，收敛 v2 过亮电光蓝） ===== */
-  /* 阶梯：navy(渐变起点) < deep(主交互色) < mid < bright(仅小面积点缀) */
-  --brand-navy: #17216B;
-  --brand-deep: #2443C2;
-  --brand-mid: #3D63E0;
-  --brand-bright: #5B7CFF;
-  /* 登录页 hero 同款油画渐变：大面积 Hero（首页通栏/我的档案头/匹配守卫/工单状态卡）统一引用 */
-  --hero-gradient: linear-gradient(160deg, #17216B 0%, #2443C2 40%, #2C5BFF 100%);
-  --gold: #FFB020;
-  --gold-bg: #FFF1D6;
+  /* ===== 品牌色（墨金 Ink & Gold） ===== */
+  /* 阶梯：navy(墨蓝渐变起点) < deep(主交互/按钮) < mid(悬停提亮) < bright(小面积点缀) */
+  --brand-navy: #16203A;
+  --brand-deep: #D9A441;
+  --brand-mid: #E0AE4E;
+  --brand-bright: #F2C879;
+  /* Hero 渐变：大面积 Hero（首页通栏/我的档案头/匹配守卫/工单状态卡）统一引用 */
+  --hero-gradient: linear-gradient(160deg, #16203A 0%, #1B2945 40%, #D9A441 100%);
+  --gold: #D9A441;
+  --gold-bg: #FFF5E0;
 
   /* ===== 中性色 ===== */
-  --bg-page: #F8FAFC;
+  --bg-page: #F4F6FA;
   --bg-card: #FFFFFF;
-  --bg-input: #F1F5F9;
-  --line: #E2E8F0;
-  --text-primary: #1A2336;
-  --text-body: #44506A;
-  --text-secondary: #5B6678;
-  --text-placeholder: #B6C0CE;
+  --bg-input: #EEF2F8;
+  --line: #E2E8F2;
+  --text-primary: #16203A;
+  --text-body: #243456;
+  --text-secondary: #6B7689;
+  --text-placeholder: #93A0B8;
   --text-invert: #FFFFFF;
 
-  /* ===== 语义色（仅用于图标/底色，文字请用 -text 变量；v2 调亮） ===== */
-  --success: #11A86B;
-  --warning: #F5920C;
-  --danger: #EF4D5E;
-  --info: #0EA8BE;
+  /* ===== 语义色（仅用于图标/底色，文字请用 -text 变量） ===== */
+  --success: #2FA37A;
+  --warning: #E0A441;
+  --danger: #D8695F;
+  --info: #4C7BD9;
 
   /* ===== 无障碍文字色（对比度已验证 ≥4.5:1，WCAG AA） ===== */
-  --warning-text: #B45309;
-  --gold-text: #3A2E12;
+  --warning-text: #B8861A;
+  --gold-text: #16203A;
   --success-text: #047857;
   --danger-text: #B91C1C;
-  --info-text: #0E7490;
+  --info-text: #3D63E0;
 
   /* ===== 语义浅底（badge / 提示卡底色，配 -text 文字） ===== */
   --success-bg: #ECFDF5;
-  --warning-bg: #FFFBEB;
-  --warning-line: #FDE68A;
-  --brand-bg: #EAF0FF;
+  --warning-bg: #FFF5E0;
+  --warning-line: #F2C879;
+  --brand-bg: #FFF5E0;
 
   /* ===== 间距（4px 基准 → rpx） ===== */
   --space-1: 8rpx;    --space-2: 16rpx;   --space-3: 24rpx;  --space-4: 32rpx;
@@ -159,30 +162,30 @@ page {
 
   /* ===== 冷玻璃质感系列（首页 header / 我的页头 / 匹配守卫：磨砂油画 + 毛玻璃） =====
      小程序端 backdrop-filter 不支持 → 降级为多层径向渐变油画光斑；H5 端启用 blur 真毛玻璃 */
-  --glass-bg: #E8ECF5;
-  --glass-bg-deep: #D6DDEB;
+  --glass-bg: #EEF2F8;
+  --glass-bg-deep: #E2E8F2;
   --glass-hi: rgba(255, 255, 255, 0.45);
   --glass-edge: rgba(255, 255, 255, 0.6);
-  --glass-tint: #EAF0FF;
+  --glass-tint: #F2C879;
   --glass-gradient: radial-gradient(circle at 18% 20%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 38%),
-                    radial-gradient(circle at 82% 88%, rgba(14,168,190,0.10) 0%, rgba(14,168,190,0) 42%),
-                    linear-gradient(160deg, #EEF2FA 0%, #DCE3F1 55%, #D2DBEC 100%);
+                     radial-gradient(circle at 82% 88%, rgba(217,164,65,0.10) 0%, rgba(217,164,65,0) 42%),
+                     linear-gradient(160deg, #F4F6FA 0%, #E8ECF5 55%, #E2E8F2 100%);
 
-  /* ===== 按钮体系（v4 油画玻璃版：与登录页 hero 渐变同源，全局唯一真源） =====
+  /* ===== 按钮体系（墨金：主按钮暖金填充、墨蓝文字；次按钮玻璃/描边） =====
      所有按钮/类按钮控件（AppButton、胶囊、CTA）一律引用下列令牌，禁止页面内裸色值 */
-  --btn-primary-bg: linear-gradient(135deg, #2443C2 0%, #2C5BFF 55%, #3D63E0 100%);
-  --btn-primary-shadow: 0 12rpx 28rpx rgba(36, 67, 194, 0.28);
-  --btn-gold-bg: linear-gradient(135deg, #F5A524 0%, #FFC24D 100%);
-  --btn-gold-shadow: 0 12rpx 28rpx rgba(245, 165, 36, 0.30);
-  --btn-danger-bg: linear-gradient(135deg, #DC2626 0%, #EF4D5E 100%);
-  --btn-danger-shadow: 0 12rpx 28rpx rgba(220, 38, 38, 0.26);
+  --btn-primary-bg: linear-gradient(135deg, #D9A441 0%, #E0AE4E 55%, #F2C879 100%);
+  --btn-primary-shadow: 0 12rpx 28rpx rgba(217, 164, 65, 0.28);
+  --btn-gold-bg: linear-gradient(135deg, #D9A441 0%, #F2C879 100%);
+  --btn-gold-shadow: 0 12rpx 28rpx rgba(217, 164, 65, 0.30);
+  --btn-danger-bg: linear-gradient(135deg, #B91C1C 0%, #D8695F 100%);
+  --btn-danger-shadow: 0 12rpx 28rpx rgba(184, 28, 28, 0.26);
   /* 玻璃/描边按钮：浅底 + 细边，配冷玻璃卡片 */
   --btn-glass-bg: rgba(255, 255, 255, 0.72);
-  --btn-glass-border: rgba(36, 67, 194, 0.28);
+  --btn-glass-border: rgba(217, 164, 65, 0.28);
   --btn-ghost-bg: transparent;
   --btn-ghost-border: var(--brand-deep);
-  --btn-disabled-bg: #DDE3EC;
-  --btn-disabled-text: #9AA4B4;
+  --btn-disabled-bg: #E2E8F2;
+  --btn-disabled-text: #93A0B8;
 
   /* ===== 角色色板（v2 明亮商务版：原深蓝/灰黑 → 鲜亮区分色，白字 ΔE>20） ===== */
   --role-customer: #2443C2;
@@ -223,6 +226,15 @@ page {
   line-height: var(--lh-base);
   -webkit-font-smoothing: antialiased;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+/* ===== 主题根（墨金暗色铺满）=====
+   微信小程序端 page 元素无法在模板里接收 data-theme 属性（page[data-theme] 永不会命中），
+   故改为「页面根 <view> 挂 .theme-root + :data-theme」驱动 [data-theme="dark"] 暗色令牌。
+   .theme-root 负责让暗色背景铺满整屏（page 自身背景仍是浅色，会被它覆盖）。 */
+.theme-root {
+  min-height: 100vh;
+  background-color: var(--bg-page);
 }
 
 /* ===== 无障碍：键盘焦点可见（WCAG 2.4.7）=====
@@ -333,5 +345,48 @@ button::after {
   right: 0 !important;
   margin: 0 auto !important;
   transform: none !important;
+}
+
+/* ============================================================
+ * 墨金 Ink & Gold · 暗色主题（与 loan-web 对齐）
+ * 小程序 SVG 不解析 var()，故 AppIcon / TabBar 运行时按 mode 注入真实色；
+ * 此处定义 CSS 变量层，由 page[data-theme="dark"] 生效。
+ * ============================================================ */
+:root[data-theme="dark"], [data-theme="dark"] {
+  --bg-page: #0E1626;
+  --bg-card: #131E33;
+  --bg-input: #1B2945;
+  --line: #26344F;
+  --text-primary: #E8EDF5;
+  --text-body: #B6C2D6;
+  --text-secondary: #93A0B8;
+  --text-placeholder: #64748B;
+  --brand-navy: #0E1626;
+  --brand-deep: #E0AE4E;   /* 暗底强调转暖金 */
+  --brand-mid: #F2C879;
+  --brand-bright: #FBD98C;
+  --hero-gradient: linear-gradient(160deg, #0E1626 0%, #16233A 40%, #1B2945 100%);
+  --gold: #F2C879;
+  --gold-bg: #2A2310;
+  --success: #3FB98A;
+  --warning: #E0A441;
+  --danger: #E0877D;
+  --info: #6E9BE0;
+  --success-text: #6EE7B7;
+  --warning-text: #F2C879;
+  --danger-text: #F0A89F;
+  --info-text: #9FBEF0;
+  --success-bg: rgba(47, 163, 122, 0.16);
+  --warning-bg: rgba(224, 164, 65, 0.16);
+  --brand-bg: rgba(224, 174, 78, 0.16);
+  --glass-bg: #1B2945;
+  --glass-bg-deep: #16233A;
+  --glass-tint: #1B2945;
+  --glass-gradient: radial-gradient(circle at 18% 20%, rgba(224, 174, 78, 0.10) 0%, rgba(224, 174, 78, 0) 38%),
+                    linear-gradient(160deg, #131E33 0%, #16233A 55%, #1B2945 100%);
+  --btn-primary-bg: linear-gradient(135deg, #C98A2B 0%, #E0AE4E 55%, #F2C879 100%);
+  --btn-primary-shadow: 0 12rpx 28rpx rgba(224, 174, 78, 0.28);
+  --btn-glass-border: rgba(224, 174, 78, 0.28);
+  --shadow-md: 0 8rpx 24rpx rgba(0, 0, 0, 0.3);
 }
 </style>

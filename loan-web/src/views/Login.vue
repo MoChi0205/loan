@@ -1,17 +1,10 @@
 <template>
   <div class="login-page">
-    <!-- 左侧：品牌叙事（可配置商务风景图 + 蓝色蒙层） -->
+    <!-- 左侧：品牌叙事（墨金主题配图 + 墨金蒙层） -->
     <section class="login-brand" :style="brandStyle">
       <div class="brand-overlay" />
-      <header class="brand-top">
-        <div class="brand-mark">
-          <AppIcon name="product" :size="22" />
-        </div>
-        <span class="brand-name">企业贷款咨询平台</span>
-      </header>
-
       <div class="brand-hero">
-        <h1 class="hero-title">企业融资方案智能匹配</h1>
+        <h1 class="hero-title">企业资金方案智能匹配</h1>
         <p class="hero-desc">
           聚合多家合作银行产品，基于企业经营数据与银行准入条件，为企业提供匹配程度分析与专业咨询建议。
         </p>
@@ -122,6 +115,7 @@ import { sceneries } from '@/assets/login-bg';
 import { useUserStore } from '@/store/user';
 import { channelLogin as channelLoginApi } from '@/api/auth';
 import { KEYS, getStorage, setStorage, removeStorage } from '@/utils/storage';
+import { getTheme } from '@/theme';
 import AppIcon from '@/components/AppIcon.vue';
 
 const router = useRouter();
@@ -149,16 +143,19 @@ const demoAccounts = [
 ];
 
 /**
- * 商务风景图配置（.env 切换，无需改代码）：
- *  VITE_LOGIN_SCENERY = skyline | office | twilight | none | custom
- *  VITE_LOGIN_BG_URL  = 图片 URL（仅 custom 生效）
+ * 主题感登录配图配置：
+ *  - 默认按当前主题自动匹配墨金主题生成图（inkDark / inkLight）。
+ *  - 可通过 .env 覆盖：VITE_LOGIN_SCENERY = skyline | office | twilight | inkDark | inkLight | none | custom
+ *  - custom 需同时配置 VITE_LOGIN_BG_URL。
  */
-const sceneryKey = (import.meta.env.VITE_LOGIN_SCENERY || 'skyline').toLowerCase();
+const isDark = getTheme().mode === 'dark';
+const defaultKey = isDark ? 'inkDark' : 'inkLight';
+const sceneryKey = (import.meta.env.VITE_LOGIN_SCENERY || defaultKey).toLowerCase();
 const customUrl = import.meta.env.VITE_LOGIN_BG_URL || '';
 const sceneryUrl =
-  sceneryKey === 'custom' ? customUrl : sceneryKey === 'none' ? '' : sceneries[sceneryKey] || sceneries.skyline;
+  sceneryKey === 'custom' ? customUrl : sceneryKey === 'none' ? '' : sceneries[sceneryKey] || sceneries[defaultKey];
 
-/** 左侧品牌区背景：有图用图，无图用纯渐变 */
+/** 左侧品牌区背景 */
 const brandStyle = computed(() => {
   if (sceneryUrl) {
     return {
@@ -248,18 +245,78 @@ onMounted(() => {
   pointer-events: none;
 }
 
-.brand-top,
+/* ============================================================
+ * 主题适配：配图 + 文字风格均随明暗主题联动
+ * ============================================================ */
+
+/* 浅色模式：左侧配图为明亮商务城市，文字改用深墨蓝以保证可读性 */
+:root[data-theme="light"] .login-brand {
+  color: var(--loan-ink);
+}
+
+:root[data-theme="light"] .brand-mark {
+  background: rgba(22, 32, 58, 0.08);
+  color: var(--loan-ink);
+}
+
+:root[data-theme="light"] .brand-points svg {
+  background: rgba(22, 32, 58, 0.08);
+}
+
+:root[data-theme="light"] .hero-title,
+:root[data-theme="light"] .hero-desc,
+:root[data-theme="light"] .brand-points li,
+:root[data-theme="light"] .brand-foot {
+  text-shadow: none;
+}
+
+:root[data-theme="light"] .brand-overlay {
+  background: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.82) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.22) 100%
+  );
+}
+
+/* 深色模式：标题使用暖金渐变，整体保持高对比浅色文字 */
+:root[data-theme="dark"] .brand-overlay {
+  background: linear-gradient(
+    155deg,
+    rgba(14, 22, 38, 0.78) 0%,
+    rgba(22, 32, 58, 0.62) 50%,
+    rgba(14, 22, 38, 0.42) 100%
+  );
+}
+
+:root[data-theme="dark"] .hero-title {
+  background: linear-gradient(90deg, #F2C879 0%, #D9A441 50%, #E0AE4E 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}
+
+:root[data-theme="dark"] .hero-desc {
+  color: #E8EDF5;
+  opacity: 0.92;
+}
+
+:root[data-theme="dark"] .brand-points li {
+  color: #E8EDF5;
+  opacity: 0.95;
+}
+
+:root[data-theme="dark"] .brand-foot {
+  color: #B6C2D6;
+  opacity: 0.8;
+}
+
 .brand-hero,
 .brand-points,
 .brand-foot {
   position: relative;
   z-index: 1;
-}
-
-.brand-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 .brand-mark {

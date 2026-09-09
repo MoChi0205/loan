@@ -6,14 +6,10 @@
     <aside class="sider" :class="{ collapsed }">
       <div class="brand">
         <div class="brand-mark">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" />
-            <path d="M12 12v10" />
-            <path d="M3 7l9 5 9-5" />
-          </svg>
+          <AppIcon name="product" :size="20" />
         </div>
         <div v-if="!collapsed" class="brand-text">
-          <div class="brand-name">企业贷款咨询</div>
+          <div class="brand-name">企业资金咨询</div>
           <div class="brand-sub">Loan Advisory</div>
         </div>
       </div>
@@ -63,12 +59,7 @@
                 <span v-if="g.icon" class="menu-group-icon"><AppIcon :name="g.icon" :size="16" /></span>
                 <span class="menu-group-label">{{ g.title }}</span>
                 <span class="menu-group-line"></span>
-                <svg
-                  class="menu-group-arrow"
-                  viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
+                <AppIcon name="arrowDown" :size="12" class="menu-group-arrow" />
               </div>
               <transition name="menu-collapse">
                 <div
@@ -129,18 +120,12 @@
         @keyup.enter="collapsed = !collapsed"
         @keyup.space.prevent="collapsed = !collapsed"
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="16"
-          height="16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
+        <AppIcon
+          name="arrowLeft"
+          :size="16"
           class="collapse-icon"
           :class="{ rotated: collapsed }"
-        >
-          <path d="M15 18l-6-6 6-6" />
-        </svg>
+        />
         <span v-if="!collapsed">收起导航</span>
       </div>
     </aside>
@@ -150,12 +135,10 @@
       <header class="topbar">
         <div class="topbar-left">
           <button class="collapse-btn" type="button" aria-label="折叠/展开导航" @click="collapsed = !collapsed">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <AppIcon name="menu" :size="18" />
           </button>
           <el-breadcrumb separator="/" aria-label="面包屑导航">
-            <el-breadcrumb-item>企业贷款咨询</el-breadcrumb-item>
+            <el-breadcrumb-item>企业资金咨询</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentTitle }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -169,18 +152,12 @@
               <span class="user-name">{{ displayName }}</span>
               <span class="user-role">{{ roleText }}</span>
             </span>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
+            <AppIcon name="arrowDown" :size="16" />
           </button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="logout">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right: 6px; vertical-align: -2px">
-                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-                  <path d="M16 17l5-5-5-5" />
-                  <path d="M21 12H9" />
-                </svg>
+                  <AppIcon name="logout" :size="16" style="margin-right: 6px; vertical-align: -2px" />
                 退出登录
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -215,15 +192,13 @@
                 @click.stop="onTabClose(t.path)"
                 @keyup.enter.stop="onTabClose(t.path)"
               >
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M6 6l12 12M6 18L18 6" />
-                </svg>
+                <AppIcon name="close" :size="12" />
               </span>
             </button>
           </div>
           <el-tooltip content="刷新当前页" placement="bottom">
             <button class="tabs-refresh" @click="onRefresh" aria-label="刷新">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 11-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+              <AppIcon name="refresh" :size="16" />
             </button>
           </el-tooltip>
         </div>
@@ -306,12 +281,12 @@ const BASE_MENU_GROUPS = [
     ],
   },
   {
-    title: '服务与审批',
+    title: '服务与审核',
     short: '服务',
     icon: 'order',
     items: [
       { path: '/order', title: '服务工单', icon: 'order' },
-      { path: '/approval', title: '审批中心', icon: 'approval' },
+      { path: '/approval', title: '审核中心', icon: 'approval' },
     ],
   },
   {
@@ -444,7 +419,7 @@ async function loadRoleMenu() {
 
 /** 当前菜单标题（动态面包屑：优先 route.meta.title，支持子页面如 /report/overview） */
 const currentTitle = computed(() => {
-  return resolveRolePageTitle(route.fullPath, route.meta?.title || '企业贷款咨询服务');
+  return resolveRolePageTitle(route.fullPath, route.meta?.title || '企业资金咨询服务');
 });
 
 /** 菜单激活态（前缀匹配，支持子页面；带 ?cg= 的菜单项按 fullPath 精确命中或 path 兜底，T1 修复） */

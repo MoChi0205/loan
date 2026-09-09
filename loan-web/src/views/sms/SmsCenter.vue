@@ -109,7 +109,7 @@
           <el-input v-model="templateForm.content" type="textarea" :rows="3" placeholder="变量占位符如 ${code}" />
         </el-form-item>
         <el-form-item label="短信签名" prop="signName">
-          <el-input v-model="templateForm.signName" placeholder="如 贷款服务平台" />
+          <el-input v-model="templateForm.signName" placeholder="如 资金服务平台" />
         </el-form-item>
         <el-form-item label="短信类型">
           <el-select v-model="templateForm.smsType" style="width: 100%">

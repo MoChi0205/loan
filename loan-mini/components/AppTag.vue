@@ -18,7 +18,7 @@
  *
  * 用法：
  *   <AppTag type="success">已认证</AppTag>
- *   <AppTag type="warning">待审批</AppTag>
+ *   <AppTag type="warning">待审核</AppTag>
  *   <AppTag type="danger" size="sm">需补充</AppTag>
  */
 defineProps({
