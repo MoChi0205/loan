@@ -61,34 +61,38 @@ const props = defineProps({
 const store = useUserStore();
 
 /** TabBar 配色（冷玻璃体系，全局统一）：未选中统一中性灰，选中统一品牌蓝。
- *  禁止按 tab 跳色，保证品牌识别一致。 */
+ *  禁止按 tab 跳色，保证品牌识别一致。
+ *  ⚠️ 必须传真实色值（#RRGGBB / rgba），不能用 var(--…)：AppIcon v8 的 SVG stroke
+ *     不解析 CSS 变量，传 var(--…) 会导致图标字形画不出来（用户 2026-09-09 反馈）。 */
 const COLOR = {
-  HOME: 'var(--text-secondary)',
-  MATCH: 'var(--text-secondary)',
-  REPORT: 'var(--text-secondary)',
-  ORDER: 'var(--text-secondary)',
-  MINE: 'var(--text-secondary)',
-  PRODUCT: 'var(--text-secondary)',
-  CLIENT: 'var(--text-secondary)',
+  HOME: 'rgba(26, 35, 54, 0.55)',
+  MATCH: 'rgba(26, 35, 54, 0.55)',
+  REPORT: 'rgba(26, 35, 54, 0.55)',
+  ORDER: 'rgba(26, 35, 54, 0.55)',
+  MINE: 'rgba(26, 35, 54, 0.55)',
+  PRODUCT: 'rgba(26, 35, 54, 0.55)',
+  CLIENT: 'rgba(26, 35, 54, 0.55)',
 };
+/** 选中态统一品牌蓝（= --brand-deep #2443C2 的真实色值） */
+const ACTIVE_COLOR = '#2443C2';
 
 const tabList = computed(() => {
   if (store.isChannel) {
     return [
-      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: 'var(--brand-deep)' },
-      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: COLOR.PRODUCT, activeColor: 'var(--brand-deep)' },
-      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: COLOR.CLIENT, activeColor: 'var(--brand-deep)' },
-      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: 'var(--brand-deep)' },
+      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: ACTIVE_COLOR },
+      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: COLOR.PRODUCT, activeColor: ACTIVE_COLOR },
+      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: COLOR.CLIENT, activeColor: ACTIVE_COLOR },
+      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: ACTIVE_COLOR },
     ].filter((item) => item.key === 'home' || item.key === 'mine'
       || (item.key === 'product' && store.hasPermission('mini:product:view'))
       || (item.key === 'client' && store.hasPermission('mini:lead:create')));
   }
   return [
-    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: 'var(--brand-deep)' },
-    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH, activeColor: 'var(--brand-deep)' },
-    { key: 'report', label: store.isStaff ? (store.role === 'adviser' ? '客户报告' : '报告中心') : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT, activeColor: 'var(--brand-deep)' },
-    { key: 'order', label: store.isStaff ? (store.role === 'adviser' ? '客户工单' : '工单中心') : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER, activeColor: 'var(--brand-deep)' },
-    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: 'var(--brand-deep)' },
+    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: COLOR.HOME, activeColor: ACTIVE_COLOR },
+    { key: 'match', label: '智能匹配', icon: 'match', url: '/pages/match/match', color: COLOR.MATCH, activeColor: ACTIVE_COLOR },
+    { key: 'report', label: store.isStaff ? (store.role === 'adviser' ? '客户报告' : '报告中心') : '我的报告', icon: 'chart', url: '/pages/report/list', color: COLOR.REPORT, activeColor: ACTIVE_COLOR },
+    { key: 'order', label: store.isStaff ? (store.role === 'adviser' ? '客户工单' : '工单中心') : '服务单', icon: 'order', url: '/pages/order/list', color: COLOR.ORDER, activeColor: ACTIVE_COLOR },
+    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: COLOR.MINE, activeColor: ACTIVE_COLOR },
   ].filter((item) => item.key === 'home' || item.key === 'mine'
     || (item.key === 'match' && store.hasPermission('mini:match:view'))
     || (item.key === 'report' && store.hasPermission('mini:report:view'))

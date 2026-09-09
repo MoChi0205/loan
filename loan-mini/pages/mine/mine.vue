@@ -110,13 +110,13 @@
         <view class="share-actions" v-if="inviteCode">
           <!-- #ifdef MP-WEIXIN -->
           <AppButton class="share-btn" variant="secondary" size="sm" open-type="share">
-            <AppIcon name="share" size="sm" color="var(--brand-deep)" />
+            <AppIcon name="share" size="sm" color="#2443C2" />
             <text>分享给好友</text>
           </AppButton>
           <!-- #endif -->
           <!-- #ifdef H5 -->
           <AppButton class="share-btn" variant="secondary" size="sm" @click="onCopyShareLink">
-            <AppIcon name="share" size="sm" color="var(--brand-deep)" />
+            <AppIcon name="share" size="sm" color="#2443C2" />
             <text>复制分享链接</text>
           </AppButton>
           <!-- #endif -->

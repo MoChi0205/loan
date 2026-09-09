@@ -26,7 +26,7 @@
 
         <!-- 电商风格搜索栏 -->
         <AppClickable class="search-bar" @click="onSearch">
-          <AppIcon name="search" size="sm" color="var(--text-secondary)" />
+          <AppIcon name="search" size="sm" color="rgba(26, 35, 54, 0.55)" />
           <text class="search-ph">{{ searchPlaceholder }}</text>
         </AppClickable>
       </view>

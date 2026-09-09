@@ -2,7 +2,7 @@
   <view class="search-bar-wrap" :class="{ 'is-fixed': fixed }">
     <view class="search-bar" @click="onTap">
       <view class="search-icon">
-        <AppIcon name="search" size="sm" color="var(--text-secondary)" />
+        <AppIcon name="search" size="sm" color="rgba(26, 35, 54, 0.55)" />
       </view>
       <input
         v-if="inputable"
