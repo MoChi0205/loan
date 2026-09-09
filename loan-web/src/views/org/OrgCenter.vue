@@ -52,7 +52,7 @@
           <el-select v-model="query.roleCode" placeholder="角色" clearable style="width: 130px">
             <el-option v-for="r in roles" :key="r.roleCode" :label="r.roleName" :value="r.roleCode" />
           </el-select>
-          <el-input v-model="query.keyword" placeholder="姓名 / 工号" clearable style="width: 200px" @keyup.enter="onSearch" />
+          <el-input v-model="query.keyword" placeholder="姓名 / 手机号" clearable style="width: 200px" @keyup.enter="onSearch" />
           <template #append>
             <el-button type="primary" plain @click="openStaff()">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
