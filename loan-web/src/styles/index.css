@@ -582,7 +582,10 @@ body {
 
 .el-dialog {
   border-radius: 12px;
-  overflow: hidden;
+  /* overflow: visible：放行 el-select 等浮层组件的下拉（默认 teleport 到 body，但若被特殊
+     配置拉回弹窗内、或后续升级 EP 行为变化，需保证不被 overflow:hidden 截断）。
+     弹窗本身的圆角裁剪由 header/body/footer 各自的 border + 圆角配合实现。 */
+  overflow: visible;
   box-shadow: 0 24px 56px -8px rgba(15, 23, 42, 0.2);
   border: 1px solid var(--loan-border);
   background: var(--loan-card-bg);

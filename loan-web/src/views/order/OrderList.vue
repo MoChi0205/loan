@@ -275,8 +275,8 @@ function clientLabel(c) {
   return clientDisplayLabel(c);
 }
 
-
-async function searchClients(keyword) {
+let clientSearchTimer;
+async function loadClients(keyword) {
   clientLoading.value = true;
   try {
     const res = await pageClientLite({ keyword: keyword || '', page: 1, size: 20 });
@@ -286,6 +286,12 @@ async function searchClients(keyword) {
   } finally {
     clientLoading.value = false;
   }
+}
+
+function searchClients(keyword) {
+  // 远程搜索防抖：250ms，避免每按一个键就发一次接口（用户 2026-09-09 反馈）
+  clearTimeout(clientSearchTimer);
+  clientSearchTimer = setTimeout(() => loadClients(keyword), 250);
 }
 
 async function onAdd() {
