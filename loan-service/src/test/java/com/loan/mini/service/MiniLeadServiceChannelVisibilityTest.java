@@ -9,6 +9,8 @@ import com.loan.context.LoanUser;
 import com.loan.lead.entity.Lead;
 import com.loan.lead.entity.LeadEntExt;
 import com.loan.lead.mapper.LeadEntExtMapper;
+import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.personal.mapper.PersonalProfileMapper;
 import com.loan.lead.mapper.LeadMapper;
 import com.loan.lead.service.LeadService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -39,6 +41,8 @@ class MiniLeadServiceChannelVisibilityTest {
     private LeadMapper leadMapper;
     private LeadEntExtMapper extensionMapper;
     private MiniLeadService service;
+    private ClientProfileMapper clientProfileMapper;
+    private PersonalProfileMapper personalProfileMapper;
     private LoanUser channel;
 
     @BeforeAll
@@ -53,7 +57,10 @@ class MiniLeadServiceChannelVisibilityTest {
         leadService = mock(LeadService.class);
         leadMapper = mock(LeadMapper.class);
         extensionMapper = mock(LeadEntExtMapper.class);
-        service = new MiniLeadService(leadService, leadMapper, extensionMapper);
+        clientProfileMapper = mock(ClientProfileMapper.class);
+        personalProfileMapper = mock(PersonalProfileMapper.class);
+        service = new MiniLeadService(leadService, leadMapper, extensionMapper,
+                clientProfileMapper, personalProfileMapper);
         channel = new LoanUser();
         channel.setUserType(LoanUser.TYPE_CHANNEL);
         channel.setUserNo("channel-a");

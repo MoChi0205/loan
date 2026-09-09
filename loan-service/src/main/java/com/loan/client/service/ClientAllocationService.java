@@ -383,25 +383,29 @@ public class ClientAllocationService {
                 new LambdaQueryWrapper<ClientAllocationApproval>()
                         .eq(ClientAllocationApproval::getApproveStatus, PENDING)
                         .orderByAsc(ClientAllocationApproval::getCreatedAt));
-        // 团队管理者按申请人部门过滤为本团队
         LoanUser operator = UserContext.getUser();
+        // 预批量加载涉及员工（转出方 + 申请人）的部门编码，供本团队过滤与跨团队判定共用，
+        // 避免逐条查库（原跨团队判定对每个待审单触发 2 次 staffMapper.selectOne，即 2N 查询）。
+        Set<String> involvedStaff = new HashSet<>();
+        all.forEach(a -> {
+            if (StringUtils.hasText(a.getFromOwnerStaffCode())) involvedStaff.add(a.getFromOwnerStaffCode());
+            if (StringUtils.hasText(a.getApplicantStaffCode())) involvedStaff.add(a.getApplicantStaffCode());
+        });
+        Map<String, String> deptMap = involvedStaff.isEmpty() ? Collections.emptyMap()
+                : staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                .in(Staff::getStaffCode, involvedStaff)).stream()
+                .collect(Collectors.toMap(Staff::getStaffCode, Staff::getDeptCode, (a, b) -> a));
+        // 团队管理者按申请人部门过滤为本团队
         if (isDeptManager(operator)) {
-            Set<String> applicantCodes = all.stream()
-                    .map(ClientAllocationApproval::getApplicantStaffCode)
-                    .filter(StringUtils::hasText).collect(Collectors.toSet());
-            Map<String, String> codeToDept = applicantCodes.isEmpty() ? Collections.emptyMap()
-                    : staffMapper.selectList(new LambdaQueryWrapper<Staff>()
-                    .in(Staff::getStaffCode, applicantCodes)).stream()
-                    .collect(Collectors.toMap(Staff::getStaffCode, Staff::getDeptCode, (a, b) -> a));
             String myDept = operator.getDeptCode();
             all = all.stream()
                     .filter(a -> myDept != null
-                            && myDept.equalsIgnoreCase(codeToDept.get(a.getApplicantStaffCode())))
+                            && myDept.equalsIgnoreCase(deptMap.get(a.getApplicantStaffCode())))
                     .collect(Collectors.toList());
         }
         // 跨团队转分配只向老板展示；运营、超管及部门经理均不得代审。
         if (!isCrossTeamApprover(operator)) {
-            all = all.stream().filter(a -> !isCrossTeamTransfer(a)).collect(Collectors.toList());
+            all = all.stream().filter(a -> !isCrossTeamTransfer(a, deptMap)).collect(Collectors.toList());
         }
         Set<String> clientCodes = all.stream().map(ClientAllocationApproval::getClientCode)
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
@@ -576,6 +580,22 @@ public class ClientAllocationService {
         }
         String fromDept = deptCodeOf(approval.getFromOwnerStaffCode());
         String targetDept = deptCodeOf(approval.getApplicantStaffCode());
+        return StringUtils.hasText(fromDept) && StringUtils.hasText(targetDept)
+                && !fromDept.equalsIgnoreCase(targetDept);
+    }
+
+    /**
+     * 批量重载：基于预加载的部门编码 Map 判定跨团队转分配，避免逐条查库（列表分页场景使用）。
+     *
+     * @param approval 待审单
+     * @param deptMap  员工编码 -> 部门编码 映射（调用方一次性 IN 查询得到）
+     */
+    private boolean isCrossTeamTransfer(ClientAllocationApproval approval, Map<String, String> deptMap) {
+        if (approval == null || !StringUtils.hasText(approval.getFromOwnerStaffCode())) {
+            return false;
+        }
+        String fromDept = deptMap.get(approval.getFromOwnerStaffCode());
+        String targetDept = deptMap.get(approval.getApplicantStaffCode());
         return StringUtils.hasText(fromDept) && StringUtils.hasText(targetDept)
                 && !fromDept.equalsIgnoreCase(targetDept);
     }

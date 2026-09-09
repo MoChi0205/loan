@@ -85,7 +85,8 @@ export default defineConfig({
   },
   build: {
     // 不清空 dist 目录，避免触发删除确认（本地验证用；生产发布可改回 true）
-    emptyOutDir: false,
+    // 发布构建清空 dist，避免 contenthash 变化后历史产物堆积（本地联调如需保留旧产物可临时改回 false）。
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -104,8 +105,14 @@ export default defineConfig({
             }
             return 'vendor-element';
           }
+          if (id.includes('@vueuse')) return 'vendor-vueuse';
           if (id.includes('/vue') || id.includes('/vue-router') || id.includes('/pinia')) return 'vendor-vue';
-          if (id.includes('/axios/') || id.includes('/jsencrypt/')) return 'vendor-utils';
+          // 其余 vendor：按库细化拆分，避免单一兜底块过大（原 vendor 440KB），提升缓存命中与并行加载。
+          if (id.includes('/dayjs/')) return 'vendor-dayjs';
+          if (id.includes('/lodash')) return 'vendor-lodash';
+          if (id.includes('/sortablejs/')) return 'vendor-sortable';
+          if (id.includes('/jsencrypt/') || id.includes('/crypto-js/')) return 'vendor-crypto';
+          if (id.includes('/axios/')) return 'vendor-utils';
           return 'vendor';
         },
       },

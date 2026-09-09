@@ -6,6 +6,10 @@ import com.loan.approval.entity.ProductApproval;
 import com.loan.approval.mapper.AttachmentDownloadApprovalMapper;
 import com.loan.approval.mapper.MaterialReviewMapper;
 import com.loan.approval.mapper.ProductApprovalMapper;
+import com.loan.approval.mapper.ContentApprovalMapper;
+import com.loan.sms.mapper.SmsTemplateMapper;
+import com.loan.report.mapper.ReportTemplateMapper;
+import com.loan.notification.service.NotificationService;
 import com.loan.common.service.BusinessNameService;
 import com.loan.mini.service.MiniClientService;
 import com.loan.partner.service.PartnerProductService;
@@ -48,6 +52,10 @@ class ApprovalServiceProductTest {
     @Mock private StaffMapper staffMapper;
     @Mock private BusinessNameService businessNameService;
     @Mock private PartnerProductService partnerProductService;
+    @Mock private ContentApprovalMapper contentApprovalMapper;
+    @Mock private SmsTemplateMapper smsTemplateMapper;
+    @Mock private ReportTemplateMapper reportTemplateMapper;
+    @Mock private NotificationService notificationService;
 
     private ApprovalService service;
 
@@ -55,7 +63,8 @@ class ApprovalServiceProductTest {
     void setUp() {
         service = new ApprovalService(productApprovalMapper, downloadApprovalMapper, materialReviewMapper,
                 materialReviewService, bankProductMapper, miniClientService, staffMapper,
-                businessNameService, partnerProductService);
+                businessNameService, partnerProductService, contentApprovalMapper, smsTemplateMapper,
+                reportTemplateMapper, notificationService);
     }
 
     @Test

@@ -17,6 +17,7 @@ import com.loan.client.mapper.ClientRecycleConfigMapper;
 import com.loan.notification.service.NotificationService;
 import com.loan.common.service.BusinessNameService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,7 @@ class ClientAllocationServiceTest {
     @Mock private ClientRecycleConfigMapper clientRecycleConfigMapper;
     @Mock private NotificationService notificationService;
     @Mock private BusinessNameService businessNameService;
+    @Mock private StringRedisTemplate redisTemplate;
 
     private ClientAllocationService service;
 
@@ -60,7 +62,7 @@ class ClientAllocationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ClientAllocationService(clientMapper, approvalMapper, staffMapper,
+        service = new ClientAllocationService(redisTemplate, clientMapper, approvalMapper, staffMapper,
                 recordMapper, clientRecycleConfigMapper, notificationService, businessNameService);
     }
 

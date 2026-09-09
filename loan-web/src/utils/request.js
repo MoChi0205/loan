@@ -13,6 +13,34 @@ import { KEYS, getStorage, removeStorage } from '@/utils/storage';
  *   <li>其余业务/网络错误 → 统一节流弹窗，避免多请求并发失败连弹一串。</li>
  * </ul>
  */
+/**
+ * 应用路由实例持有器：由 main.js 在 app.use(router) 后注入，避免 request.js 与
+ * router 之间的循环依赖 / 动态导入（消除 Vite “router 既被静态又被动态导入”的告警）。
+ * 未注入时（极早期 401）降级为整页跳转，保证一定能回到登录页。
+ */
+let appRouter = null;
+export function setAppRouter(router) {
+  appRouter = router;
+}
+
+function navigateLogin(redirect) {
+  if (appRouter) {
+    appRouter.push({ path: '/login', query: { redirect } }).catch(() => {});
+  } else {
+    window.location.href = '/login' + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '');
+  }
+}
+
+function navigateForbidden(from) {
+  if (appRouter) {
+    if (appRouter.currentRoute.value.path !== '/403') {
+      appRouter.push({ path: '/403', query: { from } }).catch(() => {});
+    }
+  } else {
+    window.location.href = '/403' + (from ? `?from=${encodeURIComponent(from)}` : '');
+  }
+}
+
 const request = axios.create({
   baseURL: '/loan',
   timeout: 30000,
@@ -51,13 +79,18 @@ function redirectToLogin() {
   removeStorage(KEYS.TOKEN);
   removeStorage(KEYS.USER);
   showThrottled('登录已过期，请重新登录');
-  import('@/router').then(({ default: router }) => {
-    router
-      .push({ path: '/login', query: { redirect: window.location.pathname + window.location.search } })
+  const redirect = window.location.pathname + window.location.search;
+  if (appRouter) {
+    appRouter
+      .push({ path: '/login', query: { redirect } })
+      .catch(() => {})
       .finally(() => {
         window.__loan_login_redirecting__ = false;
       });
-  });
+  } else {
+    window.location.href = '/login' + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : '');
+    window.__loan_login_redirecting__ = false;
+  }
 }
 
 // 请求拦截：注入 token / 端标识（X-Client-Type）与 traceUuid
@@ -106,12 +139,11 @@ request.interceptors.response.use(
       showThrottled(error.response?.data?.message || '当前角色无权执行该操作', 'warning');
       const routeAtRequest = error.config?.__loanRoute;
       if (shouldRedirectForbidden(error.config)) {
-        import('@/router').then(({ default: router }) => {
-          const current = router.currentRoute.value.fullPath;
-          if (router.currentRoute.value.path !== '/403' && (!routeAtRequest || routeAtRequest === current)) {
-            router.push({ path: '/403', query: { from: router.currentRoute.value.fullPath } });
-          }
-        });
+        const routeAtRequest = error.config?.__loanRoute;
+        const current = window.location.pathname + window.location.search;
+        if (!routeAtRequest || routeAtRequest === current) {
+          navigateForbidden(current);
+        }
       }
       return Promise.reject(error);
     }
