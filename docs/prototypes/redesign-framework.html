@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>企融通 · 三端重设计框架原型（审核稿）</title>
+<style>
+  /* ============ 全局 ============ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  body {
+    font-family: var(--font);
+    background: #0a0e17;
+    color: #e6ebf2;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============ 原型工具条（审阅外壳，非产品） ============ */
+  .proto-bar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 22px;
+    background: rgba(13, 19, 32, 0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #1f2a3d;
+  }
+  .proto-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+  .proto-title small { font-weight: 400; color: #8b97a8; font-size: 12px; margin-left: 8px; }
+  .proto-spacer { flex: 1; }
+  .seg { display: inline-flex; background: #131c2e; border: 1px solid #27324a; border-radius: 10px; padding: 3px; }
+  .seg button {
+    border: 0; background: transparent; color: #aab4c5; font-size: 13px; font-weight: 600;
+    padding: 7px 14px; border-radius: 7px; cursor: pointer; font-family: var(--font);
+    transition: .18s;
+  }
+  .seg button:hover { color: #e6ebf2; }
+  .seg button.on { background: linear-gradient(135deg, #3b82f6, #38bdf8); color: #fff; box-shadow: 0 4px 12px rgba(59,130,246,.35); }
+  .role-seg button.on { background: linear-gradient(135deg, #6366f1, #8b5cf6); box-shadow: 0 4px 12px rgba(99,102,241,.35); }
+  .proto-hint { font-size: 12px; color: #6b7689; }
+
+  .stage { padding: 28px 22px 60px; display: flex; justify-content: center; }
+
+  /* 端面板显隐 */
+  .end-panel { display: none; width: 100%; }
+  .end-panel.show { display: block; }
+
+  /* ============ 管理端（桌面框架） ============ */
+  .web-frame {
+    max-width: 1240px; margin: 0 auto; height: 760px;
+    display: grid; grid-template-columns: 248px 1fr;
+    background: #0b1220; border: 1px solid #1f2a3d; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.6);
+  }
+  /* 侧栏 */
+  .w-sider { background: #0e1726; border-right: 1px solid #1b2536; display: flex; flex-direction: column; }
+  .w-brand { display: flex; align-items: center; gap: 10px; padding: 18px 18px 14px; }
+  .w-logo { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg,#3b82f6,#38bdf8); display: grid; place-items: center; font-weight: 800; color: #fff; font-size: 16px; box-shadow: 0 4px 12px rgba(59,130,246,.4); }
+  .w-brand b { font-size: 15px; letter-spacing: .5px; }
+  .w-brand .rb { font-size: 11px; color: #7e8aa0; }
+  .w-nav { flex: 1; overflow-y: auto; padding: 6px 10px 14px; }
+  .w-group { margin-top: 10px; }
+  .w-group-h { font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase; color: #5e6b80; padding: 8px 10px 4px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .w-group-h::after { content: ""; flex: 1; height: 1px; background: #1b2536; }
+  .w-item { display: flex; align-items: center; gap: 10px; padding: 9px 11px; margin: 2px 0; border-radius: 8px; color: #c2ccdb; font-size: 13px; cursor: pointer; position: relative; transition: .16s; }
+  .w-item svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.7; flex-shrink: 0; }
+  .w-item:hover { background: rgba(59,130,246,.10); color: #e6ebf2; }
+  .w-item.on { background: linear-gradient(90deg, rgba(59,130,246,.22), rgba(59,130,246,.06)); color: #fff; font-weight: 600; }
+  .w-item.on::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: #3b82f6; box-shadow: 0 0 10px rgba(59,130,246,.7); }
+  .w-item .badge { margin-left: auto; background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+  .w-foot { padding: 12px; border-top: 1px solid #1b2536; display: flex; align-items: center; gap: 10px; }
+  .w-ava { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg,#6366f1,#8b5cf6); display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 700; }
+  .w-foot .nm { font-size: 13px; font-weight: 600; }
+  .w-foot .rl { font-size: 11px; color: #7e8aa0; }
+
+  /* 主区 */
+  .w-main { display: flex; flex-direction: column; min-width: 0; background: #0b1220; }
+  .w-top { height: 56px; display: flex; align-items: center; gap: 16px; padding: 0 22px; border-bottom: 1px solid #1b2536; background: #0c1322; }
+  .w-crumb { font-size: 13px; color: #8b97a8; }
+  .w-crumb b { color: #e6ebf2; }
+  .w-search { margin-left: auto; display: flex; align-items: center; gap: 8px; background: #131c2e; border: 1px solid #27324a; border-radius: 9px; padding: 7px 12px; color: #6b7689; font-size: 12.5px; width: 240px; }
+  .w-search .kk { margin-left: auto; border: 1px solid #2c3850; border-radius: 5px; padding: 1px 6px; font-size: 10.5px; color: #8b97a8; }
+  .w-icon-btn { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #aab4c5; cursor: pointer; position: relative; }
+  .w-icon-btn:hover { background: #131c2e; color: #e6ebf2; }
+  .w-icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  .w-icon-btn .dot { position: absolute; top: 7px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: #ef4444; border: 2px solid #0c1322; }
+  .w-content { flex: 1; overflow-y: auto; padding: 22px; }
+  .w-greet { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+  .w-greet-sub { font-size: 13px; color: #8b97a8; margin-bottom: 18px; }
+
+  .w-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .w-metric { background: #131e33; border: 1px solid #243148; border-radius: 12px; padding: 16px; position: relative; overflow: hidden; }
+  .w-metric .lbl { font-size: 12.5px; color: #94a3b8; }
+  .w-metric .val { font-size: 26px; font-weight: 800; margin-top: 6px; letter-spacing: .5px; }
+  .w-metric .delta { font-size: 12px; margin-top: 4px; }
+  .up { color: #34d399; } .down { color: #f87171; }
+  .w-metric .spark { position: absolute; right: 12px; bottom: 10px; opacity: .8; }
+  .w-metric .ic { position: absolute; right: 14px; top: 14px; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: rgba(59,130,246,.16); color: #60a5fa; }
+  .w-metric .ic svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+  .w-two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+  .w-card { background: #131e33; border: 1px solid #243148; border-radius: 12px; padding: 16px 18px; }
+  .w-card-h { display: flex; align-items: center; margin-bottom: 12px; }
+  .w-card-h b { font-size: 14px; font-weight: 700; }
+  .w-card-h .more { margin-left: auto; font-size: 12px; color: #60a5fa; cursor: pointer; }
+  .w-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #1b2536; }
+  .w-row:first-of-type { border-top: 0; }
+  .w-ava-sm { width: 34px; height: 34px; border-radius: 9px; background: #1c2840; display: grid; place-items: center; color: #93c5fd; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .w-row .main { flex: 1; min-width: 0; }
+  .w-row .t1 { font-size: 13px; font-weight: 600; color: #e6ebf2; }
+  .w-row .t2 { font-size: 12px; color: #8b97a8; margin-top: 2px; }
+  .tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; padding: 2px 9px; border-radius: 999px; font-weight: 600; }
+  .tag.warn { color: #fbbf24; background: rgba(251,191,36,.14); border: 1px solid rgba(251,191,36,.3); }
+  .tag.ok { color: #34d399; background: rgba(52,211,153,.14); border: 1px solid rgba(52,211,153,.3); }
+  .tag.info { color: #38bdf8; background: rgba(56,189,248,.14); border: 1px solid rgba(56,189,248,.3); }
+  .w-btn { border: 0; font-family: var(--font); font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; background: rgba(59,130,246,.16); color: #93c5fd; }
+  .w-btn.pri { background: linear-gradient(135deg,#3b82f6,#38bdf8); color: #fff; }
+  .w-btn:hover { filter: brightness(1.08); }
+
+  .w-quick { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-top: 14px; }
+  .w-qk { background: #131e33; border: 1px solid #243148; border-radius: 11px; padding: 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: .16s; }
+  .w-qk:hover { border-color: #3b82f6; transform: translateY(-2px); }
+  .w-qk .ic { width: 32px; height: 32px; border-radius: 9px; background: rgba(59,130,246,.14); color: #60a5fa; display: grid; place-items: center; }
+  .w-qk .ic svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .w-qk .qt { font-size: 12.5px; font-weight: 600; }
+
+  /* 列表框架（点击侧栏"客户档案"等切换） */
+  .w-list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 12px; }
+  .w-list-title { font-size: 20px; font-weight: 700; }
+  .w-tabs { display: inline-flex; gap: 4px; background: #131c2e; border: 1px solid #27324a; border-radius: 9px; padding: 3px; }
+  .w-tabs button { border: 0; background: transparent; color: #aab4c5; font-size: 12.5px; font-weight: 600; padding: 6px 13px; border-radius: 7px; cursor: pointer; font-family: var(--font); }
+  .w-tabs button.on { background: rgba(59,130,246,.18); color: #fff; }
+  .w-filter { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .w-input { background: #131e33; border: 1px solid #27324a; border-radius: 9px; padding: 8px 12px; font-size: 13px; color: #c2ccdb; min-width: 150px; }
+  .w-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #131e33; border: 1px solid #243148; border-radius: 12px; overflow: hidden; }
+  .w-table th { text-align: left; font-size: 12px; color: #94a3b8; font-weight: 600; padding: 12px 16px; background: #0e1828; border-bottom: 1px solid #243148; }
+  .w-table td { padding: 13px 16px; font-size: 13px; color: #cdd6e4; border-bottom: 1px solid #1b2536; }
+  .w-table tr:last-child td { border-bottom: 0; }
+  .w-table tr:hover td { background: rgba(59,130,246,.06); }
+  .w-empty { text-align: center; padding: 48px 20px; color: #6b7689; }
+  .w-empty .ill { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 16px; background: #16223a; display: grid; place-items: center; color: #3b82f6; }
+  .w-empty .ill svg { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+
+  /* ============ 移动端（小程序 / H5 共用框架） ============ */
+  .mob-wrap { display: flex; gap: 36px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  .mob-cap { text-align: center; color: #8b97a8; font-size: 12.5px; margin-bottom: 10px; }
+
+  /* H5 宽屏限宽容器 */
+  .h5-browser { width: 720px; height: 820px; background: #cdd5e0; border-radius: 14px; padding: 14px; border: 1px solid #1f2a3d; box-shadow: 0 30px 80px -20px rgba(0,0,0,.6); }
+  .h5-bar { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 8px; color: #5b6678; font-size: 12px; }
+  .h5-bar .url { flex: 1; background: #e7ebf2; border-radius: 8px; padding: 5px 12px; color: #5b6678; }
+  .h5-screen { height: calc(100% - 34px); border-radius: 10px; overflow: hidden; background: #f8fafc; }
+
+  .phone { width: 390px; height: 820px; background: #000; border-radius: 42px; padding: 12px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.7); border: 1px solid #2a3346; position: relative; }
+  .phone-screen { width: 100%; height: 100%; border-radius: 32px; overflow: hidden; background: #f8fafc; display: flex; flex-direction: column; position: relative; }
+
+  /* 手机内容 */
+  .m-scroll { flex: 1; overflow-y: auto; }
+  .m-head { background: linear-gradient(160deg,#17216B 0%,#2443C2 45%,#2C5BFF 100%); color: #fff; padding: 54px 22px 26px; position: relative; overflow: hidden; }
+  .m-head::after { content: ""; position: absolute; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.18), transparent 70%); top: -70px; right: -50px; }
+  .m-head .hi { font-size: 13px; opacity: .9; }
+  .m-head .nm { font-size: 21px; font-weight: 800; margin-top: 4px; }
+  .m-head .sub { font-size: 12.5px; opacity: .85; margin-top: 6px; }
+  .m-stats { display: flex; gap: 10px; margin-top: 16px; }
+  .m-stat { flex: 1; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); border-radius: 14px; padding: 12px; backdrop-filter: blur(4px); }
+  .m-stat .v { font-size: 20px; font-weight: 800; }
+  .m-stat .l { font-size: 11.5px; opacity: .85; margin-top: 2px; }
+
+  .m-body { padding: 16px; margin-top: -14px; }
+  .m-card { background: #fff; border-radius: 18px; padding: 16px; box-shadow: 0 6px 18px rgba(15,23,42,.06); margin-bottom: 14px; }
+  .m-card-h { display: flex; align-items: center; margin-bottom: 12px; }
+  .m-card-h b { font-size: 15px; font-weight: 700; color: #1a2336; }
+  .m-card-h .more { margin-left: auto; font-size: 12.5px; color: #2443C2; font-weight: 600; }
+  .m-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid #eef1f6; }
+  .m-row:first-of-type { border-top: 0; }
+  .m-ava { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg,#eaf0ff,#dbe4f7); color: #2443C2; display: grid; place-items: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+  .m-row .main { flex: 1; min-width: 0; }
+  .m-row .t1 { font-size: 14px; font-weight: 700; color: #1a2336; }
+  .m-row .t2 { font-size: 12px; color: #5b6678; margin-top: 3px; }
+  .m-tag { font-size: 11px; padding: 2px 9px; border-radius: 999px; font-weight: 700; }
+  .m-tag.warn { color: #b45309; background: #fff7e6; }
+  .m-tag.ok { color: #047857; background: #ecfdf5; }
+  .m-tag.info { color: #0e7490; background: #ecfeff; }
+  .m-go { color: #2443C2; font-weight: 700; font-size: 18px; }
+  .m-btn { border: 0; font-family: var(--font); font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 12px; cursor: pointer; background: linear-gradient(135deg,#2443C2,#2C5BFF 55%,#3D63E0); color: #fff; box-shadow: 0 8px 18px rgba(36,67,194,.28); }
+  .m-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+  .m-qk { background: #fff; border-radius: 18px; padding: 16px 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 6px 18px rgba(15,23,42,.06); cursor: pointer; }
+  .m-qk .ic { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg,#eaf0ff,#dbe4f7); color: #2443C2; display: grid; place-items: center; }
+  .m-qk .ic svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .m-qk .qt { font-size: 13.5px; font-weight: 700; color: #1a2336; }
+  .m-qk .qd { font-size: 11.5px; color: #5b6678; }
+
+  .m-empty { text-align: center; padding: 40px 20px; color: #9aa4b4; }
+  .m-empty .ill { width: 60px; height: 60px; margin: 0 auto 12px; border-radius: 16px; background: #eef2f8; display: grid; place-items: center; color: #2443C2; }
+  .m-empty .ill svg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+
+  /* 自绘 TabBar */
+  .m-tabbar { height: 64px; background: rgba(255,255,255,.96); backdrop-filter: blur(12px); border-top: 1px solid #e6eaf1; display: flex; padding-bottom: env(safe-area-inset-bottom); }
+  .m-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #9aa4b4; cursor: pointer; font-size: 11px; font-weight: 600; }
+  .m-tab svg { width: 23px; height: 23px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .m-tab.on { color: #2443C2; }
+  .m-tab.on svg { fill: rgba(36,67,194,.12); stroke: #2443C2; }
+
+  .legend { max-width: 1240px; margin: 26px auto 0; background: #111a2c; border: 1px solid #1f2a3d; border-radius: 12px; padding: 16px 20px; }
+  .legend b { color: #e6ebf2; font-size: 13px; }
+  .legend ul { margin: 10px 0 0; padding-left: 18px; color: #aab4c5; font-size: 12.5px; line-height: 1.9; }
+  .legend .k { color: #60a5fa; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ============ 原型工具条 ============ -->
+<div class="proto-bar">
+  <div class="proto-title">企融通 · 三端重设计框架原型<small>审核稿 v1 · 确认后落地为代码</small></div>
+  <div class="seg" id="endSeg">
+    <button data-end="web" class="on">管理端</button>
+    <button data-end="mini">小程序</button>
+    <button data-end="h5">H5</button>
+  </div>
+  <div class="proto-spacer"></div>
+  <div class="seg role-seg" id="roleSeg">
+    <button data-role="adviser" class="on">顾问</button>
+    <button data-role="manager">部门经理</button>
+    <button data-role="channel">渠道</button>
+    <button data-role="boss">老板</button>
+  </div>
+  <span class="proto-hint">点击侧栏 / TabBar / 角色 实时预览</span>
+</div>
+
+<div class="stage">
+
+  <!-- ============ 管理端 ============ -->
+  <section class="end-panel show" id="end-web">
+    <div class="web-frame">
+      <!-- 侧栏 -->
+      <aside class="w-sider">
+        <div class="w-brand">
+          <div class="w-logo">企</div>
+          <div><b>企融通</b><div class="rb">信贷经营平台</div></div>
+        </div>
+        <nav class="w-nav" id="wNav">
+          <div class="w-item on" data-view="home">
+            <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>工作台
+          </div>
+          <div class="w-group-h">客户经营</div>
+          <div class="w-item" data-view="client"><svg viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>客户档案<span class="badge">3</span></div>
+          <div class="w-item" data-view="lead"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 8l7-5 7 5"/></svg>线索</div>
+          <div class="w-item" data-view="order"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17H6zM9 11h6M9 15h6"/></svg>服务工单</div>
+          <div class="w-item" data-view="screen"><svg viewBox="0 0 24 24"><path d="M4 20V9l8-5 8 5v11M4 20h16"/></svg>初筛</div>
+          <div class="w-item" data-view="report"><svg viewBox="0 0 24 24"><path d="M5 19V5M5 19h14M9 15l3-4 3 2 3-5"/></svg>报表</div>
+          <div class="w-group-h">产品与规则</div>
+          <div class="w-item" data-view="prod"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-4 7 4v13"/></svg>产品</div>
+          <div class="w-item" data-view="rule"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6zM9 12h6M9 16h6"/></svg>规则</div>
+          <div class="w-group-h">运营支撑</div>
+          <div class="w-item" data-view="approval"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>审批<span class="badge">3</span></div>
+          <div class="w-item" data-view="sms"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>短信</div>
+          <div class="w-group-h">系统管理</div>
+          <div class="w-item" data-view="org"><svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0M3 21v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2"/></svg>组织</div>
+        </nav>
+        <div class="w-foot">
+          <div class="w-ava" id="wAva">李</div>
+          <div><div class="nm" id="wName">李顾问</div><div class="rl" id="wRole">ADVISER · 顾问</div></div>
+        </div>
+      </aside>
+
+      <!-- 主区 -->
+      <main class="w-main">
+        <div class="w-top">
+          <div class="w-crumb">客户经营 / <b id="wCrumb">工作台</b></div>
+          <div class="w-search"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>搜索客户、工单、审批…<span class="kk">⌘K</span></div>
+          <div class="w-icon-btn"><span class="dot"></span><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13 21a2 2 0 0 1-4 0"/></svg></div>
+          <div class="w-icon-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg></div>
+          <div class="w-ava" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700;">李</div>
+        </div>
+        <div class="w-content" id="wContent"><!-- JS 注入 --></div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ============ 小程序 ============ -->
+  <section class="end-panel" id="end-mini">
+    <div class="mob-wrap">
+      <div>
+        <div class="mob-cap">小程序（微信 · 自绘 TabBar · 冷玻璃深蓝）</div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="m-scroll" id="miniScroll"><!-- JS 注入 --></div>
+            <nav class="m-tabbar" id="miniTab">
+              <div class="m-tab on" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>首页</div>
+              <div class="m-tab" data-tab="client"><svg viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>客户</div>
+              <div class="m-tab" data-tab="match"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.4L12 21l-5 2.2 1-5.4-4-4 5.5-.8z"/></svg>匹配</div>
+              <div class="m-tab" data-tab="order"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17H6zM9 11h6M9 15h6"/></svg>工单</div>
+              <div class="m-tab" data-tab="mine"><svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0M3 21v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2"/></svg>我的</div>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ H5 ============ -->
+  <section class="end-panel" id="end-h5">
+    <div class="mob-wrap">
+      <div>
+        <div class="mob-cap">H5 移动端（浏览器 · 宽屏自动限宽 600px 居中，框架同小程序）</div>
+        <div class="h5-browser">
+          <div class="h5-bar">
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="1.8"><path d="M15 18l-6-6 6-6"/></svg>
+            <div class="url">m.qirongtong.com/#/client</div>
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="1.8"><path d="M4 12a8 8 0 1 1 16 0M4 12h16"/></svg>
+          </div>
+          <div class="h5-screen">
+            <div class="phone-screen" style="border-radius:0;">
+              <div class="m-scroll" id="h5Scroll"><!-- JS 注入 --></div>
+              <nav class="m-tabbar" id="h5Tab">
+                <div class="m-tab on" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>首页</div>
+                <div class="m-tab" data-tab="client"><svg viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>客户</div>
+                <div class="m-tab" data-tab="match"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.4L12 21l-5 2.2 1-5.4-4-4 5.5-.8z"/></svg>匹配</div>
+                <div class="m-tab" data-tab="order"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17H6zM9 11h6M9 15h6"/></svg>工单</div>
+                <div class="m-tab" data-tab="mine"><svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0M3 21v-2a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v2"/></svg>我的</div>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 设计要点图例 -->
+  <div class="legend">
+    <b>本稿设计要点（请逐项审核）</b>
+    <ul>
+      <li><span class="k">① 三端信息架构统一</span>：管理端「分组侧栏 + 多标签页 + 角色化工作台」；移动端「自绘 TabBar(角色化) + Hero 页头 + 卡片流」，首页/客户/我的 三级清晰。</li>
+      <li><span class="k">② 角色化工作台</span>：顾问看「我的客户/待跟进/待审批/本月成交」；经理看「团队指标/待分配」；渠道看「我录线索」；老板看「全局经营」。顶部角色切换可对比。</li>
+      <li><span class="k">③ 审批零单号（D68 红线）</span>：所有审批条目只显示「提交人 + 事项 + 状态 + 时间」，不出现任何 papr/线索/工单编号。</li>
+      <li><span class="k">④ 空状态与反馈统一</span>：列表空、加载失败均用统一插画 + 引导操作，不再留白块/白屏。</li>
+      <li><span class="k">⑤ 配色体系双端独立</span>：Web 维持企业暗色（#0b1220/#3b82f6）；移动维持冷玻璃深蓝（#2443C2 + 暖金 #FFB020），两端品牌色不互用。</li>
+      <li><span class="k">⑥ 全局命令搜索（⌘K）</span>：管理端新增命令面板入口，移动端顶部搜索，提升多角色高频操作效率。</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+/* ===================== 数据 ===================== */
+const ROLE = {
+  adviser: { name: '李顾问', code: 'ADVISER · 顾问', ava: '李', hi: '下午好，李顾问', sub: '你有 3 项待办、6 个客户待跟进' },
+  manager: { name: '王经理', code: 'DEPT_MANAGER · 部门经理', ava: '王', hi: '下午好，王经理', sub: '团队本月新增 24 客，3 单待分配' },
+  channel: { name: '赵渠道', code: 'CHANNEL · 渠道', ava: '赵', hi: '下午好，赵渠道', sub: '你录入的线索已转化 12 位客户' },
+  boss:    { name: '陈老板', code: 'BOSS · 老板', ava: '陈', hi: '下午好，陈老板', sub: '全局经营概览 · 本月成交 ¥1,280 万' },
+};
+
+/* 工作台 metric（按角色） */
+const METRIC = {
+  adviser: [
+    { lbl:'我的客户', val:'128', delta:'+12 本月', up:true, ic:'<path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6"/>' },
+    { lbl:'待跟进', val:'6', delta:'今日 2', up:false, ic:'<path d="M12 8v4l3 2"/>' },
+    { lbl:'待我审批', val:'3', delta:' urgent', up:false, ic:'<path d="M9 11l3 3 8-8"/>' },
+    { lbl:'本月成交', val:'¥86万', delta:'+18%', up:true, ic:'<path d="M5 19V5M5 19h14M9 15l3-4 3 2 3-5"/>' },
+  ],
+  manager: [
+    { lbl:'团队成员', val:'18', delta:'在线 14', up:true, ic:'<path d="M16 11a4 4 0 1 0-8 0"/>' },
+    { lbl:'团队客户', val:'642', delta:'+38 本月', up:true, ic:'<path d="M4 21V7l8-4 8 4v14"/>' },
+    { lbl:'待分配', val:'9', delta:' urgent', up:false, ic:'<path d="M12 3v18M5 8l7-5 7 5"/>' },
+    { lbl:'本月成交', val:'¥420万', delta:'+9%', up:true, ic:'<path d="M5 19V5M5 19h14"/>' },
+  ],
+  channel: [
+    { lbl:'我录线索', val:'56', delta:'+8 本周', up:true, ic:'<path d="M12 3v18M5 8l7-5 7 5"/>' },
+    { lbl:'已转化客户', val:'12', delta:'转化 21%', up:true, ic:'<path d="M4 21V7l8-4 8 4v14"/>' },
+    { lbl:'合作产品', val:'7', delta:'进行中', up:true, ic:'<path d="M5 21V8l7-4 7 4v13"/>' },
+    { lbl:'本月佣金', val:'¥3.2万', delta:'+5%', up:true, ic:'<path d="M12 3l2.5 5 5.5.8-4 4 1 5.4L12 21l-5 2.2 1-5.4-4-4 5.5-.8z"/>' },
+  ],
+  boss: [
+    { lbl:'全司客户', val:'3,180', delta:'+126 本月', up:true, ic:'<path d="M4 21V7l8-4 8 4v14"/>' },
+    { lbl:'在途审批', val:'21', delta:' urgent 5', up:false, ic:'<path d="M9 11l3 3 8-8"/>' },
+    { lbl:'本月成交', val:'¥1,280万', delta:'+22%', up:true, ic:'<path d="M5 19V5M5 19h14"/>' },
+    { lbl:'顾问活跃', val:'86%', delta:'+4pt', up:true, ic:'<path d="M16 11a4 4 0 1 0-8 0"/>' },
+  ],
+};
+
+/* 待办审批（无单号） */
+const APPROVALS = [
+  { who:'张经理', matter:'产品审批《企业经营贷》', status:'warn', st:'待我审批', time:'09-09 14:20' },
+  { who:'渠道·赵', matter:'客户认领《宏远科技》', status:'warn', st:'待我审批', time:'09-09 11:05' },
+  { who:'李顾问', matter:'客户释放回公海《星河贸易》', status:'info', st:'待复核', time:'09-08 17:42' },
+];
+/* 我的客户最近 */
+const CLIENTS = [
+  { nm:'宏远科技有限公司', owner:'李顾问', follow:'09-09 10:12', tag:'ok', tt:'已认证' },
+  { nm:'星河贸易（个体）', owner:'李顾问', follow:'09-08 16:30', tag:'warn', tt:'待跟进' },
+  { nm:'锦程建筑工程', owner:'王经理', follow:'09-07 09:48', tag:'ok', tt:'已成交' },
+];
+
+/* ===================== 渲染：管理端 ===================== */
+function spark(){ return '<svg class="spark" width="56" height="22" viewBox="0 0 56 22"><polyline points="2,16 12,12 22,14 32,7 42,9 54,3" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'; }
+function metricCards(role){
+  return METRIC[role].map(m => `
+    <div class="w-metric">
+      <div class="ic"><svg viewBox="0 0 24 24">${m.ic}</svg></div>
+      <div class="lbl">${m.lbl}</div>
+      <div class="val">${m.val}</div>
+      <div class="delta ${m.up?'up':'down'}">${m.up?'▲':'●'} ${m.delta}</div>
+      ${spark()}
+    </div>`).join('');
+}
+function renderHome(role){
+  const r = ROLE[role];
+  return `
+    <div class="w-greet">${r.hi}</div>
+    <div class="w-greet-sub">${r.sub}</div>
+    <div class="w-grid">${metricCards(role)}</div>
+    <div class="w-two">
+      <div class="w-card">
+        <div class="w-card-h"><b>待办审批</b><span class="more">全部 ›</span></div>
+        ${APPROVALS.map(a => `
+          <div class="w-row">
+            <div class="w-ava-sm">${a.who[0]}</div>
+            <div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} 提交 · ${a.time}</div></div>
+            <span class="tag ${a.status}">${a.st}</span>
+            <button class="w-btn pri">处理</button>
+          </div>`).join('')}
+      </div>
+      <div class="w-card">
+        <div class="w-card-h"><b>我的客户 · 最近</b><span class="more">查看全部 ›</span></div>
+        ${CLIENTS.map(c => `
+          <div class="w-row">
+            <div class="w-ava-sm">${c.nm[0]}</div>
+            <div class="main"><div class="t1">${c.nm}</div><div class="t2">归属 ${c.owner} · 跟进 ${c.follow}</div></div>
+            <span class="tag ${c.tag}">${c.tt}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="w-quick">
+      <div class="w-qk"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V9l8-5 8 5v11"/></svg></div><div class="qt">发起初筛</div></div>
+      <div class="w-qk"><div class="ic"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17H6z"/></svg></div><div class="qt">新建工单</div></div>
+      <div class="w-qk"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-4 7 4v13"/></svg></div><div class="qt">分配归属</div></div>
+      <div class="w-qk"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.4L12 21l-5 2.2 1-5.4-4-4 5.5-.8z"/></svg></div><div class="qt">数据报表</div></div>
+    </div>`;
+}
+function renderList(title){
+  return `
+    <div class="w-list-head">
+      <div class="w-list-title">${title}</div>
+      <div class="w-tabs">
+        <button class="on">我的客户</button><button>团队客户</button><button>公司客户</button><button>公海</button>
+      </div>
+    </div>
+    <div class="w-filter">
+      <div class="w-input">联系人姓名</div>
+      <div class="w-input">手机号</div>
+      <div class="w-input">企业名称</div>
+      <div class="w-input">统一社会信用代码</div>
+      <div class="w-input">建档时间 ▾</div>
+      <div class="w-input">成交时间 ▾</div>
+    </div>
+    <table class="w-table">
+      <thead><tr><th>客户</th><th>归属顾问</th><th>最近跟进</th><th>建档时间</th><th style="text-align:right">操作</th></tr></thead>
+      <tbody>
+        ${CLIENTS.map(c => `<tr>
+          <td><b>${c.nm}</b><div style="font-size:12px;color:#8b97a8">138****6021</div></td>
+          <td>${c.owner}</td><td>${c.follow}</td><td>2026-08-21 09:30</td>
+          <td style="text-align:right"><button class="w-btn">查看档案</button> <button class="w-btn">跟进</button></td>
+        </tr>`).join('')}
+        <tr><td colspan="5"><div class="w-empty"><div class="ill"><svg viewBox="0 0 24 24"><path d="M4 7h16v13H4zM4 7l2-3h12l2 3M9 12h6"/></svg></div>暂无更多客户 · 试试调整筛选或切换视图</div></td></tr>
+      </tbody>
+    </table>`;
+}
+function renderApproval(){
+  return `
+    <div class="w-list-title" style="margin-bottom:14px">审批中心</div>
+    <div class="w-tabs" style="margin-bottom:14px"><button class="on">待办</button><button>已办</button><button>我发起的</button></div>
+    <div class="w-card">
+      ${APPROVALS.map(a => `
+        <div class="w-row">
+          <div class="w-ava-sm">${a.who[0]}</div>
+          <div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} 提交 · ${a.time}</div></div>
+          <span class="tag ${a.status}">${a.st}</span>
+          <button class="w-btn pri">处理</button>
+        </div>`).join('')}
+    </div>`;
+}
+const VIEW = { home: renderHome, client: ()=>renderList('客户档案'), lead: ()=>renderList('线索'), order: ()=>renderList('服务工单'), screen: ()=>renderList('初筛任务'), report: ()=>renderList('报表中心'), prod: ()=>renderList('产品'), rule: ()=>renderList('规则'), approval: renderApproval, sms: ()=>renderList('短信'), org: ()=>renderList('组织') };
+const CRUMB = { home:'工作台', client:'客户档案', lead:'线索', order:'服务工单', screen:'初筛', report:'报表', prod:'产品', rule:'规则', approval:'审批', sms:'短信', org:'组织' };
+
+let curRole = 'adviser', curView = 'home';
+function paintWeb(){
+  const r = ROLE[curRole];
+  document.getElementById('wName').textContent = r.name;
+  document.getElementById('wRole').textContent = r.code;
+  document.getElementById('wAva').textContent = r.ava;
+  document.getElementById('wCrumb').textContent = CRUMB[curView];
+  document.getElementById('wContent').innerHTML = (VIEW[curView]||renderHome)(curView==='home'?curRole:curRole);
+}
+
+/* ===================== 渲染：移动端 ===================== */
+function mHome(role){
+  const r = ROLE[role];
+  const stats = role==='adviser' ? [['128','我的客户'],['6','待跟进']]
+             : role==='manager' ? [['642','团队客户'],['9','待分配']]
+             : role==='channel' ? [['56','我录线索'],['12','已转化']]
+             : [['3,180','全司客户'],['21','在途审批']];
+  return `
+    <div class="m-head">
+      <div class="hi">${r.hi.split('，')[0]}</div>
+      <div class="nm">${r.name}</div>
+      <div class="sub">${r.sub}</div>
+      <div class="m-stats">${stats.map(s=>`<div class="m-stat"><div class="v">${s[0]}</div><div class="l">${s[1]}</div></div>`).join('')}</div>
+    </div>
+    <div class="m-body">
+      <div class="m-card">
+        <div class="m-card-h"><b>待办审批</b><span class="more">全部 ›</span></div>
+        ${APPROVALS.slice(0,2).map(a=>`
+          <div class="m-row"><div class="m-ava">${a.who[0]}</div>
+            <div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} · ${a.time}</div></div>
+            <span class="m-tag ${a.status}">${a.st}</span></div>`).join('')}
+      </div>
+      <div class="m-card">
+        <div class="m-card-h"><b>我的客户</b><span class="more">查看 ›</span></div>
+        ${CLIENTS.map(c=>`
+          <div class="m-row"><div class="m-ava">${c.nm[0]}</div>
+            <div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.owner} · 跟进 ${c.follow}</div></div>
+            <span class="m-tag ${c.tag}">${c.tt}</span><span class="m-go">›</span></div>`).join('')}
+      </div>
+      <div class="m-grid">
+        <div class="m-qk"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.4L12 21l-5 2.2 1-5.4-4-4 5.5-.8z"/></svg></div><div class="qt">去匹配</div><div class="qd">智能匹配产品</div></div>
+        <div class="m-qk"><div class="ic"><svg viewBox="0 0 24 24"><path d="M6 2h9l3 3v17H6z"/></svg></div><div class="qt">我的工单</div><div class="qd">处理进度</div></div>
+        <div class="m-qk"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/></svg></div><div class="qt">我的审批</div><div class="qd">待办 3 项</div></div>
+        <div class="m-qk"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2l3 3-3 3-3-3zM12 8v12"/></svg></div><div class="qt">认证引导</div><div class="qd">提升通过率</div></div>
+      </div>
+    </div>`;
+}
+function mClient(){
+  return `
+    <div class="m-head"><div class="hi">客户中心</div><div class="nm">我的客户</div><div class="sub">共 128 位 · 支持姓名/企业/信用代码筛选</div></div>
+    <div class="m-body">
+      <div class="m-card">
+        ${CLIENTS.concat([{nm:'恒通物流',owner:'李顾问',follow:'09-06 14:02',tag:'ok',tt:'已认证'}]).map(c=>`
+          <div class="m-row"><div class="m-ava">${c.nm[0]}</div>
+            <div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.owner} · 跟进 ${c.follow}</div></div>
+            <span class="m-tag ${c.tag}">${c.tt}</span><span class="m-go">›</span></div>`).join('')}
+      </div>
+      <div class="m-card" style="text-align:center"><button class="m-btn">+ 认领公海客户</button></div>
+    </div>`;
+}
+function mMatch(){
+  return `
+    <div class="m-head"><div class="hi">智能匹配</div><div class="nm">匹配守卫</div><div class="sub">填写资质，秒级匹配可贷产品</div></div>
+    <div class="m-body">
+      <div class="m-card"><div class="m-card-h"><b>匹配度</b></div>
+        <div style="font-size:34px;font-weight:800;color:#2443C2">92<small style="font-size:16px">分</small></div>
+        <div style="font-size:12.5px;color:#5b6678;margin-top:6px">已匹配 3 款合作中产品，最高可贷 ¥200 万</div>
+      </div>
+      <div class="m-card"><div class="m-empty"><div class="ill"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 4 1 5.4L12 21l-5 2.2 1-5.4-4-4 5.5-.8z"/></svg></div>完成资质认证后可解锁更多产品</div></div>
+    </div>`;
+}
+function mOrder(){
+  return `
+    <div class="m-head"><div class="hi">服务</div><div class="nm">我的工单</div><div class="sub">仅显示本人客户工单</div></div>
+    <div class="m-body">
+      <div class="m-card">
+        <div class="m-row"><div class="m-ava">宏</div><div class="main"><div class="t1">企业经营贷 · 进度咨询</div><div class="t2">宏远科技 · 处理中</div></div><span class="m-tag warn">处理中</span></div>
+        <div class="m-row"><div class="m-ava">星</div><div class="main"><div class="t1">资料补充提醒</div><div class="t2">星河贸易 · 待回复</div></div><span class="m-tag info">待回复</span></div>
+      </div>
+    </div>`;
+}
+function mMine(){
+  return `
+    <div class="m-head"><div class="hi">个人中心</div><div class="nm">李顾问</div><div class="sub">ADVISER · 顾问</div></div>
+    <div class="m-body">
+      <div class="m-card">
+        <div class="m-row"><div class="m-ava">✓</div><div class="main"><div class="t1">实名认证</div><div class="t2">已通过</div></div><span class="m-tag ok">已认证</span></div>
+        <div class="m-row"><div class="m-ava">★</div><div class="main"><div class="t1">我的业绩</div><div class="t2">本月成交 ¥86 万</div></div><span class="m-go">›</span></div>
+        <div class="m-row"><div class="m-ava">⚙</div><div class="main"><div class="t1">设置</div><div class="t2">通知 / 隐私 / 关于</div></div><span class="m-go">›</span></div>
+      </div>
+    </div>`;
+}
+const MTAB = { home: mHome, client: mClient, match: mMatch, order: mOrder, mine: mMine };
+function paintMobile(end){
+  const sc = document.getElementById(end+'Scroll');
+  const role = curRole==='boss' && end!=='web' ? 'adviser' : curRole; // 移动端以顾问视角演示
+  sc.innerHTML = (MTAB[curTab[end]]||mHome)(role);
+}
+
+/* ===================== 交互 ===================== */
+let curTab = { mini:'home', h5:'home' };
+
+document.getElementById('endSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#endSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  const end = b.dataset.end;
+  document.querySelectorAll('.end-panel').forEach(p=>p.classList.remove('show'));
+  document.getElementById('end-'+end).classList.add('show');
+  // 角色切换仅对管理端有意义，移动端始终演示顾问视角
+  document.getElementById('roleSeg').style.opacity = end==='web' ? '1' : '.4';
+  document.getElementById('roleSeg').style.pointerEvents = end==='web' ? 'auto' : 'none';
+});
+
+document.getElementById('roleSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#roleSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  curRole = b.dataset.role;
+  paintWeb();
+  // 移动端同步刷新（顾问视角演示）
+  paintMobile('mini'); paintMobile('h5');
+});
+
+document.getElementById('wNav').addEventListener('click', e=>{
+  const it = e.target.closest('.w-item'); if(!it) return;
+  document.querySelectorAll('#wNav .w-item').forEach(x=>x.classList.remove('on'));
+  it.classList.add('on');
+  curView = it.dataset.view;
+  paintWeb();
+});
+
+['mini','h5'].forEach(end=>{
+  document.getElementById(end+'Tab').addEventListener('click', e=>{
+    const t = e.target.closest('.m-tab'); if(!t) return;
+    document.querySelectorAll('#'+end+'Tab .m-tab').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    curTab[end] = t.dataset.tab;
+    paintMobile(end);
+  });
+});
+
+/* 初始化 */
+paintWeb(); paintMobile('mini'); paintMobile('h5');
+</script>
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>企融通 · 移动端（小程序/H5）详细原型 v3 审核稿</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --ink:#111E36; --ink-2:#1B2C4D; --royal:#2C52C9; --royal-d:#2444A8;
+    --gold:#C7A15A; --gold-s:#E7D3A6; --ivory:#FBF8F2; --ivory-2:#F3EEE4;
+    --t1:#1B2740; --t2:#6A768C; --line:#ECE6DA;
+    --ok:#2E8B6B; --ok-bg:#E7F4EE; --warn:#B5781F; --warn-bg:#FBF1DE; --info:#2C52C9; --info-bg:#EAEFFB;
+  }
+  body { font-family:var(--font); background:#E7EAF0; color:var(--t1); min-height:100vh; -webkit-font-smoothing:antialiased; }
+
+  .proto-bar { position:sticky; top:0; z-index:60; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 22px; background:rgba(17,30,54,.94); backdrop-filter:blur(10px); border-bottom:1px solid #25324a; }
+  .proto-title { font-size:15px; font-weight:700; color:#fff; letter-spacing:.3px; }
+  .proto-title small { font-weight:400; color:#9fb0cc; font-size:12px; margin-left:8px; }
+  .proto-spacer { flex:1; }
+  .seg { display:inline-flex; background:#15233d; border:1px solid #2a3a5a; border-radius:10px; padding:3px; }
+  .seg button { border:0; background:transparent; color:#aab8d4; font-size:12.5px; font-weight:600; padding:6px 14px; border-radius:7px; cursor:pointer; font-family:var(--font); transition:.18s; }
+  .seg button.on { background:linear-gradient(135deg,var(--gold),#d9bd86); color:#1a1305; font-weight:700; }
+  .seg.role button.on { background:linear-gradient(135deg,var(--royal),#3a63d6); color:#fff; }
+  .seg.view button.on { background:#fff; color:var(--ink); }
+  .proto-hint { font-size:12px; color:#8a9bba; }
+
+  .stage { padding:26px 18px 60px; display:flex; gap:40px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .mob-col { display:flex; flex-direction:column; align-items:center; }
+  .mob-cap { text-align:center; color:#56627a; font-size:12.5px; margin-bottom:10px; font-weight:600; }
+  .phone { width:392px; height:824px; background:#0c1322; border-radius:44px; padding:12px; box-shadow:0 34px 80px -22px rgba(15,23,42,.55); border:1px solid #2a3650; position:relative; }
+  .phone-screen { width:100%; height:100%; border-radius:34px; overflow:hidden; background:var(--ivory); display:flex; flex-direction:column; position:relative; }
+  .h5-browser { width:740px; height:824px; background:#cdd5e2; border-radius:14px; padding:14px; border:1px solid #25324a; box-shadow:0 34px 80px -22px rgba(15,23,42,.5); }
+  .h5-bar { height:34px; display:flex; align-items:center; gap:8px; padding:0 8px; color:#5b6678; font-size:12px; }
+  .h5-bar .url { flex:1; background:#e7ebf2; border-radius:8px; padding:5px 12px; color:#5b6678; }
+  .h5-screen { height:calc(100% - 34px); border-radius:10px; overflow:hidden; background:var(--ivory); }
+  .h5-screen .phone-screen { border-radius:0; }
+
+  .m-scroll { flex:1; overflow-y:auto; }
+  .m-head { background: radial-gradient(120% 80% at 85% -10%, rgba(199,161,90,.30), transparent 60%), linear-gradient(165deg, var(--ink) 0%, var(--ink-2) 60%, #14233f 100%); color:#fff; padding:52px 22px 28px; position:relative; overflow:hidden; }
+  .m-head::after { content:""; position:absolute; right:-30px; top:-40px; width:170px; height:170px; border-radius:50%; background:radial-gradient(circle, rgba(199,161,90,.22), transparent 70%); }
+  .m-bell { position:absolute; top:16px; right:18px; width:38px; height:38px; border-radius:12px; background:rgba(255,255,255,.14); display:grid; place-items:center; color:#fff; cursor:pointer; z-index:3; }
+  .m-bell-dot { position:absolute; top:8px; right:9px; width:8px; height:8px; border-radius:50%; background:#ff5a5f; border:2px solid var(--ink); }
+  .m-head .hi { font-size:13px; color:#cdd6e6; }
+  .m-head .nm { font-size:21px; font-weight:800; margin-top:3px; letter-spacing:.3px; }
+  .m-head .sub { font-size:12.5px; color:#aebbd2; margin-top:7px; line-height:1.6; }
+  .m-head .gold { color:var(--gold-s); font-weight:700; }
+  .m-role-pill { display:inline-flex; align-items:center; gap:6px; background:rgba(199,161,90,.20); border:1px solid rgba(199,161,90,.4); color:var(--gold-s); font-size:11.5px; font-weight:700; padding:4px 11px; border-radius:999px; margin-top:10px; }
+  .m-stats { display:flex; gap:10px; margin-top:16px; }
+  .m-stat { flex:1; background:rgba(255,255,255,.10); border:1px solid rgba(199,161,90,.28); border-radius:14px; padding:12px; }
+  .m-stat .v { font-size:20px; font-weight:800; }
+  .m-stat .l { font-size:11.5px; color:#c4cee0; margin-top:2px; }
+
+  .m-body { padding:16px; margin-top:-16px; }
+  .m-card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:16px; box-shadow:0 6px 18px rgba(17,30,54,.05); margin-bottom:14px; }
+  .m-card-h { display:flex; align-items:center; margin-bottom:12px; }
+  .m-card-h b { font-size:15px; font-weight:800; color:var(--t1); }
+  .m-card-h .more { margin-left:auto; font-size:12.5px; color:var(--royal); font-weight:700; }
+  .m-row { display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid var(--line); }
+  .m-row:first-of-type { border-top:0; }
+  .m-ava { width:42px; height:42px; border-radius:13px; background:linear-gradient(135deg,#eef2fb,#e2e9f7); color:var(--royal); display:grid; place-items:center; font-weight:800; font-size:14px; flex-shrink:0; }
+  .m-row .main { flex:1; min-width:0; }
+  .m-row .t1 { font-size:14px; font-weight:700; color:var(--t1); }
+  .m-row .t2 { font-size:12px; color:var(--t2); margin-top:3px; }
+  .m-tag { font-size:11px; padding:3px 10px; border-radius:999px; font-weight:700; white-space:nowrap; }
+  .m-tag.ok { color:var(--ok); background:var(--ok-bg); }
+  .m-tag.warn { color:var(--warn); background:var(--warn-bg); }
+  .m-tag.info { color:var(--info); background:var(--info-bg); }
+  .m-tag.ink { color:#46577a; background:#eef1f6; }
+  .m-go { color:var(--royal); font-weight:800; font-size:18px; }
+  .m-btn { border:0; font-family:var(--font); font-size:13px; font-weight:700; padding:9px 16px; border-radius:12px; cursor:pointer; background:linear-gradient(135deg,var(--royal),var(--royal-d) 60%,#1f3c92); color:#fff; box-shadow:0 8px 18px rgba(44,82,201,.26); }
+  .m-btn.ghost { background:#fff; color:var(--royal); border:1px solid #cdd7ee; box-shadow:none; }
+  .m-btn.gold { background:linear-gradient(135deg,var(--gold),#d9bd86); color:#1a1305; box-shadow:0 8px 18px rgba(199,161,90,.3); }
+  .m-btn.block { width:100%; padding:13px; font-size:15px; }
+
+  .m-chip { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; flex-shrink:0; }
+  .m-chip svg { width:22px; height:22px; stroke:#fff; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .m-chip.royal { background:linear-gradient(140deg,#345bd0,#27439f); }
+  .m-chip.gold { background:linear-gradient(140deg,#d3b272,#b8883f); }
+  .m-chip.ink { background:linear-gradient(140deg,#2a3a5e,#1b2c4d); }
+  .m-chip.green { background:linear-gradient(140deg,#3aa37e,#2c8463); }
+  .m-chip.rose { background:linear-gradient(140deg,#d98a7a,#c06a58); }
+
+  .m-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .m-qk { background:#fff; border:1px solid var(--line); border-radius:18px; padding:15px 14px; display:flex; flex-direction:column; gap:11px; box-shadow:0 6px 18px rgba(17,30,54,.05); cursor:pointer; transition:.16s; }
+  .m-qk:hover { transform:translateY(-2px); border-color:#cdd7ee; }
+  .m-qk .qt { font-size:13.5px; font-weight:800; color:var(--t1); }
+  .m-qk .qd { font-size:11.5px; color:var(--t2); }
+
+  .m-search { display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--line); border-radius:13px; padding:11px 14px; margin-bottom:12px; box-shadow:0 4px 12px rgba(17,30,54,.04); }
+  .m-search svg { width:18px; height:18px; stroke:var(--t2); fill:none; stroke-width:1.8; stroke-linecap:round; }
+  .m-search input { border:0; outline:0; flex:1; font-size:14px; font-family:var(--font); color:var(--t1); background:transparent; }
+  .m-search input::placeholder { color:#a9b2c2; }
+  .m-search .clr { color:#a9b2c2; font-size:18px; cursor:pointer; padding:0 4px; }
+  .m-chips { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:12px; }
+  .m-chips::-webkit-scrollbar { display:none; }
+  .m-chip-btn { flex-shrink:0; border:1px solid var(--line); background:#fff; color:var(--t2); font-size:12.5px; font-weight:700; padding:7px 14px; border-radius:999px; cursor:pointer; font-family:var(--font); transition:.15s; }
+  .m-chip-btn.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .m-count { font-size:12px; color:var(--t2); margin-bottom:10px; }
+  .m-count b { color:var(--royal); }
+
+  .m-tabbar { height:64px; background:rgba(255,255,255,.97); backdrop-filter:blur(12px); border-top:1px solid var(--line); display:flex; }
+  .m-tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#9aa4b4; cursor:pointer; font-size:11px; font-weight:700; }
+  .m-tab svg { width:23px; height:23px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .m-tab.on { color:var(--royal); }
+  .m-tab.on svg { fill:rgba(44,82,201,.12); stroke:var(--royal); }
+
+  .m-empty { text-align:center; padding:38px 20px; color:#9aa4b4; }
+  .m-empty .ill { width:62px; height:62px; margin:0 auto 12px; border-radius:18px; background:var(--ivory-2); display:grid; place-items:center; color:var(--gold); }
+  .m-empty .ill svg { width:30px; height:30px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+
+  .sheet-mask { position:absolute; inset:0; background:rgba(17,30,54,.42); opacity:0; pointer-events:none; transition:.22s; z-index:30; }
+  .sheet-mask.show { opacity:1; pointer-events:auto; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#fff; border-radius:22px 22px 0 0; padding:8px 18px 24px; transform:translateY(102%); transition:.26s cubic-bezier(.22,1,.36,1); z-index:31; max-height:84%; overflow-y:auto; box-shadow:0 -10px 40px rgba(17,30,54,.18); }
+  .sheet.show { transform:translateY(0); }
+  .sheet .grab { width:38px; height:4px; border-radius:3px; background:#dde2ea; margin:6px auto 12px; }
+  .sheet h3 { font-size:17px; font-weight:800; color:var(--t1); }
+  .sheet .sub { font-size:12.5px; color:var(--t2); margin-top:4px; margin-bottom:14px; }
+  .sheet-sec { margin-bottom:16px; }
+  .sheet-sec .lh { font-size:12.5px; font-weight:800; color:var(--t2); letter-spacing:.5px; margin-bottom:8px; display:flex; align-items:center; gap:7px; }
+  .sheet-sec .lh svg { width:15px; height:15px; stroke:var(--gold); fill:none; stroke-width:1.9; stroke-linecap:round; }
+  .timeline { border-left:2px solid var(--line); margin-left:6px; padding-left:14px; }
+  .tl-item { position:relative; padding:4px 0 12px; }
+  .tl-item::before { content:""; position:absolute; left:-20px; top:8px; width:9px; height:9px; border-radius:50%; background:var(--gold); border:2px solid #fff; box-shadow:0 0 0 2px var(--gold-s); }
+  .tl-item .tt { font-size:13px; color:var(--t1); font-weight:600; }
+  .tl-item .td { font-size:11.5px; color:var(--t2); margin-top:2px; }
+  .sheet-actions { display:flex; gap:10px; margin-top:6px; }
+  .sheet-actions .m-btn { flex:1; }
+  .f-field { margin-bottom:14px; }
+  .f-field label { font-size:12.5px; font-weight:700; color:var(--t2); display:block; margin-bottom:6px; }
+  .f-field input, .f-field select { width:100%; border:1px solid var(--line); border-radius:11px; padding:11px 13px; font-size:14px; font-family:var(--font); color:var(--t1); background:#fff; outline:none; }
+  .f-field input:focus, .f-field select:focus { border-color:var(--royal); }
+
+  /* —— 登录页（同风格）—— */
+  .login { flex:1; display:flex; flex-direction:column; background: radial-gradient(130% 70% at 80% 0%, rgba(199,161,90,.32), transparent 55%), linear-gradient(170deg, var(--ink) 0%, #14233f 100%); position:relative; overflow:hidden; }
+  .login::after { content:""; position:absolute; left:-60px; bottom:-80px; width:260px; height:260px; border-radius:50%; background:radial-gradient(circle, rgba(44,82,201,.25), transparent 70%); }
+  .login-top { padding:64px 28px 22px; color:#fff; position:relative; z-index:2; }
+  .login-logo { width:58px; height:58px; border-radius:16px; background:linear-gradient(140deg,var(--gold),#d9bd86); display:grid; place-items:center; color:#1a1305; font-size:26px; font-weight:900; box-shadow:0 10px 26px rgba(199,161,90,.4); }
+  .login-brand { font-size:24px; font-weight:800; margin-top:18px; letter-spacing:.5px; }
+  .login-slogan { font-size:13px; color:#b9c4d8; margin-top:7px; line-height:1.6; }
+  .login-card { margin:14px 22px 0; background:var(--ivory); border-radius:22px; padding:22px 20px; box-shadow:0 18px 50px rgba(0,0,0,.25); position:relative; z-index:2; }
+  .login-tabs { display:flex; gap:6px; background:#eceae1; border-radius:12px; padding:4px; margin-bottom:18px; }
+  .login-tabs button { flex:1; border:0; background:transparent; color:#6a768c; font-size:13.5px; font-weight:700; padding:10px; border-radius:9px; cursor:pointer; font-family:var(--font); }
+  .login-tabs button.on { background:#fff; color:var(--ink); box-shadow:0 2px 8px rgba(17,30,54,.08); }
+  .login-field { margin-bottom:14px; }
+  .login-field label { font-size:12.5px; font-weight:700; color:var(--t2); display:block; margin-bottom:7px; }
+  .login-field .box { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .login-field .box svg { width:18px; height:18px; stroke:var(--t2); fill:none; stroke-width:1.8; stroke-linecap:round; flex-shrink:0; }
+  .login-field .box input { border:0; outline:0; flex:1; font-size:15px; font-family:var(--font); color:var(--t1); background:transparent; }
+  .login-field .code { color:var(--royal); font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .login-row { display:flex; align-items:center; justify-content:space-between; margin:6px 0 18px; font-size:12.5px; color:var(--t2); }
+  .login-row label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .login-foot { text-align:center; font-size:11.5px; color:#9aa4b4; margin-top:16px; line-height:1.7; position:relative; z-index:2; padding:0 22px; }
+  .login-foot a { color:var(--royal); }
+
+  .legend { max-width:1200px; margin:24px auto 0; background:#fff; border:1px solid #dfe4ec; border-radius:14px; padding:18px 22px; }
+  .legend b { color:var(--t1); font-size:13.5px; }
+  .legend ul { margin:10px 0 0; padding-left:18px; color:#5a6678; font-size:12.5px; line-height:1.95; }
+  .legend .k { color:var(--royal); font-weight:700; }
+  .legend .g { color:var(--gold); font-weight:700; }
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <div class="proto-title">企融通 · 移动端详细原型 v3<small>小程序 / H5 · 分角色菜单 · 同风格登录 · 消息通知 · 审核稿</small></div>
+  <div class="seg view" id="viewSeg">
+    <button data-view="app" class="on">应用</button>
+    <button data-view="login">登录页</button>
+  </div>
+  <div class="seg" id="endSeg">
+    <button data-end="mini" class="on">小程序</button>
+    <button data-end="h5">H5</button>
+  </div>
+  <div class="seg role" id="roleSeg">
+    <button data-role="adviser" class="on">顾问</button>
+    <button data-role="manager">部门经理</button>
+    <button data-role="channel">渠道</button>
+    <button data-role="boss">老板</button>
+  </div>
+  <div class="proto-spacer"></div>
+  <span class="proto-hint">切角色看菜单差异 · 点铃铛看消息 · 客户页可搜/筛/点详情</span>
+</div>
+
+<div class="stage">
+  <div class="mob-col">
+    <div class="mob-cap">小程序（微信 · 自绘 TabBar）</div>
+    <div class="phone"><div class="phone-screen" id="miniScreen"></div></div>
+  </div>
+  <div class="mob-col">
+    <div class="mob-cap">H5（浏览器 · 宽屏限宽，框架同小程序）</div>
+    <div class="h5-browser">
+      <div class="h5-bar">
+        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="1.8"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="url" id="h5Url">m.qirongtong.com/#/home</div>
+        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="1.8"><path d="M4 12a8 8 0 1 1 16 0M4 12h16"/></svg>
+      </div>
+      <div class="h5-screen"><div class="phone-screen" id="h5Screen"></div></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <b>v3 详细原型改了什么（请逐项审核）</b>
+    <ul>
+      <li><span class="k">① 分角色菜单</span>：四类角色 TabBar 与首页完全不同 —— 顾问：首页/客户/工单/方案/我的；部门经理：首页/团队/审批/工单/我的；渠道：首页/线索/客户/产品/我的；老板：首页/经营/审批/客户/我的。</li>
+      <li><span class="k">② 详细页面（非框架）</span>：每角色首页含角色化指标卡 + 待办/列表 + 快捷入口；客户/团队/线索/产品/经营/审批均给到真实内容页。</li>
+      <li><span class="g">③ 同风格登录页</span>：墨蓝+香槟金，企融通 Logo、slogan「企业融资顾问服务平台」、密码/验证码双登录态、记住我/忘记密码，与 app 完全一致。</li>
+      <li><span class="g">④ 消息通知（保留并强化）</span>：页头铃铛带未读红点，点开「消息中心」面板；「我的」内独立「消息通知」入口；通知仅显示 提交人+事项+时间（零单号）。</li>
+      <li><span class="k">⑤ 查询 & 详情（沿用 v2 可交互）</span>：客户页实时搜索（姓名/手机/企业/信用代码）+ 筛选 chips + 高级筛选抽屉；点客户行弹详情 sheet（跟进内容 + 历史 + 分配扭转 + 三动作）。</li>
+      <li><span class="g">⑥ 审批零单号（D68 红线）</span>：所有审批仅「提交人+事项+状态+时间」，无 papr/线索/工单编号。</li>
+      <li><span class="k">⑦ 小程序 / H5 同源</span>：两端同一套组件，H5 多浏览器外壳，便于微信外访问。</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* ===== 图标库 ===== */
+const ICON = {
+  search:'<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+  filter:'<path d="M6 4v4.5M6 14.5V20M12 4v2.5M12 10.5V20M18 4v6.5M18 14.5V20"/><circle cx="6" cy="11" r="1.7"/><circle cx="12" cy="8" r="1.7"/><circle cx="18" cy="13" r="1.7"/>',
+  phone:'<path d="M6.5 4h3l1.6 4-2 1.4a11 11 0 0 0 5 5l1.4-2 4 1.6v3a2 2 0 0 1-2.1 2A15 15 0 0 1 4.4 6 2 2 0 0 1 6.5 4z"/>',
+  msg:'<path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>',
+  shield:'<path d="M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6z"/><path d="M8.8 12l2.2 2.2L15.6 9.4"/>',
+  cal:'<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 9.5h16M8.5 3v4M15.5 3v4"/>',
+  chart:'<path d="M5 19V5M5 19h14M9 15.5l3-4 3 2 3-5.5"/>',
+  file:'<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h6M10 16h6"/>',
+  check:'<circle cx="12" cy="12" r="8.5"/><path d="M8 12l2.6 2.6L16.2 9"/>',
+  tag:'<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="9" cy="9" r="1.6"/>',
+  pin:'<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>',
+  star:'<path d="M12 4l2.3 5 5.4.5-4 3.7 1.2 5.3L12 18.6 7.1 21l1.2-5.3-4-3.7 5.4-.5z"/>',
+  bell:'<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  gear:'<circle cx="12" cy="12" r="3.1"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2 2M16.4 16.4l2 2M18.4 5.6l-2 2M7.6 16.4l-2 2"/>',
+  arrow:'<path d="M5 12h13M13 6l6 6-6 6"/>',
+  guide:'<circle cx="12" cy="12" r="8.5"/><path d="M15.6 8.6l-2.1 5-5 2.1 2.1-5z"/>',
+  user:'<circle cx="12" cy="8" r="3.4"/><path d="M5.2 20c0-3.5 3-6 6.8-6s6.8 2.5 6.8 6"/>',
+  doc:'<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  swap:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  team:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14c2.6.3 4.5 1.9 4.5 4.5"/>',
+  leads:'<path d="M12 3v18M5 8l7-5 7 5"/><circle cx="12" cy="14" r="2.4"/>',
+  money:'<path d="M12 3v18M8 7h6a3 3 0 0 1 0 6H8a3 3 0 0 0 0 6h6"/>',
+  brief:'<path d="M4 21V7l8-4 8 4v14M4 21h16M9 21v-6h6v6"/>',
+};
+function chip(ic, cls){ return `<div class="m-chip ${cls}"><svg viewBox="0 0 24 24">${ICON[ic]}</svg></div>`; }
+function tabSvg(ic){ return `<svg viewBox="0 0 24 24">${ICON[ic]}</svg>`; }
+function bellSvg(){ return `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>`; }
+
+/* ===== 角色配置（历史确认的四类角色）===== */
+const ROLES = {
+  adviser: { name:'李顾问', code:'ADVISER · 顾问',
+    tabs:[['home','首页'],['client','客户'],['order','工单'],['match','方案'],['mine','我的']],
+    sub:'您名下 <span class="gold">128</span> 位客户，今日 2 项待跟进、3 项待审批。', stats:[['128','我的客户'],['6','待跟进']] },
+  manager: { name:'王经理', code:'DEPT_MANAGER · 部门经理',
+    tabs:[['home','首页'],['team','团队'],['approval','审批'],['order','工单'],['mine','我的']],
+    sub:'团队 <span class="gold">18</span> 人在线，<span class="gold">9</span> 单待分配、3 项待我审批。', stats:[['18','团队成员'],['9','待分配']] },
+  channel: { name:'赵渠道', code:'CHANNEL · 渠道',
+    tabs:[['home','首页'],['lead','线索'],['client','客户'],['product','产品'],['mine','我的']],
+    sub:'您录入线索 <span class="gold">56</span> 条，已转化 <span class="gold">12</span> 位客户。', stats:[['56','我录线索'],['12','已转化']] },
+  boss: { name:'陈老板', code:'BOSS · 老板',
+    tabs:[['home','首页'],['biz','经营'],['approval','审批'],['client','客户'],['mine','我的']],
+    sub:'全局经营概览 · 本月成交 <span class="gold">¥1,280 万</span>，在途审批 21 项。', stats:[['3,180','全司客户'],['21','在途审批']] },
+};
+const TABICON = { home:'brief', client:'user', order:'file', match:'guide', mine:'user', team:'team', approval:'check', lead:'leads', product:'brief', biz:'chart' };
+
+/* ===== 数据 ===== */
+const APPROVALS = [
+  { who:'张经理', matter:'产品审批《企业经营贷》', status:'warn', st:'待我审批', time:'09-09 14:20' },
+  { who:'渠道·赵', matter:'客户认领《宏远科技》', status:'warn', st:'待我审批', time:'09-09 11:05' },
+  { who:'李顾问', matter:'客户释放回公海《星河贸易》', status:'info', st:'待复核', time:'09-08 17:42' },
+];
+const CLIENTS = [
+  { nm:'宏远科技有限公司', phone:'138****6021', ent:'宏远科技', credit:'91110108MA01****K3', status:'ok', st:'已认证', owner:'李顾问', follow:'09-09 10:12', lastFollow:'客户已提交经营贷资料，等待初筛', assign:'李顾问 · 09-01 认领', hist:[{tt:'提交跟进：客户已提交经营贷资料',td:'李顾问 · 09-09 10:12'},{tt:'认领客户',td:'李顾问 · 09-01 09:30'},{tt:'从公海进入',td:'系统 · 09-01 09:20'}] },
+  { nm:'星河贸易（个体）', phone:'139****8842', ent:'星河贸易', credit:'92330106MA02****7X', status:'warn', st:'待跟进', owner:'李顾问', follow:'09-08 16:30', lastFollow:'上周沟通额度方案，待回访确认', assign:'李顾问 · 09-05 认领', hist:[{tt:'提交跟进：沟通额度方案',td:'李顾问 · 09-08 16:30'},{tt:'认领客户',td:'李顾问 · 09-05 14:00'}] },
+  { nm:'锦程建筑工程', phone:'137****2290', ent:'锦程建筑', credit:'91510107MA03****9P', status:'ok', st:'已成交', owner:'王经理', follow:'09-07 09:48', lastFollow:'企业经营贷 ¥200万 已放款', assign:'王经理 · 08-20 分配', hist:[{tt:'放款完成 ¥200万',td:'王经理 · 09-07 09:48'},{tt:'审批通过',td:'风控 · 09-05 15:00'},{tt:'分配归属',td:'王经理 · 08-20 10:00'}] },
+  { nm:'恒通物流', phone:'135****7711', ent:'恒通物流', credit:'91310115MA04****2L', status:'ok', st:'已认证', owner:'李顾问', follow:'09-06 14:02', lastFollow:'资质认证通过，匹配 2 款合作中产品', assign:'李顾问 · 09-02 认领', hist:[{tt:'认证通过，匹配产品',td:'李顾问 · 09-06 14:02'},{tt:'认领客户',td:'李顾问 · 09-02 11:00'}] },
+  { nm:'佳和餐饮连锁', phone:'136****5533', ent:'佳和餐饮', credit:'91440300MA05****8R', status:'info', st:'公海', owner:'—', follow:'—', lastFollow:'已释放回公海，待重新分配', assign:'已释放 · 09-04', hist:[{tt:'释放回公海',td:'李顾问 · 09-04 17:00'},{tt:'跟进：资料待补充',td:'李顾问 · 09-02 10:00'}] },
+  { nm:'瑞峰智能制造', phone:'138****9900', ent:'瑞峰智能', credit:'91610131MA06****5T', status:'warn', st:'待跟进', owner:'李顾问', follow:'09-03 11:20', lastFollow:'渠道转介绍，待首次拜访', assign:'渠道·赵 · 09-03 转入', hist:[{tt:'渠道转入',td:'渠道·赵 · 09-03 11:20'},{tt:'录入线索',td:'渠道·赵 · 09-01 16:00'}] },
+];
+const LEADS = [
+  { nm:'瑞峰智能制造', src:'官网留资', status:'warn', st:'待分配', time:'09-03 11:20' },
+  { nm:'安达精密机械', src:'渠道转介', status:'info', st:'已转化', time:'09-02 09:10' },
+  { nm:'海蓝生物科技', src:'广告投放', status:'info', st:'跟进中', time:'08-30 15:40' },
+];
+const PRODUCTS = [
+  { nm:'企业经营贷', bank:'合作银行A', quota:'最高 ¥200万', rate:'年化 4.2% 起', status:'ok', st:'合作中' },
+  { nm:'供应链金融', bank:'合作银行B', quota:'最高 ¥120万', rate:'按日计息', status:'ok', st:'合作中' },
+  { nm:'票据贴现', bank:'合作银行C', quota:'随借随还', rate:'年化 3.8% 起', status:'ok', st:'合作中' },
+];
+const TEAM = [
+  { nm:'李顾问', clients:'128', deal:'¥86万', rate:'转化 22%' },
+  { nm:'周顾问', clients:'96', deal:'¥64万', rate:'转化 18%' },
+  { nm:'吴顾问', clients:'110', deal:'¥72万', rate:'转化 20%' },
+];
+const NOTIFS = [
+  { who:'系统', matter:'您有一项审批待处理：产品审批《企业经营贷》', time:'09-09 14:20', unread:true },
+  { who:'渠道·赵', matter:'提交客户认领《宏远科技》，等待您审批', time:'09-09 11:05', unread:true },
+  { who:'王经理', matter:'分配客户《锦程建筑》已成交放款', time:'09-08 18:30', unread:false },
+  { who:'系统', matter:'客户《星河贸易》释放回公海已复核', time:'09-08 17:42', unread:false },
+];
+
+/* ===== 状态 ===== */
+const STATE = { view:'app', role:'adviser', curTab:{}, q:'', chip:'全部', f:{}, loginMode:'pwd' };
+['adviser','manager','channel','boss'].forEach(r=>STATE.curTab[r]=ROLES[r].tabs[0][0]);
+
+/* ===== 通用构件 ===== */
+function head(role, hi, nm, sub, stats){
+  const r = ROLES[role];
+  return `<div class="m-head">
+    <div class="m-bell" data-bell="1">${bellSvg()}<span class="m-bell-dot"></span></div>
+    <div class="hi">${hi}</div>
+    <div class="nm">${nm}</div>
+    <div class="sub">${sub}</div>
+    <div class="m-role-pill">${r.code}</div>
+    ${stats?`<div class="m-stats">${r.stats.map(s=>`<div class="m-stat"><div class="v">${s[0]}</div><div class="l">${s[1]}</div></div>`).join('')}</div>`:''}
+  </div>`;
+}
+function apprRow(a){ return `<div class="m-row">${chip('check','gold')}<div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} 提交 · ${a.time}</div></div><span class="m-tag ${a.status}">${a.st}</span></div>`; }
+function clientRow(c, withData){ return `<div class="m-row" ${withData?`data-client="${c.nm}"`:''}>${chip('user','royal')}<div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.owner} · 跟进 ${c.follow}</div></div><span class="m-tag ${c.status}">${c.st}</span><span class="m-go">›</span></div>`; }
+function prodRow(p){ return `<div class="m-row">${chip('brief','ink')}<div class="main"><div class="t1">${p.nm}</div><div class="t2">${p.bank} · ${p.quota} · ${p.rate}</div></div><span class="m-tag ok">${p.st}</span></div>`; }
+function qk(ic, cls, t, d){ return `<div class="m-qk">${chip(ic,cls)}<div><div class="qt">${t}</div><div class="qd">${d}</div></div></div>`; }
+function bizBars(){
+  const d=[['1',60],['2',72],['3',68],['4',85],['5',78],['6',96],['7',88],['8',110],['9',128]]; const max=128;
+  return `<div style="display:flex;align-items:flex-end;gap:7px;height:120px;padding:6px 2px">${d.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:100%;background:linear-gradient(180deg,#345bd0,#27439f);border-radius:6px 6px 3px 3px;height:${Math.round(x[1]/max*84)}px"></div><div style="font-size:10px;color:var(--t2)">${x[0]}</div></div>`).join('')}</div><div style="font-size:12px;color:var(--t2);margin-top:6px">本月成交 ¥${d[d.length-1][1]} 万，环比 +16%</div>`;
+}
+function getClients(role){ return role==='channel' ? CLIENTS.filter(c=>c.st!=='公海') : CLIENTS; }
+function applyFilterClient(data){
+  let list = data.slice();
+  if(STATE.chip==='待跟进') list = list.filter(c=>c.status==='warn'&&c.st!=='公海');
+  else if(STATE.chip==='已成交') list = list.filter(c=>c.st==='已成交');
+  else if(STATE.chip==='公海') list = list.filter(c=>c.st==='公海');
+  else if(STATE.chip==='待审批') list = [];
+  if(STATE.q){ const q=STATE.q.toLowerCase(); list = list.filter(c=>(c.nm+c.phone+c.ent+c.credit).toLowerCase().includes(q)); }
+  return list;
+}
+
+/* ===== 页面渲染 ===== */
+function homePage(role){
+  if(role==='adviser') return head(role,'下午好，','企融通 · 您的客户专属服务台',ROLES.adviser.sub,true)
+    + `<div class="m-body">
+        <div class="m-card"><div class="m-card-h"><b>待我审批</b><span class="more" data-go="approval">全部 ›</span></div>${APPROVALS.slice(0,2).map(apprRow).join('')}</div>
+        <div class="m-card"><div class="m-card-h"><b>最近跟进客户</b><span class="more" data-go="client">查看 ›</span></div>${CLIENTS.slice(0,3).map(c=>clientRow(c,true)).join('')}</div>
+        <div class="m-grid">${qk('guide','gold','发起初筛','资质预检')}${qk('file','royal','新建工单','客户咨询')}${qk('swap','ink','分配归属','客户分配')}${qk('chart','green','数据报表','经营看板')}</div>
+      </div>`;
+  if(role==='manager') return head(role,'下午好，','企融通 · 团队经营服务台',ROLES.manager.sub,true)
+    + `<div class="m-body">
+        <div class="m-card"><div class="m-card-h"><b>待分配客户</b><span class="more" data-go="client">去分配 ›</span></div>${CLIENTS.filter(c=>c.st==='公海'||c.st==='待跟进').map(c=>`<div class="m-row">${chip('user','ink')}<div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.st} · 待分配归属</div></div><button class="m-btn ghost">分配</button></div>`).join('')}</div>
+        <div class="m-card"><div class="m-card-h"><b>团队业绩 Top</b><span class="more" data-go="team">全部 ›</span></div>${TEAM.map(t=>`<div class="m-row">${chip('user','royal')}<div class="main"><div class="t1">${t.nm}</div><div class="t2">客户 ${t.clients} · 成交 ${t.deal}</div></div><span class="m-tag ok">${t.rate}</span></div>`).join('')}</div>
+        <div class="m-grid">${qk('swap','ink','分配归属','团队分配')}${qk('check','gold','审批中心','待我审批')}${qk('chart','green','团队报表','经营看板')}${qk('team','royal','成员管理','顾问团队')}</div>
+      </div>`;
+  if(role==='channel') return head(role,'下午好，','企融通 · 渠道合作服务台',ROLES.channel.sub,true)
+    + `<div class="m-body">
+        <div class="m-card"><div class="m-card-h"><b>我录线索</b><span class="more" data-go="lead">全部 ›</span></div>${LEADS.map(l=>`<div class="m-row">${chip('leads','gold')}<div class="main"><div class="t1">${l.nm}</div><div class="t2">${l.src} · ${l.time}</div></div><span class="m-tag ${l.status}">${l.st}</span></div>`).join('')}</div>
+        <div class="m-card"><div class="m-card-h"><b>合作产品</b><span class="more" data-go="product">全部 ›</span></div>${PRODUCTS.map(prodRow).join('')}</div>
+        <div class="m-grid">${qk('leads','gold','录入线索','新增留资')}${qk('user','royal','我的客户','已转化')}${qk('money','green','佣金明细','本月 ¥3.2万')}${qk('brief','ink','产品库','合作产品')}</div>
+      </div>`;
+  return head(role,'下午好，','企融通 · 全局经营概览',ROLES.boss.sub,true)
+    + `<div class="m-body">
+        <div class="m-card"><div class="m-card-h"><b>经营概览 · 本月</b><span class="more" data-go="biz">报表 ›</span></div>${bizBars()}</div>
+        <div class="m-card"><div class="m-card-h"><b>在途审批</b><span class="more" data-go="approval">全部 ›</span></div>${APPROVALS.map(apprRow).join('')}</div>
+        <div class="m-card"><div class="m-card-h"><b>顾问活跃 Top</b><span class="more" data-go="team">全部 ›</span></div>${TEAM.map(t=>`<div class="m-row">${chip('user','royal')}<div class="main"><div class="t1">${t.nm}</div><div class="t2">客户 ${t.clients} · 成交 ${t.deal}</div></div><span class="m-tag ok">${t.rate}</span></div>`).join('')}</div>
+        <div class="m-grid">${qk('chart','green','经营报表','全局看板')}${qk('user','royal','全司客户','3,180 位')}${qk('check','gold','审批中心','21 在途')}${qk('brief','ink','组织机构','全司架构')}</div>
+      </div>`;
+}
+function clientPage(role){
+  const titleMap={adviser:'我的客户',manager:'团队客户',channel:'已转化客户',boss:'全司客户'};
+  const noteMap={adviser:'共 128 位 · 支持姓名 / 手机号 / 企业 / 信用代码 查询',manager:'团队共 642 位客户 · 9 位待分配',channel:'已转化 12 位 · 支持查询',boss:'全司共 3,180 位客户'};
+  const list = applyFilterClient(getClients(role));
+  let ctx = '';
+  if(role==='adviser') ctx = `<div class="m-card" style="display:flex;gap:12px;align-items:center">${chip('pin','gold')}<div style="flex:1"><div style="font-weight:700;color:var(--t1)">认领公海客户</div><div style="font-size:12px;color:var(--t2);margin-top:3px">从公海挑选高意向客户，进入分配审批</div></div><button class="m-btn gold">去认领</button></div>`;
+  else if(role==='manager') ctx = `<div class="m-card"><div class="m-card-h"><b>待分配客户</b></div>${CLIENTS.filter(c=>c.st==='公海'||c.st==='待跟进').map(c=>`<div class="m-row">${chip('user','ink')}<div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.st} · 待分配归属</div></div><button class="m-btn ghost">分配</button></div>`).join('')}</div>`;
+  return head(role,'客户中心',titleMap[role],noteMap[role],false)
+    + `<div class="m-body">
+        <div class="m-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="mSearchInput" placeholder="搜索客户姓名 / 手机号 / 企业 / 信用代码" value="${STATE.q}"/>${STATE.q?'<span class="clr" id="mSearchClr">×</span>':''}</div>
+        <div class="m-chips">${['全部','待跟进','已成交','公海','待审批'].map(c=>`<button class="m-chip-btn ${STATE.chip===c?'on':''}" data-chip="${c}">${c}</button>`).join('')}</div>
+        <div class="m-count">匹配到 <b>${list.length}</b> 位客户 <span style="float:right;color:var(--royal);font-weight:700;cursor:pointer" id="mOpenFilter">⌄ 高级筛选</span></div>
+        ${ctx}
+        <div class="m-card" style="padding:6px 14px">
+          ${list.length? list.map(c=>`<div class="m-row" data-client="${c.nm}">${chip('user','royal')}<div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.phone} · ${c.owner} · ${c.follow}</div></div><span class="m-tag ${c.status}">${c.st}</span><span class="m-go">›</span></div>`).join('') : `<div class="m-empty"><div class="ill"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>未找到匹配的客户<br>试试调整关键词或筛选条件</div>`}
+        </div>
+      </div>`;
+}
+function orderPage(role){
+  const title = role==='boss'?'全司工单':'我的工单';
+  const note = role==='boss'?'全司服务工单进度':'仅显示本人客户工单';
+  const rows = [['企业经营贷 · 进度咨询','宏远科技','处理中','warn'],['资料补充提醒','星河贸易','待回复','info'],['放款完成通知','锦程建筑','已办结','ok']];
+  return head(role,'服务',title,note,false)
+    + `<div class="m-body"><div class="m-card">${rows.map(r=>`<div class="m-row">${chip(r[3]==='ok'?'check':'msg', r[3]==='ok'?'green':r[3]==='warn'?'gold':'royal')}<div class="main"><div class="t1">${r[0]}</div><div class="t2">${r[1]}</div></div><span class="m-tag ${r[3]}">${r[2]}</span></div>`).join('')}</div></div>`;
+}
+function matchPage(role){
+  return head(role,'顾问服务','方案匹配','由专属顾问结合资质，为您推荐可贷方案',false)
+    + `<div class="m-body">
+        <div class="m-card"><div class="m-card-h"><b>资质概览</b></div><div style="display:flex;gap:12px;align-items:center">${chip('shield','green')}<div><div style="font-weight:700;color:var(--t1)">认证通过率 92%</div><div style="font-size:12px;color:var(--t2);margin-top:3px">已认证 3 项，可解锁更多合作产品</div></div></div></div>
+        <div class="m-card"><div class="m-card-h"><b>顾问推荐方案</b><span class="more">全部 ›</span></div>${[['企业经营贷','合作中 · 最高 ¥200万','royal'],['供应链金融','合作中 · 最高 ¥120万','gold'],['票据贴现','合作中 · 随借随还','ink']].map(p=>`<div class="m-row">${chip('file',p[2])}<div class="main"><div class="t1">${p[0]}</div><div class="t2">${p[1]}</div></div><span class="m-go">›</span></div>`).join('')}</div>
+        <div class="m-card" style="display:flex;gap:12px;align-items:center">${chip('phone','green')}<div style="flex:1"><div style="font-weight:700;color:var(--t1)">预约一对一顾问</div><div style="font-size:12px;color:var(--t2);margin-top:3px">由顾问为您定制融资路径</div></div><button class="m-btn">预约</button></div>
+      </div>`;
+}
+function teamPage(role){
+  return head(role,'团队','团队客户与业绩','团队共 642 位客户',false)
+    + `<div class="m-body">
+        <div class="m-card"><div class="m-card-h"><b>顾问业绩</b></div>${TEAM.map(t=>`<div class="m-row">${chip('user','royal')}<div class="main"><div class="t1">${t.nm}</div><div class="t2">客户 ${t.clients} · 成交 ${t.deal}</div></div><span class="m-tag ok">${t.rate}</span></div>`).join('')}</div>
+        <div class="m-card"><div class="m-card-h"><b>团队客户</b><span class="more" data-go="client">查看 ›</span></div>${CLIENTS.map(c=>`<div class="m-row" data-client="${c.nm}">${chip('user','royal')}<div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.owner} · ${c.st}</div></div><span class="m-tag ${c.status}">${c.st}</span><span class="m-go">›</span></div>`).join('')}</div>
+      </div>`;
+}
+function approvalPage(role){
+  return head(role,'审批','审批中心','仅显示 提交人 + 事项 + 状态 + 时间（零单号）',false)
+    + `<div class="m-body">
+        <div class="m-chips" style="margin-bottom:12px">${['待办','已办','我发起的'].map((c,i)=>`<button class="m-chip-btn ${i===0?'on':''}">${c}</button>`).join('')}</div>
+        <div class="m-card">${APPROVALS.map(a=>`<div class="m-row">${chip('check','gold')}<div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} 提交 · ${a.time}</div></div><span class="m-tag ${a.status}">${a.st}</span><button class="m-btn">处理</button></div>`).join('')}</div>
+      </div>`;
+}
+function leadPage(role){
+  return head(role,'线索','我录线索','共 56 条 · 转化 12 位客户',false)
+    + `<div class="m-body"><div class="m-card">${LEADS.map(l=>`<div class="m-row">${chip('leads','gold')}<div class="main"><div class="t1">${l.nm}</div><div class="t2">${l.src} · ${l.time}</div></div><span class="m-tag ${l.status}">${l.st}</span></div>`).join('')}</div></div>`;
+}
+function productPage(role){
+  return head(role,'产品','合作产品','合作中银行产品库',false)
+    + `<div class="m-body"><div class="m-card">${PRODUCTS.map(prodRow).join('')}</div></div>`;
+}
+function bizPage(role){
+  return head(role,'经营','经营报表','全局经营分析',false)
+    + `<div class="m-body">
+        <div class="m-card"><div class="m-card-h"><b>成交趋势（万元）</b></div>${bizBars()}</div>
+        <div class="m-card"><div class="m-card-h"><b>核心指标</b></div>${[['本月成交','¥1,280万','+22%'],['在途审批','21 项','5 紧急'],['顾问活跃','86%','+4pt'],['新增客户','126 位','+9%']].map(m=>`<div class="m-row">${chip('chart','green')}<div class="main"><div class="t1">${m[0]}</div><div class="t2">${m[2]}</div></div><span style="font-weight:800;color:var(--t1);font-size:15px">${m[1]}</span></div>`).join('')}</div>
+      </div>`;
+}
+function minePage(role){
+  const r = ROLES[role];
+  const unread = NOTIFS.filter(n=>n.unread).length;
+  return head(role,'个人中心',r.name,r.code,false)
+    + `<div class="m-body"><div class="m-card">
+        <div class="m-row">${chip('shield','green')}<div class="main"><div class="t1">实名认证</div><div class="t2">已通过</div></div><span class="m-tag ok">已认证</span></div>
+        <div class="m-row" data-notif>${chip('bell','gold')}<div class="main"><div class="t1">消息通知</div><div class="t2">${unread} 条未读</div></div><span class="m-go">›</span></div>
+        <div class="m-row">${chip('chart','royal')}<div class="main"><div class="t1">我的业绩</div><div class="t2">本月成交 ¥86 万</div></div><span class="m-go">›</span></div>
+        <div class="m-row">${chip('gear','ink')}<div class="main"><div class="t1">设置</div><div class="t2">通知 / 隐私 / 关于</div></div><span class="m-go">›</span></div>
+        <div class="m-row" data-logout>${chip('user','rose')}<div class="main"><div class="t1">退出登录</div><div class="t2">返回登录页</div></div><span class="m-go">›</span></div>
+      </div></div>`;
+}
+const PAGES = { home:homePage, client:clientPage, order:orderPage, match:matchPage, team:teamPage, approval:approvalPage, lead:leadPage, product:productPage, biz:bizPage, mine:minePage };
+
+/* ===== 登录页 ===== */
+function loginShell(){
+  const pwd = `<div class="login-field"><label>手机号</label><div class="box"><svg viewBox="0 0 24 24"><path d="M6.5 4h3l1.6 4-2 1.4a11 11 0 0 0 5 5l1.4-2 4 1.6v3a2 2 0 0 1-2.1 2A15 15 0 0 1 4.4 6 2 2 0 0 1 6.5 4z"/></svg><input placeholder="请输入手机号"/></div></div>
+    <div class="login-field"><label>密码</label><div class="box"><svg viewBox="0 0 24 24"><path d="M6 10V8a6 6 0 1 1 12 0v2M5 10h14v10H5z"/></svg><input type="password" placeholder="请输入登录密码"/></div></div>`;
+  const code = `<div class="login-field"><label>手机号</label><div class="box"><svg viewBox="0 0 24 24"><path d="M6.5 4h3l1.6 4-2 1.4a11 11 0 0 0 5 5l1.4-2 4 1.6v3a2 2 0 0 1-2.1 2A15 15 0 0 1 4.4 6 2 2 0 0 1 6.5 4z"/></svg><input placeholder="请输入手机号"/></div></div>
+    <div class="login-field"><label>验证码</label><div class="box"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4zM8 11h4"/></svg><input placeholder="请输入验证码"/><span class="code">获取验证码</span></div></div>`;
+  return `<div class="login">
+    <div class="login-top"><div class="login-logo">企</div><div class="login-brand">企融通</div><div class="login-slogan">企业融资顾问服务平台<br>让每一笔融资，都有专属顾问</div></div>
+    <div class="login-card">
+      <div class="login-tabs"><button class="${STATE.loginMode==='pwd'?'on':''}" data-lm="pwd">密码登录</button><button class="${STATE.loginMode==='code'?'on':''}" data-lm="code">验证码登录</button></div>
+      ${STATE.loginMode==='pwd'?pwd:code}
+      <div class="login-row"><label><input type="checkbox" checked/> 记住我</label><span class="forget">忘记密码？</span></div>
+      <button class="m-btn gold block" data-login="1">登 录</button>
+      <div class="login-foot">登录即代表同意 <a>《用户协议》</a> 与 <a>《隐私政策》</a><br>企融通 · 企业融资顾问服务平台</div>
+    </div>
+  </div>`;
+}
+
+/* ===== 详情 / 消息 sheet ===== */
+function openSheet(end, c){
+  const el = document.getElementById(end+'Sheet');
+  el.innerHTML = `<div class="grab"></div><h3>${c.nm}</h3>
+    <div class="sub">归属 ${c.owner} · 最近跟进 ${c.follow} · <span class="m-tag ${c.status}">${c.st}</span></div>
+    <div class="sheet-sec"><div class="lh"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="8.5"/></svg>上次跟进内容</div><div style="font-size:13.5px;color:var(--t1);background:var(--ivory);border:1px solid var(--line);border-radius:12px;padding:12px">${c.lastFollow}</div></div>
+    <div class="sheet-sec"><div class="lh"><svg viewBox="0 0 24 24"><path d="M8 12l2.5 2.5L16 9"/><circle cx="12" cy="12" r="8.5"/></svg>跟进历史</div><div style="font-size:12px;color:var(--t2);margin-bottom:6px">— 时间轴 —</div></div>
+    <div class="sheet-sec"><div class="lh"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>分配扭转历史</div><div class="timeline">${c.hist.map(h=>`<div class="tl-item"><div class="tt">${h.tt}</div><div class="td">${h.td}</div></div>`).join('')}</div></div>
+    <div class="sheet-actions"><button class="m-btn ghost" onclick="closeSheet('${end}')">查看档案</button><button class="m-btn" onclick="closeSheet('${end}')">跟进</button><button class="m-btn gold" onclick="closeSheet('${end}')">释放回公海</button></div>`;
+  el.classList.add('show'); document.getElementById(end+'Mask').classList.add('show');
+}
+function closeSheet(end){ document.getElementById(end+'Sheet').classList.remove('show'); document.getElementById(end+'Mask').classList.remove('show'); }
+function openNotif(end){
+  const el = document.getElementById(end+'Sheet');
+  const unread = NOTIFS.filter(n=>n.unread).length;
+  el.innerHTML = `<div class="grab"></div><h3>消息通知</h3><div class="sub">共 ${NOTIFS.length} 条 · 未读 ${unread} 条</div>
+    ${NOTIFS.map(n=>`<div class="m-row">${chip('bell','gold')}<div class="main"><div class="t1">${n.matter}</div><div class="t2">${n.who} · ${n.time}</div></div>${n.unread?'<span class="m-tag warn">未读</span>':'<span class="m-go">›</span>'}</div>`).join('')}
+    <div class="sheet-actions"><button class="m-btn ghost" onclick="closeSheet('${end}')">标为已读</button><button class="m-btn" onclick="closeSheet('${end}')">知道了</button></div>`;
+  el.classList.add('show'); document.getElementById(end+'Mask').classList.add('show');
+}
+window.closeSheet = closeSheet;
+function openFilter(end){
+  const el = document.getElementById(end+'Sheet');
+  el.innerHTML = `<div class="grab"></div><h3>高级筛选</h3><div class="sub">支持按多维条件精确查询客户</div>
+    <div class="f-field"><label>联系人姓名</label><input placeholder="如：王经理" value="${STATE.f.name||''}"/></div>
+    <div class="f-field"><label>手机号</label><input placeholder="如：138****6021" value="${STATE.f.phone||''}"/></div>
+    <div class="f-field"><label>企业名称</label><input placeholder="如：宏远科技" value="${STATE.f.ent||''}"/></div>
+    <div class="f-field"><label>统一社会信用代码</label><input placeholder="如：91110108MA…" value="${STATE.f.credit||''}"/></div>
+    <div class="f-field"><label>成交时间范围</label><select><option>全部时间</option><option>本月</option><option>近 30 天</option><option>近 90 天</option><option>自定义区间</option></select></div>
+    <div class="sheet-actions"><button class="m-btn ghost" onclick="closeSheet('${end}')">重置</button><button class="m-btn" onclick="applyFilter('${end}')">应用筛选</button></div>`;
+  el.classList.add('show'); document.getElementById(end+'Mask').classList.add('show');
+}
+function applyFilter(end){
+  const inputs = document.getElementById(end+'Sheet').querySelectorAll('input');
+  STATE.q = (inputs[0].value+inputs[1].value+inputs[2].value+inputs[3].value).trim();
+  const role = STATE.role; STATE.curTab[role]='client'; closeSheet(end);
+  paint('mini'); paint('h5');
+}
+window.openFilter = openFilter; window.applyFilter = applyFilter;
+
+/* ===== 渲染与交互 ===== */
+function paint(end){
+  const screen = document.getElementById(end+'Screen');
+  if(STATE.view==='login'){ screen.innerHTML = loginShell(); bindLogin(end); return; }
+  const role = STATE.role, tab = STATE.curTab[role];
+  screen.innerHTML = `<div class="m-scroll">${PAGES[tab](role)}</div>`
+    + `<div class="sheet-mask" id="${end}Mask"></div><div class="sheet" id="${end}Sheet"></div>`
+    + `<nav class="m-tabbar" id="${end}Tab">${ROLES[role].tabs.map(t=>`<div class="m-tab ${t[0]===tab?'on':''}" data-tab="${t[0]}">${tabSvg(TABICON[t[0]])}${t[1]}</div>`).join('')}</nav>`;
+  bindApp(end, role);
+}
+function repaintBody(end, role){
+  const sc = document.querySelector('#'+end+'Screen .m-scroll');
+  sc.innerHTML = PAGES[STATE.curTab[role]](role);
+  bindApp(end, role);
+}
+function bindApp(end, role){
+  const sc = document.querySelector('#'+end+'Screen .m-scroll');
+  const inp = sc.querySelector('#mSearchInput');
+  if(inp){
+    inp.addEventListener('input', e=>{ STATE.q=e.target.value; repaintBody(end,role); });
+    const clr = sc.querySelector('#mSearchClr'); if(clr) clr.addEventListener('click', ()=>{ STATE.q=''; repaintBody(end,role); });
+    sc.querySelector('#mOpenFilter').addEventListener('click', ()=>openFilter(end));
+    sc.querySelectorAll('[data-chip]').forEach(b=>b.addEventListener('click', ()=>{ STATE.chip=b.dataset.chip; repaintBody(end,role); }));
+  }
+  sc.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click', ()=>{ STATE.curTab[role]=b.dataset.go; paint('mini'); paint('h5'); }));
+  sc.querySelectorAll('[data-client]').forEach(r=>r.addEventListener('click', ()=>{ const c=CLIENTS.find(x=>x.nm===r.dataset.client); if(c) openSheet(end,c); }));
+  sc.querySelectorAll('[data-bell]').forEach(b=>b.addEventListener('click', ()=>openNotif(end)));
+  sc.querySelectorAll('[data-notif]').forEach(b=>b.addEventListener('click', ()=>openNotif(end)));
+  sc.querySelectorAll('[data-logout]').forEach(b=>b.addEventListener('click', ()=>{ STATE.view='login'; document.querySelectorAll('#viewSeg button').forEach(x=>x.classList.toggle('on', x.dataset.view==='login')); paint('mini'); paint('h5'); }));
+  document.querySelectorAll('#'+end+'Tab .m-tab').forEach(t=>t.addEventListener('click', ()=>{ STATE.curTab[role]=t.dataset.tab; paint('mini'); paint('h5'); }));
+  document.getElementById(end+'Mask').addEventListener('click', ()=>closeSheet(end));
+}
+function bindLogin(end){
+  const screen = document.getElementById(end+'Screen');
+  screen.querySelectorAll('[data-lm]').forEach(b=>b.addEventListener('click', ()=>{ STATE.loginMode=b.dataset.lm; paint('mini'); paint('h5'); }));
+  screen.querySelector('[data-login]').addEventListener('click', ()=>{ STATE.view='app'; document.querySelectorAll('#viewSeg button').forEach(x=>x.classList.toggle('on', x.dataset.view==='app')); paint('mini'); paint('h5'); });
+}
+function updateUrl(){ document.getElementById('h5Url').textContent = 'm.qirongtong.com/#'+(STATE.view==='login'?'login':STATE.curTab[STATE.role]); }
+
+/* 工具条交互 */
+document.getElementById('viewSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; document.querySelectorAll('#viewSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); STATE.view=b.dataset.view; paint('mini'); paint('h5'); updateUrl(); });
+document.getElementById('endSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; document.querySelectorAll('#endSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+document.getElementById('roleSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; document.querySelectorAll('#roleSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); STATE.role=b.dataset.role; STATE.q=''; STATE.chip='全部'; paint('mini'); paint('h5'); updateUrl(); });
+
+/* 初始化 */
+paint('mini'); paint('h5'); updateUrl();
+</script>
+</body>
+</html>
