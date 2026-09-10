@@ -22,6 +22,26 @@
 1. ~~微信小程序端 page 元素标记（mp-weixin 真机）~~ —— **已完成**：见上「13 个 pages 根视图」。真机需 `npm run build:mp-weixin` 后导入微信开发者工具预览。
 2. 其余上游 TODO（见 `docs/design-system/待处理事项.md` / `TODO.en.md` / `AI-TASK-BRIEF.md`）：散落内联 SVG 全量收敛、AppButton/AppSearchBar 等组件暗色适配、各业务页暗色巡检——保持为待办，留给另一 AI 按清单执行。
 
+## 四、合规整改 / 小程序首页重做 / 知识系统接入（2026-09-09 ~ 09-10 收尾）
+
+### 合规整改（资金 / 审核）
+- 全量替换敏感表述：贷款/融资 → 资金、审批 → 审核。覆盖 `loan-web` 源码注释与 `loan-mini` 业务文案；三端（web/mini 源码 + 构建产物）扫描零命中。
+- `loan-web`：`api/approval.js`、`api/client.js`、`api/attachment.js`、`utils/access.js` 等「审批」注释/测试名改为「审核」；后端接口 URL `/api/admin/approval` 按约定保留。
+- 重建 `loan-web/dist` 与 `loan-mini/dist/build/h5`，产物敏感词 0 命中。
+
+### 小程序首页按墨金效果图重做
+- `pages/home/home.vue` 整页重写，对齐效果图：动态问候头（早/中/下午/晚上好 + 待跟进数）+ 深色墨金 AI 智能匹配主卡片（暖金「立即智能匹配」按钮，文案「30 秒生成资金方案」）+ 四宫格（我的报告/服务单/我的产品/录入客户）+ 我的报告列表（企业资质初筛/流水分析/设备预审核，状态「审核中」）。
+- `components/TabBar.vue`：激活色随主题（暗底暖金 `#E0AE4E`），文案回正为 首页/匹配/报告/服务单/我的。
+- `components/AppIcon.vue`：`buildSvg` 补齐 `<path>` 包裹 + base64 data URI 稳定渲染（修复图标不显示 / 变实心圆 bug）。
+
+### 提交与残留
+- 提交 `8f587f9`：`feat(loan-mini,loan-web): 落地墨金 Ink & Gold 双主题设计系统与合规整改`，66 文件（15 新增 / 51 修改）；刻意排除 `loan-web/dist_old/`、`loan-mini/preview-home-*.png`（6 张）。
+- 残留待清理：`loan-web/dist_old/`、`loan-mini/dist/build/h5_old/`（沙箱批量删除守卫拦截 ≥50 文件删除，需分批或手动 `rm -rf`）。
+
+### 跨工具知识系统接入
+- 安装 `i-have-adhd` 输出风格技能到 WorkBuddy/Cursor/Copilot/Codex 四端。
+- 搭建共享知识库 `~/.local/share/knowledge.json` + 查看器 `knowledge-graph-viewer.html` + 本地服务 `kg_server.py`（http://localhost:8777），并经 `knowledge-capture` 技能持续写入；MDS 培训知识点已入库。
+
 ## 验证方式
 - Web：浏览器打开 http://localhost:5180/，用右上角主题切换验证暖金深墨蓝双主题。
 - Mini（H5 代理预览）：浏览器打开 http://localhost:5173/，进入「我的」页，点「主题模式」开关，整页（含 TabBar、图标、卡片）实时切换浅色/暗色（墨金）。
