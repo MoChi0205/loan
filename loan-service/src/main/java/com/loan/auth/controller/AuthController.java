@@ -67,6 +67,11 @@ public class AuthController {
         return Result.ok(authService.login(request));
     }
 
+    @PostMapping("/code-login")
+    public Result<LoginResponse> codeLogin(@RequestBody Map<String, String> body) {
+        return Result.ok(authService.loginByPhoneCode(body.get("phone"), body.get("code")));
+    }
+
     /**
      * 渠道端账号密码登录（BCrypt + RSA 解密）。
      *

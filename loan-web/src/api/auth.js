@@ -29,6 +29,13 @@ export function channelLogin(data) {
     data,
   });
 }
+export function sendLoginCode(phone) {
+  return request({ url: '/api/sms/send-code', method: 'post', data: { phone } });
+}
+
+export function codeLogin(data) {
+  return request({ url: '/api/auth/code-login', method: 'post', data });
+}
 
 export function logout() {
   return request({

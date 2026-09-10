@@ -18,7 +18,7 @@
 
     <view class="content">
       <!-- AI 智能匹配主卡片（墨金深色） -->
-      <view class="ai-card" @click="onMatch">
+      <view v-if="!store.isChannel && store.hasPermission('mini:match:view')" class="ai-card" @click="onMatch">
         <view class="ai-glow" />
         <view class="ai-inner">
           <view class="ai-top">
@@ -36,9 +36,7 @@
       <!-- 四宫格（设计稿顺序：我的报告 / 服务单 / 我的产品 / 录入客户） -->
       <view class="nav-section">
         <view class="nav-grid">
-          <view
-            v-for="entry in navEntries"
-            :key="entry.key"
+          <view v-for="entry in navEntries" :key="entry.key" v-if="entry.visible"
             class="nav-cell"
             @click="entry.action"
           >
@@ -51,7 +49,7 @@
       </view>
 
       <!-- 我的报告列表 -->
-      <view class="card report-card">
+      <view v-if="store.hasPermission('mini:report:view')" class="card report-card">
         <view class="sec-header">
           <text class="sec-title">我的报告</text>
           <text class="sec-more" @click="onReport">全部 ›</text>
@@ -141,10 +139,10 @@ const orderSubtitle = computed(() => {
 
 /** 四宫格（设计稿统一顺序，不再按角色拆分） */
 const navEntries = computed(() => [
-  { key: 'report', label: '我的报告', icon: 'chart', action: onReport },
-  { key: 'order', label: '服务单', icon: 'order', action: onOrder },
-  { key: 'product', label: '我的产品', icon: 'bank', action: onProduct },
-  { key: 'client', label: '录入客户', icon: 'users', action: onClient },
+  { key: 'report', label: '我的报告', icon: 'chart', action: onReport, visible: store.hasPermission('mini:report:view') },
+  { key: 'order', label: '服务单', icon: 'order', action: onOrder, visible: store.hasPermission('mini:order:view') },
+  { key: 'product', label: '我的产品', icon: 'bank', action: onProduct, visible: store.hasPermission('mini:product:view') },
+  { key: 'client', label: '录入客户', icon: 'users', action: onClient, visible: store.hasPermission('mini:client:create') },
 ]);
 
 /** 我的报告列表（示例数据，已合规化：设备贷预审批→设备预审核、审批中→审核中） */

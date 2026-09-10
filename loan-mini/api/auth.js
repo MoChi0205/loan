@@ -57,6 +57,14 @@ export function loginByCode(phone, smsCode, inviteCode) {
   });
 }
 
+export function sendLoginCode(phone) {
+  return requestPost('/api/sms/send-code', { phone });
+}
+
+export function resetPassword(phone, code, password) {
+  return requestPost('/api/auth/reset-password', { phone, code, password });
+}
+
 /**
  * 我的资料摘要（脱敏：手机号/信用代码等由后端掩码后返回）。
  *

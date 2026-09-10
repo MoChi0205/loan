@@ -27,7 +27,7 @@
   .seg.role button.on { background:#fff; color:var(--ink); }
   .proto-hint { font-size:12px; color:#8a9bba; }
 
-  .stage { padding:26px 18px 60px; display:flex; gap:40px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .stage { padding:32px 24px 72px; display:flex; gap:32px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
   .mob-col { display:flex; flex-direction:column; align-items:center; }
   .mob-cap { text-align:center; color:#56627a; font-size:12.5px; margin-bottom:10px; font-weight:600; }
 
@@ -41,16 +41,24 @@
   .h5-screen .phone-screen { border-radius:0; }
 
   .m-scroll { flex:1; overflow-y:auto; }
-  .m-head { background: radial-gradient(120% 80% at 85% -10%, rgba(199,161,90,.30), transparent 60%), linear-gradient(165deg, var(--ink) 0%, var(--ink-2) 60%, #14233f 100%); color:#fff; padding:50px 22px 26px; position:relative; overflow:hidden; }
+  .m-head { background: radial-gradient(120% 80% at 85% -10%, rgba(199,161,90,.30), transparent 60%), linear-gradient(165deg, var(--ink) 0%, var(--ink-2) 60%, #14233f 100%); color:#fff; padding:42px 22px 24px; position:relative; overflow:hidden; }
   .m-head::after { content:""; position:absolute; right:-30px; top:-40px; width:170px; height:170px; border-radius:50%; background:radial-gradient(circle, rgba(199,161,90,.22), transparent 70%); }
   .m-head .hi { font-size:13px; color:#cdd6e6; }
-  .m-head .nm { font-size:20px; font-weight:800; margin-top:3px; letter-spacing:.3px; }
-  .m-head .sub { font-size:12px; color:#aebbd2; margin-top:6px; line-height:1.55; }
-  .role-pill { display:inline-flex; align-items:center; gap:6px; background:rgba(199,161,90,.20); border:1px solid rgba(199,161,90,.4); color:var(--gold-s); font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; margin-top:10px; }
+  .m-head .nm { font-size:20px; font-weight:800; margin-top:3px; letter-spacing:.3px; white-space:nowrap; line-height:1.2; }
+  .m-head .sub { font-size:12px; color:#aebbd2; margin-top:6px; line-height:1.55; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .m-head-user { display:flex; align-items:center; gap:12px; margin-bottom:12px; min-width:0; }
+  .m-head-user > div:nth-child(2) { min-width:0; flex:1; }
+  .m-head-user .head-msg { margin-left:auto; position:relative; width:40px; height:40px; display:grid; place-items:center; cursor:pointer; }
+  .m-head-user .head-msg svg { width:22px; height:22px; stroke:#fff; fill:none; stroke-width:1.8; }
+  .m-head-user .head-msg .dot { position:absolute; right:3px; top:4px; width:8px; height:8px; border-radius:50%; background:#e66b65; border:2px solid var(--ink); }
+  .m-head-avatar { width:52px; height:52px; border-radius:16px; display:grid; place-items:center; background:linear-gradient(135deg,#e7d3a6,#b8883f); color:#20180b; font-size:18px; font-weight:800; flex-shrink:0; border:2px solid rgba(255,255,255,.55); }
+  .m-head-avatar.authorized { background:#fff; color:var(--royal); background-size:cover; }
+  .avatar-action { font-size:10px; color:#dce5f3; margin-top:3px; cursor:pointer; white-space:nowrap; }
+  .role-pill { display:inline-flex; align-items:center; gap:6px; max-width:100%; background:rgba(199,161,90,.20); border:1px solid rgba(199,161,90,.4); color:var(--gold-s); font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; margin-top:10px; white-space:nowrap; }
 
-  .m-body { padding:16px; margin-top:-14px; }
-  .m-card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:15px; box-shadow:0 6px 18px rgba(17,30,54,.05); margin-bottom:13px; }
-  .m-card-h { display:flex; align-items:center; margin-bottom:11px; }
+  .m-body { padding:20px 16px 24px; margin-top:-14px; }
+  .m-card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:0 6px 18px rgba(17,30,54,.05); margin-bottom:16px; }
+  .m-card-h { display:flex; align-items:center; margin-bottom:14px; min-height:22px; }
   .m-card-h b { font-size:15px; font-weight:800; color:var(--t1); }
   .m-card-h .more { margin-left:auto; font-size:12px; color:var(--royal); font-weight:700; }
   .m-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--line); }
@@ -58,7 +66,8 @@
   .m-ava { width:42px; height:42px; border-radius:13px; background:linear-gradient(135deg,#eef2fb,#e2e9f7); color:var(--royal); display:grid; place-items:center; font-weight:800; font-size:14px; flex-shrink:0; }
   .m-row .main { flex:1; min-width:0; }
   .m-row .t1 { font-size:13.5px; font-weight:700; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .m-row .t2 { font-size:11.5px; color:var(--t2); margin-top:2px; }
+  .m-row .t2 { font-size:11.5px; color:var(--t2); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .m-card .m-card-h b, .m-card .more, .m-qk .qt, .m-tag { white-space:nowrap; }
   .m-tag { font-size:10.5px; padding:3px 9px; border-radius:999px; font-weight:700; white-space:nowrap; }
   .m-tag.ok { color:var(--ok); background:var(--ok-bg); }
   .m-tag.warn { color:var(--warn); background:var(--warn-bg); }
@@ -66,15 +75,17 @@
   .m-tag.ink { color:#46577a; background:#eef1f6; }
   .m-go { color:var(--royal); font-weight:800; font-size:17px; }
 
-  .m-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:13px; }
-  .m-qk { background:#fff; border:1px solid var(--line); border-radius:16px; padding:13px 6px; display:flex; flex-direction:column; align-items:center; gap:8px; box-shadow:0 5px 15px rgba(17,30,54,.05); }
-  .m-qk .ic { width:40px; height:40px; border-radius:12px; display:grid; place-items:center; }
-  .m-qk .ic svg { width:21px; height:21px; stroke:#fff; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-  .m-qk .qt { font-size:11.5px; font-weight:700; color:var(--t1); }
-  .m-stat-row { display:flex; gap:11px; }
-  .m-stat { flex:1; background:rgba(255,255,255,.10); border:1px solid rgba(199,161,90,.28); border-radius:14px; padding:12px; }
-  .m-stat .v { font-size:19px; font-weight:800; color:#fff; }
-  .m-stat .l { font-size:11px; color:#c4cee0; margin-top:2px; }
+  .m-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
+  .m-qk { min-height:94px; background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px 6px 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; box-shadow:0 5px 15px rgba(17,30,54,.05); transition:transform .18s,box-shadow .18s; cursor:pointer; }
+  .m-qk:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(17,30,54,.11); }
+  .m-qk .ic { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; }
+  .m-qk .ic svg { width:22px; height:22px; stroke:#fff; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .m-qk .qt { font-size:11px; font-weight:700; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .m-head * { max-width:100%; }
+  .m-stat-row { display:flex; gap:14px; margin-bottom:20px; }
+  .m-stat { flex:1; background:linear-gradient(145deg,#243b68,#1a2b4d); border:1px solid rgba(199,161,90,.42); border-radius:14px; padding:13px; min-height:70px; }
+  .m-stat .v { font-size:20px; font-weight:800; color:#fff; line-height:1.1; }
+  .m-stat .l { font-size:11px; color:#d5deed; margin-top:5px; }
 
   .m-search { display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--line); border-radius:13px; padding:10px 14px; margin-bottom:11px; box-shadow:0 4px 12px rgba(17,30,54,.04); }
   .m-search svg { width:18px; height:18px; stroke:var(--t2); fill:none; stroke-width:1.8; stroke-linecap:round; }
@@ -87,7 +98,7 @@
   .m-count { font-size:12px; color:var(--t2); margin-bottom:9px; }
   .m-count b { color:var(--royal); }
 
-  .m-tabbar { height:64px; background:rgba(255,255,255,.97); backdrop-filter:blur(12px); border-top:1px solid var(--line); display:flex; }
+  .m-tabbar { min-height:68px; background:rgba(255,255,255,.97); backdrop-filter:blur(12px); border-top:1px solid var(--line); display:flex; padding-bottom:env(safe-area-inset-bottom); }
   .m-tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#9aa4b4; cursor:pointer; font-size:11px; font-weight:700; }
   .m-tab svg { width:23px; height:23px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .m-tab.on { color:var(--royal); }
@@ -96,6 +107,8 @@
   .m-empty { text-align:center; padding:34px 18px; color:#9aa4b4; }
   .m-empty .ill { width:58px; height:58px; margin:0 auto 11px; border-radius:18px; background:var(--ivory-2); display:grid; place-items:center; color:var(--gold); }
   .m-empty .ill svg { width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .m-empty { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .m-row > .m-btn { flex:0 0 auto; min-width:104px; }
 
   .sheet-mask { position:absolute; inset:0; background:rgba(17,30,54,.42); opacity:0; pointer-events:none; transition:.22s; z-index:30; }
   .sheet-mask.show { opacity:1; pointer-events:auto; }
@@ -113,19 +126,28 @@
   .tl-item .tt { font-size:12.5px; color:var(--t1); font-weight:600; }
   .tl-item .td { font-size:11px; color:var(--t2); margin-top:2px; }
   .sheet-actions { display:flex; gap:9px; margin-top:4px; }
-  .m-btn { border:0; font-family:var(--font); font-size:13px; font-weight:700; padding:9px 15px; border-radius:12px; cursor:pointer; background:linear-gradient(135deg,var(--royal),var(--royal-d) 60%,#1f3c92); color:#fff; box-shadow:0 8px 18px rgba(44,82,201,.26); }
+  .m-btn { min-height:44px; border:0; font-family:var(--font); font-size:13px; font-weight:700; padding:11px 18px; border-radius:12px; cursor:pointer; background:linear-gradient(135deg,var(--royal),var(--royal-d) 60%,#1f3c92); color:#fff; box-shadow:0 8px 18px rgba(44,82,201,.26); transition:transform .15s,filter .15s; white-space:nowrap; }
+  .match-primary { min-width:112px; min-height:44px; padding:0 18px; display:inline-flex; align-items:center; justify-content:center; gap:7px; border-radius:12px; font-size:13px; font-weight:800; }
+  .match-primary svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; }
+  .m-btn:hover { filter:brightness(1.06); transform:translateY(-1px); }
   .m-btn.ghost { background:#fff; color:var(--royal); border:1px solid #cdd7ee; box-shadow:none; }
   .m-btn.gold { background:linear-gradient(135deg,var(--gold),#d9bd86); color:#1a1305; box-shadow:0 8px 18px rgba(199,161,90,.3); }
   .m-btn.block { width:100%; padding:12px; font-size:15px; }
+  .m-note { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; padding:12px 10px; border-top:1px solid var(--line); color:var(--t2); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .m-note .ill { width:34px; height:34px; flex:0 0 34px; border-radius:10px; background:var(--gold-s); display:grid; place-items:center; color:var(--gold); }
+  .m-note .ill svg { width:18px; height:18px; }
 
   /* —— 登录页 —— */
-  .login { flex:1; display:flex; flex-direction:column; background: radial-gradient(130% 70% at 80% 0%, rgba(199,161,90,.32), transparent 55%), linear-gradient(170deg, var(--ink) 0%, #14233f 100%); position:relative; overflow:hidden; }
+  .login { flex:1; display:flex; flex-direction:column; background:#f4f6fa; position:relative; overflow-y:auto; color:var(--ink); }
+  .login-native { height:64px; flex:0 0 64px; background:#fff; display:flex; align-items:center; justify-content:center; color:#111; font-size:15px; font-weight:600; }
+  .login-native .capsule { position:absolute; right:13px; top:15px; width:86px; height:34px; border:1px solid #d8d8d8; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:16px; }
   .login::after { content:""; position:absolute; left:-60px; bottom:-80px; width:260px; height:260px; border-radius:50%; background:radial-gradient(circle, rgba(44,82,201,.25), transparent 70%); }
-  .login-top { padding:60px 28px 20px; color:#fff; position:relative; z-index:2; }
-  .login-logo { width:56px; height:56px; border-radius:16px; background:linear-gradient(140deg,var(--gold),#d9bd86); display:grid; place-items:center; color:#1a1305; font-size:25px; font-weight:900; box-shadow:0 10px 26px rgba(199,161,90,.4); }
-  .login-brand { font-size:23px; font-weight:800; margin-top:16px; letter-spacing:.5px; }
-  .login-slogan { font-size:12.5px; color:#b9c4d8; margin-top:7px; line-height:1.6; }
-  .login-card { margin:12px 22px 0; background:var(--ivory); border-radius:22px; padding:20px 18px; box-shadow:0 18px 50px rgba(0,0,0,.25); position:relative; z-index:2; }
+  .login-top { min-height:238px; padding:58px 36px 34px; color:#fff; position:relative; background:radial-gradient(90% 105% at 88% 92%,rgba(222,165,53,.88),transparent 56%),linear-gradient(145deg,#152443,#435069); }
+  .login-hero-glass { height:124px; border:1px solid rgba(255,255,255,.25); border-radius:17px; background:rgba(255,255,255,.08); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .login-logo { display:none; }
+  .login-brand { font-size:24px; font-weight:800; letter-spacing:2px; white-space:nowrap; }
+  .login-slogan { font-size:12px; color:rgba(255,255,255,.91); margin-top:14px; line-height:1; white-space:nowrap; }
+  .login-card { margin:12px 22px 0; background:var(--ivory); border-radius:22px; padding:22px 20px; box-shadow:0 18px 50px rgba(0,0,0,.25); position:relative; z-index:2; }
   .login-tabs { display:flex; gap:6px; background:#eceae1; border-radius:12px; padding:4px; margin-bottom:16px; }
   .login-tabs button { flex:1; border:0; background:transparent; color:#6a768c; font-size:13px; font-weight:700; padding:9px; border-radius:9px; cursor:pointer; font-family:var(--font); }
   .login-tabs button.on { background:#fff; color:var(--ink); box-shadow:0 2px 8px rgba(17,30,54,.08); }
@@ -139,9 +161,29 @@
   .login-row .forget { color:var(--royal); font-weight:700; }
   .login-quick { margin-top:14px; border-top:1px dashed var(--line); padding-top:13px; }
   .login-quick .ql { font-size:11.5px; color:var(--t2); margin-bottom:8px; }
-  .login-quick .qrow { display:flex; gap:7px; flex-wrap:wrap; }
-  .login-quick .qbtn { font-size:11px; font-weight:700; padding:6px 11px; border-radius:999px; border:1px solid #cdd7ee; color:var(--royal); background:#fff; cursor:pointer; }
-  .login-foot { text-align:center; font-size:11px; color:#9aa4b4; margin-top:14px; line-height:1.7; position:relative; z-index:2; padding:0 22px; }
+  .login-quick .qrow { display:flex; gap:7px; flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; }
+  .login-quick .qbtn { flex:0 0 auto; font-size:11px; font-weight:700; padding:7px 11px; border-radius:999px; border:1px solid #cdd7ee; color:var(--royal); background:#fff; cursor:pointer; white-space:nowrap; }
+  .login-foot { text-align:center; font-size:11px; color:#9aa4b4; margin-top:14px; line-height:1.7; position:relative; z-index:2; padding:0 22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .login-flow { margin:26px 18px 0; padding:24px 20px 21px; background:#fff; border-radius:16px; position:relative; box-shadow:0 7px 18px rgba(21,36,67,.06); }
+  .login-flow-title { font-size:15px; font-weight:800; color:var(--ink); margin-bottom:12px; }
+  .login-step { display:flex; align-items:center; gap:13px; min-height:58px; border-top:1px solid #e1e6ef; }
+  .login-step:first-of-type { border-top:0; }
+  .login-step i { width:28px; height:28px; flex:0 0 28px; border-radius:50%; display:grid; place-items:center; color:#fff; background:#3f75df; font-size:12px; font-style:normal; font-weight:800; }
+  .login-step:first-of-type i,.login-step:last-of-type i { background:#ebb13e; }
+  .login-step b { font-size:12.5px; color:var(--t1); white-space:nowrap; }
+  .login-step span { margin-left:auto; color:var(--t2); font-size:10.5px; white-space:nowrap; }
+  .wechat-login { margin:18px 18px 0; position:relative; }
+  .wechat-login .m-btn.gold { height:50px; border-radius:25px; background:linear-gradient(100deg,#e4a92e,#f0c466); color:#fff; }
+  .login-divider { display:flex; align-items:center; gap:9px; margin:14px 0 12px; color:var(--t2); font-size:10.5px; }
+  .login-divider::before,.login-divider::after { content:""; height:1px; background:var(--line); flex:1; }
+  .consent { display:flex; align-items:center; justify-content:center; gap:3px; min-height:48px; color:#78869e; font-size:10.5px; white-space:nowrap; cursor:pointer; }
+  .consent-box { width:17px; height:17px; margin-right:5px; border:2px solid #718096; border-radius:4px; background:var(--royal); border-color:var(--royal); color:#fff; display:grid; place-items:center; font-size:11px; font-weight:900; }
+  .consent a { color:var(--gold-s); }
+  .compliance { text-align:center; color:#78869e; font-size:10.5px; white-space:nowrap; padding:7px 12px 20px; }
+  .login-switch { margin:12px auto 0; border:0; background:transparent; color:var(--gold-s); font:700 11.5px var(--font); cursor:pointer; display:block; padding:8px 14px; white-space:nowrap; }
+  .code-login-card { margin:26px 18px 0; padding:24px 20px; background:#fff; border-radius:16px; position:relative; box-shadow:0 7px 18px rgba(21,36,67,.06); }
+  .code-login-title { color:var(--ink); font-size:16px; font-weight:800; margin-bottom:5px; }
+  .code-login-sub { color:var(--t2); font-size:10.5px; margin-bottom:14px; white-space:nowrap; }
 
   /* —— Web 管理端 —— */
   .web { width:100%; max-width:1180px; height:824px; background:#fff; border-radius:14px; overflow:hidden; display:flex; box-shadow:0 30px 70px -24px rgba(15,23,42,.5); border:1px solid #25324a; }
@@ -150,9 +192,9 @@
   .web-logo .lg { width:34px; height:34px; border-radius:10px; background:linear-gradient(140deg,var(--gold),#d9bd86); display:grid; place-items:center; color:#1a1305; font-weight:900; font-size:17px; }
   .web-logo .nm { color:#fff; font-weight:800; font-size:15px; }
   .web-logo .sb { font-size:10.5px; color:#8ea0c0; }
-  .web-nav { padding:10px 10px 16px; }
-  .nav-item { display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; color:#c4cee0; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:3px; transition:.15s; position:relative; }
-  .nav-item svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .web-nav { padding:14px 12px 20px; }
+  .nav-item { display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 14px; border-radius:11px; color:#c4cee0; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:5px; transition:.15s; position:relative; }
+  .nav-item svg { width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
   .nav-item:hover { background:rgba(255,255,255,.06); color:#fff; }
   .nav-item.on { background:rgba(199,161,90,.16); color:#fff; }
   .nav-item.on::before { content:""; position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:3px; background:var(--gold); }
@@ -169,7 +211,7 @@
   .web-user .un { font-size:13px; font-weight:700; color:var(--t1); }
   .web-user .ur { font-size:11px; color:var(--t2); }
   .web-content { flex:1; overflow-y:auto; padding:26px 26px 30px; background:#F6F8FC; }
-  .pg-head { display:flex; align-items:flex-end; margin-bottom:24px; }
+  .pg-head { display:flex; align-items:flex-end; margin-bottom:28px; padding-bottom:4px; }
   .pg-title { font-size:21px; font-weight:800; color:var(--ink); }
   .pg-desc { font-size:12.5px; color:var(--t2); margin-top:5px; }
   .w-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:22px; margin-bottom:24px; }
@@ -178,11 +220,11 @@
   .w-stat .v.g { color:var(--gold); }
   .w-stat .l { font-size:12.5px; color:var(--t2); margin-top:5px; }
   .w-grid2 { display:grid; grid-template-columns:1.6fr 1fr; gap:22px; }
-  .w-card { background:var(--w-card); border:1px solid var(--w-line2); border-radius:15px; padding:18px 20px; box-shadow:0 4px 14px rgba(17,30,54,.04); margin-bottom:22px; }
-  .w-card-h { display:flex; align-items:center; margin-bottom:14px; }
+  .w-card { background:var(--w-card); border:1px solid var(--w-line2); border-radius:15px; padding:22px 24px; box-shadow:0 4px 14px rgba(17,30,54,.04); margin-bottom:24px; }
+  .w-card-h { display:flex; align-items:center; margin-bottom:18px; min-height:24px; }
   .w-card-h b { font-size:15px; font-weight:800; color:var(--t1); }
   .w-card-h .more { margin-left:auto; font-size:12.5px; color:var(--royal); font-weight:700; cursor:pointer; }
-  .w-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--w-line); }
+  .w-row { display:flex; align-items:center; gap:14px; min-height:64px; padding:14px 0; border-top:1px solid var(--w-line); }
   .w-row:first-of-type { border-top:0; }
   .w-ava { width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,#eef2fb,#e2e9f7); color:var(--royal); display:grid; place-items:center; font-weight:800; font-size:14px; flex-shrink:0; }
   .w-row .main { flex:1; min-width:0; }
@@ -301,6 +343,7 @@ const ICON = {
   sms:'<path d="M4 5h16v11H9l-4 3.5V16H4z"/><path d="M8 9h8M8 12h5"/>',
   black:'<circle cx="12" cy="12" r="8"/><path d="M6 6l12 12"/>',
   market:'<path d="M4 19V9M10 19V5M16 19v-7M22 19h-2"/>',
+  invite:'<path d="M12 5v14M5 12h14"/>',
   channel:'<circle cx="7" cy="12" r="3"/><circle cx="17" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/><path d="M9.6 11l5.4-3M9.6 13l5.4 3"/>',
 };
 function svg(ic){ return `<svg viewBox="0 0 24 24">${ICON[ic]||ICON.doc}</svg>`; }
@@ -308,31 +351,31 @@ function chip(ic,cls){ return `<div class="m-chip ${cls}" style="width:40px;heig
 
 /* ===== 7 角色配置 ===== */
 const ROLES = {
-  customer:{ label:'客户', tag:'CUSTOMER', ut:'CUSTOMER', color:'#3aa37e', web:false,
+  customer:{ label:'客户', tag:'客户', ut:'个人用户', color:'#3aa37e', web:false,
     miniTabs:[['home','首页'],['match','智能匹配'],['report','我的报告'],['order','服务单'],['mine','我的']],
     miniHome:'customer' },
-  channel:{ label:'渠道合作方', tag:'CHANNEL', ut:'CHANNEL', color:'#7a5cc0', web:true,
-    miniTabs:[['home','首页'],['product','我的产品'],['client','录入客户'],['mine','我的']],
+  channel:{ label:'渠道合作方', tag:'渠道合作方', ut:'合作渠道', color:'#7a5cc0', web:true,
+    miniTabs:[['home','首页'],['product','录入产品'],['client','录入线索'],['mine','我的']],
     miniHome:'channel',
     webMenus:[['workbench','工作台','work'],['myleads','我的线索','leads'],['myclients','我的客户','client'],['myproduct','我的产品','product'],['myreport','客户分析报告','report']] },
-  adviser:{ label:'顾问', tag:'ADVISER', ut:'STAFF', color:'#2C52C9', web:true,
-    miniTabs:[['home','首页'],['match','智能匹配'],['report','我的报告'],['order','服务单'],['mine','我的']],
+  adviser:{ label:'顾问', tag:'顾问', ut:'公司员工', color:'#2C52C9', web:true,
+    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['report','我的报告'],['mine','我的']],
     miniHome:'adviser',
     webMenus:[['workbench','工作台','work'],['myclients','我的客户','client'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['myreport','我的报告','report'],['myleads','我录入的线索','leads'],['approval','审批中心','approval'],['market','营销','market']] },
-  deptmgr:{ label:'部门经理', tag:'DEPT_MANAGER', ut:'STAFF', color:'#C7A15A', web:true,
-    miniTabs:[['home','首页'],['match','智能匹配'],['report','我的报告'],['order','服务单'],['mine','我的']],
+  deptmgr:{ label:'部门经理', tag:'部门经理', ut:'公司员工', color:'#C7A15A', web:true,
+    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['report','我的报告'],['mine','我的']],
     miniHome:'deptmgr',
     webMenus:[['workbench','工作台','work'],['myclients','我的客户','client'],['team','团队客户','team'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['myreport','我的报告','report'],['myleads','我录入的线索','leads'],['assign','客户分配','assign'],['approval','审批中心','approval'],['market','营销','market']] },
-  boss:{ label:'老板', tag:'BOSS', ut:'STAFF', color:'#B5443B', web:true,
-    miniTabs:[['home','首页'],['match','智能匹配'],['report','我的报告'],['order','服务单'],['mine','我的']],
+  boss:{ label:'老板', tag:'老板', ut:'公司管理者', color:'#B5443B', web:true,
+    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['match','智能匹配'],['report','我的报告'],['mine','我的']],
     miniHome:'boss',
     webMenus:[['workbench','工作台','work'],['clients','客户总览','client'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['report','报告中心','report'],['approval','审批中心','approval'],['product','产品管理','product'],['channel','渠道管理','channel'],['rule','规则模板','rule'],['template','报告模板','template'],['sms','短信中心','sms'],['blacklist','黑名单','black'],['org','组织管理','org'],['market','营销审批','market']] },
-  operator:{ label:'运营管理员', tag:'OPERATOR', ut:'STAFF', color:'#2E8B6B', web:true,
-    miniTabs:[['home','首页'],['match','智能匹配'],['report','我的报告'],['order','服务单'],['mine','我的']],
+  operator:{ label:'运营管理员', tag:'运营管理员', ut:'公司员工', color:'#2E8B6B', web:true,
+    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['approval','审批中心'],['mine','我的']],
     miniHome:'operator',
     webMenus:[['workbench','工作台','work'],['myclients','我的客户','client'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['myreport','我的报告','report'],['myleads','我录入的线索','leads'],['product','产品管理','product'],['approval','审批中心','approval'],['rule','规则模板','rule'],['template','报告模板','template'],['sms','短信中心','sms'],['audit','审计中心','audit'],['market','营销','market']] },
-  super:{ label:'超级管理员', tag:'SUPER_ADMIN', ut:'STAFF', color:'#1B2C4D', web:true,
-    miniTabs:[['home','首页'],['match','智能匹配'],['report','我的报告'],['order','服务单'],['mine','我的']],
+  super:{ label:'超级管理员', tag:'超级管理员', ut:'系统管理员', color:'#1B2C4D', web:true,
+    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['match','智能匹配'],['report','我的报告'],['mine','我的']],
     miniHome:'super',
     webMenus:[['workbench','工作台','work'],['clients','客户总览','client'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['report','报告中心','report'],['approval','审批中心','approval'],['product','产品管理','product'],['channel','渠道管理','channel'],['rule','规则模板','rule'],['template','报告模板','template'],['sms','短信中心','sms'],['blacklist','黑名单','black'],['org','组织管理','org'],['perm','角色菜单权限','perm'],['audit','审计中心','audit'],['debug','调试中心','debug'],['market','营销','market']] },
 };
@@ -390,11 +433,11 @@ function renderMobile(role){
   else if(STATE.tab[role]==='match'){ body = renderMatch(); }
   else if(STATE.tab[role]==='report'){ body = renderReport(); }
   else if(STATE.tab[role]==='order'){ body = renderOrder(); }
-  else if(STATE.tab[role]==='product'){ body = renderChannelProduct(); }
+  else if(STATE.tab[role]==='product'){ body = role==='channel' ? renderChannelProduct() : renderStaffProduct(role); }
   else if(STATE.tab[role]==='client'){ body = renderLeadEntry(); }
   else { body = renderHome(role); }
   const tabs = R.miniTabs.map(t=>`<div class="m-tab ${STATE.tab[role]===t[0]?'on':''}" data-mtab="${t[0]}">${svg(tabIcon(t[0]))}<span>${t[1]}</span></div>`).join('');
-  return `<div class="m-scroll"><div class="m-head"><div class="hi">${role==='customer'?'您好':'下午好'}</div><div class="nm">${R.label}</div><div class="sub">${homeSub(role)}</div><div class="role-pill">${svg('shield')} ${R.tag} · ${R.ut}</div></div><div class="m-body">${body}</div></div>` +
+  return `<div class="m-scroll"><div class="m-head"><div class="m-head-user"><div class="m-head-avatar" data-avatar-auth="1">${R.label[0]}</div><div><div class="hi">${role==='customer'?'您好':'下午好'}</div><div class="nm">${R.label}</div><div class="avatar-action" data-avatar-auth="1">授权使用微信头像</div></div><div class="head-msg" data-msgopen="1" aria-label="消息中心">${svg('bell')}<div class="dot"></div></div></div><div class="sub">${homeSub(role)}</div><div class="role-pill">${svg('shield')} ${R.tag} · ${R.ut}</div></div><div class="m-body">${body}</div></div>` +
     `<div class="m-tabbar">${tabs}</div>` + sheetHtml();
 }
 function tabIcon(t){ return {home:'home',match:'match',report:'report',order:'order',mine:'user',product:'product',client:'leads'}[t]||'home'; }
@@ -418,6 +461,7 @@ function renderHome(role){
       ${mqk('report','我的报告','gold')}
       ${mqk('order','服务单','ink')}
       ${mqk('user','我的顾问','green')}
+      ${mqk('invite','邀请用户','royal')}
     </div>
     <div class="m-card"><div class="m-card-h"><b>为您匹配的顾问</b></div>
       <div class="m-row"><div class="m-ava">李</div><div class="main"><div class="t1">李顾问</div><div class="t2">企业融资顾问 · 服务中</div></div><div class="m-tag ok">服务中</div></div>
@@ -434,6 +478,7 @@ function renderHome(role){
       ${mqk('product','我的产品','gold')}
       ${mqk('client','录入客户','ink')}
       ${mqk('report','客户分析报告','green')}
+      ${mqk('invite','邀请用户','royal')}
     </div>
     <div class="m-card"><div class="m-card-h"><b>我的线索概览</b><div class="more">查看</div></div>
       <div class="m-row"><div class="main"><div class="t1">瑞峰智能制造</div><div class="t2">官网留资 · 待分配</div></div><div class="m-tag warn">待分配</div></div>
@@ -452,27 +497,28 @@ function renderHome(role){
   };
   const s = statMap[role];
   let quick = '';
-  if(role==='adviser') quick = `${mqk('client','我的客户','royal')}${mqk('match','智能匹配','gold')}${mqk('order','服务工单','ink')}${mqk('approval','审批中心','green')}`;
-  if(role==='deptmgr') quick = `${mqk('team','团队客户','royal')}${mqk('assign','客户分配','gold')}${mqk('approval','审批中心','ink')}${mqk('seapool','客户公海','green')}`;
-  if(role==='boss') quick = `${mqk('clients','客户总览','royal')}${mqk('report','报告中心','gold')}${mqk('approval','审批中心','ink')}${mqk('market','营销审批','green')}`;
-  if(role==='operator') quick = `${mqk('client','我的客户','royal')}${mqk('product','产品管理','gold')}${mqk('approval','审批中心','ink')}${mqk('sms','短信中心','green')}`;
-  if(role==='super') quick = `${mqk('org','组织管理','royal')}${mqk('perm','角色菜单权限','gold')}${mqk('debug','调试中心','ink')}${mqk('audit','审计中心','green')}`;
+  if(role==='adviser') quick = `${mqk('client','我的客户','royal')}${mqk('leads','录入线索','gold')}${mqk('product','录入产品','ink')}${mqk('match','智能匹配','green')}${mqk('invite','邀请用户','royal')}${mqk('audit','我的申请','ink')}`;
+  if(role==='deptmgr') quick = `${mqk('client','我的客户','royal')}${mqk('team','团队客户','gold')}${mqk('leads','录入线索','ink')}${mqk('product','录入产品','green')}${mqk('invite','邀请用户','royal')}${mqk('approval','审批中心','ink')}`;
+  if(role==='boss') quick = `${mqk('client','我的客户','royal')}${mqk('clients','客户总览','blue')}${mqk('leads','录入线索','gold')}${mqk('product','录入产品','ink')}${mqk('match','智能匹配','green')}${mqk('invite','邀请用户','royal')}${mqk('approval','审批中心','ink')}`;
+  if(role==='operator') quick = `${mqk('client','我的客户','royal')}${mqk('leads','录入线索','gold')}${mqk('product','录入产品','ink')}${mqk('invite','邀请用户','green')}${mqk('approval','审批中心','royal')}${mqk('sms','短信中心','ink')}`;
+  if(role==='super') quick = `${mqk('client','我的客户','royal')}${mqk('clients','客户总览','blue')}${mqk('leads','录入线索','gold')}${mqk('product','录入产品','ink')}${mqk('match','智能匹配','green')}${mqk('invite','邀请用户','royal')}${mqk('org','组织管理','ink')}${mqk('perm','权限管理','royal')}`;
   return `<div class="m-stat-row"><div class="m-stat"><div class="v">${s[0]}</div><div class="l">${s[1]}</div></div><div class="m-stat"><div class="v">${s[2]}</div><div class="l">${s[3]}</div></div></div>
     <div class="m-grid">${quick}</div>
-    <div class="m-card"><div class="m-card-h"><b>审批待办</b><div class="more">进入</div></div>${approvalRows(role)}</div>`;
+    <div class="m-card"><div class="m-card-h"><b>${role==='adviser'?'我的申请':'审批待办'}</b><div class="more">${role==='adviser'?'查看':'进入'}</div></div>${approvalRows(role)}</div>`;
 }
 function mqk(ic,label,cls){ return `<div class="m-qk" data-mqk="${ic}">${chip(ic,cls)}<div class="qt">${label}</div></div>`; }
 function approvalRows(role){
+  if(role==='adviser') return `<div class="m-row"><div class="main"><div class="t1">产品录入申请《企业经营贷》</div><div class="t2">已提交 · 等待审批</div></div><div class="m-tag warn">待审批</div></div>`;
   const list = APPROVALS[role]||[];
   if(!list.length) return `<div class="m-empty"><div class="ill">${svg('check')}</div>暂无待办审批</div>`;
   return list.map(a=>`<div class="m-row"><div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} · ${a.time}</div></div><div class="m-tag ${a.status}">${a.st}</div></div>`).join('');
 }
 
 /* ===== 移动端 通用页 ===== */
-function renderMatch(){ return `<div class="m-card"><div class="m-card-h"><b>智能匹配</b></div>
-  <div class="m-row"><div class="main"><div class="t1">匹配经营贷方案</div><div class="t2">基于资质与需求智能测算</div></div><div class="m-btn">开始匹配</div></div>
+function renderMatch(){ return `<div class="m-card"><div class="m-card-h"><b>智能匹配</b><div class="more">匹配记录</div></div>
+  <div class="m-row"><div class="main"><div class="t1">匹配经营贷方案</div><div class="t2">填写资质后获取适合的融资方案</div></div><button class="m-btn match-primary">${svg('match')}开始匹配</button></div>
   <div class="m-row"><div class="main"><div class="t1">经营诊断</div><div class="t2">融资健康度评估</div></div><div class="m-go">›</div></div></div>
-  <div class="m-empty"><div class="ill">${svg('match')}</div>匹配结果将以「客户 + 方案 + 时间」呈现，不含任何内部编码</div>`; }
+  <div class="m-empty"><div class="ill">${svg('match')}</div>匹配结果按客户、方案、时间展示</div>`; }
 function renderReport(){ return `<div class="m-card"><div class="m-card-h"><b>我的报告</b></div>
   <div class="m-row"><div class="main"><div class="t1">宏远科技 · 2026-09-09</div><div class="t2">初筛报告 · 已生成</div></div><div class="m-go">›</div></div>
   <div class="m-row"><div class="main"><div class="t1">恒通物流 · 2026-09-06</div><div class="t2">诊断报告 · 已生成</div></div><div class="m-go">›</div></div></div>`; }
@@ -482,16 +528,21 @@ function renderOrder(){ return `<div class="m-card"><div class="m-card-h"><b>服
 function renderChannelProduct(){ return `<div class="m-card"><div class="m-card-h"><b>我的产品</b><div class="more">录入</div></div>
   <div class="m-row"><div class="main"><div class="t1">企业经营贷</div><div class="t2">合作银行A · 最高¥200万</div></div><div class="m-tag ok">合作中</div></div>
   <div class="m-row"><div class="main"><div class="t1">供应链金融</div><div class="t2">合作银行B · 按日计息</div></div><div class="m-tag ok">合作中</div></div>
-  <div class="m-empty"><div class="ill">${svg('product')}</div>产品录入/删除需老板或超级管理员终审</div>`; }
+  <div class="m-note"><div class="ill">${svg('product')}</div><span>提交时自动查重，审批通过后生效</span></div></div>`; }
+function renderStaffProduct(role){ return `<div class="m-card"><div class="m-card-h"><b>录入产品</b><div class="more">新建</div></div>
+  <div class="m-row"><div class="main"><div class="t1">企业经营贷</div><div class="t2">本人录入 · 待审批</div></div><div class="m-tag warn">待审批</div></div>
+  <div class="m-row"><div class="main"><div class="t1">供应链金融</div><div class="t2">审批通过后生效</div></div><div class="m-tag info">审批中</div></div>
+  <div class="m-note"><div class="ill">${svg('product')}</div><span>提交后进入审批，审批通过才会生效</span></div></div>`; }
 function renderLeadEntry(){ return `<div class="m-card"><div class="m-card-h"><b>录入客户（线索）</b></div>
   <div class="login-field" style="margin:0"><label>企业名称</label><div class="login-field"><div class="box" style="padding:11px 13px;background:#fff;border:1px solid var(--line);border-radius:12px">输入企业全称</div></div></div>
   <button class="m-btn block" style="margin-top:14px">提交录入</button>
-  <div class="m-empty" style="padding:20px 0 0"><div class="ill">${svg('leads')}</div>提交后立即进入「我的线索」，待审批/通过/驳回均可见</div></div>`; }
+  <div class="m-empty" style="padding:20px 0 0"><div class="ill">${svg('leads')}</div>提交前自动校验手机号、身份证号和统一信用代码；提交后可查看处理状态</div></div>`; }
 function renderMine(role){
   return `<div class="m-card"><div class="m-card-h"><b>我的</b></div>
     <div class="m-row"><div class="m-ava">${ROLES[role].label[0]}</div><div class="main"><div class="t1">${ROLES[role].label}</div><div class="t2">${ROLES[role].tag} · ${ROLES[role].ut}</div></div></div>
     <div class="m-row" data-msgopen="1"><div class="main"><div class="t1">消息通知</div><div class="t2">${MESSAGES.filter(m=>m.unread).length} 条未读</div></div><div class="m-tag warn">${MESSAGES.filter(m=>m.unread).length}新</div></div>
-    <div class="m-row"><div class="main"><div class="t1">我的档案</div><div class="t2">查看与编辑</div></div><div class="m-go">›</div></div>
+    <div class="m-row"><div class="main"><div class="t1">我的档案</div><div class="t2">姓名、联系方式与身份信息</div></div><div class="m-go">›</div></div>
+    ${role!=='customer'?`<div class="m-row"><div class="main"><div class="t1">业务录入</div><div class="t2">录入线索 · 录入产品</div></div><div class="m-go">›</div></div>`:''}
     ${role==='customer'?`<div class="m-row"><div class="main"><div class="t1">我的服务顾问</div><div class="t2">李顾问（仅显示姓名）</div></div><div class="m-go">›</div></div>`:''}
     <div class="m-row"><div class="main"><div class="t1">设置</div><div class="t2">隐私 / 关于</div></div><div class="m-go">›</div></div>
   </div>`;
@@ -541,23 +592,24 @@ function sheetHtml(){
 
 /* ===== 登录页 ===== */
 function renderLogin(scope){
-  const mode = STATE.loginMode;
-  const quick = ROLE_ORDER.filter(r=> scope==='web'? ROLES[r].web : true).map(r=>`<div class="qbtn" data-qrole="${r}">${ROLES[r].label}</div>`).join('');
+  const isH5 = STATE.end==='h5';
+  const useCode = isH5 && STATE.loginMode==='code';
   return `<div class="login">
+    <div class="login-native">企业资金咨询<div class="capsule">•••　◎</div></div>
     <div class="login-top">
-      <div class="login-logo">企</div>
-      <div class="login-brand">企融通</div>
-      <div class="login-slogan">企业融资顾问服务平台<br>让每一笔融资，都有专属顾问</div>
+      <div class="login-hero-glass"><div class="login-brand">企业资金服务平台</div><div class="login-slogan">多银行产品匹配 · 经营数据分析</div></div>
     </div>
-    <div class="login-card">
-      <div class="login-tabs"><button class="${mode==='pwd'?'on':''}" data-lmode="pwd">密码登录</button><button class="${mode==='code'?'on':''}" data-lmode="code">验证码登录</button></div>
+    ${!useCode?`<div class="login-flow"><div class="login-flow-title">三步开启资金咨询</div>
+      <div class="login-step"><i>1</i><b>微信一键登录</b><span>自动创建客户档案</span></div>
+      <div class="login-step"><i>2</i><b>身份认证</b><span>企业或个人认证</span></div>
+      <div class="login-step"><i>3</i><b>智能匹配</b><span>获取匹配报告</span></div>
+    </div><div class="wechat-login"><button class="m-btn block gold">微信一键登录</button>${isH5?'<button class="login-switch" data-lmode="code">使用手机号验证码登录 ›</button>':''}</div>`:
+    `<div class="code-login-card"><div class="code-login-title">手机号验证码登录</div><div class="code-login-sub">未注册手机号验证后将自动创建客户档案</div>
       <div class="login-field"><label>手机号</label><div class="box">${svg('phone')}<input placeholder="请输入手机号"/></div></div>
-      <div class="login-field"><label>${mode==='pwd'?'密码':'短信验证码'}</label><div class="box">${svg('shield')}<input placeholder="${mode==='pwd'?'请输入密码':'请输入验证码'}"/>${mode==='code'?'<span class="code">获取验证码</span>':''}</div></div>
-      <div class="login-row"><label>${svg('check')} 记住我</label><span class="forget">忘记密码</span></div>
-      <button class="m-btn block gold">登 录</button>
-      <div class="login-quick"><div class="ql">快速体验角色（演示）</div><div class="qrow">${quick}</div></div>
-    </div>
-    <div class="login-foot">登录即代表同意《用户协议》《隐私政策》<br>企业融资顾问服务平台 · 与 App 同风格</div>
+      <div class="login-field"><label>短信验证码</label><div class="box">${svg('shield')}<input placeholder="请输入验证码"/><span class="code">获取验证码</span></div></div>
+      <button class="m-btn block gold">手机号登录</button><button class="login-switch" data-lmode="wx">‹ 返回微信登录</button></div>`}
+    <div class="consent"><span class="consent-box">✓</span><span>已阅读并同意</span><a>《用户协议》</a><span>和</span><a>《隐私政策》</a></div>
+    <div class="compliance">温馨提示：匹配结果仅供参考，不代表银行审批承诺</div>
   </div>`;
 }
 

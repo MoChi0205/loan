@@ -8,7 +8,7 @@
       <view class="hero-content">
         <view class="hero-glass">
           <text class="hero-title">企业资金服务平台</text>
-          <text class="hero-sub">多银行产品智能匹配 · 经营数据驱动准入分析</text>
+          <text class="hero-sub">多银行产品匹配 · 经营数据分析</text>
         </view>
       </view>
     </view>
@@ -35,13 +35,28 @@
       </view>
 
       <!-- 主 CTA -->
-      <AppButton class="cta-btn" variant="primary" size="lg" block :loading="loggingIn" @click="onStart">
+      <AppButton class="cta-btn" variant="primary" size="lg" block :loading="loggingIn" :disabled="!agreementChecked" @click="onStart">
         <AppIcon name="wechat" size="md" color="rgba(255,255,255,.95)" />
         <text class="cta-text">{{ loggingIn ? '正在登录…' : '微信一键登录' }}</text>
       </AppButton>
 
+      <view class="phone-login" v-if="isH5">
+        <view class="login-divider"><view /><text>或使用手机号</text><view /></view>
+        <view class="phone-row"><AppIcon name="phone" size="sm" /><input v-model="phone" type="number" maxlength="11" placeholder="请输入手机号" /></view>
+        <view class="phone-row code-row"><AppIcon name="shield" size="sm" /><input v-model="smsCode" type="number" maxlength="6" placeholder="请输入验证码" /><button class="code-button" @click="sendCode" :disabled="countdown > 0">{{ countdown ? `${countdown}s` : '获取验证码' }}</button></view>
+        <AppButton class="code-login-btn" variant="secondary" size="md" block :loading="codeLoggingIn" @click="codeLoginSubmit">手机号登录</AppButton>
+      </view>
+
+      <view class="agreement-row" @click="agreementChecked = !agreementChecked">
+        <view class="agreement-check" :class="{ checked: agreementChecked }"><text v-if="agreementChecked">✓</text></view>
+        <text class="agreement-copy">已阅读并同意</text>
+        <text class="agreement-link" @click.stop="showAgreement('用户协议')">《用户协议》</text>
+        <text class="agreement-copy">和</text>
+        <text class="agreement-link" @click.stop="showAgreement('隐私政策')">《隐私政策》</text>
+      </view>
+
       <!-- 合规声明 -->
-      <text class="foot-note">合规声明：匹配程度分析不构成任何银行通过承诺</text>
+      <text class="foot-note">温馨提示：匹配结果仅供参考，不代表银行审批承诺</text>
 
       <!-- H5 预览模式提示（仅 H5 浏览器显示，小程序端不渲染） -->
       <text class="h5-note" v-if="isH5">H5 预览模式：采用模拟登录（后端 wechat.mock），仅供本地联调</text>
@@ -74,7 +89,7 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { wxLogin, isH5Env } from '../../utils/wx';
-import { loginByWx, loginByCrm } from '../../api/auth';
+import { loginByWx, loginByCrm, loginByCode, sendLoginCode } from '../../api/auth';
 import { useUserStore } from '../../store/user';
 import { useThemeMode } from '../../theme';
 import {
@@ -97,11 +112,17 @@ const themeMode = useThemeMode();
 const isH5 = computed(() => isH5Env());
 
 const loggingIn = ref(false);
+const codeLoggingIn = ref(false);
+const phone = ref('');
+const smsCode = ref('');
+const countdown = ref(0);
+const agreementChecked = ref(true);
+let countdownTimer;
 
 const flow = [
-  { title: '微信一键登录', desc: '授权获取 openid，自动创建客户档案' },
-  { title: '身份认证', desc: '企业营业执照 / 个人实名认证（二选一）' },
-  { title: '智能匹配', desc: '提交经营事实，获取匹配评级与报告' },
+  { title: '微信一键登录', desc: '微信授权后自动创建客户档案' },
+  { title: '身份认证', desc: '选择企业认证或个人认证' },
+  { title: '智能匹配', desc: '完善资料后获取匹配报告' },
 ];
 
 /* ---------- 开发模式角色切换 ---------- */
@@ -189,6 +210,7 @@ function jumpHome() {
 
 async function doLogin() {
   if (loggingIn.value) return;
+  if (!ensureAgreement()) return;
   loggingIn.value = true;
   try {
     const code = await wxLogin();
@@ -226,6 +248,35 @@ async function doLogin() {
 
 function onStart() {
   doLogin();
+}
+
+async function sendCode() {
+  if (!ensureAgreement()) return;
+  if (!/^1\d{10}$/.test(phone.value)) return uni.showToast({ title: '请输入正确手机号', icon: 'none' });
+  await sendLoginCode(phone.value); countdown.value = 60;
+  countdownTimer = setInterval(() => { countdown.value -= 1; if (countdown.value <= 0) clearInterval(countdownTimer); }, 1000);
+  uni.showToast({ title: '验证码已发送', icon: 'none' });
+}
+async function codeLoginSubmit() {
+  if (!ensureAgreement()) return;
+  if (!phone.value || !smsCode.value) return uni.showToast({ title: '请输入手机号和验证码', icon: 'none' });
+  codeLoggingIn.value = true;
+  try { const data = await loginByCode(phone.value, smsCode.value, getPendingInviteCode()); store.setToken(data.token); store.setUser(data.user); clearPendingInviteCode(); jumpHome(); }
+  catch (e) { uni.showToast({ title: e.message || '验证码登录失败', icon: 'none' }); }
+  finally { codeLoggingIn.value = false; }
+}
+
+function ensureAgreement() {
+  if (agreementChecked.value) return true;
+  uni.showToast({ title: '请先阅读并同意用户协议与隐私政策', icon: 'none' });
+  return false;
+}
+
+function showAgreement(title) {
+  const content = title === '隐私政策'
+    ? '我们仅在提供登录、身份认证和资金咨询服务所必需的范围内处理您的信息，并依法保护您的个人信息安全。'
+    : '登录及使用本服务即表示您接受平台服务规则。匹配分析仅供参考，不构成任何资金机构审批或放款承诺。';
+  uni.showModal({ title, content, showCancel: false, confirmText: '我知道了' });
 }
 
 </script>
@@ -311,7 +362,8 @@ function onStart() {
   color:rgba(255,255,255,.88);
   line-height:1.65;
   letter-spacing:1rpx;
-  font-weight:500
+  font-weight:500;
+  white-space:nowrap
 }
 .main-body{
   padding:0 40rpx 72rpx;
@@ -406,7 +458,8 @@ function onStart() {
   margin-top:12rpx;
   font-size:25rpx;
   color:var(--text-secondary);
-  line-height:1.6
+  line-height:1.6;
+  white-space:nowrap
 }
 .cta-btn{ margin-top:28rpx; gap:12rpx; }
 .cta-icon{
@@ -415,13 +468,29 @@ function onStart() {
 .cta-text{
   letter-spacing:2rpx
 }
+.phone-login{ margin-top:28rpx; }
+.login-divider{ display:flex; align-items:center; gap:20rpx; margin:30rpx 0 24rpx; color:var(--text-secondary); font-size:23rpx; }
+.login-divider view{ flex:1; height:1rpx; background:var(--line); }
+.phone-row{ display:flex; align-items:center; gap:18rpx; min-height:92rpx; margin-bottom:20rpx; padding:0 26rpx; background:var(--bg-card); border:1rpx solid var(--line); border-radius:var(--radius-md); box-shadow:var(--shadow-sm); }
+.phone-row input{ flex:1; min-width:0; height:92rpx; font-size:28rpx; color:var(--text-primary); }
+.code-button{ flex-shrink:0; margin:0; padding:0 0 0 20rpx; border:0; border-left:1rpx solid var(--line); border-radius:0; background:transparent; color:var(--brand-deep); font-size:25rpx; font-weight:700; line-height:44rpx; }
+.code-button::after{ border:0; }
+.code-button[disabled]{ color:var(--text-tertiary); background:transparent; }
+.code-login-btn{ margin-top:4rpx; }
+.agreement-row{ display:flex; align-items:center; justify-content:center; min-height:76rpx; margin-top:18rpx; white-space:nowrap; cursor:pointer; }
+.agreement-check{ width:34rpx; height:34rpx; flex:0 0 34rpx; margin-right:12rpx; border:3rpx solid #718096; border-radius:8rpx; display:flex; align-items:center; justify-content:center; box-sizing:border-box; background:#fff; color:#fff; font-size:22rpx; font-weight:800; line-height:1; box-shadow:0 0 0 2rpx rgba(113,128,150,.10); }
+.agreement-check.checked{ background:var(--brand-deep, #2f5bd3); border-color:var(--brand-deep, #2f5bd3); box-shadow:0 0 0 3rpx rgba(47,91,211,.14); }
+.agreement-copy,.agreement-link{ font-size:21rpx; line-height:1; }
+.agreement-copy{ color:var(--text-secondary); }
+.agreement-link{ color:var(--brand-deep); font-weight:600; }
 .foot-note{
   display:block;
   margin-top:36rpx;
   text-align:center;
   font-size:22rpx;
   color:var(--text-secondary);
-  line-height:1.6
+  line-height:1.6;
+  white-space:nowrap
 }
 .h5-note{
   display:block;

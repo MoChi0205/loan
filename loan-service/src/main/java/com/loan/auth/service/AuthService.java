@@ -187,6 +187,37 @@ public class AuthService {
         return response;
     }
 
+    /** 手机验证码登录：员工或渠道账号按手机号登录。 */
+    public LoginResponse loginByPhoneCode(String phone, String code) {
+        if (!StringUtils.hasText(phone) || !StringUtils.hasText(code)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "手机号与验证码必填");
+        }
+        if (!smsService.verifyCode(phone, code)) {
+            throw new BusinessException(ResultCode.CAPTCHA_ERROR, "验证码错误或已过期");
+        }
+        String hash = sha256(phone);
+        Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getPhoneHash, hash).last("limit 1"));
+        if (staff != null) {
+            if (!"ACTIVE".equalsIgnoreCase(staff.getStatus())) throw new BusinessException(ResultCode.FORBIDDEN, "员工账号已停用");
+            LoanUser user = buildStaffUser(staff);
+            return issue(user);
+        }
+        ChannelUser channel = channelUserMapper.selectOne(new LambdaQueryWrapper<ChannelUser>().eq(ChannelUser::getPhoneHash, hash).last("limit 1"));
+        if (channel != null) {
+            if (!"ACTIVE".equalsIgnoreCase(channel.getStatus())) throw new BusinessException(ResultCode.FORBIDDEN, "渠道账号已停用");
+            LoanUser user = new LoanUser(); user.setUserId(channel.getId()); user.setUserNo(hash); user.setPhone(phone);
+            user.setName(channel.getName()); user.setUserType(LoanUser.TYPE_CHANNEL); user.setBankChannelId(channel.getBankChannelId());
+            return issue(user);
+        }
+        throw new BusinessException(ResultCode.DATA_NOT_FOUND, "手机号未绑定员工或渠道账号");
+    }
+
+    private LoginResponse issue(LoanUser user) {
+        String token = jwtService.generateToken(user.getUserId(), user.getUserType(), user.getUserNo(), user.getRoleCode());
+        saveSession(user.getUserId(), user);
+        LoginResponse response = new LoginResponse(); response.setToken(token); response.setExpireMillis(86400000L); response.setUser(user); return response;
+    }
+
     /**
      * 登出：删除 Redis 会话（踢下线）。
      *

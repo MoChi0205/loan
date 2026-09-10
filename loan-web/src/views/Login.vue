@@ -70,7 +70,7 @@
             </el-input>
           </el-form-item>
 
-          <el-form-item prop="password">
+          <el-form-item v-if="loginType === 'password'" prop="password">
             <el-input
               v-model="form.password"
               type="password"
@@ -83,6 +83,8 @@
               </template>
             </el-input>
           </el-form-item>
+          <el-form-item v-else prop="code"><el-input v-model="form.code" placeholder="短信验证码"><template #append><el-button :disabled="codeCountdown > 0" @click="sendCode">{{ codeCountdown ? `${codeCountdown}s` : '获取验证码' }}</el-button></template></el-input></el-form-item>
+          <div class="login-type-tabs"><button type="button" @click="loginType='password'">密码登录</button><button type="button" @click="loginType='code'">验证码登录</button><button type="button" @click="forgotPassword">忘记密码</button></div>
 
           <el-button type="primary" size="large" class="login-btn" :loading="loading" native-type="submit">
             登 录
@@ -113,7 +115,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { sceneries } from '@/assets/login-bg';
 import { useUserStore } from '@/store/user';
-import { channelLogin as channelLoginApi } from '@/api/auth';
+import { channelLogin as channelLoginApi, codeLogin, sendLoginCode } from '@/api/auth';
 import { KEYS, getStorage, setStorage, removeStorage } from '@/utils/storage';
 import { getTheme } from '@/theme';
 import AppIcon from '@/components/AppIcon.vue';
@@ -126,9 +128,11 @@ const remember = ref(false);
 
 /** 登录模式：staff 员工 SSO 模拟 / channel 渠道账号（T11/D21 渠道沙箱） */
 const mode = ref('staff');
+const loginType = ref('password');
+const codeCountdown = ref(0);
 
 /** 登录表单（阶段一演示；正式接入 RSA + SSO 走 /api/auth/login） */
-const form = reactive({ username: '', password: '' });
+const form = reactive({ username: '', password: '', code: '' });
 
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -178,7 +182,8 @@ async function onLogin() {
   await formRef.value.validate();
   loading.value = true;
   try {
-    if (mode.value === 'channel') {
+    if (loginType.value === 'code') { const res = await codeLogin({ phone: form.username, code: form.code }); userStore.applyLogin(res); }
+    else if (mode.value === 'channel') {
       // 渠道登录：阶段一模拟（固定传约定模拟串，后端旁路 RSA+BCrypt，T11/D21；正式接入改为 RSA 加密密码）
       const res = await channelLoginApi({ phone: form.username, password: 'loan-sim-pwd' });
       userStore.applyLogin(res);
@@ -199,6 +204,8 @@ async function onLogin() {
     loading.value = false;
   }
 }
+async function sendCode() { if (!/^1\d{10}$/.test(form.username)) return ElMessage.warning('请输入正确手机号'); await sendLoginCode(form.username); codeCountdown.value = 60; const t=setInterval(()=>{codeCountdown.value--;if(codeCountdown.value<=0)clearInterval(t)},1000); ElMessage.success('验证码已发送'); }
+function forgotPassword() { loginType.value='code'; ElMessage.info('请使用手机号验证码登录'); }
 
 onMounted(() => {
   const saved = getStorage(KEYS.REMEMBER_USERNAME);
