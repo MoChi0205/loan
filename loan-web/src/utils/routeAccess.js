@@ -9,6 +9,9 @@ const LAYOUT_COMMON_PATHS = new Set(['/workbench', '/403']);
 const ROUTE_PARENT = Object.freeze({
   '/channel-config-wizard': '/channel-config',
   '/report/overview': '/report/center',
+  '/report/center': '/report/center',
+  '/report/trend': '/report/trend',
+  '/report/screening': '/report/screening',
 });
 
 /** 把菜单树扁平化为不带 query 的 path 集合。 */

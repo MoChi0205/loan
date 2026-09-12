@@ -126,6 +126,17 @@ public class OrgService {
                 parent.getChildren().add(node);
             }
         }
+        // 菜单父级仅用于分组：没有任何已授权子项的父级不返回，避免空分组泄露。
+        roots.removeIf(node -> node.getParentId() == null
+                && node.getCode() != null
+                && node.getCode().startsWith("/domain/")
+                && (node.getChildren() == null || node.getChildren().isEmpty()));
+        roots.sort(java.util.Comparator.comparing(MenuNodeVO::getSort, java.util.Comparator.nullsLast(Integer::compareTo)));
+        roots.forEach(node -> {
+            if (node.getChildren() != null) {
+                node.getChildren().sort(java.util.Comparator.comparing(MenuNodeVO::getSort, java.util.Comparator.nullsLast(Integer::compareTo)));
+            }
+        });
         return roots;
     }
 
