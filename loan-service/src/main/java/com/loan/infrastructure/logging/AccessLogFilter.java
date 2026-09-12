@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
+import org.springframework.web.util.ContentCachingRequestWrapper;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -42,6 +43,8 @@ public class AccessLogFilter extends OncePerRequestFilter {
 
     /** 超过此大小的响应体不解析业务 code（8KB） */
     private static final int MAX_BODY = 8 * 1024;
+    /** 请求/响应日志摘要上限，避免大文件和批量导入撑爆日志。 */
+    private static final int MAX_PAYLOAD = 4096;
 
     /** 从统一返回体 Result 中提取 code：形如 {"code":1002,...} */
     private static final Pattern CODE = Pattern.compile("\"code\"\\s*:\\s*(-?\\d+)");
@@ -53,10 +56,11 @@ public class AccessLogFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         long start = System.currentTimeMillis();
+        ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(request);
         ContentCachingResponseWrapper wrapper = new ContentCachingResponseWrapper(response);
         int status = 200;
         try {
-            filterChain.doFilter(request, wrapper);
+            filterChain.doFilter(requestWrapper, wrapper);
             status = wrapper.getStatus();
         } finally {
             long cost = System.currentTimeMillis() - start;
@@ -71,11 +75,11 @@ public class AccessLogFilter extends OncePerRequestFilter {
                 // 注意：此处 logger 是 OncePerRequestFilter 继承的 commons-logging，不支持 {} 占位符
                 logger.warn("access log copy body failed: " + e.getMessage());
             }
-            writeLog(request, wrapper, status, cost, bizCode);
+            writeLog(requestWrapper, wrapper, status, cost, bizCode);
         }
     }
 
-    private void writeLog(HttpServletRequest request, ContentCachingResponseWrapper wrapper,
+    private void writeLog(ContentCachingRequestWrapper request, ContentCachingResponseWrapper wrapper,
                           int status, long cost, String bizCode) {
         String traceId = MDC.get(TraceIdFilter.CONTEXT_KEY);
         if (!StringUtils.hasText(traceId)) {
@@ -89,6 +93,10 @@ public class AccessLogFilter extends OncePerRequestFilter {
                 .append(" | status=").append(status)
                 .append(" | cost=").append(cost).append("ms")
                 .append(" | bizCode=").append(bizCode)
+                .append(" | req=").append(payload(request.getQueryString(), request.getContentAsByteArray(),
+                        request.getContentType()))
+                .append(" | resp=").append(payload(null, wrapper.getContentAsByteArray(),
+                        wrapper.getContentType()))
                 .append(" | ip=").append(clientIp(request))
                 .append(" | ua=").append(shortUa(request))
                 .toString();
@@ -97,6 +105,28 @@ public class AccessLogFilter extends OncePerRequestFilter {
         } else {
             ACCESS_LOG.info(line);
         }
+    }
+
+    /** 记录可排查的参数变化摘要；先截断，再复用统一敏感字段脱敏策略。 */
+    private String payload(String query, byte[] body, String contentType) {
+        StringBuilder value = new StringBuilder(128);
+        if (StringUtils.hasText(query)) {
+            value.append("query={").append(query).append('}');
+        }
+        if (body != null && body.length > 0 && body.length <= MAX_BODY
+                && (contentType == null || contentType.toLowerCase().contains("json")
+                || contentType.toLowerCase().contains("text")
+                || contentType.toLowerCase().contains("form"))) {
+            String text = new String(body, java.nio.charset.StandardCharsets.UTF_8)
+                    .replaceAll("[\\r\\n\\t]", " ");
+            if (value.length() > 0) value.append(' ');
+            value.append("body=").append(text);
+        } else if (body != null && body.length > 0) {
+            value.append("body=<binary/large>");
+        }
+        if (value.length() == 0) return "-";
+        String safe = SensitiveRewritePolicy.mask(value.toString());
+        return safe.length() <= MAX_PAYLOAD ? safe : safe.substring(0, MAX_PAYLOAD) + "...";
     }
 
     /** 仅在响应体为小体积 JSON 时提取业务 code */

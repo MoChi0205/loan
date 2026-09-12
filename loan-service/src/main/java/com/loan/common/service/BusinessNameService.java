@@ -1,8 +1,10 @@
 package com.loan.common.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.common.cache.UnifiedCacheService;
 import com.loan.invitation.entity.Invitation;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
@@ -32,40 +34,52 @@ public class BusinessNameService {
     private final StaffMapper staffMapper;
     private final ClientProfileMapper clientProfileMapper;
     private final BankProductMapper bankProductMapper;
+    private final UnifiedCacheService cacheService;
+
+    private static final TypeReference<Map<String, String>> NAME_MAP_TYPE =
+            new TypeReference<Map<String, String>>() { };
 
     /** 按员工业务编码批量加载姓名。 */
     public Map<String, String> staffNames(Collection<String> staffCodes) {
         Set<String> codes = normalizeCodes(staffCodes);
         if (codes.isEmpty()) return Collections.emptyMap();
-        return staffMapper.selectList(new LambdaQueryWrapper<Staff>()
-                        .in(Staff::getStaffCode, codes)).stream()
+        return cachedNames("staff", codes, () -> staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                .in(Staff::getStaffCode, codes)).stream()
                 .filter(staff -> StringUtils.hasText(staff.getStaffCode()))
                 .collect(Collectors.toMap(Staff::getStaffCode, Staff::getStaffName,
-                        (left, right) -> left));
+                        (left, right) -> left)));
     }
 
     /** 按客户业务编码批量加载名称，企业名称优先、联系人姓名兜底。 */
     public Map<String, String> clientNames(Collection<String> clientCodes) {
         Set<String> codes = normalizeCodes(clientCodes);
         if (codes.isEmpty()) return Collections.emptyMap();
-        return clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+        return cachedNames("client", codes, () -> clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
                         .in(ClientProfile::getClientCode, codes)).stream()
                 .filter(client -> StringUtils.hasText(client.getClientCode()))
                 .collect(Collectors.toMap(ClientProfile::getClientCode,
                         client -> StringUtils.hasText(client.getEnterpriseName())
                                 ? client.getEnterpriseName() : client.getContactName(),
-                        (left, right) -> left));
+                        (left, right) -> left)));
     }
 
     /** 按产品业务编码批量加载产品名称。 */
     public Map<String, String> productNames(Collection<String> productCodes) {
         Set<String> codes = normalizeCodes(productCodes);
         if (codes.isEmpty()) return Collections.emptyMap();
-        return bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
+        return cachedNames("product", codes, () -> bankProductMapper.selectList(new LambdaQueryWrapper<BankProduct>()
                         .in(BankProduct::getProductCode, codes)).stream()
                 .filter(product -> StringUtils.hasText(product.getProductCode()))
                 .collect(Collectors.toMap(BankProduct::getProductCode, BankProduct::getProductName,
-                        (left, right) -> left));
+                        (left, right) -> left)));
+    }
+
+    /** 批量名称的短 TTL 二级缓存；统一排序键保证同一批编码命中同一缓存。 */
+    private Map<String, String> cachedNames(String domain, Set<String> codes,
+                                            java.util.function.Supplier<Map<String, String>> loader) {
+        String key = "business-name:" + domain + ":" + codes.stream().sorted().collect(Collectors.joining(","));
+        Map<String, String> value = cacheService.getOrLoad(key, NAME_MAP_TYPE, loader);
+        return value == null ? Collections.emptyMap() : value;
     }
 
     /**

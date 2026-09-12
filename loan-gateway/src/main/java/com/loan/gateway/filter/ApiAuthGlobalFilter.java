@@ -75,6 +75,7 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
      */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        final long startedAt = System.currentTimeMillis();
         // 生成/透传链路 ID，并在转发请求中保持一致；下游服务会继续写入日志 MDC。
         String traceId = normalizeTraceId(exchange.getRequest().getHeaders().getFirst(TRACE_HEADER));
         if (!StringUtils.hasText(traceId)) {
@@ -92,7 +93,9 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
                 .build();
         String path = tracedExchange.getRequest().getURI().getPath();
         if (isWhiteListed(path)) {
-            return chain.filter(tracedExchange);
+            return chain.filter(tracedExchange)
+                    .doFinally(signal -> accessLog(tracedExchange, finalTraceId, startedAt,
+                            tracedExchange.getResponse().getStatusCode()));
         }
 
         // 1. JWT 认证
@@ -321,13 +324,31 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
                 .header("X-User-Type", userType == null ? "" : userType)
                 .header(HEADER_CLIENT_TYPE, clientType)
                 .build();
-        return chain.filter(exchange.mutate().request(mutated).build());
+        ServerWebExchange forwarded = exchange.mutate().request(mutated).build();
+        String traceId = forwarded.getRequest().getHeaders().getFirst(TRACE_HEADER);
+        long startedAt = System.currentTimeMillis();
+        return chain.filter(forwarded)
+                .doFinally(signal -> accessLog(forwarded, traceId, startedAt,
+                        forwarded.getResponse().getStatusCode()));
+    }
+
+    /** 网关统一链路访问日志：不记录 token/请求体，只记录 trace、路由、状态与耗时。 */
+    private void accessLog(ServerWebExchange exchange, String traceId, long startedAt, HttpStatus status) {
+        long cost = System.currentTimeMillis() - startedAt;
+        String method = exchange.getRequest().getMethodValue();
+        String path = exchange.getRequest().getURI().getPath();
+        log.info("网关请求 traceId={} | {} {} | status={} | cost={}ms", traceId, method, path,
+                status == null ? 0 : status.value(), cost);
     }
 
     /**
      * 拒绝并返回统一 JSON。
      */
     private Mono<Void> reject(ServerWebExchange exchange, HttpStatus status, int code, String message) {
+        String traceId = exchange.getRequest().getHeaders().getFirst(TRACE_HEADER);
+        log.warn("网关拒绝 traceId={} | {} {} | status={} | code={} | message={}", traceId,
+                exchange.getRequest().getMethodValue(), exchange.getRequest().getURI().getPath(),
+                status.value(), code, message);
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
