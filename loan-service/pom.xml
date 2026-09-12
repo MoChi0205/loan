@@ -16,6 +16,12 @@
     <description>企业贷款咨询服务产品系统服务模块 (LOAN-SERVICE)：双客群准入规则引擎 + 产品库 + 匹配审计</description>
 
     <dependencies>
+        <!-- 阿里云 OSS：沿用 tse 的对象存储抽象，按 loan.oss.mode=aliyun 启用 -->
+        <dependency>
+            <groupId>com.aliyun.oss</groupId>
+            <artifactId>aliyun-sdk-oss</artifactId>
+            <version>3.10.2</version>
+        </dependency>
         <!-- API Module -->
         <dependency>
             <groupId>com.loan</groupId>

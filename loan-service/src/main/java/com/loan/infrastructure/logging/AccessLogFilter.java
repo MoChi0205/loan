@@ -76,6 +76,8 @@ public class AccessLogFilter extends OncePerRequestFilter {
                 logger.warn("access log copy body failed: " + e.getMessage());
             }
             writeLog(requestWrapper, wrapper, status, cost, bizCode);
+            response.setHeader("X-Query-Time-Ms", String.valueOf(cost));
+            response.setHeader("Server-Timing", "app;dur=" + cost);
         }
     }
 

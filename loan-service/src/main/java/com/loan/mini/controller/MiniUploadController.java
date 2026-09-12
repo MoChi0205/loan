@@ -9,6 +9,8 @@ import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.mini.service.MiniMaterialService;
+import com.loan.infrastructure.oss.OssStorageService;
+import com.loan.infrastructure.oss.OssObjectOpenResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -50,12 +52,10 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class MiniUploadController {
 
-    @Value("${loan.upload.base-dir:./uploads}")
-    private String baseDir;
-
     private final ServiceAttachmentMapper attachmentMapper;
     private final MiniMaterialService materialService;
     private final ClientAllocationService clientAllocationService;
+    private final OssStorageService ossStorageService;
 
     /**
      * 上传材料。
@@ -81,9 +81,6 @@ public class MiniUploadController {
         }
         String scopedClientCode = clientAllocationService.requireOperationClientCode(user, clientCode);
         try {
-            // 绝对路径化（与 OcrController 同款修复，D28：避免 Servlet 容器下解析到 Tomcat work 临时目录）
-            Path dir = Paths.get(baseDir).toAbsolutePath().normalize();
-            Files.createDirectories(dir);
             String fileKey = "att" + UUID.randomUUID().toString().replace("-", "").substring(0, 32);
             String original = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
             String suffix = "";
@@ -91,8 +88,8 @@ public class MiniUploadController {
             if (dot > 0) {
                 suffix = original.substring(dot);
             }
-            Path target = dir.resolve(fileKey + suffix);
-            file.transferTo(target.toFile());
+            String objectKey = fileKey + suffix;
+            ossStorageService.upload(objectKey, file.getInputStream(), file.getSize());
 
             // 元数据持久化（失败不影响文件已落盘，仅告警）
             try {
@@ -155,24 +152,19 @@ public class MiniUploadController {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
-        Path dir = Paths.get(baseDir);
-        Path found = null;
-        try (Stream<Path> stream = Files.list(dir)) {
-            found = stream
-                    .filter(p -> p.getFileName().toString().startsWith(fileKey))
-                    .findFirst()
-                    .orElse(null);
+        String objectKey = fileKey;
+        // 业务 key 不含扩展名，兼容常见文件扩展名并避免目录穿越
+        for (String ext : new String[]{"", ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx"}) {
+            if (ossStorageService.objectExists(fileKey + ext)) { objectKey = fileKey + ext; break; }
         }
-        if (found == null || !Files.exists(found)) {
+        if (!ossStorageService.objectExists(objectKey)) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-        String contentType = Files.probeContentType(found);
-        if (contentType == null) {
-            contentType = "application/octet-stream";
-        }
-        response.setContentType(contentType);
-        response.setHeader("Content-Disposition", "inline; filename=\"" + found.getFileName().toString() + "\"");
-        Files.copy(found, response.getOutputStream());
+        OssObjectOpenResult object = ossStorageService.openObject(objectKey);
+        response.setContentType(object.getContentType() == null ? "application/octet-stream" : object.getContentType());
+        response.setContentLengthLong(object.getContentLength());
+        response.setHeader("Content-Disposition", "inline; filename=\"" + objectKey + "\"");
+        try (java.io.InputStream in = object.getInputStream()) { org.springframework.util.StreamUtils.copy(in, response.getOutputStream()); }
     }
 }
