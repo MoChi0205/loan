@@ -13,10 +13,19 @@ public class OssProperties {
     private String mode = "local";
     private String bucket;
     private Aliyun aliyun = new Aliyun();
+    private Tencent tencent = new Tencent();
     @Data public static class Aliyun {
         private boolean enabled = false;
         private String endpoint;
         private String accessKeyId;
         private String accessKeySecret;
+    }
+    @Data public static class Tencent {
+        private boolean enabled = false;
+        private String region;
+        private String secretId;
+        private String secretKey;
+        private String sessionToken;
+        private String endpoint;
     }
 }
