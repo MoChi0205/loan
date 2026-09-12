@@ -84,7 +84,11 @@
             </el-input>
           </el-form-item>
           <el-form-item v-else prop="code"><el-input v-model="form.code" placeholder="短信验证码"><template #append><el-button :disabled="codeCountdown > 0" @click="sendCode">{{ codeCountdown ? `${codeCountdown}s` : '获取验证码' }}</el-button></template></el-input></el-form-item>
-          <div class="login-type-tabs"><button type="button" @click="loginType='password'">密码登录</button><button type="button" @click="loginType='code'">验证码登录</button><button type="button" @click="forgotPassword">忘记密码</button></div>
+          <div class="login-type-tabs" role="tablist" aria-label="账号登录方式">
+            <button type="button" role="tab" :class="{ active: loginType === 'password' }" @click="loginType='password'">密码登录</button>
+            <button type="button" role="tab" :class="{ active: loginType === 'code' }" @click="loginType='code'">验证码登录</button>
+            <button type="button" class="login-link" @click="forgotPassword">忘记密码</button>
+          </div>
 
           <el-button type="primary" size="large" class="login-btn" :loading="loading" native-type="submit">
             登 录
@@ -222,6 +226,9 @@ onMounted(() => {
   flex-direction: row;
   min-height: 100vh;
   background: var(--loan-bg);
+  /* Prevent mobile Safari text autosizing from changing the login layout. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* ============================================================
@@ -468,6 +475,48 @@ onMounted(() => {
   font-weight: 500;
   letter-spacing: 2px;
   margin-top: 8px;
+  touch-action: manipulation;
+}
+
+/* 登录方式切换：避免浏览器原生 button 样式与墨金设计系统冲突 */
+.login-type-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 0 18px;
+  padding: 4px;
+  background: var(--loan-surface);
+  border: 1px solid var(--loan-border);
+  border-radius: 12px;
+}
+
+.login-type-tabs button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--loan-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--loan-transition);
+}
+
+.login-type-tabs button.active {
+  background: var(--loan-primary-soft);
+  color: var(--loan-primary);
+  font-weight: 600;
+}
+
+.login-type-tabs button.login-link {
+  margin-left: auto;
+  color: var(--loan-text-muted);
+}
+
+.login-type-tabs button.login-link:hover {
+  color: var(--loan-primary);
 }
 
 .login-demo {
@@ -529,6 +578,23 @@ onMounted(() => {
   }
   .login-card {
     padding: 32px 24px;
+  }
+
+  /* iOS Safari zooms focused inputs whose computed font-size is below 16px. */
+  .login-card :deep(.el-input__inner) {
+    font-size: 16px;
+  }
+
+  .login-card :deep(.el-input__wrapper),
+  .login-card :deep(.el-button) {
+    touch-action: manipulation;
+  }
+
+  /* Keep press feedback visual-only; never scale the form or its card. */
+  .login-card :deep(.el-button:active),
+  .login-card .login-tab:active,
+  .login-card .login-type-tabs button:active {
+    transform: none;
   }
 }
 </style>
