@@ -1,11 +1,14 @@
 package com.loan.mini.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.loan.api.dto.PageResult;
 import com.loan.approval.entity.ClientAllocationApproval;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.client.service.ClientAllocationService;
 import com.loan.common.ResultCode;
+import com.loan.common.service.BusinessNameService;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
@@ -13,6 +16,7 @@ import com.loan.lead.entity.LeadAllocationRecord;
 import com.loan.lead.mapper.LeadAllocationRecordMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
+import com.loan.utils.DesensitizeUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,9 +25,11 @@ import org.springframework.util.StringUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 小程序端客户查重与归属流转（C2 归属流转 + C10 自动查重）。
@@ -60,10 +66,22 @@ public class MiniClientService {
     public static final String ALLOC_APPROVED = "APPROVED";
     public static final String ALLOC_REJECTED = "REJECTED";
 
+    /** 客户档案状态（t_client_profile.status，schema：ACTIVE/DISABLED） */
+    public static final String CLIENT_STATUS_ACTIVE = "ACTIVE";
+    public static final String CLIENT_STATUS_DISABLED = "DISABLED";
+
+    /** 员工在职状态（t_staff.status） */
+    public static final String STAFF_STATUS_ACTIVE = "ACTIVE";
+
+    /** 公海层级（t_client_profile.sea_level） */
+    public static final String SEA_ENTERPRISE = "ENTERPRISE";
+    public static final String SEA_TEAM = "TEAM";
+
     private final ClientProfileMapper clientProfileMapper;
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final StaffMapper staffMapper;
     private final ClientAllocationService clientAllocationService;
+    private final BusinessNameService businessNameService;
 
     /**
      * 客户查重（C10）：按企业名称（模糊）/ 手机号（精确）/ 统一社会信用代码（精确）任一命中。
@@ -145,7 +163,9 @@ public class MiniClientService {
         client.setEnterpriseName(entName);
         client.setContactName(payload.get("contactName") == null ? null : String.valueOf(payload.get("contactName")).trim());
         client.setCustomerGroup(strValue(payload.get("customerGroup"), "ENTERPRISE"));
-        client.setStatus("NORMAL");
+        // 状态枚举对齐 schema（ACTIVE/DISABLED）与其他建档入口（AuthService/MiniAuthService）；
+        // 历史误写为 "NORMAL"，无任何查询按该值过滤，故此处归位为 ACTIVE。
+        client.setStatus(CLIENT_STATUS_ACTIVE);
         client.setSource("MINI_STAFF_CREATE");
         // 引荐人、录入人与服务顾问是三类关系。新档案先进入未分配客户池，
         // 顾问认领走审批；管理角色通过管理端选择目标归属人后直接分配。
@@ -246,7 +266,186 @@ public class MiniClientService {
         return clientAllocationService.reject(approvalNo, opinion, user);
     }
 
+    /* ==================== 我的客户 / 客户公海（小程序员工侧） ==================== */
+
+    /**
+     * 「我的客户」列表：仅本人归属客户（用户 2026-09-10 确认「统一只显示本人归属」）。
+     *
+     * <p><b>数据范围：</b>一律按 {@code owner_staff_code = 当前登录工号} 收敛，
+     * 顾问 / 部门经理 / 运营 / 老板 / 超级管理员口径一致，不因角色放大。
+     *
+     * <p><b>状态口径：</b>排除 {@code DISABLED}。历史遗留的 {@code NORMAL} 行
+     * （见 {@link #create} 修复说明）与 {@code ACTIVE} 行一并可见，避免存量数据凭空消失。
+     *
+     * <p><b>合规：</b>对外只返回企业名 / 联系人 / 掩码手机号 / 归属人与状态，
+     * 不含任何业务单号展示字段（D68）。
+     *
+     * @param keyword 企业名模糊关键词，可为空
+     * @param page    页码（调用方已归一化）
+     * @param size    每页大小（调用方已归一化）
+     * @param user    当前登录员工
+     * @return 本人归属客户分页摘要
+     */
+    public PageResult<Map<String, Object>> myClients(String keyword, int page, int size, LoanUser user) {
+        LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientProfile::getOwnerStaffCode, user.getUserNo());
+        wrapper.ne(ClientProfile::getStatus, CLIENT_STATUS_DISABLED);
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(ClientProfile::getEnterpriseName, keyword.trim());
+        }
+        wrapper.orderByDesc(ClientProfile::getUpdatedAt);
+        Page<ClientProfile> result = clientProfileMapper.selectPage(new Page<>(page, size), wrapper);
+        return PageResult.build(page, size, result.getTotal(), clientSummaries(result.getRecords()));
+    }
+
+    /**
+     * 客户公海列表（15-客户公海团队客户与分配回收规则 §11/§12）。
+     *
+     * <p><b>范围：</b>{@code ENTERPRISE} 公司公海全员可见、全员可认领；
+     * {@code TEAM} 团队公海仅本部门可见、仅本部门成员可认领。
+     *
+     * <p><b>边界：</b>只做查询与展示，认领复用 {@code POST /api/mini/client/{clientCode}/claim}
+     * 的既有原子落归属逻辑（并发仅一人成功）；冷却期拦截由认领链路负责。
+     *
+     * @param keyword  企业名模糊关键词，可为空
+     * @param seaLevel 公海层级：ENTERPRISE / TEAM，非法或空时按 ENTERPRISE
+     * @param page     页码
+     * @param size     每页大小
+     * @param user     当前登录员工
+     * @return 公海客户分页摘要（归属人字段为空，前端展示为「公海客户」）
+     */
+    public PageResult<Map<String, Object>> seaClients(String keyword, String seaLevel, int page, int size,
+                                                      LoanUser user) {
+        // 安全边界不能只依赖 Controller 或网关：渠道账号即使通过内部调用/错误路由
+        // 进入服务层，也绝不能读取公司或团队公海。
+        if (user == null || LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "渠道合作方无公海数据权限");
+        }
+        String level = SEA_TEAM.equalsIgnoreCase(String.valueOf(seaLevel)) ? SEA_TEAM : SEA_ENTERPRISE;
+        LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ClientProfile::getSeaLevel, level);
+        if (SEA_TEAM.equals(level)) {
+            // 团队公海按部门隔离：未绑定部门的账号看不到任何团队公海客户（fail-closed）
+            if (!StringUtils.hasText(user.getDeptCode())) {
+                return PageResult.build(page, size, 0L, Collections.emptyList());
+            }
+            wrapper.eq(ClientProfile::getSeaDeptCode, user.getDeptCode());
+        }
+        wrapper.ne(ClientProfile::getStatus, CLIENT_STATUS_DISABLED);
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(ClientProfile::getEnterpriseName, keyword.trim());
+        }
+        wrapper.orderByDesc(ClientProfile::getUpdatedAt);
+        Page<ClientProfile> result = clientProfileMapper.selectPage(new Page<>(page, size), wrapper);
+        return PageResult.build(page, size, result.getTotal(), clientSummaries(result.getRecords()));
+    }
+
+    /**
+     * 「团队客户」列表（15-客户公海团队客户与分配回收规则 §10）。
+     *
+     * <p><b>范围：</b>本部门在职成员（**排除本人**）名下客户，与「我的客户」独立展示。
+     * 仅部门经理使用；部门编码为空返回空集（fail-closed）。
+     *
+     * <p><b>用途：</b>为部门经理提供「回收」操作的目标列表（§32/§34：可回收本团队顾问客户，
+     * 且不得回收其他团队客户）。回收动作由 {@link #recycle} 承担。
+     *
+     * @param keyword 企业名模糊关键词，可为空
+     * @param page    页码
+     * @param size    每页大小
+     * @param user    当前登录部门经理
+     * @return 本部门成员名下客户分页摘要
+     */
+    public PageResult<Map<String, Object>> teamClients(String keyword, int page, int size, LoanUser user) {
+        List<String> memberCodes = staffCodesOfDept(user.getDeptCode(), user.getUserNo());
+        if (memberCodes.isEmpty()) {
+            return PageResult.build(page, size, 0L, Collections.emptyList());
+        }
+        LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(ClientProfile::getOwnerStaffCode, memberCodes);
+        wrapper.ne(ClientProfile::getStatus, CLIENT_STATUS_DISABLED);
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(ClientProfile::getEnterpriseName, keyword.trim());
+        }
+        wrapper.orderByDesc(ClientProfile::getUpdatedAt);
+        Page<ClientProfile> result = clientProfileMapper.selectPage(new Page<>(page, size), wrapper);
+        return PageResult.build(page, size, result.getTotal(), clientSummaries(result.getRecords()));
+    }
+
+    /**
+     * 管理者回收客户进公海（15-规则 §32/§33/§34）。
+     *
+     * <p><b>归属落点：</b>部门经理回收本团队客户 → <b>团队公海</b>（带本部门编码）；
+     * 老板 / 运营 / 超级管理员 → <b>公司公海</b>。均覆盖冷却期，不删除客户档案。
+     *
+     * <p><b>范围校验：</b>部门经理仅可回收本团队顾问的客户，跨团队由
+     * {@code ClientAllocationService#manualRecycle} 抛 FORBIDDEN。
+     *
+     * @param clientCode 客户编码
+     * @param user       操作人（角色由 Controller 的 requireApprover 守卫）
+     * @return { clientCode, recycled=true, fromOwnerStaffCode }
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> recycle(String clientCode, LoanUser user) {
+        return clientAllocationService.manualRecycle(clientCode, user);
+    }
+
     /* ==================== 私有方法 ==================== */
+
+    /**
+     * 客户档案 → 列表摘要（字段口径与渠道侧 ChannelDataScopeService#clientSummaries 对齐）。
+     *
+     * @param clients 客户档案
+     * @return 摘要行；归属人为空表示公海未分配
+     */
+    private List<Map<String, Object>> clientSummaries(List<ClientProfile> clients) {
+        if (clients == null || clients.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> ownerCodes = clients.stream().map(ClientProfile::getOwnerStaffCode)
+                .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
+        Map<String, String> ownerNames = ownerCodes.isEmpty()
+                ? Collections.emptyMap() : businessNameService.staffNames(ownerCodes);
+        return clients.stream().map(client -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("clientCode", client.getClientCode());
+            row.put("enterpriseName", client.getEnterpriseName());
+            row.put("contactName", client.getContactName());
+            row.put("contactPhone", DesensitizeUtils.phone(decrypt(client.getPhone())));
+            row.put("ownerStaffName", ownerNames.get(client.getOwnerStaffCode()));
+            row.put("assigned", StringUtils.hasText(client.getOwnerStaffCode()));
+            row.put("seaLevel", client.getSeaLevel());
+            row.put("status", client.getStatus());
+            row.put("lastFollowedAt", client.getLastFollowedAt());
+            return row;
+        }).collect(Collectors.toList());
+    }
+
+    /** 客户手机号密文解密（与渠道侧保持同一实现）。 */
+    private String decrypt(String value) {
+        return StringUtils.hasText(value) ? com.loan.infrastructure.security.AesUtils.decrypt(value) : null;
+    }
+
+    /**
+     * 本部门在职员工工号（排除本人）。
+     *
+     * @param deptCode        部门编码；为空返回空列表（fail-closed，不放大到全司）
+     * @param excludeStaffNo  需排除的工号（本人）
+     * @return 工号列表（去重保序）
+     */
+    private List<String> staffCodesOfDept(String deptCode, String excludeStaffNo) {
+        if (!StringUtils.hasText(deptCode)) {
+            return Collections.emptyList();
+        }
+        List<Staff> members = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                .eq(Staff::getDeptCode, deptCode)
+                .eq(Staff::getStatus, STAFF_STATUS_ACTIVE));
+        return members.stream()
+                .map(Staff::getStaffCode)
+                .filter(StringUtils::hasText)
+                .filter(code -> !code.equals(excludeStaffNo))
+                .distinct()
+                .collect(Collectors.toList());
+    }
 
     private Map<String, Object> result(String clientCode, String ownerStaffCode, String action) {
         Map<String, Object> m = new LinkedHashMap<>();
