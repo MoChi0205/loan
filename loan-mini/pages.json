@@ -26,6 +26,12 @@
       }
     },
     {
+      "path": "pages/auth/phone-login",
+      "style": {
+        "navigationBarTitleText": "手机号登录"
+      }
+    },
+    {
       "path": "pages/match/match",
       "style": {
         "navigationBarTitleText": "智能匹配"
@@ -80,6 +86,20 @@
       "path": "pages/client/create",
       "style": {
         "navigationBarTitleText": "录入客户"
+      }
+    },
+    {
+      "path": "pages/client/mine",
+      "style": {
+        "navigationBarTitleText": "我的客户",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/lead-entry/lead-entry",
+      "style": {
+        "navigationBarTitleText": "线索录入",
+        "enablePullDownRefresh": false
       }
     },
     {

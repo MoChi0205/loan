@@ -57,7 +57,7 @@ const props = defineProps({
  * 必须传真实色值（#RRGGBB / rgba()）；不识别则原样传入（兜底）。
  */
 // 浅色主题默认：墨蓝字色（浅底上图标可见）
-const RESOLVED_LIGHT = '#16203A';
+const RESOLVED_LIGHT = '#1B2740';
 // 暗色主题默认：浅字色（墨金暗底 #0E1626 / #131E33 上图标可见）
 const RESOLVED_DARK = '#E8EDF5';
 
@@ -106,12 +106,50 @@ const SVGS = {
   clock: 'M12 4 A8 8 0 1 0 12 20 A8 8 0 0 0 12 4 Z M12 7 V12 L16 14',
 };
 
+/**
+ * 多元素字形（含 <circle>/<rect>/<path> 组合）—— 取自唯一参考原型
+ * docs/prototypes/redesign-all-roles-v1.html 的 ICON 表，与单 path 的 SVGS 并存（RAWS 优先）。
+ * 24×24 网格；stroke / stroke-width / cap / join 由外层 SVG 统一注入，此处只放内部元素。
+ */
+const RAWS = {
+  filter: '<path d="M6 4v4.5M6 14.5V20M12 4v2.5M12 10.5V20M18 4v6.5M18 14.5V20"/><circle cx="6" cy="11" r="1.7"/><circle cx="12" cy="8" r="1.7"/><circle cx="18" cy="13" r="1.7"/>',
+  phone: '<path d="M6.5 4h3l1.6 4-2 1.4a11 11 0 0 0 5 5l1.4-2 4 1.6v3a2 2 0 0 1-2.1 2A15 15 0 0 1 4.4 6 2 2 0 0 1 6.5 4z"/>',
+  msg: '<path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>',
+  cal: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 9.5h16M8.5 3v4M15.5 3v4"/>',
+  tag: '<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="9" cy="9" r="1.6"/>',
+  pin: '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>',
+  star: '<path d="M12 4l2.3 5 5.4.5-4 3.7 1.2 5.3L12 18.6 7.1 21l1.2-5.3-4-3.7 5.4-.5z"/>',
+  bell: '<path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  gear: '<circle cx="12" cy="12" r="3.1"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2 2M16.4 16.4l2 2M18.4 5.6l-2 2M7.6 16.4l-2 2"/>',
+  guide: '<circle cx="12" cy="12" r="8.5"/><path d="M15.6 8.6l-2.1 5-5 2.1 2.1-5z"/>',
+  swap: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  team: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14c2.6.3 4.5 1.9 4.5 4.5"/>',
+  leads: '<path d="M12 3v18M5 8l7-5 7 5"/><circle cx="12" cy="14" r="2.4"/>',
+  money: '<path d="M12 3v18M8 7h6a3 3 0 0 1 0 6H8a3 3 0 0 0 0 6h6"/>',
+  brief: '<path d="M4 21V7l8-4 8 4v14M4 21h16M9 21v-6h6v6"/>',
+  report: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h7M9 9h3"/>',
+  product: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  pool: '<path d="M4 18c2-2 4-2 6 0s4 2 6 0 4-2 4-2M4 12c2-2 4-2 6 0s4 2 6 0 4-2 4-2M4 6c2-2 4-2 6 0"/>',
+  assign: '<circle cx="12" cy="6" r="2.6"/><path d="M12 8.6V14M8 11h8M6 19c0-3 2.7-5 6-5s6 2 6 5"/>',
+  org: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/><path d="M7.5 11v3h9v3"/>',
+  perm: '<path d="M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  audit: '<path d="M9 4h7l4 4v12H5V8z"/><path d="M9 13l2 2 4-4M9 20h10"/>',
+  debug: '<path d="M8 8l-3 4 3 4M16 8l3 4-3 4M13 5l-2 14"/>',
+  sms: '<path d="M4 5h16v11H9l-4 3.5V16H4z"/><path d="M8 9h8M8 12h5"/>',
+  black: '<circle cx="12" cy="12" r="8"/><path d="M6 6l12 12"/>',
+  market: '<path d="M4 19V9M10 19V5M16 19v-7M22 19h-2"/>',
+  invite: '<path d="M12 5v14M5 12h14"/>',
+  channel: '<circle cx="7" cy="12" r="3"/><circle cx="17" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/><path d="M9.6 11l5.4-3M9.6 13l5.4 3"/>',
+};
+/** 图标别名：原型名 → 既有名（避免重复维护） */
+const ALIAS = { user: 'person', work: 'workbench' };
+
 function buildSvg(name, color) {
-  const pathData = SVGS[name] || SVGS.home;
   // 关键：width/height 显式声明，让 mp-weixin 拿到 intrinsic 尺寸；
-  // stroke 写死真实色值，不用 currentColor；fill="none" 保证只描边不填充
-  // 注意：SVGS 存的是 path 的 d 属性值，必须包在 <path d="..."/> 里才是合法 SVG。
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="${pathData}"/></svg>`;
+  // stroke 写死真实色值，不用 currentColor；fill="none" 保证只描边不填充。
+  const key = (RAWS[name] || SVGS[name]) ? name : (ALIAS[name] || name);
+  const inner = RAWS[key] || `<path d="${SVGS[key] || SVGS.home}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
 }
 
 function toBase64(str) {
@@ -153,6 +191,8 @@ const src = computed(() => {
   line-height: 0;
 }
 .icon-sm { width: 32rpx; height: 32rpx; }
+/* 宫格磁贴图标底（80rpx）内专用：42rpx = 21px，占容器 52.5%，与设计真源原型一致 */
+.icon-tile { width: 42rpx; height: 42rpx; }
 .icon-md { width: 48rpx; height: 48rpx; }
 .icon-lg { width: 64rpx; height: 64rpx; }
 .icon-xl { width: 88rpx; height: 88rpx; }

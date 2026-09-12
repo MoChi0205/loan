@@ -130,10 +130,12 @@ public class ClientService {
         }
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
-            // 以关键字查询客户：姓名 / 企业名 / 手机号（SHA-256 哈希精确）；不再按客户内部编码匹配。
+            // 综合关键词：姓名 / 企业名模糊；手机号 / 身份证 / 统一信用代码按摘要精确匹配。
             wrapper.and(w -> w.like(ClientProfile::getContactName, kw)
                     .or().like(ClientProfile::getEnterpriseName, kw)
-                    .or().eq(ClientProfile::getPhoneHash, sha256(kw)));
+                    .or().eq(ClientProfile::getPhoneHash, sha256(kw))
+                    .or().exists("SELECT 1 FROM t_personal_profile pp WHERE pp.client_profile_code = t_client_profile.client_code AND pp.id_card_hash = {0}", sha256(kw))
+                    .or().eq(ClientProfile::getCreditCodeHash, sha256(kw)));
         }
         if (StringUtils.hasText(name)) {
             wrapper.like(ClientProfile::getContactName, name.trim());

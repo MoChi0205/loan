@@ -20,7 +20,31 @@
     </view>
 
     <view class="content">
-      <!-- 一键切换主题：墨金明暗双主题（H5/小程序双端持久化） -->
+      <!-- 常用入口（对齐原型「我的」：消息通知 / 业务录入） -->
+      <AppClickable class="card menu-card u-hover" @click="onOpenMsg">
+        <view class="menu-left">
+          <view class="menu-icon-wrap"><AppIcon name="bell" size="lg" /></view>
+          <view class="menu-body">
+            <text class="menu-title">消息通知</text>
+            <text class="menu-desc">{{ unreadCount }} 条未读 · 提交人 + 事项 + 时间</text>
+          </view>
+        </view>
+        <view v-if="unreadCount > 0" class="menu-badge">{{ unreadCount }}</view>
+        <text class="menu-arrow">›</text>
+      </AppClickable>
+
+      <AppClickable v-if="!isCustomerRole" class="card menu-card u-hover" @click="onBizEntry">
+        <view class="menu-left">
+          <view class="menu-icon-wrap"><AppIcon name="leads" size="lg" /></view>
+          <view class="menu-body">
+            <text class="menu-title">业务录入</text>
+            <text class="menu-desc">录入线索 · 录入产品</text>
+          </view>
+        </view>
+        <text class="menu-arrow">›</text>
+      </AppClickable>
+
+      <!-- 一键切换主题：墨蓝·皇家蓝·香槟金 明暗双主题（H5/小程序双端持久化） -->
       <AppClickable class="card theme-card u-hover" @click="onToggleTheme">
         <view class="theme-left">
           <view class="menu-icon-wrap">
@@ -28,7 +52,7 @@
           </view>
           <view class="menu-body">
             <text class="menu-title">主题模式</text>
-            <text class="menu-desc">{{ themeMode === 'dark' ? '暗色 · 墨金' : '浅色 · 默认' }}</text>
+            <text class="menu-desc">{{ themeMode === 'dark' ? '暗色 · 墨蓝' : '浅色 · 默认' }}</text>
           </view>
         </view>
         <view class="theme-switch" :class="{ 'is-dark': themeMode === 'dark' }" role="switch" :aria-checked="themeMode === 'dark'">
@@ -126,13 +150,13 @@
         <view class="share-actions" v-if="inviteCode">
           <!-- #ifdef MP-WEIXIN -->
           <AppButton class="share-btn" variant="secondary" size="sm" open-type="share">
-            <AppIcon name="share" size="sm" color="#2443C2" />
+            <AppIcon name="share" size="sm" color="#2C52C9" />
             <text>分享给好友</text>
           </AppButton>
           <!-- #endif -->
           <!-- #ifdef H5 -->
           <AppButton class="share-btn" variant="secondary" size="sm" @click="onCopyShareLink">
-            <AppIcon name="share" size="sm" color="#2443C2" />
+            <AppIcon name="share" size="sm" color="#2C52C9" />
             <text>复制分享链接</text>
           </AppButton>
           <!-- #endif -->
@@ -167,6 +191,9 @@
     </view>
   </view>
 
+  <!-- 消息中心：数据全部来自 /api/mini/notification，无示例数据 -->
+  <MessageSheet v-model:visible="msgOpen" @read="onMessageRead" />
+
   <!-- 角色化底部导航（自绘 tabBar） -->
   <TabBar current="mine" />
 </template>
@@ -176,10 +203,12 @@ import { ref, computed, onUnmounted } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
 import TabBar from '../../components/TabBar.vue';
+import MessageSheet from '../../components/MessageSheet.vue';
 import { toggleThemeMode, useThemeMode } from '../../theme';
 import { mine as getMyInviteCode } from '../../api/invitation';
 import { orderList, rewardSummary } from '../../api/order';
 import { approvalCounts } from '../../api/approval';
+import { unreadCount as fetchUnreadCount } from '../../api/notification';
 import { buildInviteSharePath, consumePendingInvitation } from '../../utils/invitation';
 
 const store = useUserStore();
@@ -196,6 +225,47 @@ function onToggleTheme() {
 const inviteCode = ref('');
 const orderTip = ref('查看服务进度与跟进摘要');
 const summary = ref(null);
+
+/* ==================== 消息通知 / 业务录入（对齐原型「我的」） ==================== */
+/** 是否客户角色（客户展示服务顾问，非客户展示业务录入） */
+const isCustomerRole = computed(() => (store.role || 'customer') === 'customer');
+/**
+ * 未读消息数（角标）：由接口驱动，无未读即 0、不显示角标。
+ *
+ * <p>此前为三条硬编码示例消息的派生值 + 常显角标，会让用户误认为有真实待办
+ * （2026-09-11 审计 P0-2，已改为真实接口）。
+ */
+const msgOpen = ref(false);
+const unreadCount = ref(0);
+function onOpenMsg() { msgOpen.value = true; }
+
+/** 消息已读（弹层内已全部标记）→ 立即清角标，不必等下次 onShow。 */
+function onMessageRead() { unreadCount.value = 0; }
+
+/**
+ * 拉取未读消息数（驱动角标）。
+ *
+ * <p>失败静默为 0：消息中心属次要内容，不允许因它拉取失败而弹错或阻断页面。
+ */
+async function loadUnread() {
+  try {
+    const n = await fetchUnreadCount();
+    const num = Number(n);
+    unreadCount.value = Number.isFinite(num) && num > 0 ? num : 0;
+  } catch (e) {
+    unreadCount.value = 0;
+  }
+}
+/** 业务录入：录入线索 / 录入产品（均指向「线索录入」合并页对应子页签，D74） */
+function onBizEntry() {
+  uni.showActionSheet({
+    itemList: ['录入线索', '录入产品'],
+    success: (r) => {
+      if (r.tapIndex === 0) uni.reLaunch({ url: '/pages/lead-entry/lead-entry?seg=lead' });
+      else uni.reLaunch({ url: '/pages/lead-entry/lead-entry?seg=product' });
+    },
+  });
+}
 
 const displayName = computed(() => {
   const name = (store.profile && store.profile.contactName) || (store.user && store.user.name);
@@ -291,6 +361,8 @@ onShow(() => {
       if (!isChannelRole.value) loadOrderTip();
       // 审核中心角标：仅审核角色拉取待审总数
       if (isApproverRole.value) loadApprovalCount();
+      // 消息角标：未读数由接口驱动（所有角色）
+      loadUnread();
     }
   }).catch(() => {});
 });
@@ -364,7 +436,7 @@ function onGoAuth() {
 function goOrder() { uni.reLaunch({ url: '/pages/order/list' }); }
 
 /** C9：跳转我的产品（仅渠道可见） */
-function goProduct() {  uni.navigateTo({ url: '/pages/product/list' });
+function goProduct() {  uni.reLaunch({ url: '/pages/lead-entry/lead-entry?seg=product' });
 }
 
 /** C19：审核中心入口（运营/超管/老板） */
@@ -595,7 +667,7 @@ function onLogout() {
   transition: background 0.2s;
 }
 .theme-switch.is-dark {
-  background: linear-gradient(135deg, #C98A2B 0%, #E0AE4E 55%, #F2C879 100%);
+  background: var(--btn-primary-bg);
 }
 .theme-knob {
   position: absolute;
@@ -604,7 +676,7 @@ function onLogout() {
   width: 44rpx;
   height: 44rpx;
   border-radius: 50%;
-  background: #FFFFFF;
+  background: var(--text-invert);
   box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.2);
   transition: transform 0.2s;
 }

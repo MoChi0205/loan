@@ -29,6 +29,7 @@
         <el-tab-pane v-if="isDeptManager" label="团队公海" name="TEAM_SEA" />
       </el-tabs>
       <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
+        <el-input v-model="clientQuery.keyword" placeholder="搜索客户：身份证、信用代码、企业名、联系人或手机号" clearable style="width: 340px" @keyup.enter="searchClients" />
         <el-input v-model="clientQuery.name" placeholder="联系人姓名" clearable style="width: 160px" @keyup.enter="searchClients" />
         <el-input v-model="clientQuery.phone" placeholder="手机号" clearable style="width: 160px" @keyup.enter="searchClients" />
         <el-input v-model="clientQuery.enterpriseName" placeholder="企业名称" clearable style="width: 200px" @keyup.enter="searchClients" />

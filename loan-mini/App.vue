@@ -1,8 +1,8 @@
 <script>
 /**
  * 小程序根组件。
- * 全局样式：墨金 Ink & Gold —— 深墨蓝 #16203A + 暖金 #D9A441、
- * 明暗双主题，来源 docs/design-system/DesignSystemManifest.md。
+ * 全局样式：墨蓝 · 皇家蓝 · 香槟金（唯一视觉真源 = 原型
+ * docs/prototypes/redesign-all-roles-v1.html，2026-09-10 用户确认），明暗双主题。
  */
 import { useUserStore } from './store/user';
 import { initWxJsSdk } from './utils/wx-jssdk';
@@ -85,46 +85,46 @@ export default {
    故统一用 page 定义全局 CSS 变量，双端生效。勿改回 :root。 */
 /* stylelint-disable color-no-hex -- 设计令牌定义源：裸 hex 为规范唯一来源，禁止 lint 拦截 */
 page {
-  /* ===== 品牌色（墨金 Ink & Gold） ===== */
-  /* 阶梯：navy(墨蓝渐变起点) < deep(主交互/按钮) < mid(悬停提亮) < bright(小面积点缀) */
-  --brand-navy: #16203A;
-  --brand-deep: #D9A441;
-  --brand-mid: #E0AE4E;
-  --brand-bright: #F2C879;
-  /* Hero 渐变：大面积 Hero（首页通栏/我的档案头/匹配守卫/工单状态卡）统一引用 */
-  --hero-gradient: linear-gradient(160deg, #16203A 0%, #1B2945 40%, #D9A441 100%);
-  --gold: #D9A441;
-  --gold-bg: #FFF5E0;
+  /* ===== 品牌色（墨蓝 · 皇家蓝 · 香槟金，来源原型 redesign-all-roles-v1） ===== */
+  /* 阶梯：ink(墨蓝/深底) < royal(皇家蓝/主交互·按钮·选中) < bright(提亮) ；gold 为香槟金点缀 */
+  --brand-navy: #111E36;
+  --brand-mid: #3A63D6;
+  --brand-bright: #5B7CFF;
+  --brand-deep: #2C52C9;
+  /* Hero 渐变 = 原型 .m-head：右上香槟金光斑 + 墨蓝→ink-2 深底 */
+  --hero-gradient: radial-gradient(120% 80% at 85% -10%, rgba(199,161,90,.30), transparent 60%), linear-gradient(165deg, #111E36 0%, #1B2C4D 60%, #14233F 100%);
+  --gold: #C7A15A;
+  --gold-bg: #FBF3E2;
 
-  /* ===== 中性色 ===== */
-  --bg-page: #F4F6FA;
+  /* ===== 中性色（原型 ivory 暖底体系） ===== */
+  --bg-page: #FBF8F2;
   --bg-card: #FFFFFF;
-  --bg-input: #EEF2F8;
-  --line: #E2E8F2;
-  --text-primary: #16203A;
-  --text-body: #243456;
-  --text-secondary: #6B7689;
-  --text-placeholder: #93A0B8;
+  --bg-input: #F3EEE4;
+  --line: #ECE6DA;
+  --text-primary: #1B2740;
+  --text-body: #2A3A58;
+  --text-secondary: #6A768C;
+  --text-placeholder: #A6AEBE;
   --text-invert: #FFFFFF;
 
-  /* ===== 语义色（仅用于图标/底色，文字请用 -text 变量） ===== */
-  --success: #2FA37A;
-  --warning: #E0A441;
-  --danger: #D8695F;
-  --info: #4C7BD9;
+  /* ===== 语义色（仅用于图标/底色，文字请用 -text 变量；取自原型 .m-tag/.w-tag） ===== */
+  --success: #2E8B6B;
+  --warning: #B5781F;
+  --danger: #C0392B;
+  --info: #2C52C9;
 
   /* ===== 无障碍文字色（对比度已验证 ≥4.5:1，WCAG AA） ===== */
-  --warning-text: #B8861A;
-  --gold-text: #16203A;
-  --success-text: #047857;
-  --danger-text: #B91C1C;
-  --info-text: #3D63E0;
+  --warning-text: #9A6412;
+  --gold-text: #1A1305;
+  --success-text: #1F6B53;
+  --danger-text: #B03A2E;
+  --info-text: #2C52C9;
 
   /* ===== 语义浅底（badge / 提示卡底色，配 -text 文字） ===== */
-  --success-bg: #ECFDF5;
-  --warning-bg: #FFF5E0;
-  --warning-line: #F2C879;
-  --brand-bg: #FFF5E0;
+  --success-bg: #E7F4EE;
+  --warning-bg: #FBF1DE;
+  --warning-line: #E7D3A6;
+  --brand-bg: #EAEFFB;
 
   /* ===== 间距（4px 基准 → rpx） ===== */
   --space-1: 8rpx;    --space-2: 16rpx;   --space-3: 24rpx;  --space-4: 32rpx;
@@ -154,47 +154,68 @@ page {
   --shadow-sm: 0 2rpx 4rpx rgba(15, 23, 42, 0.04);
   --shadow-md: 0 8rpx 24rpx rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 16rpx 48rpx rgba(15, 23, 42, 0.08);
+  /* 首页快捷磁贴浮起：对齐设计真源原型 .m-qk（0 5px 15px rgba(17,30,54,.05)），不改动上面 3 级刻度 */
+  --shadow-tile: 0 10rpx 30rpx rgba(17, 30, 54, 0.05);
 
   /* ===== 过渡（3 级） ===== */
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
   --transition-slow: 280ms ease;
 
-  /* ===== 冷玻璃质感系列（首页 header / 我的页头 / 匹配守卫：磨砂油画 + 毛玻璃） =====
+  /* ===== 暖玻璃质感系列（首页 header / 我的页头 / 匹配守卫：磨砂油画 + 毛玻璃） =====
      小程序端 backdrop-filter 不支持 → 降级为多层径向渐变油画光斑；H5 端启用 blur 真毛玻璃 */
-  --glass-bg: #EEF2F8;
-  --glass-bg-deep: #E2E8F2;
+  --glass-bg: #F4EEE4;
+  --glass-bg-deep: #EBE3D4;
   --glass-hi: rgba(255, 255, 255, 0.45);
   --glass-edge: rgba(255, 255, 255, 0.6);
-  --glass-tint: #F2C879;
+  --glass-tint: #EAEFFB;
   --glass-gradient: radial-gradient(circle at 18% 20%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 38%),
-                     radial-gradient(circle at 82% 88%, rgba(217,164,65,0.10) 0%, rgba(217,164,65,0) 42%),
-                     linear-gradient(160deg, #F4F6FA 0%, #E8ECF5 55%, #E2E8F2 100%);
+                     radial-gradient(circle at 82% 88%, rgba(199,161,90,0.12) 0%, rgba(199,161,90,0) 42%),
+                     linear-gradient(160deg, #FBF8F2 0%, #F4EEE4 55%, #ECE6DA 100%);
 
-  /* ===== 按钮体系（墨金：主按钮暖金填充、墨蓝文字；次按钮玻璃/描边） =====
+  /* ===== 按钮体系（皇家蓝主按钮 + 香槟金强调，来源原型 .m-btn / .m-btn.gold） =====
      所有按钮/类按钮控件（AppButton、胶囊、CTA）一律引用下列令牌，禁止页面内裸色值 */
-  --btn-primary-bg: linear-gradient(135deg, #D9A441 0%, #E0AE4E 55%, #F2C879 100%);
-  --btn-primary-shadow: 0 12rpx 28rpx rgba(217, 164, 65, 0.28);
-  --btn-gold-bg: linear-gradient(135deg, #D9A441 0%, #F2C879 100%);
-  --btn-gold-shadow: 0 12rpx 28rpx rgba(217, 164, 65, 0.30);
-  --btn-danger-bg: linear-gradient(135deg, #B91C1C 0%, #D8695F 100%);
-  --btn-danger-shadow: 0 12rpx 28rpx rgba(184, 28, 28, 0.26);
-  /* 玻璃/描边按钮：浅底 + 细边，配冷玻璃卡片 */
-  --btn-glass-bg: rgba(255, 255, 255, 0.72);
-  --btn-glass-border: rgba(217, 164, 65, 0.28);
+  --btn-primary-bg: linear-gradient(135deg, #2C52C9 0%, #2444A8 60%, #1F3C92 100%);
+  --btn-primary-shadow: 0 12rpx 28rpx rgba(44, 82, 201, 0.26);
+  --btn-gold-bg: linear-gradient(135deg, #C7A15A 0%, #D9BD86 100%);
+  --btn-gold-shadow: 0 12rpx 28rpx rgba(199, 161, 90, 0.30);
+  --btn-danger-bg: linear-gradient(135deg, #C0392B 0%, #D8695F 100%);
+  --btn-danger-shadow: 0 12rpx 28rpx rgba(192, 57, 43, 0.24);
+  /* 玻璃/描边按钮：白底 + 淡蓝细边 + 皇家蓝字（原型 .m-btn.ghost） */
+  --btn-glass-bg: #FFFFFF;
+  --btn-glass-border: #CDD7EE;
   --btn-ghost-bg: transparent;
   --btn-ghost-border: var(--brand-deep);
-  --btn-disabled-bg: #E2E8F2;
-  --btn-disabled-text: #93A0B8;
+  --btn-disabled-bg: #EDE9E0;
+  --btn-disabled-text: #A6AEBE;
 
-  /* ===== 角色色板（v2 明亮商务版：原深蓝/灰黑 → 鲜亮区分色，白字 ΔE>20） ===== */
-  --role-customer: #2443C2;
-  --role-channel: #0E9CB0;
-  --role-adviser: #C8841A;
-  --role-deptmgr: #4F46E5;
-  --role-boss: #9333EA;
-  --role-operator: #059669;
-  --role-super: #DB2777;
+  /* ===== 角色色板（对齐原型 ROLES.color，7 角色） ===== */
+  --role-customer: #3AA37E;
+  --role-channel: #7A5CC0;
+  --role-adviser: #2C52C9;
+  --role-deptmgr: #C7A15A;
+  --role-boss: #B5443B;
+  --role-operator: #2E8B6B;
+  --role-super: #1B2C4D;
+
+  /* ===== Hero 深色面（固定深墨蓝底，明暗主题取值一致，故不设暗色覆盖）=====
+     来源：原型 .m-head（问候 / 姓名 / 角色胶囊 / 铃铛红点）与统计卡。
+     页面禁止裸色值（05-前端工程要点 C18；stylelint color-no-hex 门禁） */
+  --hero-text-dim: #CDD6E6;    /* 次级文字：问候语 */
+  --hero-text-weak: #DCE5F3;   /* 操作文字：授权头像 */
+  --hero-text-muted: #AEBDD2;  /* 三级文字：角色说明 */
+  --hero-text-soft: #D5DEED;   /* 统计卡标签 */
+  --hero-gold: #E7D3A6;        /* 深底香槟金：角色胶囊文字 */
+  --hero-avatar-ink: #20180B;  /* 金色头像上的深字 */
+  --hero-avatar-bg: linear-gradient(135deg, #E7D3A6, #B8883F);
+  --hero-dot: #E66B65;         /* 消息铃铛红点 */
+  --hero-stat-bg: linear-gradient(145deg, #243B68, #1A2B4D);
+
+  /* ===== 金色头像底（消息列表未读项）：恒定金色，不随主题切换 ===== */
+  --avatar-gold-bg: linear-gradient(140deg, #D9BD86, #C7A15A);
+
+  /* ===== 控件描边（复选框等可选控件；对比强于 --line）===== */
+  --control-border: #718096;
 
   /* ============================================================
      向后兼容别名：旧页面仍在用的令牌名，映射到新体系。
@@ -348,45 +369,48 @@ button::after {
 }
 
 /* ============================================================
- * 墨金 Ink & Gold · 暗色主题（与 loan-web 对齐）
+ * 墨蓝 · 皇家蓝 · 香槟金 · 暗色主题
  * 小程序 SVG 不解析 var()，故 AppIcon / TabBar 运行时按 mode 注入真实色；
  * 此处定义 CSS 变量层，由 page[data-theme="dark"] 生效。
  * ============================================================ */
+/* stylelint-disable color-no-hex -- 设计令牌定义源（暗色）：裸 hex 为规范唯一来源，禁止 lint 拦截 */
 :root[data-theme="dark"], [data-theme="dark"] {
-  --bg-page: #0E1626;
-  --bg-card: #131E33;
-  --bg-input: #1B2945;
-  --line: #26344F;
+  --bg-page: #0E1830;
+  --bg-card: #13203B;
+  --bg-input: #1A2A47;
+  --line: #263453;
   --text-primary: #E8EDF5;
-  --text-body: #B6C2D6;
-  --text-secondary: #93A0B8;
-  --text-placeholder: #64748B;
-  --brand-navy: #0E1626;
-  --brand-deep: #E0AE4E;   /* 暗底强调转暖金 */
-  --brand-mid: #F2C879;
-  --brand-bright: #FBD98C;
-  --hero-gradient: linear-gradient(160deg, #0E1626 0%, #16233A 40%, #1B2945 100%);
-  --gold: #F2C879;
+  --text-body: #C3CCDD;
+  --text-secondary: #9BA8C0;
+  --text-placeholder: #6E7B93;
+  --brand-navy: #0E1830;
+  --brand-deep: #6E9BE0;   /* 暗底强调转亮皇家蓝 */
+  --brand-mid: #8FB0EC;
+  --brand-bright: #AFC8F5;
+  --hero-gradient: radial-gradient(120% 80% at 85% -10%, rgba(199,161,90,.22), transparent 60%), linear-gradient(165deg, #0E1830 0%, #13203B 60%, #0F1A30 100%);
+  --gold: #E7D3A6;
   --gold-bg: #2A2310;
   --success: #3FB98A;
-  --warning: #E0A441;
+  --warning: #D9A441;
   --danger: #E0877D;
   --info: #6E9BE0;
   --success-text: #6EE7B7;
-  --warning-text: #F2C879;
+  --warning-text: #E7D3A6;
   --danger-text: #F0A89F;
   --info-text: #9FBEF0;
-  --success-bg: rgba(47, 163, 122, 0.16);
-  --warning-bg: rgba(224, 164, 65, 0.16);
-  --brand-bg: rgba(224, 174, 78, 0.16);
-  --glass-bg: #1B2945;
-  --glass-bg-deep: #16233A;
-  --glass-tint: #1B2945;
-  --glass-gradient: radial-gradient(circle at 18% 20%, rgba(224, 174, 78, 0.10) 0%, rgba(224, 174, 78, 0) 38%),
-                    linear-gradient(160deg, #131E33 0%, #16233A 55%, #1B2945 100%);
-  --btn-primary-bg: linear-gradient(135deg, #C98A2B 0%, #E0AE4E 55%, #F2C879 100%);
-  --btn-primary-shadow: 0 12rpx 28rpx rgba(224, 174, 78, 0.28);
-  --btn-glass-border: rgba(224, 174, 78, 0.28);
+  --success-bg: rgba(46, 139, 107, 0.16);
+  --warning-bg: rgba(181, 120, 31, 0.18);
+  --brand-bg: rgba(110, 155, 224, 0.16);
+  --glass-bg: #1A2A47;
+  --glass-bg-deep: #13203B;
+  --glass-tint: #1A2A47;
+  --glass-gradient: radial-gradient(circle at 18% 20%, rgba(199, 161, 90, 0.10) 0%, rgba(199, 161, 90, 0) 38%),
+                    linear-gradient(160deg, #13203B 0%, #16233A 55%, #1A2A47 100%);
+  --btn-primary-bg: linear-gradient(135deg, #3A63D6 0%, #5B7CFF 55%, #6E9BE0 100%);
+  --btn-primary-shadow: 0 12rpx 28rpx rgba(59, 99, 214, 0.30);
+  --btn-glass-border: rgba(110, 155, 224, 0.28);
   --shadow-md: 0 8rpx 24rpx rgba(0, 0, 0, 0.3);
+  --shadow-tile: 0 10rpx 30rpx rgba(0, 0, 0, 0.32);
 }
+/* stylelint-enable color-no-hex */
 </style>

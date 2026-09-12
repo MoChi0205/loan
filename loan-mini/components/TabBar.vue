@@ -5,7 +5,7 @@
       :key="item.key"
       class="tab-item"
       :class="{ 'tab-active': item.key === current }"
-      :style="{ '--tab-color': item.color, '--tab-active-color': item.activeColor }"
+      :style="{ '--tab-color': inactiveColor, '--tab-active-color': activeColor }"
       role="tab"
       :aria-selected="item.key === current"
       :aria-label="item.label"
@@ -14,10 +14,9 @@
       @keydown.enter="onTap(item)"
       @keydown.space.prevent="onTap(item)"
     >
-      <!-- 选中态顶部指示条 -->
       <view class="tab-indicator" v-if="item.key === current" />
       <view class="tab-icon-wrap" :class="{ 'icon-active': item.key === current }">
-        <AppIcon :name="item.icon" size="lg" :color="iconColor(item)" />
+        <AppIcon :name="item.icon" size="lg" :color="item.key === current ? activeColor : inactiveColor" />
       </view>
       <text class="tab-label">{{ item.label }}</text>
     </view>
@@ -28,31 +27,27 @@
 import { computed, ref, onUnmounted } from 'vue';
 import { useUserStore } from '../store/user';
 import { getThemeMode, onThemeChange } from '../theme';
+import { roleConfig } from '../utils/roles';
 
 /**
  * 角色化底部导航（全端统一自绘，替代原生 tabBar）。
  *
  * <p>原生 tabBar 为静态配置，无法按角色差异渲染；且 uni-app 的 tabBar
- * `custom` 字段仅微信/抖音小程序支持、H5 端忽略。故采用自绘组件：
- * 一套代码在小程序与 H5 渲染一致的「渠道沙箱」导航。
+ * `custom` 字段仅微信/抖音小程序支持、H5 端忽略。故采用自绘组件。
  *
- * 角色差异（对齐交互原型 §7 角色导航 & 结论 C1/C3/服务单模块）：
- * - 客户 / 企业员工（顾问/经理/老板/运营/超管）：首页 · 智能匹配 · 我的报告 · 服务单 · 我的
- * - 渠道合作方（沙箱隔离）：首页 · 我的产品 · 录入客户 · 我的（隐藏匹配/报告/服务单）
+ * <p>角色差异唯一来源 = utils/roles.js（用户 2026-09-10 二次确认的合并结构，D74）：
+ * - 客户：首页 · 智能匹配 · 我的报告 · 服务单 · 我的（5）
+ * - 渠道：首页 · 线索录入 · 我的客户 · 我的（4，唯一不可匹配；我的客户只读）
+ * - 顾问 / 部门经理：首页 · 线索录入 · 我的客户 · 我的（4）
+ * - 运营：首页 · 线索录入 · 我的客户 · 审批中心 · 我的（5）
+ * - 老板 / 超级管理员：首页 · 线索录入 · 智能匹配 · 我的客户 · 我的（5）
  *
- * 配色：每个 tab 使用各自的语义色（不再是死灰），与首页色彩体系一致：
- * - 首页：主色 brand-deep
- * - 智能匹配：蓝紫（匹配/连接）
- * - 我的报告：暖金（数据/报告）
- * - 服务单：绿色（服务/进行）
- * - 我的：青色（个人中心）
- * - 渠道「我的产品」：暖金；「录入客户」：绿色
+ * <p>配色：未选中统一中性灰，选中统一皇家蓝（--brand-deep），禁止按 tab 跳色。
+ *   ⚠️ 必须传真实色值（#RRGGBB / rgba）：AppIcon 的 SVG stroke 不解析 var(--…)。
  *
- * 用法（tab 页面底部）：
- *   <TabBar current="home" />
- * current 取值：home / match / report / order / mine / product / client
- *
- * 注意：移除原生 tabBar 后 uni.switchTab 不可用，切换用 uni.reLaunch。
+ * <p>用法（tab 页面底部）：`<TabBar current="home" />`
+ * current 取值：home / match / report / order / mine / product / client / approval / luru / clients
+ * 切换一律 uni.reLaunch（无原生 tabBar 配置时 switchTab 会失败）。
  */
 const props = defineProps({
   /** 当前 tab 标识 */
@@ -61,59 +56,54 @@ const props = defineProps({
 
 const store = useUserStore();
 
-/** 订阅主题：TabBar 颜色与背景须随明暗切换（SVG stroke 不解析 var()，须注入真实色）。 */
+/** 订阅主题：TabBar 颜色须随明暗切换（SVG stroke 不解析 var()，须注入真实色）。 */
 const themeMode = ref(getThemeMode());
 const offTheme = onThemeChange((m) => { themeMode.value = m; });
 onUnmounted(() => { if (offTheme) offTheme(); });
 
-/** TabBar 配色（墨金体系，全局统一）：未选中统一中性灰，选中统一主色。
- *  禁止按 tab 跳色，保证品牌识别一致。
- *  ⚠️ 必须传真实色值（#RRGGBB / rgba），不能用 var(--…)：AppIcon v8 的 SVG stroke
- *     不解析 CSS 变量，传 var(--…) 会导致图标字形画不出来（用户 2026-09-09 反馈）。
- *  明暗双值：暗底用浅灰（保证可见）+ 主色转暖金（= 暗底 --brand-deep #E0AE4E）。 */
-const INACTIVE_LIGHT = '#6B7689';   // 浅底未选中（text-muted）
+/** tab 键 → 页面路由（小程序侧实存页面，全部为 tab 页） */
+const TAB_URL = {
+  home: '/pages/home/home',
+  match: '/pages/match/match',
+  report: '/pages/report/list',
+  order: '/pages/order/list',
+  mine: '/pages/mine/mine',
+  product: '/pages/product/list',
+  client: '/pages/client/create',
+  approval: '/pages/approval/list',
+  // 合并页（D74）
+  luru: '/pages/lead-entry/lead-entry',
+  clients: '/pages/client/mine',
+};
+
+// 明暗双真实色值（皇家蓝主色）：浅底 #2C52C9；暗底提亮为 #6E9BE0
+const INACTIVE_LIGHT = '#6A768C';
 const INACTIVE_DARK = 'rgba(232, 237, 245, 0.55)';
-const ACTIVE_LIGHT = '#D9A441';     // 浅底选中（暖金 gold-500）
-const ACTIVE_DARK = '#E0AE4E';      // 暗底主色（暖金，对齐 --brand-deep 暗值）
+const ACTIVE_LIGHT = '#2C52C9';
+const ACTIVE_DARK = '#6E9BE0';
 
 const inactiveColor = computed(() => (themeMode.value === 'dark' ? INACTIVE_DARK : INACTIVE_LIGHT));
 const activeColor = computed(() => (themeMode.value === 'dark' ? ACTIVE_DARK : ACTIVE_LIGHT));
 
+/** 当前角色的 tab 列表（唯一来源 utils/roles.js） */
 const tabList = computed(() => {
-  if (store.isChannel) {
-    return [
-      { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: inactiveColor.value, activeColor: activeColor.value },
-      { key: 'product', label: '我的产品', icon: 'bank', url: '/pages/product/list', color: inactiveColor.value, activeColor: activeColor.value },
-      { key: 'client', label: '录入客户', icon: 'users', url: '/pages/client/create', color: inactiveColor.value, activeColor: activeColor.value },
-      { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: inactiveColor.value, activeColor: activeColor.value },
-    ].filter((item) => item.key === 'home' || item.key === 'mine'
-      || (item.key === 'product' && store.hasPermission('mini:product:view'))
-      || (item.key === 'client' && store.hasPermission('mini:lead:create')));
+  const configured = roleConfig(store.role).tabs || [];
+  // 审批权限是最终事实来源：即使后端动态下发权限，也必须出现审批中心 Tab。
+  if (store.hasPermission('mini:approval:view') && !configured.some((item) => item.key === 'approval')) {
+    const mineIndex = configured.findIndex((item) => item.key === 'mine');
+    const approval = { key: 'approval', label: '审批中心', icon: 'shield' };
+    const next = configured.slice();
+    next.splice(mineIndex < 0 ? next.length : mineIndex, 0, approval);
+    return next.slice(0, 5);
   }
-  return [
-    { key: 'home', label: '首页', icon: 'home', url: '/pages/home/home', color: inactiveColor.value, activeColor: activeColor.value },
-    { key: 'match', label: '匹配', icon: 'match', url: '/pages/match/match', color: inactiveColor.value, activeColor: activeColor.value },
-    { key: 'report', label: '报告', icon: 'chart', url: '/pages/report/list', color: inactiveColor.value, activeColor: activeColor.value },
-    { key: 'order', label: '服务单', icon: 'order', url: '/pages/order/list', color: inactiveColor.value, activeColor: activeColor.value },
-    { key: 'mine', label: '我的', icon: 'mine', url: '/pages/mine/mine', color: inactiveColor.value, activeColor: activeColor.value },
-  ].filter((item) => item.key === 'home' || item.key === 'mine'
-    || (item.key === 'match' && store.hasPermission('mini:match:view'))
-    || (item.key === 'report' && store.hasPermission('mini:report:view'))
-    || (item.key === 'order' && store.hasPermission('mini:order:view')));
+  return configured;
 });
-
-/**
- * 图标颜色：未选中用 tab 自身的语义色，选中态用主色 brand-deep。
- * 通过 CSS 自定义属性 --tab-color 传递，样式表中可统一引用。
- */
-function iconColor(item) {
-  if (item.key === props.current) return item.activeColor;
-  return item.color;
-}
 
 function onTap(item) {
   if (item.key === props.current) return;
-  uni.reLaunch({ url: item.url });
+  const url = TAB_URL[item.key];
+  if (!url) return;
+  uni.reLaunch({ url });
 }
 </script>
 
@@ -126,10 +116,10 @@ function onTap(item) {
   z-index: 100;
   display: flex;
   align-items: stretch;
-  /* 随主题变化：浅底=白(#FFFFFF)，暗底=墨金卡面(#131E33)，与卡片同色系 */
+  /* 随主题变化：浅底=白，暗底=墨蓝卡面，与卡片同色系 */
   background: var(--bg-card);
   border-top: 1rpx solid var(--line);
-  box-shadow: 0 -4rpx 24rpx rgba(15, 23, 42, 0.06);
+  box-shadow: 0 -4rpx 24rpx rgba(17, 30, 54, 0.06);
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -145,11 +135,9 @@ function onTap(item) {
   transition: opacity 0.15s;
 }
 
-.tab-item:active {
-  opacity: 0.7;
-}
+.tab-item:active { opacity: 0.7; }
 
-/* 选中态顶部指示条（电商风格：3px 主色圆角条） */
+/* 选中态顶部指示条 */
 .tab-indicator {
   position: absolute;
   top: 0;
@@ -161,8 +149,6 @@ function onTap(item) {
   background: var(--tab-active-color, var(--brand-deep));
 }
 
-/* 图标容器：选中态加柔和背景药丸（电商风格）
-   注意：微信 wxss 不支持 color-mix()，用静态 rgba 替代 */
 .tab-icon-wrap {
   width: 64rpx;
   height: 64rpx;
@@ -173,18 +159,14 @@ function onTap(item) {
   transition: background 0.2s;
 }
 
-.tab-icon-wrap.icon-active {
-  background: transparent;
-}
+.tab-icon-wrap.icon-active { background: transparent; }
 
 .tab-label {
   margin-top: 6rpx;
   font-size: var(--fs-xs);
   line-height: 1;
-  /* 禁止换行：H5 窄项下「智能匹配」等 4 字标签曾折行把 TabBar 撑高，
-     压住页面底部内容形成叠影（用户 2026-09-07 报告） */
+  /* 禁止换行：H5 窄项下「智能匹配」等 4 字标签曾折行把 TabBar 撑高，压住页面底部内容形成叠影 */
   white-space: nowrap;
-  /* 未选中用 tab 自身语义色（不再灰！） */
   color: var(--tab-color, var(--text-secondary));
   font-weight: 500;
   transition: color 0.15s;
@@ -196,10 +178,10 @@ function onTap(item) {
 }
 
 /* #ifdef H5 */
-/* 宽屏限宽：与 uni-page-body 对齐（阶段2 H1）
+/* 宽屏限宽：与 uni-page-body 对齐
    ⚠️ 居中必须用 left:0 + right:0 + margin:auto —— 不可用 left:50% + translateX(-50%)：
    fixed 元素同时设 left/right 会先拉伸宽度（被 left/right 拉伸压过 max-width），
-   实测宽度塌成 381px、5 个 tab 挤压换行（用户 2026-09-07 报告叠影的根因之一） */
+   实测宽度塌成 381px、5 个 tab 挤压换行（用户 2026-09-07 报告叠影的根因之一，D64） */
 @media (min-width: 768px) {
   .tab-bar {
     max-width: 600px;

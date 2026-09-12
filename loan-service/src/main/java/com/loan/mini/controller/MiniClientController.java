@@ -1,7 +1,9 @@
 package com.loan.mini.controller;
 
+import com.loan.api.dto.PageResult;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
+import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
@@ -101,6 +103,95 @@ public class MiniClientController {
     public Result<Map<String, Object>> release(@PathVariable String clientCode, @CurrentUser LoanUser user) {
         requireStaff(user);
         return Result.ok(miniClientService.release(clientCode, user));
+    }
+
+    /* ==================== 我的客户 / 客户公海（员工侧列表，D74） ==================== */
+
+    /**
+     * 「我的客户」列表：仅本人归属客户。
+     *
+     * <p>所有员工角色口径一致（用户 2026-09-10 确认「统一只显示本人归属」），
+     * 不做团队 / 全司放大；渠道与客户由 {@link #requireStaff} 拒绝。
+     *
+     * @param keyword 企业名模糊关键词，可为空
+     * @param page    页码
+     * @param size    每页大小
+     * @param user    当前登录员工
+     * @return 本人归属客户分页摘要
+     */
+    @GetMapping("/my")
+    public Result<PageResult<Map<String, Object>>> myClients(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @CurrentUser LoanUser user) {
+        requireStaff(user);
+        return Result.ok(miniClientService.myClients(keyword, PageParams.page(page), PageParams.size(size), user));
+    }
+
+    /**
+     * 客户公海列表（15-客户公海团队客户与分配回收规则 §11/§12）。
+     *
+     * <p>公司公海全员可见；团队公海仅本部门可见（无部门账号返回空，fail-closed）。
+     * 认领仍走 {@link #claim}，不在此处落归属。
+     *
+     * @param keyword  企业名模糊关键词，可为空
+     * @param seaLevel ENTERPRISE 公司公海 / TEAM 团队公海
+     * @param page     页码
+     * @param size     每页大小
+     * @param user     当前登录员工
+     * @return 公海客户分页摘要
+     */
+    @GetMapping("/sea")
+    public Result<PageResult<Map<String, Object>>> seaClients(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String seaLevel,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @CurrentUser LoanUser user) {
+        requireStaff(user);
+        return Result.ok(miniClientService.seaClients(keyword, seaLevel,
+                PageParams.page(page), PageParams.size(size), user));
+    }
+
+    /**
+     * 「团队客户」列表：本部门成员（排除本人）名下客户，供部门经理回收。
+     *
+     * <p>仅 {@code DEPT_MANAGER} 可访问（15-规则 §10：部门经理「团队客户」与「我的客户」独立展示）；
+     * 其他员工角色的团队 / 全司视图仍只在 Web 管理端。
+     *
+     * @param keyword 企业名模糊关键词，可为空
+     * @param page    页码
+     * @param size    每页大小
+     * @param user    当前登录用户
+     * @return 本部门成员名下客户分页摘要
+     */
+    @GetMapping("/team")
+    public Result<PageResult<Map<String, Object>>> teamClients(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @CurrentUser LoanUser user) {
+        miniRoleGuard.requireDeptManager(user);
+        return Result.ok(miniClientService.teamClients(keyword,
+                PageParams.page(page), PageParams.size(size), user));
+    }
+
+    /**
+     * 回收客户进公海（15-规则 §32/§33/§34）。
+     *
+     * <p>部门经理回收本团队客户 → 团队公海；老板 / 运营 / 超级管理员 → 公司公海。
+     * 跨团队回收由服务层拒绝；覆盖冷却期，不删除客户档案。
+     *
+     * @param clientCode 客户编码
+     * @param user       当前登录用户
+     * @return { clientCode, recycled=true, fromOwnerStaffCode }
+     */
+    @PostMapping("/{clientCode}/recycle")
+    public Result<Map<String, Object>> recycleClient(@PathVariable String clientCode,
+                                                     @CurrentUser LoanUser user) {
+        miniRoleGuard.requireApprover(user);
+        return Result.ok(miniClientService.recycle(clientCode, user));
     }
 
     /* ==================== B3：无归宿分配审批（运营/超管） ==================== */

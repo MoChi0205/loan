@@ -1,5 +1,5 @@
 <template>
-  <view class="approval-page theme-root" :data-theme="themeMode">
+  <view class="approval-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <AppEmpty v-if="!canView" title="暂无权限" desc="当前账号没有审核权限，请联系管理员" />
     <template v-else>
     <!-- 类型分段 tab（审核中心统一） -->
@@ -53,6 +53,9 @@
     </view>
     </template>
   </view>
+
+  <!-- 角色化底部导航（审批中心为运营侧 tab，保留 TabBar） -->
+  <TabBar v-if="canView" current="approval" />
 </template>
 
 <script setup>
@@ -60,6 +63,7 @@ import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
 import { useThemeMode } from '../../theme';
+import TabBar from '../../components/TabBar.vue';
 import {
   pendingApprovals, auditApproval, approvalCounts, normalizeApprovalItem,
 } from '../../api/approval';
@@ -239,6 +243,8 @@ onLoad(async () => {
 .approval-page {
   min-height: 100vh;
   padding: var(--space-page-gutter);
+  /* 底部预留 TabBar 高度 + 安全区，避免最后一项被遮挡 */
+  padding-bottom: calc(128rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 

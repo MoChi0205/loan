@@ -279,6 +279,8 @@ public class ApiPermissionService {
         Map<String, List<Map<String, String>>> typeApiRules = new LinkedHashMap<>();
         List<Map<String, String>> channelMiniApis = new ArrayList<>();
         channelMiniApis.add(typeApiRule("GET", "/api/mini/me"));
+        // 首页统计行：渠道仅取本人指标（leadCount/convertedCount），服务端已按 userNo 收敛范围（D72）
+        channelMiniApis.add(typeApiRule("GET", "/api/mini/dashboard/stats"));
         channelMiniApis.add(typeApiRule("POST", "/api/mini/lead/submit"));
         channelMiniApis.add(typeApiRule("GET", "/api/mini/lead/my"));
         channelMiniApis.add(typeApiRule("GET", "/api/mini/product/list"));
@@ -290,6 +292,11 @@ public class ApiPermissionService {
         channelMiniApis.add(typeApiRule("POST", "/api/mini/product/{code}/delete-apply"));
         channelMiniApis.add(typeApiRule("POST", "/api/mini/product/{code}/delete-cancel"));
         channelMiniApis.add(typeApiRule("GET", "/api/mini/partner-product/active"));
+        // 站内消息中心：渠道只看发给自己的通知（服务端按 userNo 硬收口），
+        // 仍走 method + path 精确授权，不放宽 `mini:` 前缀（D72 口径，2026-09-11 审计 P0-2）
+        channelMiniApis.add(typeApiRule("GET", "/api/mini/notification/mine"));
+        channelMiniApis.add(typeApiRule("GET", "/api/mini/notification/mine/unread-count"));
+        channelMiniApis.add(typeApiRule("POST", "/api/mini/notification/mine/read-all"));
         typeApiRules.put("CHANNEL", channelMiniApis);
         root.put("typeApiRules", typeApiRules);
         return root;

@@ -40,20 +40,13 @@
         <text class="cta-text">{{ loggingIn ? '正在登录…' : '微信一键登录' }}</text>
       </AppButton>
 
+      <!-- 手机号验证码登录：独立切换页（P2 定稿：与微信一键登录分离） -->
       <view class="phone-login" v-if="isH5">
-        <view class="login-divider"><view /><text>或使用手机号</text><view /></view>
-        <view class="phone-row"><AppIcon name="phone" size="sm" /><input v-model="phone" type="number" maxlength="11" placeholder="请输入手机号" /></view>
-        <view class="phone-row code-row"><AppIcon name="shield" size="sm" /><input v-model="smsCode" type="number" maxlength="6" placeholder="请输入验证码" /><button class="code-button" @click="sendCode" :disabled="countdown > 0">{{ countdown ? `${countdown}s` : '获取验证码' }}</button></view>
-        <AppButton class="code-login-btn" variant="secondary" size="md" block :loading="codeLoggingIn" @click="codeLoginSubmit">手机号登录</AppButton>
+        <view class="login-divider"><view /><text>或</text><view /></view>
+        <AppButton class="code-login-btn" variant="secondary" size="md" block @click="goPhoneLogin">使用手机号验证码登录</AppButton>
       </view>
 
-      <view class="agreement-row" @click="agreementChecked = !agreementChecked">
-        <view class="agreement-check" :class="{ checked: agreementChecked }"><text v-if="agreementChecked">✓</text></view>
-        <text class="agreement-copy">已阅读并同意</text>
-        <text class="agreement-link" @click.stop="showAgreement('用户协议')">《用户协议》</text>
-        <text class="agreement-copy">和</text>
-        <text class="agreement-link" @click.stop="showAgreement('隐私政策')">《隐私政策》</text>
-      </view>
+      <LoginConsent v-model="agreementChecked" @open="showAgreement" />
 
       <!-- 合规声明 -->
       <text class="foot-note">温馨提示：匹配结果仅供参考，不代表银行审批承诺</text>
@@ -89,9 +82,10 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { wxLogin, isH5Env } from '../../utils/wx';
-import { loginByWx, loginByCrm, loginByCode, sendLoginCode } from '../../api/auth';
+import { loginByWx, loginByCrm } from '../../api/auth';
 import { useUserStore } from '../../store/user';
 import { useThemeMode } from '../../theme';
+import LoginConsent from '../../components/LoginConsent.vue';
 import {
   captureInvitation, clearPendingInviteCode, consumePendingInvitation, getPendingInviteCode,
 } from '../../utils/invitation';
@@ -112,12 +106,7 @@ const themeMode = useThemeMode();
 const isH5 = computed(() => isH5Env());
 
 const loggingIn = ref(false);
-const codeLoggingIn = ref(false);
-const phone = ref('');
-const smsCode = ref('');
-const countdown = ref(0);
 const agreementChecked = ref(true);
-let countdownTimer;
 
 const flow = [
   { title: '微信一键登录', desc: '微信授权后自动创建客户档案' },
@@ -250,20 +239,9 @@ function onStart() {
   doLogin();
 }
 
-async function sendCode() {
-  if (!ensureAgreement()) return;
-  if (!/^1\d{10}$/.test(phone.value)) return uni.showToast({ title: '请输入正确手机号', icon: 'none' });
-  await sendLoginCode(phone.value); countdown.value = 60;
-  countdownTimer = setInterval(() => { countdown.value -= 1; if (countdown.value <= 0) clearInterval(countdownTimer); }, 1000);
-  uni.showToast({ title: '验证码已发送', icon: 'none' });
-}
-async function codeLoginSubmit() {
-  if (!ensureAgreement()) return;
-  if (!phone.value || !smsCode.value) return uni.showToast({ title: '请输入手机号和验证码', icon: 'none' });
-  codeLoggingIn.value = true;
-  try { const data = await loginByCode(phone.value, smsCode.value, getPendingInviteCode()); store.setToken(data.token); store.setUser(data.user); clearPendingInviteCode(); jumpHome(); }
-  catch (e) { uni.showToast({ title: e.message || '验证码登录失败', icon: 'none' }); }
-  finally { codeLoggingIn.value = false; }
+/** 跳转手机号验证码登录独立页（P2 定稿：与微信一键登录分离） */
+function goPhoneLogin() {
+  uni.navigateTo({ url: '/pages/auth/phone-login' });
 }
 
 function ensureAgreement() {
@@ -471,18 +449,8 @@ function showAgreement(title) {
 .phone-login{ margin-top:28rpx; }
 .login-divider{ display:flex; align-items:center; gap:20rpx; margin:30rpx 0 24rpx; color:var(--text-secondary); font-size:23rpx; }
 .login-divider view{ flex:1; height:1rpx; background:var(--line); }
-.phone-row{ display:flex; align-items:center; gap:18rpx; min-height:92rpx; margin-bottom:20rpx; padding:0 26rpx; background:var(--bg-card); border:1rpx solid var(--line); border-radius:var(--radius-md); box-shadow:var(--shadow-sm); }
-.phone-row input{ flex:1; min-width:0; height:92rpx; font-size:28rpx; color:var(--text-primary); }
-.code-button{ flex-shrink:0; margin:0; padding:0 0 0 20rpx; border:0; border-left:1rpx solid var(--line); border-radius:0; background:transparent; color:var(--brand-deep); font-size:25rpx; font-weight:700; line-height:44rpx; }
-.code-button::after{ border:0; }
-.code-button[disabled]{ color:var(--text-tertiary); background:transparent; }
+/* 验证码登录表单已迁移至 pages/auth/phone-login.vue（P2 定稿） */
 .code-login-btn{ margin-top:4rpx; }
-.agreement-row{ display:flex; align-items:center; justify-content:center; min-height:76rpx; margin-top:18rpx; white-space:nowrap; cursor:pointer; }
-.agreement-check{ width:34rpx; height:34rpx; flex:0 0 34rpx; margin-right:12rpx; border:3rpx solid #718096; border-radius:8rpx; display:flex; align-items:center; justify-content:center; box-sizing:border-box; background:#fff; color:#fff; font-size:22rpx; font-weight:800; line-height:1; box-shadow:0 0 0 2rpx rgba(113,128,150,.10); }
-.agreement-check.checked{ background:var(--brand-deep, #2f5bd3); border-color:var(--brand-deep, #2f5bd3); box-shadow:0 0 0 3rpx rgba(47,91,211,.14); }
-.agreement-copy,.agreement-link{ font-size:21rpx; line-height:1; }
-.agreement-copy{ color:var(--text-secondary); }
-.agreement-link{ color:var(--brand-deep); font-weight:600; }
 .foot-note{
   display:block;
   margin-top:36rpx;

@@ -75,6 +75,92 @@ export function releaseClient(clientCode) {
   return requestPost(`/api/mini/client/${clientCode}/release`, {});
 }
 
+/* ==================== 我的客户 / 客户公海（D74） ==================== */
+
+/**
+ * 「我的客户」列表：仅本人归属客户。
+ *
+ * 所有员工角色口径一致（用户 2026-09-10 确认「统一只显示本人归属」），
+ * 不做团队 / 全司放大；渠道与客户无权调用（后端 requireStaff 拒绝）。
+ *
+ * @param {string} keyword 企业名模糊关键词，可为空
+ * @param {number} page    页码
+ * @param {number} size    每页大小
+ * @returns {Promise<{records:Array,total:number}>}
+ */
+export function myClients(keyword = '', page = 1, size = 10) {
+  const params = { page, size };
+  if (keyword && keyword.trim()) params.keyword = keyword.trim();
+  return requestGet('/api/mini/client/my', params);
+}
+
+/**
+ * 客户公海列表（15-客户公海团队客户与分配回收规则 §11/§12）。
+ *
+ * 公司公海全员可见；团队公海仅本部门可见（无部门账号后端返回空）。
+ * 认领仍走 {@link claimClient}，本接口只读。
+ *
+ * @param {string} seaLevel ENTERPRISE 公司公海 / TEAM 团队公海
+ * @param {string} keyword  企业名模糊关键词，可为空
+ * @param {number} page     页码
+ * @param {number} size     每页大小
+ * @returns {Promise<{records:Array,total:number}>}
+ */
+export function seaClients(seaLevel = 'ENTERPRISE', keyword = '', page = 1, size = 10) {
+  const params = { seaLevel, page, size };
+  if (keyword && keyword.trim()) params.keyword = keyword.trim();
+  return requestGet('/api/mini/client/sea', params);
+}
+
+/**
+ * 渠道「我的客户」只读列表：复用既有渠道数据范围接口（D50 只读本人录入客户）。
+ *
+ * 渠道账号走 typeRules 的 `channel:` 前缀，天然无法访问 mini 客户接口，
+ * 故此处单独指向渠道专属只读分页；无认领、无公海、无编辑。
+ *
+ * @param {string} keyword 关键词，可为空
+ * @param {number} page    页码
+ * @param {number} size    每页大小
+ * @returns {Promise<{records:Array,total:number}>}
+ */
+export function channelClients(keyword = '', page = 1, size = 10) {
+  const params = { page, size };
+  if (keyword && keyword.trim()) params.keyword = keyword.trim();
+  return requestGet('/api/channel/client/page', params);
+}
+
+/* ==================== 团队客户与回收（D75） ==================== */
+
+/**
+ * 「团队客户」列表：本部门成员（排除本人）名下客户，仅供部门经理。
+ *
+ * <p>15-客户公海团队客户与分配回收规则 §10：部门经理「团队客户」与「我的客户」独立展示。
+ * 其他员工角色的团队 / 全司视图仍在 Web 管理端。
+ *
+ * @param {string} keyword 企业名模糊关键词，可为空
+ * @param {number} page    页码
+ * @param {number} size    每页大小
+ * @returns {Promise<{records:Array,total:number}>}
+ */
+export function teamClients(keyword = '', page = 1, size = 10) {
+  const params = { page, size };
+  if (keyword && keyword.trim()) params.keyword = keyword.trim();
+  return requestGet('/api/mini/client/team', params);
+}
+
+/**
+ * 回收客户进公海（15-规则 §32/§33/§34）。
+ *
+ * <p>部门经理回收本团队客户落地到<b>团队公海</b>，老板 / 运营 / 超管回收落地到<b>公司公海</b>；
+ * 跨团队回收由服务端拒绝。覆盖冷却期，不删除客户档案。
+ *
+ * @param {string} clientCode 客户编码
+ * @returns {Promise<{clientCode:string, recycled:boolean, fromOwnerStaffCode:string}>}
+ */
+export function recycleClient(clientCode) {
+  return requestPost(`/api/mini/client/${clientCode}/recycle`, {});
+}
+
 /* ==================== C19-B3：无归宿分配审批（运营/超管/老板） ==================== */
 
 /**

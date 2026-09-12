@@ -40,6 +40,30 @@ public class MiniRoleGuard {
             Arrays.asList("BOSS", "SUPER_ADMIN", "SUPER");
 
     /**
+     * 部门经理角色编码。
+     *
+     * <p>15-客户公海团队客户与分配回收规则 §10/§32：仅部门经理具备「团队客户」视图，
+     * 且回收范围限本团队顾问的客户。</p>
+     */
+    public static final String DEPT_MANAGER_ROLE = "DEPT_MANAGER";
+
+    /**
+     * 校验当前用户为部门经理。
+     *
+     * <p>用于「团队客户」列表等仅部门经理可见的能力；其他员工角色的团队 / 全司视图
+     * 仍只在 Web 管理端，不在此放开。</p>
+     *
+     * @param user 当前登录用户，允许为 {@code null}
+     */
+    public void requireDeptManager(LoanUser user) {
+        requireStaff(user);
+        String code = user.getRoleCode() == null ? "" : String.valueOf(user.getRoleCode()).toUpperCase();
+        if (!DEPT_MANAGER_ROLE.equals(code)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅部门经理可查看团队客户");
+        }
+    }
+
+    /**
      * 校验当前用户为已登录的企业员工。
      *
      * <p>渠道合作方、非员工、未登录均拒绝。</p>

@@ -35,3 +35,38 @@ export function submitLead(payload) {
 export function myLeads(page = 1, size = 10) {
   return requestGet('/api/mini/lead/my', { page, size });
 }
+
+/**
+ * 线索状态 → 中文标签（与后端 `Lead.followStatus` 枚举对齐，含审批态与跟进态）。
+ *
+ * <p>渠道视角的核心诉求（D50）：本人录入的线索**待审批、已通过、已驳回均可查看**，
+ * 不因审批状态隐藏——故状态标签是「待公司审核 / 审核通过 / 已驳回」，而不是客户跟进态。
+ * 未知枚举回退原值，空值回退「待跟进」。
+ *
+ * @param {string} s `followStatus`
+ * @returns {string} 中文标签
+ */
+export function leadStatusLabel(s) {
+  const map = {
+    PENDING_APPROVAL: '待公司审核',
+    NEW: '审核通过',
+    REJECTED: '已驳回',
+    PENDING: '待跟进',
+    FOLLOWING: '跟进中',
+    WON: '已成交',
+    LOST: '已流失',
+  };
+  return map[s] || s || '待跟进';
+}
+
+/**
+ * 线索状态 → 展示色调（映射到首页 `.m-tag` 的 ok/warn/info 三类）。
+ *
+ * @param {string} s `followStatus`
+ * @returns {'ok'|'warn'|'info'} 标签色调
+ */
+export function leadStatusTone(s) {
+  if (s === 'REJECTED' || s === 'LOST' || s === 'PENDING_APPROVAL') return 'warn';
+  if (s === 'NEW' || s === 'WON') return 'ok';
+  return 'info';
+}

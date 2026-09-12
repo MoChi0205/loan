@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.client.service.ClientAllocationService;
+import com.loan.common.service.BusinessNameService;
 import com.loan.context.LoanUser;
 import com.loan.lead.mapper.LeadAllocationRecordMapper;
 import com.loan.staff.mapper.StaffMapper;
@@ -33,6 +34,7 @@ class MiniClientServiceTest {
     @Mock private LeadAllocationRecordMapper allocationRecordMapper;
     @Mock private StaffMapper staffMapper;
     @Mock private ClientAllocationService clientAllocationService;
+    @Mock private BusinessNameService businessNameService;
 
     private MiniClientService service;
 
@@ -45,7 +47,7 @@ class MiniClientServiceTest {
     @BeforeEach
     void setUp() {
         service = new MiniClientService(clientProfileMapper, allocationRecordMapper,
-                staffMapper, clientAllocationService);
+                staffMapper, clientAllocationService, businessNameService);
     }
 
     @Test
