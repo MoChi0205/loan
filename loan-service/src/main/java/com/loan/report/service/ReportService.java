@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.api.dto.PageResult;
 import com.loan.common.util.PageOrder;
+import com.loan.common.util.PageParams;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.infrastructure.security.HashUtils;
@@ -608,14 +609,10 @@ public class ReportService {
         // 角色数据可见范围：按归属客户过滤（老板/运营/超管全量；顾问本人；部门主管本部门）
         Set<String> scope = buildOwnerScope(user);
         if (scope != null && !scope.isEmpty()) {
-            Set<String> scopedClientCodes = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
-                            .in(ClientProfile::getOwnerStaffCode, scope)).stream()
-                    .map(ClientProfile::getClientCode).collect(Collectors.toSet());
-            if (scopedClientCodes.isEmpty()) {
-                wrapper.in(ClientScreening::getClientProfileCode, Collections.singletonList("__NONE__"));
-            } else {
-                wrapper.in(ClientScreening::getClientProfileCode, scopedClientCodes);
-            }
+            // 将归属过滤下沉为 EXISTS，避免 10 万客户场景先加载全部 clientCode 再拼超大 IN。
+            wrapper.exists("SELECT 1 FROM t_client_profile cp WHERE cp.client_code = t_client_screening.client_profile_code "
+                    + "AND cp.owner_staff_code IN ("
+                    + scope.stream().map(x -> "'" + x.replace("'", "''") + "'").collect(Collectors.joining(",")) + "))");
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(ClientScreening::getStatus, status);
@@ -651,7 +648,7 @@ public class ReportService {
             });
         }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, ClientScreening::getCreatedAt);
-        Page<ClientScreening> result = screeningMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<ClientScreening> result = screeningMapper.selectPage(new Page<>(PageParams.page(page), PageParams.size(size)), wrapper);
 
         List<String> clientCodes = result.getRecords().stream().map(ClientScreening::getClientProfileCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());

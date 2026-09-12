@@ -1,5 +1,6 @@
 package com.loan.client.service;
 import com.loan.common.util.PageOrder;
+import com.loan.common.util.PageParams;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -164,7 +165,7 @@ public class ClientService {
             wrapper.exists(DEAL_EXISTS_SQL + " AND o.deal_time <= {0}", dealTimeEnd);
         }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, ClientProfile::getCreatedAt);
-        Page<ClientProfile> result = clientProfileMapper.selectPage(new Page<>(page, size), wrapper);
+        Page<ClientProfile> result = clientProfileMapper.selectPage(new Page<>(PageParams.page(page), PageParams.size(size)), wrapper);
 
         List<String> ownerCodes = result.getRecords().stream().map(ClientProfile::getOwnerStaffCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
