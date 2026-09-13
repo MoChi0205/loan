@@ -307,11 +307,11 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import { appConfirm } from '@/utils/confirm';
 import { formatDateTime } from '@/utils/format';
 import {
-  listPlans, planDetail, createPlan, updatePlan, deletePlan,
+  listPlans, pagePlans, planDetail, createPlan, updatePlan, deletePlan,
   createModule, updateModule, deleteModule, createStep, updateStep, deleteStep,
   applyTemplate, saveAsTemplate, copyPlan,
 } from '@/api/plan';
-import { listRules } from '@/api/rule';
+import { pageRules } from '@/api/rule';
 import { strategyExistsByPlan } from '@/api/channelStrategy';
 
 const route = useRoute();
@@ -348,6 +348,7 @@ const planId = ref(null);
 const modules = ref([]);
 const currentPlan = ref(null);
 const loading = ref(false);
+const detailCache = new Map();
 
 /** 搜索关键字 + 排序参数（跨页后端排序） */
 const query = reactive({ keyword: '', sortBy: '', sortDir: '' });
@@ -379,15 +380,14 @@ function onCustomerGroupChange(val) {
   modules.value = [];
   currentPlan.value = null;
   router.replace({ query: { ...route.query, cg: val } });
-  loadPlans();
-  loadRulesByCG(val);
+  Promise.all([loadPlans(), loadRulesByCG(val)]);
 }
 
 /** 按客群加载规则（个人/企业规则分开维护） */
 async function loadRulesByCG(customerGroup) {
   try {
-    const res = await listRules({ customerGroup: customerGroup || 'ENTERPRISE' });
-    rules.value = res.data || [];
+    const res = await pageRules({ customerGroup: customerGroup || 'ENTERPRISE', page: 1, size: 100 });
+    rules.value = res.data?.records || [];
   } catch { rules.value = []; }
 }
 
@@ -490,10 +490,17 @@ const valueDisabled = computed(() =>
 
 async function loadDetail() {
   if (!planId.value) return;
+  if (detailCache.has(planId.value)) {
+    const cached = detailCache.get(planId.value);
+    currentPlan.value = cached.plan;
+    modules.value = cached.modules || [];
+    return;
+  }
   try {
     const res = await planDetail(planId.value);
     currentPlan.value = res.data?.plan;
     modules.value = res.data?.modules || [];
+    detailCache.set(planId.value, { plan: currentPlan.value, modules: modules.value });
   } catch (e) { /* 拦截器已提示 */ }
 }
 
@@ -544,6 +551,7 @@ async function onSavePlan() {
     }
     ElMessage.success('已保存');
     planDialog.visible = false;
+    detailCache.clear();
     loadPlans();
   } finally { planDialog.saving = false; }
 }
@@ -573,6 +581,7 @@ async function onDeletePlan(plan) {
     await appConfirm(`确认删除计划「${target.planName}」？（将级联删除模块/步骤）`);
   } catch { return; }
   await deletePlan(planCode);
+  detailCache.delete(planCode);
   ElMessage.success('已删除');
   if (planId.value === planCode) {
     planId.value = null;
@@ -728,12 +737,14 @@ async function onSaveModule() {
     }
     ElMessage.success('已保存');
     moduleDialog.visible = false;
+    detailCache.delete(planId.value);
     loadDetail();
   } finally { moduleDialog.saving = false; }
 }
 async function onDeleteModule(m) {
   try { await appConfirm(`确认删除模块「${m.moduleName}」？（将级联删除步骤）`); } catch { return; }
   await deleteModule(m.moduleBizCode);
+  detailCache.delete(planId.value);
   loadDetail();
 }
 
@@ -787,12 +798,14 @@ async function onSaveStep() {
       ElMessage.success('已添加');
     }
     stepDialog.visible = false;
+    detailCache.delete(planId.value);
     loadDetail();
   } finally { stepDialog.saving = false; }
 }
 async function onDeleteStep(m, s) {
   try { await appConfirm(`确认删除步骤「${s.ruleName}」？`); } catch { return; }
   await deleteStep(s.stepCode);
+  detailCache.delete(planId.value);
   loadDetail();
 }
 
@@ -804,8 +817,8 @@ async function loadPlans() {
       params.orderBy = query.sortBy;
       params.orderDir = query.sortDir || 'desc';
     }
-    const res = await listPlans(params);
-    plans.value = res.data || [];
+    const res = await pagePlans({ ...params, page: 1, size: 100 });
+    plans.value = res.data?.records || [];
     // 不再自动选中第一个，由用户点击选择
   } catch { plans.value = []; } finally {
     loading.value = false;
@@ -813,8 +826,11 @@ async function loadPlans() {
 }
 
 onMounted(async () => {
-  loadPlans();
-  await loadRulesByCG(activeCustomerGroup.value);
+  // 计划与规则互不依赖，必须并行加载，避免首次进入串行等待两次接口。
+  await Promise.all([
+    loadPlans(),
+    loadRulesByCG(activeCustomerGroup.value),
+  ]);
   nextTick(initColumnDrag);
 });
 </script>

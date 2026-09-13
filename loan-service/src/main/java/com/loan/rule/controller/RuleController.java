@@ -1,6 +1,8 @@
 package com.loan.rule.controller;
 
 import com.loan.api.dto.rule.RuleDTO;
+import com.loan.api.dto.PageResult;
+import com.loan.common.util.PageParams;
 import com.loan.common.Result;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
@@ -50,6 +52,16 @@ public class RuleController {
             @RequestParam(required = false) String customerGroup,
             @RequestParam(required = false) String status) {
         return Result.ok(ruleQueryService.listRulesForAdmin(customerGroup, status));
+    }
+
+    @GetMapping("/page")
+    public Result<PageResult<RuleDTO>> page(@RequestParam(required = false) String customerGroup,
+                                            @RequestParam(required = false) String status,
+                                            @RequestParam(required = false) String categoryCode,
+                                            @RequestParam(defaultValue = "1") int page,
+                                            @RequestParam(defaultValue = "20") int size) {
+        return Result.ok(ruleQueryService.pageRulesForAdmin(customerGroup, status, categoryCode,
+                PageParams.page(page), PageParams.size(size)));
     }
 
     /**

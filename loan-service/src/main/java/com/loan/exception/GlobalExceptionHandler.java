@@ -3,6 +3,7 @@ package com.loan.exception;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.ThreadContext;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,7 +30,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public Result<Void> handleBusiness(BusinessException e) {
         log.warn("业务异常: code={}, message={}", e.getCode(), e.getMessage());
-        return Result.fail(e.getCode(), e.getMessage());
+        return fail(e.getCode(), e.getMessage());
     }
 
     /**
@@ -41,7 +42,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<Void> handleValid(MethodArgumentNotValidException e) {
         String msg = firstFieldError(e.getBindingResult().getFieldErrors());
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), msg);
+        return fail(ResultCode.PARAM_ERROR.getCode(), msg);
     }
 
     /**
@@ -53,7 +54,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BindException.class)
     public Result<Void> handleBind(BindException e) {
         String msg = firstFieldError(e.getFieldErrors());
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), msg);
+        return fail(ResultCode.PARAM_ERROR.getCode(), msg);
     }
 
     /**
@@ -64,7 +65,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public Result<Void> handleConstraint(ConstraintViolationException e) {
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), e.getMessage());
+        return fail(ResultCode.PARAM_ERROR.getCode(), e.getMessage());
     }
 
     /**
@@ -76,7 +77,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
         log.error("系统异常", e);
-        return Result.fail(ResultCode.INTERNAL_ERROR);
+        return fail(ResultCode.INTERNAL_ERROR.getCode(), ResultCode.INTERNAL_ERROR.getMessage());
+    }
+
+    /** 所有异常响应统一携带当前请求链路 ID，便于客户端直接关联 access/error 日志。 */
+    private Result<Void> fail(int code, String message) {
+        return Result.build(code, message, null, traceId());
+    }
+
+    private String traceId() {
+        String trace = ThreadContext.get("traceId");
+        return trace == null || trace.trim().isEmpty() ? null : trace;
     }
 
     /**

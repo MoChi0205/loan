@@ -11,6 +11,10 @@ export function listRules(params) {
   });
 }
 
+export function pageRules(params) {
+  return request({ url: '/api/admin/rule/page', method: 'get', params });
+}
+
 /** 新增规则 */
 export function createRule(data) {
   return request({

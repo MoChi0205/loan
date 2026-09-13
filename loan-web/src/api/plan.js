@@ -8,6 +8,10 @@ export function listPlans(params) {
   return request({ url: '/api/admin/execution-plan/list', method: 'get', params });
 }
 
+export function pagePlans(params) {
+  return request({ url: '/api/admin/execution-plan/page', method: 'get', params });
+}
+
 export function planDetail(planCode) {
   return request({ url: `/api/admin/execution-plan/${encodeURIComponent(planCode)}/detail`, method: 'get' });
 }

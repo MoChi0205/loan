@@ -1,6 +1,8 @@
 package com.loan.rule.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.loan.api.dto.PageResult;
 import com.loan.api.dto.rule.RuleDTO;
 import com.loan.engine.catalog.RuleCatalog;
 import com.loan.rule.entity.Rule;
@@ -62,6 +64,21 @@ public class RuleQueryService {
         return ruleMapper.selectList(wrapper).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    public PageResult<RuleDTO> pageRulesForAdmin(String customerGroup, String status, String categoryCode,
+                                                  int page, int size) {
+        LambdaQueryWrapper<Rule> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(customerGroup) && !"COMMON".equalsIgnoreCase(customerGroup)) {
+            wrapper.and(w -> w.eq(Rule::getCustomerGroup, customerGroup).or().eq(Rule::getCustomerGroup, "COMMON"));
+        }
+        if (StringUtils.hasText(status)) wrapper.eq(Rule::getStatus, status);
+        wrapper.orderByAsc(Rule::getId);
+        Page<Rule> result = ruleMapper.selectPage(new Page<>(page, size), wrapper);
+        List<RuleDTO> rows = result.getRecords().stream().map(this::toDTO)
+                .filter(r -> !StringUtils.hasText(categoryCode) || categoryCode.equals(r.getCategoryCode()))
+                .collect(Collectors.toList());
+        return PageResult.build(page, size, result.getTotal(), rows);
     }
 
     /**

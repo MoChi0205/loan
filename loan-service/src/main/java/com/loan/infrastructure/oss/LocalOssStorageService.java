@@ -2,14 +2,14 @@ package com.loan.infrastructure.oss;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 
 import java.io.*;
 import java.nio.file.*;
 
 /** 开发期本地实现；生产接入阿里云 OSS 时仅替换实现，不改业务层。 */
 @Service
-@ConditionalOnProperty(name = "loan.oss.mode", havingValue = "local", matchIfMissing = true)
+@ConditionalOnMissingBean(OssStorageService.class)
 public class LocalOssStorageService implements OssStorageService {
     private final Path root;
     public LocalOssStorageService(@Value("${loan.upload.base-dir:./uploads}") String baseDir) {

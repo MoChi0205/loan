@@ -2,6 +2,9 @@ package com.loan.plan.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.common.Result;
+import com.loan.api.dto.PageResult;
+import com.loan.common.util.PageParams;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.plan.entity.AdmissionExecutionPlan;
@@ -67,6 +70,23 @@ public class AdmissionExecutionPlanController {
             wrapper.orderByDesc(AdmissionExecutionPlan::getId);
         }
         return Result.ok(planMapper.selectList(wrapper));
+    }
+
+    @GetMapping("/page")
+    public Result<PageResult<AdmissionExecutionPlan>> page(
+            @RequestParam(value = "customerGroup", required = false) String customerGroup,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        LambdaQueryWrapper<AdmissionExecutionPlan> wrapper = new LambdaQueryWrapper<>();
+        if (org.springframework.util.StringUtils.hasText(customerGroup) && !"COMMON".equalsIgnoreCase(customerGroup)) {
+            wrapper.and(w -> w.eq(AdmissionExecutionPlan::getCustomerGroup, customerGroup)
+                    .or().eq(AdmissionExecutionPlan::getCustomerGroup, "COMMON"));
+        }
+        wrapper.orderByDesc(AdmissionExecutionPlan::getUpdatedAt);
+        Page<AdmissionExecutionPlan> result = planMapper.selectPage(
+                new Page<>(PageParams.page(page), PageParams.size(size)), wrapper);
+        return Result.ok(PageResult.build(PageParams.page(page), PageParams.size(size),
+                result.getTotal(), result.getRecords()));
     }
 
     /** 将字符串列名映射为实体 getter 引用（白名单已校验） */
