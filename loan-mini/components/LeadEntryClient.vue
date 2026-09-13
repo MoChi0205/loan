@@ -9,6 +9,36 @@
         <text class="tip-text">新增后仅本人立即可见，待公司审核通过后进入公海并由顾问跟进</text>
       </view>
 
+      <!-- 员工专属：录入前客户查重（多条件：企业名/信用代码/手机号/身份证/联系人） -->
+      <view v-if="store.isStaff" class="dedup-card">
+        <view class="dedup-head">
+          <AppIcon name="search" size="sm" />
+          <text class="dedup-title">客户查重</text>
+          <text class="dedup-hint">多条件（企业名 / 信用代码 / 手机号 / 身份证 / 联系人）</text>
+        </view>
+        <view class="dedup-row">
+          <input
+            class="field-input dedup-input"
+            v-model="clientSearchKw"
+            placeholder="输入任一标识查重已有客户（≥2 字）"
+            placeholder-class="ph"
+            maxlength="64"
+            @input="onClientSearchInput"
+            @blur="onClientSearch"
+          />
+        </view>
+        <view v-if="clientSearchResult" class="dedup-result">
+          <text class="dedup-result-title">⚠ 已存在客户，请确认是否重复录入</text>
+          <text class="dedup-result-line">企业：{{ clientSearchResult.entName }}</text>
+          <text class="dedup-result-line">联系人：{{ clientSearchResult.contactName }} · {{ clientSearchResult.contactPhone }}</text>
+          <text class="dedup-result-line">归属：{{ clientSearchResult.ownerStaffName || '公海' }}</text>
+          <view class="dedup-result-actions">
+            <AppButton variant="secondary" size="sm" :loading="claimingClient" @click="onClaimClient">认领已有客户</AppButton>
+          </view>
+          <text class="dedup-result-tips">认领即建立跟进归属（已归属他人时转为分配申请，待审核）；忽略则继续录入新线索。</text>
+        </view>
+      </view>
+
       <view class="card" v-if="form.leadType === 'PERSONAL'">
         <text class="card-title">个人信息</text>
         <view class="field">
@@ -125,6 +155,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useUserStore } from '../store/user';
 import { useThemeMode } from '../theme';
 import { submitLead, myLeads, leadStatusLabel } from '../api/lead';
+import { searchClient, claimClient } from '../api/client';
 import AppIcon from './AppIcon.vue';
 import AppButton from './AppButton.vue';
 import AppEmpty from './AppEmpty.vue';
@@ -149,6 +180,43 @@ const loadingMore = ref(false);
 const finished = ref(false);
 const hasError = ref(false);
 const submitting = ref(false);
+
+// 客户查重（员工专属，录入前多条件查重；提交时仍由后端 MiniLeadService 兜底）
+const clientSearchKw = ref('');
+const clientSearchResult = ref(null);
+let clientSearchTimer = null;
+/** 输入 debounce：≥2 字后 350ms 触发查重（避免每键请求） */
+function onClientSearchInput() {
+  if (clientSearchTimer) clearTimeout(clientSearchTimer);
+  const kw = clientSearchKw.value.trim();
+  if (kw.length < 2) { clientSearchResult.value = null; return; }
+  clientSearchTimer = setTimeout(onClientSearch, 350);
+}
+async function onClientSearch() {
+  const kw = clientSearchKw.value.trim();
+  if (kw.length < 2) { clientSearchResult.value = null; return; }
+  try { clientSearchResult.value = await searchClient(kw); }
+  catch (e) { clientSearchResult.value = null; }
+}
+
+// 认领已有客户（D39：本人归属幂等通过；他人归属/无归属转分配申请，待审核）
+const claimingClient = ref(false);
+async function onClaimClient() {
+  if (claimingClient.value || !clientSearchResult.value) return;
+  const code = clientSearchResult.value.clientCode;
+  claimingClient.value = true;
+  try {
+    const data = await claimClient(code);
+    if (data && data.result === 'AUTO_CLAIMED') {
+      uni.showToast({ title: '认领成功，可在「我的客户」查看', icon: 'success' });
+    } else {
+      uni.showToast({ title: '已提交分配申请，待审核', icon: 'none' });
+    }
+    clientSearchResult.value = null;
+    clientSearchKw.value = '';
+  } catch (e) { /* toast 已由请求层弹出 */ }
+  finally { claimingClient.value = false; }
+}
 
 const form = reactive({
   contactName: '',
@@ -360,7 +428,8 @@ watch(() => props.active, (on) => {
   border: 2rpx solid transparent;
   border-radius: var(--radius-md);
   padding: 24rpx 28rpx;
-  font-size: var(--fs-md);
+  /* 输入字号 ≥16px（32rpx）：低于 16px 会被 iOS Safari 聚焦自动放大视口 */
+  font-size: 32rpx;
   color: var(--text-primary);
   min-height: 88rpx;
   box-sizing: border-box;
@@ -371,6 +440,17 @@ watch(() => props.active, (on) => {
 .field-input:focus { border-color: var(--gold); background: var(--bg-card); }
 /* #endif */
 .ph { color: var(--text-placeholder); }
+
+/* 客户查重卡（员工专属，录入前多条件查重；复用 .field-input 输入框样式） */
+.dedup-card { padding: 18rpx 18rpx 8rpx; }
+.dedup-head { display: flex; align-items: center; gap: 10rpx; margin-bottom: 10rpx; }
+.dedup-title { font-size: var(--fs-md); font-weight: 700; color: var(--text-primary); }
+.dedup-hint { margin-left: auto; font-size: var(--fs-xs); color: var(--text-secondary); }
+.dedup-result { margin-top: 14rpx; padding: 16rpx; background: var(--warning-bg); border-radius: var(--radius-sm); border: 1rpx solid var(--line); }
+.dedup-result-title { display: block; font-size: var(--fs-md); font-weight: 700; color: var(--warning-text); margin-bottom: 8rpx; }
+.dedup-result-line { display: block; font-size: var(--fs-sm); color: var(--text-primary); margin-top: 4rpx; }
+.dedup-result-actions { margin-top: 14rpx; }
+.dedup-result-tips { display: block; font-size: var(--fs-xs); color: var(--text-secondary); margin-top: 10rpx; line-height: 1.5; }
 
 /* 客群切换（等宽用 .seg view） */
 .seg {

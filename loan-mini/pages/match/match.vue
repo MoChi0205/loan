@@ -730,7 +730,8 @@ onShow(() => {
 .field-input {
   width: 100%; background: var(--bg-input); border: 2rpx solid transparent;
   border-radius: var(--radius-md); padding: 24rpx 28rpx;
-  font-size: var(--fs-md); color: var(--text-primary);
+  /* 输入字号 ≥16px（32rpx）：低于 16px 会被 iOS Safari 聚焦自动放大视口 */
+  font-size: 32rpx; color: var(--text-primary);
   min-height: 88rpx; /* 触控 44px */
   box-sizing: border-box;
 }
@@ -740,7 +741,7 @@ onShow(() => {
 .ph { color: var(--text-placeholder); }
 .picker-view {
   background: var(--bg-input); border-radius: var(--radius-md);
-  padding: 24rpx 28rpx; font-size: var(--fs-md); color: var(--text-primary);
+  padding: 24rpx 28rpx; font-size: 32rpx; color: var(--text-primary);
   min-height: 88rpx; line-height: 44rpx;
 }
 .switch-row {
