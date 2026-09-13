@@ -84,7 +84,11 @@ public class MiniClientService {
     private final BusinessNameService businessNameService;
 
     /**
-     * 客户查重（C10）：按企业名称（模糊）/ 手机号（精确）/ 统一社会信用代码（精确）任一命中。
+     * 客户查重（C10 综合关键词，对齐 Web 端 ClientService）：
+     * 联系人姓名 / 企业名称模糊；手机号 / 身份证 / 统一社会信用代码按摘要精确匹配，任一命中即返回。
+     *
+     * <p>原实现按关键词格式分支（18 位字母数字 → 信用代码、6+ 位数字 → 手机号、其他 → 企业名），
+     * 不支持联系人姓名 / 身份证查重，且容易因格式判断遗漏命中；改为 OR 组合一次性覆盖。
      *
      * @param keyword 关键词（调用方保证已 trim 且长度 ≥2）
      * @return 命中客户（含 hasOwner 供前端分流），未命中返回 null
@@ -92,16 +96,14 @@ public class MiniClientService {
     public Map<String, Object> search(String keyword) {
         String kw = keyword.trim();
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
-        // 18 位字母数字 → 按统一社会信用代码精确匹配（摘要）
-        if (kw.matches("[0-9A-Za-z]{18}")) {
-            wrapper.eq(ClientProfile::getCreditCodeHash, sha256(kw));
-        } else if (kw.matches("\\d{6,}")) {
-            // 6 位以上纯数字 → 按手机号精确匹配（摘要）
-            wrapper.eq(ClientProfile::getPhoneHash, sha256(kw));
-        } else {
-            // 其余按企业名称模糊匹配
-            wrapper.like(ClientProfile::getEnterpriseName, kw);
-        }
+        // 综合关键词 OR 匹配：联系人/企业名模糊 + 手机号/身份证/信用代码精确（SHA-256 摘要比对）
+        String sha = sha256(kw);
+        wrapper.and(w -> w.like(ClientProfile::getContactName, kw)
+                .or().like(ClientProfile::getEnterpriseName, kw)
+                .or().eq(ClientProfile::getPhoneHash, sha)
+                // 身份证：个人档案表 t_personal_profile（client_profile_code 关联 + id_card_hash 摘要）
+                .or().exists("SELECT 1 FROM t_personal_profile pp WHERE pp.client_profile_code = t_client_profile.client_code AND pp.id_card_hash = {0}", sha)
+                .or().eq(ClientProfile::getCreditCodeHash, sha));
         List<ClientProfile> list = clientProfileMapper.selectList(wrapper);
         if (list.isEmpty()) {
             return null;

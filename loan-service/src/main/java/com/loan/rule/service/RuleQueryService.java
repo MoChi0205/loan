@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -73,12 +75,27 @@ public class RuleQueryService {
             wrapper.and(w -> w.eq(Rule::getCustomerGroup, customerGroup).or().eq(Rule::getCustomerGroup, "COMMON"));
         }
         if (StringUtils.hasText(status)) wrapper.eq(Rule::getStatus, status);
+        // categoryCode 是派生字段（ruleCode → RuleCatalog → category.code），
+        // 反查该分类下的 ruleCode 列表在 SQL 层过滤，避免分页后内存 filter 导致总数/每页条数不准。
+        if (StringUtils.hasText(categoryCode)) {
+            List<String> ruleCodes = ruleCodesOfCategory(categoryCode.trim());
+            if (ruleCodes.isEmpty()) {
+                return PageResult.build(page, size, 0, Collections.emptyList());
+            }
+            wrapper.in(Rule::getRuleCode, ruleCodes);
+        }
         wrapper.orderByAsc(Rule::getId);
         Page<Rule> result = ruleMapper.selectPage(new Page<>(page, size), wrapper);
-        List<RuleDTO> rows = result.getRecords().stream().map(this::toDTO)
-                .filter(r -> !StringUtils.hasText(categoryCode) || categoryCode.equals(r.getCategoryCode()))
-                .collect(Collectors.toList());
+        List<RuleDTO> rows = result.getRecords().stream().map(this::toDTO).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), rows);
+    }
+
+    /** 反查分类编码对应的规则编码列表（RuleCatalog 四分类目录）。 */
+    private List<String> ruleCodesOfCategory(String categoryCode) {
+        return Arrays.stream(RuleCatalog.values())
+                .filter(c -> c.getCategory() != null && categoryCode.equals(c.getCategory().getCode()))
+                .map(RuleCatalog::getRuleCode)
+                .collect(Collectors.toList());
     }
 
     /**
