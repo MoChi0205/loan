@@ -135,6 +135,11 @@ function onClick(e) {
 }
 .btn-hover {
   opacity: 0.92;
-  transform: scale(0.985);
+  transform: scale(0.97);
+}
+/* H5 端触摸兜底：移动端 hover-class 依赖 touch 事件切换，补 :active 确保按压缩放动画稳定触发 */
+.app-btn:active {
+  opacity: 0.92;
+  transform: scale(0.97);
 }
 </style>

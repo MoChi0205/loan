@@ -28,6 +28,29 @@
 | `POST /api/mini/auth/personal` | **个人实名认证**（Mock 三要素校验 + 落库留痕，`PersonalController`；未登录抛 `UNAUTHORIZED`） | 已登录(CUSTOMER) |
 | `GET /api/mini/wecom/qrcode` | 企微客服活码 URL | 公开 |
 
+### 首页统计（D71 / D72）
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `GET /api/mini/dashboard/stats` | 首页统计行指标，按角色返回对应键：`clientCount`(我的客户) / `teamMemberCount`(团队成员) / `orgClientCount`(全司客户) / `orderCount`(待跟进) / `unassignedCount`(待分配) / `pendingApprovalCount`(待我审批) / `leadCount`(我录线索) / `convertedCount`(已转化) / `systemErrorCount`(系统异常，固定 0)。服务端按 `userType/roleCode/deptCode` **收敛数据范围、只返回该角色允许的键**（渠道仅本人 D50 / 部门经理仅本部门 / 老板·超管全司 / 顾问·运营本人 / 客户无统计行），**零业务单号**（D68） | 已登录（`api_key=mini:stats`；CUSTOMER 走 `mini:` 前缀，ADVISER/DM 精确授权，BOSS/OPERATOR/SUPER 业务默认全量，**CHANNEL 走 `typeApiRules` 精确白名单**（D72，不放开 `mini:` 前缀）） |
+
+### 我的客户 / 客户公海（D74）
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `GET /api/mini/client/my?keyword&page&size` | 「我的客户」分页摘要：**仅本人归属**客户（所有员工角色口径一致，不放大团队/全司）。仅返回企业名 / 联系人 / 掩码手机号 / 归属姓名 / 建档时间，**零业务单号**（D68）；状态口径为「排除 DISABLED」（兼容历史 `NORMAL` 存量行） | **仅 STAFF**（`api_key=mini:myClients`；ADVISER/DM 精确授权，BOSS/OPERATOR/SUPER 全量角色自动覆盖，CHANNEL 由 `channel:` 前缀隔离，CUSTOMER 由 `requireStaff` 拒绝） |
+| `GET /api/mini/client/sea?seaLevel&keyword&page&size` | 客户公海分页摘要：`ENTERPRISE` 公司公海全员可见；`TEAM` 团队公海仅本部门可见（**无部门账号返回空，fail-closed**）。认领仍走 `POST /api/mini/client/{clientCode}/claim` 原子落归属（并发仅一人成功；冷却期由认领链路拦截） | **仅 STAFF**（`api_key=mini:seaClients`，同上；渠道不可查看 / 不可认领，D50） |
+| `GET /api/channel/client/page?keyword&page&size` | 渠道「我的客户」**只读**本人录入客户分页。D74 **复用既有接口**，未新增后端；渠道小程序侧仅此一条客户数据通道 | CHANNEL（经 `typeRules` 的 `channel:` 前缀授权） |
+
+### 团队客户与回收（D75）
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `GET /api/mini/client/team?keyword&page&size` | 「团队客户」分页摘要：**本部门在职成员（排除本人）**名下客户，与「我的客户」独立展示（15-规则 §10）。部门编码为空返回空集（fail-closed）。零业务单号（D68） | **仅 DEPT_MANAGER**（`miniRoleGuard.requireDeptManager`；`api_key=mini:teamClients`） |
+| `POST /api/mini/client/{clientCode}/recycle` | 回收客户进公海（15-规则 §32/§33/§34）：部门经理回收本团队客户 → **团队公海**（带本部门编码）；老板/运营/超管 → **公司公海**。覆盖冷却期、不删档案；跨团队由 `ClientAllocationService#manualRecycle` 抛 FORBIDDEN | `miniRoleGuard.requireApprover`（OPERATOR / SUPER_ADMIN / SUPER / BOSS / DEPT_MANAGER；`api_key=mini:recycleClient`） |
+| `POST /api/mini/client/{clientCode}/release` | 释放**本人**归属客户 → **公司公海**并置冷却（15-规则 §31）。非本人归属返回 FORBIDDEN | `requireStaff`（`api_key=mini:release`；渠道/客户拒绝） |
+
+> **授权修复（D75 · 重要）**：`mini:search` / `mini:create` / `mini:claim` / `mini:claimStatus` / `mini:release` 长期未列入 `ADVISER_APIS`，
+> 导致**顾问与部门经理**在小程序调用客户链路时被网关拒绝（仅全量角色 BOSS/OPERATOR/SUPER 可用）。已补齐；
+> `MANAGER_APIS` 另含 `mini:teamClients`、`mini:recycleClient`。api_key = `mini:<Controller 方法名>`，同名会退化成 `#1` 后缀，新增方法名需保持模块内唯一。
+
 ### 匹配（C15）
 | 接口 | 说明 | 权限 |
 |------|------|------|
@@ -149,6 +172,19 @@
 | `GET /api/mini/wechat/jssdk/signature?url=...` | 为不含 `#` 片段的当前 H5 页面 URL 生成 `{appId,timestamp,nonceStr,signature}` | 无需登录；网关需保留公开白名单 |
 
 > JS-SDK 使用公众号 `oaAppid/oaSecret`，与微信小程序 AppID/Secret 不是同一套凭证；真实值按上线配置阶段处理。
+
+### 站内消息中心（2026-09-11 新增）
+
+> 小程序端独立于既有 `/api/notification/**`（api_key 前缀 `notification:`）。原因：网关按 api_key 前缀放行用户类型，**CUSTOMER 只认 `mini:`**，故小程序统一走 mini 前缀。响应经 `MiniNotificationVO` 脱敏，只含「来源 + 事项 + 时间 + 未读」，**零业务单号**（D68）；来源由通知类型映射，对外口径用「审核」不用「审批」；时间由服务端归并为「今天 / 昨天 / MM-dd HH:mm」。数据一律按当前登录用户 `userNo` 收口，不接受任何可扩大范围的入参。
+
+| 接口 | 说明 | 权限 |
+|------|------|------|
+| `GET /api/mini/notification/mine?page&size` | 我的消息 `{records:[{source,matter,time,createdAt,unread}], total, unreadCount}` | 已登录本人（`api_key=mini:messageList`；CUSTOMER 走 `mini:` 前缀，ADVISER/DM 精确授权，BOSS/OPERATOR/SUPER 业务默认全量，**CHANNEL 走 `typeApiRules` 精确白名单**，不放宽 `mini:` 前缀） |
+| `GET /api/mini/notification/mine/unread-count` | 未读数（驱动首页铃铛红点与「我的」页角标） | 同上（`api_key=mini:messageUnreadCount`） |
+| `POST /api/mini/notification/mine/read-all` | 全部标记已读（打开消息列表后清红点） | 同上（`api_key=mini:messageReadAll`） |
+
+> 前端：`api/notification.js` + 共用组件 `components/MessageSheet.vue`（骨架屏 / 空态 / 失败可重试三态），首页铃铛与「我的」页共用；**不使用任何示例数据**。
+> 生效前提：新接口由 loan-service 启动期 `ApiPermissionSyncService` 自动登记、员工角色授权由默认接口矩阵补齐、渠道走 `typeApiRules` 精确表——**需重启后端并让网关重载权限规则**。
 
 ### 审批中心（统一，T5）
 

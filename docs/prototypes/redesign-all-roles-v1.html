@@ -11,6 +11,8 @@
     --ink:#111E36; --ink-2:#1B2C4D; --royal:#2C52C9; --royal-d:#2444A8;
     --gold:#C7A15A; --gold-s:#E7D3A6; --ivory:#FBF8F2; --ivory-2:#F3EEE4;
     --t1:#1B2740; --t2:#6A768C; --line:#ECE6DA;
+    /* 弱化灰：占位符 / 未选中说明 / 页脚副标统一走此令牌；取 AA 达标的次级灰（== --t2，与 App 端 --text-secondary 一致） */
+    --muted:#6A768C;
     --ok:#2E8B6B; --ok-bg:#E7F4EE; --warn:#B5781F; --warn-bg:#FBF1DE; --info:#2C52C9; --info-bg:#EAEFFB;
     --w-bg:#0E1830; --w-side:#13203B; --w-side-2:#0F1A30; --w-card:#FFFFFF; --w-line:#E6E9F0; --w-line2:#EAEDF3;
   }
@@ -36,16 +38,17 @@
   .phone-screen { width:100%; height:100%; border-radius:34px; overflow:hidden; background:var(--ivory); display:flex; flex-direction:column; position:relative; }
   .h5-browser { width:740px; height:824px; background:#cdd5e2; border-radius:14px; padding:14px; border:1px solid #25324a; box-shadow:0 34px 80px -22px rgba(15,23,42,.5); }
   .h5-bar { height:34px; display:flex; align-items:center; gap:8px; padding:0 8px; color:#5b6678; font-size:12px; }
+  .h5-bar svg { width:14px; height:14px; flex:0 0 14px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .h5-bar .url { flex:1; background:#e7ebf2; border-radius:8px; padding:5px 12px; color:#5b6678; }
   .h5-screen { height:calc(100% - 34px); border-radius:10px; overflow:hidden; background:var(--ivory); }
   .h5-screen .phone-screen { border-radius:0; }
 
   .m-scroll { flex:1; overflow-y:auto; }
-  .m-head { background: radial-gradient(120% 80% at 85% -10%, rgba(199,161,90,.30), transparent 60%), linear-gradient(165deg, var(--ink) 0%, var(--ink-2) 60%, #14233f 100%); color:#fff; padding:42px 22px 24px; position:relative; overflow:hidden; }
+  .m-head { background: radial-gradient(120% 80% at 85% -10%, rgba(199,161,90,.30), transparent 60%), linear-gradient(165deg, var(--ink) 0%, var(--ink-2) 60%, #14233f 100%); color:#fff; padding:40px 22px 24px; position:relative; overflow:hidden; }
   .m-head::after { content:""; position:absolute; right:-30px; top:-40px; width:170px; height:170px; border-radius:50%; background:radial-gradient(circle, rgba(199,161,90,.22), transparent 70%); }
   .m-head .hi { font-size:13px; color:#cdd6e6; }
-  .m-head .nm { font-size:20px; font-weight:800; margin-top:3px; letter-spacing:.3px; white-space:nowrap; line-height:1.2; }
-  .m-head .sub { font-size:12px; color:#aebbd2; margin-top:6px; line-height:1.55; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .m-head .nm { font-size:20px; font-weight:800; margin-top:4px; letter-spacing:.3px; white-space:nowrap; line-height:1.2; }
+  .m-head .sub { font-size:12px; color:#aebbd2; margin-top:8px; line-height:1.55; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .m-head-user { display:flex; align-items:center; gap:12px; margin-bottom:12px; min-width:0; }
   .m-head-user > div:nth-child(2) { min-width:0; flex:1; }
   .m-head-user .head-msg { margin-left:auto; position:relative; width:40px; height:40px; display:grid; place-items:center; cursor:pointer; }
@@ -53,8 +56,10 @@
   .m-head-user .head-msg .dot { position:absolute; right:3px; top:4px; width:8px; height:8px; border-radius:50%; background:#e66b65; border:2px solid var(--ink); }
   .m-head-avatar { width:52px; height:52px; border-radius:16px; display:grid; place-items:center; background:linear-gradient(135deg,#e7d3a6,#b8883f); color:#20180b; font-size:18px; font-weight:800; flex-shrink:0; border:2px solid rgba(255,255,255,.55); }
   .m-head-avatar.authorized { background:#fff; color:var(--royal); background-size:cover; }
-  .avatar-action { font-size:10px; color:#dce5f3; margin-top:3px; cursor:pointer; white-space:nowrap; }
-  .role-pill { display:inline-flex; align-items:center; gap:6px; max-width:100%; background:rgba(199,161,90,.20); border:1px solid rgba(199,161,90,.4); color:var(--gold-s); font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; margin-top:10px; white-space:nowrap; }
+  .avatar-action { font-size:11px; color:#dce5f3; margin-top:4px; cursor:pointer; white-space:nowrap; }
+  .role-pill { display:inline-flex; align-items:center; gap:6px; max-width:100%; background:rgba(199,161,90,.20); border:1px solid rgba(199,161,90,.4); color:var(--gold-s); font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; margin-top:12px; white-space:nowrap; }
+  /* 角色胶囊图标：原缺尺寸规则 → svg 塌成 0×0，盾牌完全不可见 */
+  .role-pill svg { width:12px; height:12px; flex:0 0 12px; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
 
   .m-body { padding:20px 16px 24px; margin-top:-14px; }
   .m-card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:0 6px 18px rgba(17,30,54,.05); margin-bottom:16px; }
@@ -68,7 +73,7 @@
   .m-row .t1 { font-size:13.5px; font-weight:700; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .m-row .t2 { font-size:11.5px; color:var(--t2); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .m-card .m-card-h b, .m-card .more, .m-qk .qt, .m-tag { white-space:nowrap; }
-  .m-tag { font-size:10.5px; padding:3px 9px; border-radius:999px; font-weight:700; white-space:nowrap; }
+  .m-tag { font-size:11px; padding:3px 9px; border-radius:999px; font-weight:700; white-space:nowrap; }
   .m-tag.ok { color:var(--ok); background:var(--ok-bg); }
   .m-tag.warn { color:var(--warn); background:var(--warn-bg); }
   .m-tag.info { color:var(--info); background:var(--info-bg); }
@@ -78,8 +83,16 @@
   .m-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
   .m-qk { min-height:94px; background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px 6px 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; box-shadow:0 5px 15px rgba(17,30,54,.05); transition:transform .18s,box-shadow .18s; cursor:pointer; }
   .m-qk:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(17,30,54,.11); }
-  .m-qk .ic { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; }
-  .m-qk .ic svg { width:22px; height:22px; stroke:#fff; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  /* 磁贴图标底：唯一实现。原「.m-qk .ic 类规则（42px / 13px）」与「chip() 内联样式（40px / 12px、21px 图标）」
+     两套并存，且类规则无任何标记引用（死代码），尺寸/圆角/配色互相打架；现统一为 .m-qk-ic + 色调修饰类 */
+  .m-qk-ic { width:40px; height:40px; flex:0 0 40px; border-radius:12px; display:grid; place-items:center; }
+  .m-qk-ic svg { width:21px; height:21px; stroke:#fff; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .m-qk-ic.royal { background:linear-gradient(140deg,#345bd0,#27439f); }
+  .m-qk-ic.gold { background:linear-gradient(140deg,#d3b272,#b8883f); }
+  .m-qk-ic.ink { background:linear-gradient(140deg,#2a3a5e,#1b2c4d); }
+  /* green / blue 原未实现 → 落到 else 分支被渲染成 royal（全原型 9 处错色）；此处按 App 端 TONE_BG 取值对齐 */
+  .m-qk-ic.green { background:linear-gradient(140deg,#3fb98a,#2e8b6b); }
+  .m-qk-ic.blue { background:linear-gradient(140deg,#5b7cff,#3a63d6); }
   .m-qk .qt { font-size:11px; font-weight:700; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   .m-head * { max-width:100%; }
   .m-stat-row { display:flex; gap:14px; margin-bottom:20px; }
@@ -87,24 +100,30 @@
   .m-stat .v { font-size:20px; font-weight:800; color:#fff; line-height:1.1; }
   .m-stat .l { font-size:11px; color:#d5deed; margin-top:5px; }
 
-  .m-search { display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--line); border-radius:13px; padding:10px 14px; margin-bottom:11px; box-shadow:0 4px 12px rgba(17,30,54,.04); }
-  .m-search svg { width:18px; height:18px; stroke:var(--t2); fill:none; stroke-width:1.8; stroke-linecap:round; }
-  .m-search input { border:0; outline:0; flex:1; font-size:14px; font-family:var(--font); color:var(--t1); background:transparent; }
-  .m-search input::placeholder { color:#a9b2c2; }
+  /* 搜索框：对齐 App 端 AppSearchBar —— 胶囊圆角、象牙底（--ivory-2）、36px 高、13px 字，去掉白底细边与投影 */
+  .m-search { display:flex; align-items:center; gap:9px; height:36px; background:var(--ivory-2); border-radius:999px; padding:0 10px 0 14px; margin-bottom:11px; }
+  .m-search svg { width:16px; height:16px; stroke:var(--t2); fill:none; stroke-width:1.8; stroke-linecap:round; flex-shrink:0; }
+  .m-search input { border:0; outline:0; flex:1; min-width:0; font-size:13px; font-family:var(--font); color:var(--t1); background:transparent; }
+  .m-search input::placeholder { color:var(--muted); }
+  .m-clear { flex-shrink:0; font-size:12px; font-weight:600; color:var(--royal); cursor:pointer; white-space:nowrap; }
   .m-chips { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:11px; }
   .m-chips::-webkit-scrollbar { display:none; }
   .m-chip-btn { flex-shrink:0; border:1px solid var(--line); background:#fff; color:var(--t2); font-size:12px; font-weight:700; padding:6px 13px; border-radius:999px; cursor:pointer; font-family:var(--font); }
   .m-chip-btn.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  /* 分段子页签（线索录入：客户线索 / 产品），对齐 App 端 .seg-bar */
+  .seg-bar { display:flex; gap:8px; margin-bottom:14px; }
+  .seg-item { flex:1; min-width:0; text-align:center; padding:10px 0; font-size:12px; font-weight:600; color:var(--t2); background:var(--ivory-2); border-radius:12px; cursor:pointer; }
+  .seg-item.on { background:#fff; color:var(--royal); box-shadow:0 2px 6px rgba(17,30,54,.06); }
   .m-count { font-size:12px; color:var(--t2); margin-bottom:9px; }
   .m-count b { color:var(--royal); }
 
   .m-tabbar { min-height:68px; background:rgba(255,255,255,.97); backdrop-filter:blur(12px); border-top:1px solid var(--line); display:flex; padding-bottom:env(safe-area-inset-bottom); }
-  .m-tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#9aa4b4; cursor:pointer; font-size:11px; font-weight:700; }
+  .m-tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--t2); cursor:pointer; font-size:11px; font-weight:700; }
   .m-tab svg { width:23px; height:23px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .m-tab.on { color:var(--royal); }
   .m-tab.on svg { fill:rgba(44,82,201,.12); stroke:var(--royal); }
 
-  .m-empty { text-align:center; padding:34px 18px; color:#9aa4b4; }
+  .m-empty { text-align:center; padding:34px 18px; color:var(--t2); font-size:13px; }
   .m-empty .ill { width:58px; height:58px; margin:0 auto 11px; border-radius:18px; background:var(--ivory-2); display:grid; place-items:center; color:var(--gold); }
   .m-empty .ill svg { width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
   .m-empty { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -126,16 +145,30 @@
   .tl-item .tt { font-size:12.5px; color:var(--t1); font-weight:600; }
   .tl-item .td { font-size:11px; color:var(--t2); margin-top:2px; }
   .sheet-actions { display:flex; gap:9px; margin-top:4px; }
-  .m-btn { min-height:44px; border:0; font-family:var(--font); font-size:13px; font-weight:700; padding:11px 18px; border-radius:12px; cursor:pointer; background:linear-gradient(135deg,var(--royal),var(--royal-d) 60%,#1f3c92); color:#fff; box-shadow:0 8px 18px rgba(44,82,201,.26); transition:transform .15s,filter .15s; white-space:nowrap; }
-  .match-primary { min-width:112px; min-height:44px; padding:0 18px; display:inline-flex; align-items:center; justify-content:center; gap:7px; border-radius:12px; font-size:13px; font-weight:800; }
+  /* 按钮体系：对齐 App 端 AppButton —— 胶囊圆角（--radius-full）、md 高 44px/字 14px/内距 16px、字重 600 */
+  .m-btn { min-height:44px; border:0; font-family:var(--font); font-size:14px; font-weight:600; padding:0 16px; border-radius:999px; cursor:pointer; background:linear-gradient(135deg,var(--royal),var(--royal-d) 60%,#1f3c92); color:#fff; box-shadow:0 8px 18px rgba(44,82,201,.26); transition:transform .15s,filter .15s; white-space:nowrap; }
+  .match-primary { min-width:112px; display:inline-flex; align-items:center; justify-content:center; gap:7px; }
   .match-primary svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; }
   .m-btn:hover { filter:brightness(1.06); transform:translateY(-1px); }
   .m-btn.ghost { background:#fff; color:var(--royal); border:1px solid #cdd7ee; box-shadow:none; }
   .m-btn.gold { background:linear-gradient(135deg,var(--gold),#d9bd86); color:#1a1305; box-shadow:0 8px 18px rgba(199,161,90,.3); }
-  .m-btn.block { width:100%; padding:12px; font-size:15px; }
-  .m-note { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; padding:12px 10px; border-top:1px solid var(--line); color:var(--t2); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .m-note .ill { width:34px; height:34px; flex:0 0 34px; border-radius:10px; background:var(--gold-s); display:grid; place-items:center; color:var(--gold); }
-  .m-note .ill svg { width:18px; height:18px; }
+  .m-btn.block { width:100%; min-height:50px; padding:0 18px; font-size:16px; }
+  .m-btn.sm { min-height:32px; font-size:12px; padding:0 14px; box-shadow:none; }
+  /* 审批项操作行（D79 遗留补齐）：按钮对齐到 m-row 文字区（m-ava 42px + gap 12px = 54px） */
+  .approval-actions { display:flex; justify-content:flex-end; gap:8px; padding:0 0 10px 54px; margin-top:-2px; }
+  /* 邀请链接展示框 + 提示 + 轻量 toast（对齐 App 端 onInvite：H5 复制链接 / 小程序引导分享） */
+  .invite-link { display:flex; align-items:center; gap:8px; background:var(--ivory-2); border:1px solid var(--line); border-radius:12px; padding:11px 13px; font-size:12.5px; color:var(--t1); margin-bottom:14px; word-break:break-all; }
+  .invite-link svg { width:16px; height:16px; stroke:var(--royal); fill:none; stroke-width:1.8; stroke-linecap:round; flex-shrink:0; }
+  .invite-hint { font-size:11px; color:var(--muted); text-align:center; margin-top:10px; }
+  .toast { position:absolute; left:50%; bottom:110px; transform:translate(-50%,16px); background:rgba(17,30,54,.92); color:#fff; font-size:13px; padding:10px 20px; border-radius:999px; opacity:0; pointer-events:none; transition:.25s; z-index:99; white-space:nowrap; }
+  .toast.show { opacity:1; transform:translate(-50%,0); }
+  /* 提示行：左对齐（与卡片内 .m-card-h / 磁贴同一轴心，原来 justify-content:center 让它单独居中「浮」在中间）；
+     省略号必须写在文本节点（span）上——写在 flex 容器上对子项不生效，长文案会硬裁切。
+     图标容器 28px / 图标 15px（比例 53.6%，与磁贴 40/21=52.5% 同节奏），stroke 取 1.9 与小尺寸图标一致（同 .sheet-sec .lh）。 */
+  .m-note { display:flex; align-items:center; gap:8px; margin-top:14px; padding:10px 0 0; border-top:1px solid var(--line); color:var(--t2); font-size:11px; line-height:1.5; }
+  .m-note .ill { width:28px; height:28px; flex:0 0 28px; border-radius:9px; background:var(--gold-s); display:grid; place-items:center; color:var(--gold); }
+  .m-note .ill svg { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+  .m-note > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
   /* —— 登录页 —— */
   .login { flex:1; display:flex; flex-direction:column; background:#f4f6fa; position:relative; overflow-y:auto; color:var(--ink); }
@@ -163,7 +196,7 @@
   .login-quick .ql { font-size:11.5px; color:var(--t2); margin-bottom:8px; }
   .login-quick .qrow { display:flex; gap:7px; flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; }
   .login-quick .qbtn { flex:0 0 auto; font-size:11px; font-weight:700; padding:7px 11px; border-radius:999px; border:1px solid #cdd7ee; color:var(--royal); background:#fff; cursor:pointer; white-space:nowrap; }
-  .login-foot { text-align:center; font-size:11px; color:#9aa4b4; margin-top:14px; line-height:1.7; position:relative; z-index:2; padding:0 22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .login-foot { text-align:center; font-size:11px; color:var(--muted); margin-top:14px; line-height:1.7; position:relative; z-index:2; padding:0 22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .login-flow { margin:26px 18px 0; padding:24px 20px 21px; background:#fff; border-radius:16px; position:relative; box-shadow:0 7px 18px rgba(21,36,67,.06); }
   .login-flow-title { font-size:15px; font-weight:800; color:var(--ink); margin-bottom:12px; }
   .login-step { display:flex; align-items:center; gap:13px; min-height:58px; border-top:1px solid #e1e6ef; }
@@ -176,10 +209,17 @@
   .wechat-login .m-btn.gold { height:50px; border-radius:25px; background:linear-gradient(100deg,#e4a92e,#f0c466); color:#fff; }
   .login-divider { display:flex; align-items:center; gap:9px; margin:14px 0 12px; color:var(--t2); font-size:10.5px; }
   .login-divider::before,.login-divider::after { content:""; height:1px; background:var(--line); flex:1; }
-  .consent { display:flex; align-items:center; justify-content:center; gap:3px; min-height:48px; color:#78869e; font-size:10.5px; white-space:nowrap; cursor:pointer; }
-  .consent-box { width:17px; height:17px; margin-right:5px; border:2px solid #718096; border-radius:4px; background:var(--royal); border-color:var(--royal); color:#fff; display:grid; place-items:center; font-size:11px; font-weight:900; }
+  /* 协议勾选：默认勾选、点击可取消；取消后「微信一键登录 / 获取验证码 / 手机号登录」禁用并给内联提示
+     （对齐 App 端 components/LoginConsent.vue 与审计 P0-1「取消后不可发送验证码或登录」） */
+  .consent { display:flex; align-items:center; justify-content:center; gap:3px; min-height:44px; color:var(--muted); font-size:11px; white-space:nowrap; cursor:pointer; user-select:none; }
+  .consent-box { width:17px; height:17px; margin-right:5px; border:2px solid #718096; border-radius:4px; background:#fff; color:#fff; display:grid; place-items:center; font-size:11px; font-weight:900; }
+  .consent-box.on { background:var(--royal); border-color:var(--royal); }
   .consent a { color:var(--gold-s); }
-  .compliance { text-align:center; color:#78869e; font-size:10.5px; white-space:nowrap; padding:7px 12px 20px; }
+  .consent-hint { display:none; text-align:center; color:#c0392b; font-size:11px; padding-bottom:8px; }
+  .consent-hint.show { display:block; }
+  /* 未勾选协议时的禁用态（登录按钮与「获取验证码」共用） */
+  .is-off { opacity:.45; cursor:not-allowed; filter:grayscale(.35); }
+  .compliance { text-align:center; color:var(--muted); font-size:11px; white-space:nowrap; padding:7px 12px 20px; }
   .login-switch { margin:12px auto 0; border:0; background:transparent; color:var(--gold-s); font:700 11.5px var(--font); cursor:pointer; display:block; padding:8px 14px; white-space:nowrap; }
   .code-login-card { margin:26px 18px 0; padding:24px 20px; background:#fff; border-radius:16px; position:relative; box-shadow:0 7px 18px rgba(21,36,67,.06); }
   .code-login-title { color:var(--ink); font-size:16px; font-weight:800; margin-bottom:5px; }
@@ -191,7 +231,7 @@
   .web-logo { display:flex; align-items:center; gap:10px; padding:18px 18px 16px; border-bottom:1px solid #243352; }
   .web-logo .lg { width:34px; height:34px; border-radius:10px; background:linear-gradient(140deg,var(--gold),#d9bd86); display:grid; place-items:center; color:#1a1305; font-weight:900; font-size:17px; }
   .web-logo .nm { color:#fff; font-weight:800; font-size:15px; }
-  .web-logo .sb { font-size:10.5px; color:#8ea0c0; }
+  .web-logo .sb { font-size:11px; color:var(--muted); }
   .web-nav { padding:14px 12px 20px; }
   .nav-item { display:flex; align-items:center; gap:12px; min-height:44px; padding:10px 14px; border-radius:11px; color:#c4cee0; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:5px; transition:.15s; position:relative; }
   .nav-item svg { width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
@@ -309,6 +349,7 @@ const ICON = {
   phone:'<path d="M6.5 4h3l1.6 4-2 1.4a11 11 0 0 0 5 5l1.4-2 4 1.6v3a2 2 0 0 1-2.1 2A15 15 0 0 1 4.4 6 2 2 0 0 1 6.5 4z"/>',
   msg:'<path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>',
   shield:'<path d="M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6z"/><path d="M8.8 12l2.2 2.2L15.6 9.4"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   cal:'<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 9.5h16M8.5 3v4M15.5 3v4"/>',
   chart:'<path d="M5 19V5M5 19h14M9 15.5l3-4 3 2 3-5.5"/>',
   file:'<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h6M10 16h6"/>',
@@ -322,6 +363,12 @@ const ICON = {
   guide:'<circle cx="12" cy="12" r="8.5"/><path d="M15.6 8.6l-2.1 5-5 2.1 2.1-5z"/>',
   user:'<circle cx="12" cy="8" r="3.4"/><path d="M5.2 20c0-3.5 3-6 6.8-6s6.8 2.5 6.8 6"/>',
   doc:'<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>',
+  // 「多客户」字形：原文件缺 users，svg('users') 静默回退成 doc（文档图标），
+  // 导致「我的客户」提示行显示的是文档而不是人群
+  users:'<circle cx="9" cy="8" r="3.2"/><path d="M3.6 19.6c0-3.2 2.4-5.4 5.4-5.4s5.4 2.2 5.4 5.4"/><circle cx="17.2" cy="9.4" r="2.4"/><path d="M15.6 15.1c2.5.4 4.2 2.3 4.2 4.5"/>',
+  // 「客户」字形（人 + 客户卡）：tabIcon('clients') 返回 'client'，原表缺此项 →
+  // 底部 TabBar「我的客户」图标被静默回退成 doc（文档图标）
+  client:'<circle cx="9.4" cy="8" r="3.2"/><path d="M3.4 19.8c0-3.3 2.7-5.6 6-5.6 1.5 0 2.9.5 3.9 1.3"/><rect x="14.2" y="10.4" width="6.6" height="9.4" rx="1.8"/><path d="M16.3 13.6h2.4M16.3 16.4h2.4"/>',
   clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   swap:'<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
   team:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14c2.6.3 4.5 1.9 4.5 4.5"/>',
@@ -347,7 +394,18 @@ const ICON = {
   channel:'<circle cx="7" cy="12" r="3"/><circle cx="17" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/><path d="M9.6 11l5.4-3M9.6 13l5.4 3"/>',
 };
 function svg(ic){ return `<svg viewBox="0 0 24 24">${ICON[ic]||ICON.doc}</svg>`; }
-function chip(ic,cls){ return `<div class="m-chip ${cls}" style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:${cls==='gold'?'linear-gradient(140deg,#d3b272,#b8883f)':cls==='ink'?'linear-gradient(140deg,#2a3a5e,#1b2c4d)':'linear-gradient(140deg,#345bd0,#27439f)'}"><svg viewBox="0 0 24 24" style="width:21px;height:21px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round">${ICON[ic]||ICON.doc}</svg></div>`; }
+// 磁贴图标底：改为类驱动（尺寸/圆角/描边/配色统一走 .m-qk-ic，不再内联硬编码）。
+// 原实现只识别 gold/ink，green/blue 会静默落到 royal 分支（全原型 9 处错色）。
+function chip(ic,cls){ return `<div class="m-qk-ic ${cls||'royal'}">${svg(ic)}</div>`; }
+// 栅格列数：按磁贴数量在 2–4 列中取「末行空位最少」，并列取更多列。
+// 修复固定 repeat(4,…) 导致 3 个磁贴右侧空一格、6 个磁贴排成 4+2 参差的问题。
+function gridCols(n){
+  if(n<=1) return 1;
+  let best=4,bestDef=99;
+  for(let c=2;c<=4;c++){ const def=(c-(n%c))%c; if(def<bestDef||(def===bestDef&&c>best)){ bestDef=def; best=c; } }
+  return Math.min(best,n);
+}
+function gridStyle(n){ return ` style="grid-template-columns:repeat(${gridCols(n)},minmax(0,1fr))"`; }
 
 /* ===== 7 角色配置 ===== */
 const ROLES = {
@@ -355,27 +413,27 @@ const ROLES = {
     miniTabs:[['home','首页'],['match','智能匹配'],['report','我的报告'],['order','服务单'],['mine','我的']],
     miniHome:'customer' },
   channel:{ label:'渠道合作方', tag:'渠道合作方', ut:'合作渠道', color:'#7a5cc0', web:true,
-    miniTabs:[['home','首页'],['product','录入产品'],['client','录入线索'],['mine','我的']],
+    miniTabs:[['home','首页'],['luru','线索录入'],['clients','我的客户'],['mine','我的']],
     miniHome:'channel',
     webMenus:[['workbench','工作台','work'],['myleads','我的线索','leads'],['myclients','我的客户','client'],['myproduct','我的产品','product'],['myreport','客户分析报告','report']] },
   adviser:{ label:'顾问', tag:'顾问', ut:'公司员工', color:'#2C52C9', web:true,
-    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['report','我的报告'],['mine','我的']],
+    miniTabs:[['home','首页'],['luru','线索录入'],['clients','我的客户'],['mine','我的']],
     miniHome:'adviser',
     webMenus:[['workbench','工作台','work'],['myclients','我的客户','client'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['myreport','我的报告','report'],['myleads','我录入的线索','leads'],['approval','审批中心','approval'],['market','营销','market']] },
   deptmgr:{ label:'部门经理', tag:'部门经理', ut:'公司员工', color:'#C7A15A', web:true,
-    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['report','我的报告'],['mine','我的']],
+    miniTabs:[['home','首页'],['luru','线索录入'],['clients','我的客户'],['approval','审批中心'],['mine','我的']],
     miniHome:'deptmgr',
     webMenus:[['workbench','工作台','work'],['myclients','我的客户','client'],['team','团队客户','team'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['myreport','我的报告','report'],['myleads','我录入的线索','leads'],['assign','客户分配','assign'],['approval','审批中心','approval'],['market','营销','market']] },
   boss:{ label:'老板', tag:'老板', ut:'公司管理者', color:'#B5443B', web:true,
-    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['match','智能匹配'],['report','我的报告'],['mine','我的']],
+    miniTabs:[['home','首页'],['luru','线索录入'],['approval','审批中心'],['clients','我的客户'],['mine','我的']],
     miniHome:'boss',
     webMenus:[['workbench','工作台','work'],['clients','客户总览','client'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['report','报告中心','report'],['approval','审批中心','approval'],['product','产品管理','product'],['channel','渠道管理','channel'],['rule','规则模板','rule'],['template','报告模板','template'],['sms','短信中心','sms'],['blacklist','黑名单','black'],['org','组织管理','org'],['market','营销审批','market']] },
   operator:{ label:'运营管理员', tag:'运营管理员', ut:'公司员工', color:'#2E8B6B', web:true,
-    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['approval','审批中心'],['mine','我的']],
+    miniTabs:[['home','首页'],['luru','线索录入'],['clients','我的客户'],['approval','审批中心'],['mine','我的']],
     miniHome:'operator',
     webMenus:[['workbench','工作台','work'],['myclients','我的客户','client'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['myreport','我的报告','report'],['myleads','我录入的线索','leads'],['product','产品管理','product'],['approval','审批中心','approval'],['rule','规则模板','rule'],['template','报告模板','template'],['sms','短信中心','sms'],['audit','审计中心','audit'],['market','营销','market']] },
   super:{ label:'超级管理员', tag:'超级管理员', ut:'系统管理员', color:'#1B2C4D', web:true,
-    miniTabs:[['home','首页'],['client','录入线索'],['product','录入产品'],['match','智能匹配'],['report','我的报告'],['mine','我的']],
+    miniTabs:[['home','首页'],['luru','线索录入'],['approval','审批中心'],['clients','我的客户'],['mine','我的']],
     miniHome:'super',
     webMenus:[['workbench','工作台','work'],['clients','客户总览','client'],['seapool','客户公海','pool'],['match','智能匹配','match'],['order','服务工单','order'],['report','报告中心','report'],['approval','审批中心','approval'],['product','产品管理','product'],['channel','渠道管理','channel'],['rule','规则模板','rule'],['template','报告模板','template'],['sms','短信中心','sms'],['blacklist','黑名单','black'],['org','组织管理','org'],['perm','角色菜单权限','perm'],['audit','审计中心','audit'],['debug','调试中心','debug'],['market','营销','market']] },
 };
@@ -415,8 +473,19 @@ const MESSAGES = [
 ];
 
 /* ===== 状态 ===== */
-const STATE = { end:'mini', role:'adviser', view:'app', tab:{}, q:'', chip:'全部', msgOpen:false, sheet:null, loginMode:'pwd', loginRole:null };
+const STATE = { end:'mini', role:'adviser', view:'app', tab:{}, q:'', chip:'全部', msgOpen:false, sheet:null, loginMode:'pwd', loginRole:null, consent:true, consentHint:false, entrySeg:'lead' };
 ROLE_ORDER.forEach(r=>STATE.tab[r]=ROLES[r].miniTabs?ROLES[r].miniTabs[0][0]:'workbench');
+
+/* ===== 轻量 toast（审批/复制链接等操作的即时反馈） ===== */
+let toastMsg = '';
+let toastTimer = null;
+function showToast(msg){
+  toastMsg = msg;
+  render();
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ toastMsg=''; render(); }, 1600);
+}
+function toastHtml(){ return toastMsg ? `<div class="toast show">${toastMsg}</div>` : ''; }
 
 /* ===== 渲染：移动端外壳 ===== */
 function renderMobile(role){
@@ -433,14 +502,16 @@ function renderMobile(role){
   else if(STATE.tab[role]==='match'){ body = renderMatch(); }
   else if(STATE.tab[role]==='report'){ body = renderReport(); }
   else if(STATE.tab[role]==='order'){ body = renderOrder(); }
-  else if(STATE.tab[role]==='product'){ body = role==='channel' ? renderChannelProduct() : renderStaffProduct(role); }
-  else if(STATE.tab[role]==='client'){ body = renderLeadEntry(); }
+  else if(STATE.tab[role]==='luru'){ body = renderEntryHub(role); }
+  else if(STATE.tab[role]==='clients'){ body = renderClientHub(role); }
+  else if(STATE.tab[role]==='clientlist'){ body = renderClientList(role); }
+  else if(STATE.tab[role]==='approval'){ body = renderApproval(role); }
   else { body = renderHome(role); }
   const tabs = R.miniTabs.map(t=>`<div class="m-tab ${STATE.tab[role]===t[0]?'on':''}" data-mtab="${t[0]}">${svg(tabIcon(t[0]))}<span>${t[1]}</span></div>`).join('');
-  return `<div class="m-scroll"><div class="m-head"><div class="m-head-user"><div class="m-head-avatar" data-avatar-auth="1">${R.label[0]}</div><div><div class="hi">${role==='customer'?'您好':'下午好'}</div><div class="nm">${R.label}</div><div class="avatar-action" data-avatar-auth="1">授权使用微信头像</div></div><div class="head-msg" data-msgopen="1" aria-label="消息中心">${svg('bell')}<div class="dot"></div></div></div><div class="sub">${homeSub(role)}</div><div class="role-pill">${svg('shield')} ${R.tag} · ${R.ut}</div></div><div class="m-body">${body}</div></div>` +
-    `<div class="m-tabbar">${tabs}</div>` + sheetHtml();
+  return `<div class="m-scroll"><div class="m-head"><div class="m-head-user"><div class="m-head-avatar" data-avatar-auth="1">${R.label[0]}</div><div><div class="hi">${role==='customer'?'您好':'下午好'}</div><div class="nm">${R.label}</div><div class="avatar-action" data-avatar-auth="1">授权使用微信头像</div></div><div class="head-msg" data-msgopen="1" aria-label="消息中心">${svg('bell')}${MESSAGES.some(m=>m.unread)?'<div class="dot"></div>':''}</div></div><div class="sub">${homeSub(role)}</div><div class="role-pill">${svg('shield')} ${R.tag} · ${R.ut}</div></div><div class="m-body">${body}</div></div>` +
+    `<div class="m-tabbar">${tabs}</div>` + sheetHtml() + toastHtml();
 }
-function tabIcon(t){ return {home:'home',match:'match',report:'report',order:'order',mine:'user',product:'product',client:'leads'}[t]||'home'; }
+function tabIcon(t){ return {home:'home',match:'match',report:'report',order:'order',mine:'user',luru:'leads',clients:'client',approval:'shield'}[t]||'home'; }
 function homeSub(role){
   return {
     customer:'您可自助智能匹配、查看我的报告与服务单',
@@ -456,7 +527,7 @@ function homeSub(role){
 /* ===== 移动端首页（角色化） ===== */
 function renderHome(role){
   if(role==='customer'){
-    return `<div class="m-grid">
+    return `<div class="m-grid"${gridStyle(5)}>
       ${mqk('match','智能匹配','royal')}
       ${mqk('report','我的报告','gold')}
       ${mqk('order','服务单','ink')}
@@ -473,7 +544,7 @@ function renderHome(role){
   }
   if(role==='channel'){
     return `<div class="m-stat-row"><div class="m-stat"><div class="v">56</div><div class="l">我录线索</div></div><div class="m-stat"><div class="v">12</div><div class="l">已转化</div></div></div>
-    <div class="m-grid">
+    <div class="m-grid"${gridStyle(5)}>
       ${mqk('leads','我的线索','royal')}
       ${mqk('product','我的产品','gold')}
       ${mqk('client','录入客户','ink')}
@@ -481,11 +552,10 @@ function renderHome(role){
       ${mqk('invite','邀请用户','royal')}
     </div>
     <div class="m-card"><div class="m-card-h"><b>我的线索概览</b><div class="more">查看</div></div>
-      <div class="m-row"><div class="main"><div class="t1">瑞峰智能制造</div><div class="t2">官网留资 · 待分配</div></div><div class="m-tag warn">待分配</div></div>
-      <div class="m-row"><div class="main"><div class="t1">安达精密机械</div><div class="t2">渠道转介 · 已转化</div></div><div class="m-tag ok">已转化</div></div>
-      <div class="m-row"><div class="main"><div class="t1">海蓝生物科技</div><div class="t2">广告投放 · 跟进中</div></div><div class="m-tag info">跟进中</div></div>
-    </div>
-    <div class="m-empty"><div class="ill">${svg('pin')}</div>渠道不可操作智能匹配，仅录入与管理本人线索/产品</div>`;
+      <div class="m-row"><div class="main"><div class="t1">瑞峰智能制造</div><div class="t2">官网留资 · 录入于 09-10</div></div><div class="m-tag warn">待公司审核</div></div>
+      <div class="m-row"><div class="main"><div class="t1">安达精密机械</div><div class="t2">渠道转介 · 录入于 09-08</div></div><div class="m-tag ok">审核通过</div></div>
+      <div class="m-row"><div class="main"><div class="t1">海蓝生物科技</div><div class="t2">广告投放 · 录入于 09-06</div></div><div class="m-tag warn">已驳回</div></div>
+    </div>`;
   }
   // 员工（顾问/经理/老板/运营/超管）
   const statMap = {
@@ -496,14 +566,17 @@ function renderHome(role){
     super:['3,180','全司客户','0','系统异常'],
   };
   const s = statMap[role];
-  let quick = '';
-  if(role==='adviser') quick = `${mqk('client','我的客户','royal')}${mqk('leads','录入线索','gold')}${mqk('product','录入产品','ink')}${mqk('match','智能匹配','green')}${mqk('invite','邀请用户','royal')}${mqk('audit','我的申请','ink')}`;
-  if(role==='deptmgr') quick = `${mqk('client','我的客户','royal')}${mqk('team','团队客户','gold')}${mqk('leads','录入线索','ink')}${mqk('product','录入产品','green')}${mqk('invite','邀请用户','royal')}${mqk('approval','审批中心','ink')}`;
-  if(role==='boss') quick = `${mqk('client','我的客户','royal')}${mqk('clients','客户总览','blue')}${mqk('leads','录入线索','gold')}${mqk('product','录入产品','ink')}${mqk('match','智能匹配','green')}${mqk('invite','邀请用户','royal')}${mqk('approval','审批中心','ink')}`;
-  if(role==='operator') quick = `${mqk('client','我的客户','royal')}${mqk('leads','录入线索','gold')}${mqk('product','录入产品','ink')}${mqk('invite','邀请用户','green')}${mqk('approval','审批中心','royal')}${mqk('sms','短信中心','ink')}`;
-  if(role==='super') quick = `${mqk('client','我的客户','royal')}${mqk('clients','客户总览','blue')}${mqk('leads','录入线索','gold')}${mqk('product','录入产品','ink')}${mqk('match','智能匹配','green')}${mqk('invite','邀请用户','royal')}${mqk('org','组织管理','ink')}${mqk('perm','权限管理','royal')}`;
+  // 快捷宫格：改用数组承载，以便按实际磁贴数量决定栅格列数（见 gridStyle）
+  const QUICK = {
+    adviser:[['client','我的客户','royal'],['leads','录入线索','gold'],['product','录入产品','ink'],['match','智能匹配','green'],['invite','邀请用户','royal'],['audit','我的申请','ink']],
+    deptmgr:[['client','我的客户','royal'],['team','团队客户','gold'],['leads','录入线索','ink'],['product','录入产品','green'],['match','智能匹配','green'],['invite','邀请用户','royal'],['approval','审批中心','ink']],
+    boss:[['client','我的客户','royal'],['leads','录入线索','gold'],['product','录入产品','ink'],['match','智能匹配','green'],['invite','邀请用户','royal'],['approval','审批中心','ink']],
+    operator:[['client','我的客户','royal'],['leads','录入线索','gold'],['product','录入产品','ink'],['match','智能匹配','green'],['invite','邀请用户','green'],['approval','审批中心','royal']],
+    super:[['client','我的客户','royal'],['leads','录入线索','gold'],['product','录入产品','ink'],['match','智能匹配','green'],['invite','邀请用户','royal']],
+  };
+  const quick = (QUICK[role]||[]).map(a=>mqk(a[0],a[1],a[2]));
   return `<div class="m-stat-row"><div class="m-stat"><div class="v">${s[0]}</div><div class="l">${s[1]}</div></div><div class="m-stat"><div class="v">${s[2]}</div><div class="l">${s[3]}</div></div></div>
-    <div class="m-grid">${quick}</div>
+    <div class="m-grid"${gridStyle(quick.length)}>${quick.join('')}</div>
     <div class="m-card"><div class="m-card-h"><b>${role==='adviser'?'我的申请':'审批待办'}</b><div class="more">${role==='adviser'?'查看':'进入'}</div></div>${approvalRows(role)}</div>`;
 }
 function mqk(ic,label,cls){ return `<div class="m-qk" data-mqk="${ic}">${chip(ic,cls)}<div class="qt">${label}</div></div>`; }
@@ -525,10 +598,18 @@ function renderReport(){ return `<div class="m-card"><div class="m-card-h"><b>�
 function renderOrder(){ return `<div class="m-card"><div class="m-card-h"><b>服务工单</b></div>
   <div class="m-row"><div class="main"><div class="t1">经营贷资料初审</div><div class="t2">处理中 · 顾问 李</div></div><div class="m-tag warn">处理中</div></div>
   <div class="m-row"><div class="main"><div class="t1">额度方案沟通</div><div class="t2">已完成</div></div><div class="m-tag ok">已完成</div></div></div>`; }
+function renderApproval(role){
+  const list = APPROVALS[role]||[];
+  const head = `<div class="m-card"><div class="m-card-h"><b>审批中心</b><div class="more">待我审批 ${list.length}</div></div>`;
+  if(!list.length) return head + `<div class="m-empty"><div class="ill">${svg('shield')}</div>暂无待办审批</div></div>`;
+  const rows = list.map((a,i)=>`<div class="m-row"><div class="m-ava">${a.who[0]}</div><div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} · ${a.time}</div></div><div class="m-tag ${a.status}">${a.st}</div></div><div class="approval-actions"><button class="m-btn sm ghost" data-approve="${i}" data-act="reject">驳回</button><button class="m-btn sm" data-approve="${i}" data-act="pass">通过</button></div>`).join('');
+  return head + rows + `</div>`;
+}
 function renderChannelProduct(){ return `<div class="m-card"><div class="m-card-h"><b>我的产品</b><div class="more">录入</div></div>
-  <div class="m-row"><div class="main"><div class="t1">企业经营贷</div><div class="t2">合作银行A · 最高¥200万</div></div><div class="m-tag ok">合作中</div></div>
-  <div class="m-row"><div class="main"><div class="t1">供应链金融</div><div class="t2">合作银行B · 按日计息</div></div><div class="m-tag ok">合作中</div></div>
-  <div class="m-note"><div class="ill">${svg('product')}</div><span>提交时自动查重，审批通过后生效</span></div></div>`; }
+  <div class="m-row"><div class="main"><div class="t1">企业经营贷</div><div class="t2">合作银行A · 最高¥200万</div></div><div class="m-tag ok">已上架</div></div>
+  <div class="m-row"><div class="main"><div class="t1">供应链金融</div><div class="t2">合作银行B · 按日计息</div></div><div class="m-tag warn">待审核</div></div>
+  <div class="m-row"><div class="main"><div class="t1">设备抵押贷</div><div class="t2">合作银行C · 期限 3 年</div></div><div class="m-tag warn">已驳回</div></div>
+  <div class="m-note"><div class="ill">${svg('product')}</div><span>草稿可编辑重提 · 待审核可撤销 · 驳回后可见原因并重提</span></div></div>`; }
 function renderStaffProduct(role){ return `<div class="m-card"><div class="m-card-h"><b>录入产品</b><div class="more">新建</div></div>
   <div class="m-row"><div class="main"><div class="t1">企业经营贷</div><div class="t2">本人录入 · 待审批</div></div><div class="m-tag warn">待审批</div></div>
   <div class="m-row"><div class="main"><div class="t1">供应链金融</div><div class="t2">审批通过后生效</div></div><div class="m-tag info">审批中</div></div>
@@ -537,6 +618,34 @@ function renderLeadEntry(){ return `<div class="m-card"><div class="m-card-h"><b
   <div class="login-field" style="margin:0"><label>企业名称</label><div class="login-field"><div class="box" style="padding:11px 13px;background:#fff;border:1px solid var(--line);border-radius:12px">输入企业全称</div></div></div>
   <button class="m-btn block" style="margin-top:14px">提交录入</button>
   <div class="m-empty" style="padding:20px 0 0"><div class="ill">${svg('leads')}</div>提交前自动校验手机号、身份证号和统一信用代码；提交后可查看处理状态</div></div>`; }
+function renderEntryHub(role){
+  const channel = role==='channel';
+  const seg = STATE.entrySeg === 'product' ? 'product' : 'lead';
+  const segbar = `<div class="seg-bar">`
+    + `<div class="seg-item ${seg==='lead'?'on':''}" data-entryseg="lead">${channel?'客户线索':'录入客户'}</div>`
+    + `<div class="seg-item ${seg==='product'?'on':''}" data-entryseg="product">${channel?'产品':'录入产品'}</div>`
+    + `</div>`;
+  let body;
+  if(seg==='lead'){
+    body = channel
+      ? `<div class="m-row"><div class="main"><div class="t1">瑞峰智能制造</div><div class="t2">官网留资 · 录入于 09-10</div></div><div class="m-tag warn">待公司审核</div></div>
+         <div class="m-row"><div class="main"><div class="t1">安达精密机械</div><div class="t2">渠道转介 · 录入于 09-08</div></div><div class="m-tag ok">审核通过</div></div>
+         <div class="m-row"><div class="main"><div class="t1">海蓝生物科技</div><div class="t2">广告投放 · 录入于 09-06</div></div><div class="m-tag warn">已驳回</div></div>`
+      : `<div class="login-field" style="margin:0"><label>企业名称</label><div class="box" style="padding:11px 13px;background:#fff;border:1px solid var(--line);border-radius:12px">输入企业全称</div></div><button class="m-btn block" style="margin-top:14px">提交录入</button>`;
+  } else {
+    body = channel
+      ? `<div class="m-row"><div class="main"><div class="t1">企业经营贷</div><div class="t2">合作银行A · 最高¥200万</div></div><div class="m-tag ok">已上架</div></div>
+         <div class="m-row"><div class="main"><div class="t1">供应链金融</div><div class="t2">合作银行B · 按日计息</div></div><div class="m-tag warn">待审核</div></div>
+         <div class="m-row"><div class="main"><div class="t1">设备抵押贷</div><div class="t2">合作银行C · 期限 3 年</div></div><div class="m-tag warn">已驳回</div></div>`
+      : `<div class="login-field" style="margin:0"><label>产品名称</label><div class="box" style="padding:11px 13px;background:#fff;border:1px solid var(--line);border-radius:12px">输入产品名称</div></div><button class="m-btn block" style="margin-top:14px">录入产品</button>`;
+  }
+  return `<div class="m-card"><div class="m-card-h"><b>线索录入</b><div class="more">合并入口</div></div>${segbar}${body}<div class="m-note"><div class="ill">${svg('check')}</div><span>${channel?'本人录入的线索与产品状态均可在此查看':'提交后进入审核，通过后生效'}</span></div></div>`;
+}
+function renderClientHub(role){ const channel=role==='channel';
+  // [data-mqk 值, 图标名, 标签, 色调]：hub 磁贴用 clientlist/sealist 与快捷宫格的 client 区分，点击直达列表/公海
+  const tiles=[['clientlist','client','我的客户','royal']];
+  if(!channel){ tiles.push(['sealist','pool','客户公海','gold']); tiles.push(['report','report','客户报告','green']); }
+  return `<div class="m-card"><div class="m-card-h"><b>我的客户</b><div class="more">${channel?'仅本人录入':'客户 / 公海 / 报告'}</div></div><div class="m-grid"${gridStyle(tiles.length)}>${tiles.map(t=>`<div class="m-qk" data-mqk="${t[0]}">${chip(t[1],t[3])}<div class="qt">${t[2]}</div></div>`).join('')}</div><div class="m-note"><div class="ill">${svg('users')}</div><span>${channel?'仅展示本人录入并已转化的客户':'按客户姓名、状态和日期查看，不展示业务编码'}</span></div></div>`; }
 function renderMine(role){
   return `<div class="m-card"><div class="m-card-h"><b>我的</b></div>
     <div class="m-row"><div class="m-ava">${ROLES[role].label[0]}</div><div class="main"><div class="t1">${ROLES[role].label}</div><div class="t2">${ROLES[role].tag} · ${ROLES[role].ut}</div></div></div>
@@ -552,17 +661,17 @@ function renderMine(role){
 function renderClientList(role){
   const kw = STATE.q.toLowerCase();
   let list = CLIENTS;
-  if(role==='channel'){ list = list.filter(c=>c.owner==='赵渠道'); }       // 渠道仅本人录入
+  if(role==='channel'){ list = list.filter(c=>c.owner==='赵渠道' && c.st!=='公海'); }       // 渠道仅本人录入，禁止公海
   else if(role==='adviser'){ list = list.filter(c=>['李顾问'].includes(c.owner)||c.owner==='—'); }
   else if(role==='deptmgr'){ list = list.filter(c=>['李顾问','王经理','周顾问'].includes(c.owner)||c.owner==='—'); }
   else if(role==='customer'){ list = []; }
   if(kw){ list = list.filter(c=> (c.nm+c.phone+c.ent+c.owner).toLowerCase().includes(kw)); }
   if(STATE.chip!=='全部'){ list = list.filter(c=> c.st===STATE.chip || (STATE.chip==='公海'&&c.st==='公海')); }
-  const chips = ['全部','待跟进','已认证','已成交','公海'];
+  const chips = role==='channel' ? ['全部','待跟进','已认证','已成交'] : ['全部','待跟进','已认证','已成交','公海'];
   const body = list.length? list.map(c=>`<div class="m-row" data-client="${c.nm}"><div class="m-ava">${c.nm[0]}</div><div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.owner==='—'?'公海客户':('归属 '+c.owner)} · 最近 ${c.follow}</div></div><div class="m-tag ${c.status}">${c.st}</div></div>`).join('') :
     `<div class="m-empty"><div class="ill">${svg('search')}</div>无匹配客户，试试其他关键词</div>`;
-  const searchPh = role==='channel'?'搜索本人录入客户':(role==='customer'?'搜索我的服务':'搜索姓名/手机/企业');
-  return `<div class="m-search">${svg('search')}<input placeholder="${searchPh}" value="${STATE.q}" data-q="1"/><span class="m-chip-btn" data-clear="1" style="flex:0">清空</span></div>
+  const searchPh = role==='channel'?'搜索企业名称 / 联系人 / 手机号':(role==='customer'?'搜索服务单 / 报告':'搜索姓名 / 手机号 / 企业名称');
+  return `<div class="m-search">${svg('search')}<input placeholder="${searchPh}" value="${STATE.q}" data-q="1"/><span class="m-clear" data-clear="1">清空</span></div>
     <div class="m-chips">${chips.map(c=>`<div class="m-chip-btn ${STATE.chip===c?'on':''}" data-chip="${c}">${c}</div>`).join('')}</div>
     <div class="m-count">共 <b>${list.length}</b> 位${role==='channel'?'（仅本人录入）':''}</div>
     <div class="m-card" style="padding:6px 14px">${body}</div>`;
@@ -574,6 +683,12 @@ function sheetHtml(){
     return `<div class="sheet-mask show" data-close="1"></div><div class="sheet show"><div class="grab"></div><h3>消息中心</h3><div class="sub">仅显示 提交人 + 事项 + 时间，不含任何单号</div>
       ${MESSAGES.map(m=>`<div class="m-row"><div class="m-ava" style="background:${m.unread?'linear-gradient(140deg,#d3b272,#b8883f)':'linear-gradient(135deg,#eef2fb,#e2e9f7)'};color:${m.unread?'#fff':'var(--royal)'}">${m.who[0]}</div><div class="main"><div class="t1">${m.matter}</div><div class="t2">${m.who} · ${m.time}</div></div>${m.unread?'<div class="m-tag warn">新</div>':'<div class="m-go">›</div>'}</div>`).join('')}
       <button class="m-btn block ghost" data-close="1" style="margin-top:14px">关闭</button></div>`;
+  }
+  if(STATE.sheet==='invite'){
+    return `<div class="sheet-mask show" data-close="1"></div><div class="sheet show"><div class="grab"></div><h3>邀请用户</h3><div class="sub">分享链接给客户，对方登录后自动建立引荐关系</div>
+      <div class="invite-link">${svg('link')}<span>/pages/index/index?inviteCode=INVITE2026</span></div>
+      <div class="sheet-actions"><button class="m-btn ghost" data-close="1" style="flex:1">取消</button><button class="m-btn gold" data-copy-invite="1" style="flex:1">复制邀请链接</button></div>
+      <div class="invite-hint">小程序端：请点击右上角「…」分享给好友</div></div>`;
   }
   if(STATE.sheet && CLIENTS.find(c=>c.nm===STATE.sheet)){
     const c = CLIENTS.find(x=>x.nm===STATE.sheet);
@@ -603,13 +718,14 @@ function renderLogin(scope){
       <div class="login-step"><i>1</i><b>微信一键登录</b><span>自动创建客户档案</span></div>
       <div class="login-step"><i>2</i><b>身份认证</b><span>企业或个人认证</span></div>
       <div class="login-step"><i>3</i><b>智能匹配</b><span>获取匹配报告</span></div>
-    </div><div class="wechat-login"><button class="m-btn block gold">微信一键登录</button>${isH5?'<button class="login-switch" data-lmode="code">使用手机号验证码登录 ›</button>':''}</div>`:
+    </div><div class="wechat-login"><button class="m-btn block gold ${STATE.consent?'':'is-off'}" data-login="1">微信一键登录</button>${isH5?'<button class="login-switch" data-lmode="code">使用手机号验证码登录 ›</button>':''}</div>`:
     `<div class="code-login-card"><div class="code-login-title">手机号验证码登录</div><div class="code-login-sub">未注册手机号验证后将自动创建客户档案</div>
       <div class="login-field"><label>手机号</label><div class="box">${svg('phone')}<input placeholder="请输入手机号"/></div></div>
-      <div class="login-field"><label>短信验证码</label><div class="box">${svg('shield')}<input placeholder="请输入验证码"/><span class="code">获取验证码</span></div></div>
-      <button class="m-btn block gold">手机号登录</button><button class="login-switch" data-lmode="wx">‹ 返回微信登录</button></div>`}
-    <div class="consent"><span class="consent-box">✓</span><span>已阅读并同意</span><a>《用户协议》</a><span>和</span><a>《隐私政策》</a></div>
-    <div class="compliance">温馨提示：匹配结果仅供参考，不代表银行审批承诺</div>
+      <div class="login-field"><label>短信验证码</label><div class="box">${svg('shield')}<input placeholder="请输入验证码"/><span class="code ${STATE.consent?'':'is-off'}" data-login="1">获取验证码</span></div></div>
+      <button class="m-btn block gold ${STATE.consent?'':'is-off'}" data-login="1">手机号登录</button><button class="login-switch" data-lmode="wx">‹ 返回微信登录</button></div>`}
+    <div class="consent" data-consent="1"><span class="consent-box ${STATE.consent?'on':''}">${STATE.consent?'✓':''}</span><span>已阅读并同意</span><a>《用户协议》</a><span>和</span><a>《隐私政策》</a></div>
+    <div class="consent-hint ${STATE.consentHint?'show':''}">请先阅读并同意《用户协议》与《隐私政策》</div>
+    <div class="compliance">温馨提示：匹配结果仅供参考，不代表资金机构通过承诺</div>
   </div>`;
 }
 
@@ -674,15 +790,16 @@ function renderWebHome(role, title){
 function renderWebClient(role, title){
   const kw = STATE.q.toLowerCase();
   let list = CLIENTS;
-  if(role==='channel') list = list.filter(c=>c.owner==='赵渠道');
+  if(role==='channel') list = list.filter(c=>c.owner==='赵渠道' && c.st!=='公海');
   else if(role==='adviser') list = list.filter(c=>['李顾问'].includes(c.owner)||c.owner==='—');
   else if(role==='deptmgr') list = list.filter(c=>['李顾问','王经理','周顾问'].includes(c.owner)||c.owner==='—');
   if(kw) list = list.filter(c=>(c.nm+c.phone+c.ent+c.owner).toLowerCase().includes(kw));
   const rows = list.length? list.map(c=>`<div class="w-row" data-client="${c.nm}"><div class="w-ava">${c.nm[0]}</div><div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.owner==='—'?'公海客户':('归属 '+c.owner)} · 最近 ${c.follow}</div></div><div class="w-tag ${c.status}">${c.st}</div><div class="w-go">›</div></div>`).join('') :
     `<div class="w-card" style="text-align:center;color:var(--t2);padding:30px">无匹配客户</div>`;
+  const chips = role==='channel' ? ['全部','待跟进','已认证','已成交'] : ['全部','待跟进','已认证','已成交','公海'];
   return `<div class="pg-head"><div><div class="pg-title">${title}</div><div class="pg-desc">${role==='channel'?'仅本人录入客户（D50 数据隔离）':role==='boss'?'全量客户总览':'按角色数据范围'}</div></div></div>
-    <div class="w-search">${svg('search')}<input placeholder="搜索姓名/手机/企业/信用代码" value="${STATE.q}" data-q="1"/></div>
-    <div class="w-toolbar">${['全部','待跟进','已认证','已成交','公海'].map(c=>`<div class="w-chip-btn ${STATE.chip===c?'on':''}" data-chip="${c}">${c}</div>`).join('')}</div>
+    <div class="w-search">${svg('search')}<input placeholder="搜索姓名 / 手机号 / 企业名称 / 信用代码" value="${STATE.q}" data-q="1"/></div>
+    <div class="w-toolbar">${chips.map(c=>`<div class="w-chip-btn ${STATE.chip===c?'on':''}" data-chip="${c}">${c}</div>`).join('')}</div>
     <div class="w-card" style="padding:8px 18px">${rows}</div>`;
 }
 function renderWebApproval(role){
@@ -746,14 +863,28 @@ function renderRoleSeg(){
 
 /* ===== 事件 ===== */
 document.addEventListener('click', e=>{
-  const t = e.target.closest('[data-role],[data-end],[data-view],[data-mtab],[data-wnav],[data-qk],[data-chip],[data-clear],[data-client],[data-msgopen],[data-close],[data-lmode],[data-qrole]');
+  const t = e.target.closest('[data-role],[data-end],[data-view],[data-mtab],[data-wnav],[data-qk],[data-mqk],[data-chip],[data-clear],[data-client],[data-msgopen],[data-close],[data-lmode],[data-qrole],[data-consent],[data-login],[data-entryseg],[data-approve],[data-copy-invite]');
   if(!t) return;
   if(t.dataset.role){ STATE.role=t.dataset.role; STATE.sheet=null; render(); return; }
   if(t.dataset.end){ STATE.end=t.dataset.end; STATE.sheet=null; render(); return; }
   if(t.dataset.view){ STATE.view=t.dataset.view; STATE.sheet=null; render(); return; }
+  if(t.dataset.entryseg){ STATE.entrySeg=t.dataset.entryseg; render(); return; }
+  if(t.dataset.consent){ if(e.target.tagName!=='A'){ STATE.consent=!STATE.consent; STATE.consentHint=false; render(); } return; }
+  if(t.dataset.login){ if(!STATE.consent){ STATE.consentHint=true; render(); } return; }
   if(t.dataset.lmode){ STATE.loginMode=t.dataset.lmode; render(); return; }
   if(t.dataset.qrole){ STATE.loginRole=t.dataset.qrole; STATE.role=t.dataset.qrole; STATE.view='app'; STATE.sheet=null; render(); return; }
   if(t.dataset.mtab){ STATE.tab[STATE.role]=t.dataset.mtab; STATE.sheet=null; render(); return; }
+  // 移动端磁贴（快捷宫格 + 合并页 hub）→ 对应 tab / 列表
+  if(t.dataset.mqk){
+    const k=t.dataset.mqk;
+    if(k==='invite'){ STATE.sheet='invite'; render(); return; } // 邀请：打开邀请 sheet（对齐 App 端 onInvite）
+    if(k==='leads'){ STATE.entrySeg='lead'; STATE.tab[STATE.role]='luru'; }
+    else if(k==='product'){ STATE.entrySeg='product'; STATE.tab[STATE.role]='luru'; }
+    else if(k==='clientlist'){ STATE.chip='全部'; STATE.tab[STATE.role]='clientlist'; }
+    else if(k==='sealist'||k==='seapool'){ STATE.chip='公海'; STATE.tab[STATE.role]='clientlist'; }
+    else { STATE.tab[STATE.role] = {match:'match',report:'report',order:'order',user:'mine',mine:'mine',team:'clients',client:'clients',approval:'approval',audit:'approval'}[k] || 'home'; }
+    STATE.sheet=null; render(); return;
+  }
   if(t.dataset.wnav){ STATE.tab[STATE.role]=t.dataset.wnav; STATE.sheet=null; render(); return; }
   if(t.dataset.qk){ const map={client:'myclients',match:'match',order:'order',approval:'approval',team:'team',assign:'assign',clients:'clients',report:'myreport',market:'market',product:'product',sms:'sms',org:'org',perm:'perm',debug:'debug',audit:'audit',seapool:'seapool'}; const k=map[t.dataset.qk]; if(k){ STATE.tab[STATE.role]=k; STATE.sheet=null; render(); } return; }
   if(t.dataset.chip){ STATE.chip=t.dataset.chip; render(); return; }
@@ -761,6 +892,19 @@ document.addEventListener('click', e=>{
   if(t.dataset.client){ STATE.sheet=t.dataset.client; render(); return; }
   if(t.dataset.msgopen){ STATE.sheet='msg'; render(); return; }
   if(t.dataset.close){ STATE.sheet=null; render(); return; }
+  if(t.dataset.copyInvite){
+    const url = `${(typeof window!=='undefined' && window.location && window.location.origin)||''}/pages/index/index?inviteCode=INVITE2026`;
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(url).catch(()=>{}); }
+    showToast('邀请链接已复制');
+    return;
+  }
+  if(t.dataset.approve){
+    const list = APPROVALS[STATE.role]||[];
+    const i = +t.dataset.approve;
+    const act = t.dataset.act;
+    if(list[i]){ list.splice(i,1); showToast(act==='pass'?'已通过':'已驳回'); }
+    return;
+  }
 });
 document.addEventListener('input', e=>{
   const i = e.target.closest('[data-q]');

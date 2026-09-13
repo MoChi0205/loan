@@ -333,8 +333,14 @@ async function onSubmit() {
   background:var(--bg-input);
   border:2rpx solid var(--line);
   border-radius: var(--radius-sm);
-  font-size:27rpx;
-  color:var(--text-primary)
+  /* 输入字号 ≥ 16px（32rpx）：低于 16px 会被 iOS Safari 聚焦自动放大视口 */
+  font-size:32rpx;
+  color:var(--text-primary);
+  transition:border-color .15s
+}
+/* 聚焦触控高亮：只改边框色不改宽高，避免布局跳动 */
+.field-input:focus{
+  border-color:var(--brand-deep)
 }
 .ph{
   color:var(--text-secondary)

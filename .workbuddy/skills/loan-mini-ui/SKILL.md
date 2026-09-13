@@ -2,9 +2,10 @@
 name: loan-mini-ui
 description: >-
   loan-main 小程序（loan-mini）UI 与交互规范。新增或修改 uni-app 小程序页面布局、
-  设计令牌（冷玻璃风格：冷调低饱和蓝 + 磨砂油画/毛玻璃质感）、公共组件复用、AppIcon 图标、空状态、骨架屏、列表分页、
-  自绘 TabBar 时使用；违反将出现 emoji 渲染不一致 / 各页样式各写各的 / 空态插画不一致 /
-  iconfont 豆腐块（static/ 无字体文件）/ 原生 TabBar 与角色化冲突等问题（2026-08-28 汇总）。
+  设计令牌（墨蓝 #111E36 + 皇家蓝 #2C52C9 + 香槟金 #C7A15A + ivory 暖底；唯一真源 = 原型
+  docs/prototypes/redesign-all-roles-v1.html，见 D70）、公共组件复用、AppIcon 图标、空状态、骨架屏、
+  列表分页、自绘 TabBar 时使用；违反将出现 emoji 渲染不一致 / 各页样式各写各的 / 空态插画不一致 /
+  iconfont 豆腐块 / 原生 TabBar 与角色化冲突等问题（2026-08-28 汇总，2026-09-10 按 D70 更新配色真源）。
 ---
 
 # 小程序 UI 与交互规范（loan-mini-ui）
@@ -29,30 +30,30 @@ description: >-
 - 页面分层复用、接口数据与名称/编码展示同时必读 `loan-code-standard` 的 `references/frontend-standard.md`
 - 管理端页面请看 `loan-web-ui` —— **两侧风格独立，互不套用**
 
-## 一、设计令牌（瑞幸风，全局唯一真源在 App.vue）
+## 一、设计令牌（墨蓝 · 皇家蓝 · 香槟金，全局唯一真源在 App.vue）
+
+> 2026-09-10（D70）：配色真源已由「冷玻璃 #2443C2」切换为原型墨蓝+皇家蓝+香槟金，主按钮改皇家蓝渐变。
+> 完整令牌以 `loan-mini/App.vue` 的 `page` 块为准（下表为常用项速查）。
 
 | 令牌 | 值 | 用途 |
 |---|---|---|
-| `--brand-deep` | `#2443C2` | 唯一品牌强调色（选中态 / 按钮 / 图标字形） |
-| `--brand-mid` / `--brand-bright` | `#3D63E0` / `#5B7CFF` | 渐变次色 / 小面积点缀 |
-| `--gold` | `#FFB020` | 仅语义点缀（金额 / 等级金标），**不用于页面主色** |
-| `--glass-bg` | `#E8ECF5` | header 玻璃主底 |
-| `--glass-bg-deep` | `#D6DDEB` | 默认头像底 / 暗部 |
-| `--glass-hi` | `rgba(255,255,255,0.45)` | 高光斑 |
-| `--glass-edge` | `rgba(255,255,255,0.6)` | 细白边 |
-| `--glass-tint` | `#EAF0FF` | 功能图标浅底（统一品牌蓝字形容器） |
-| `--glass-gradient` | 多层 radial+linear 渐变 | header 油画光斑底 |
-| `--hero-gradient` | `linear-gradient(160deg,#17216B,#2443C2 40%,#2C5BFF)` | Hero 通栏 / 主按钮同源渐变 |
-| `--btn-primary-bg` | `linear-gradient(135deg,#2443C2,#2C5BFF 55%,#3D63E0)` | **主按钮唯一底色**（与 hero 同源） |
-| `--btn-primary-shadow` | `0 12rpx 28rpx rgba(36,67,194,.28)` | 主按钮投影 |
-| `--btn-gold-bg` / `--btn-gold-shadow` | 暖金渐变 / 投影 | 强调 CTA（配 `--gold-text` 深棕字保证对比度） |
+| `--brand-navy` | `#111E36` | 墨蓝（深底 / Hero 起点） |
+| `--brand-deep` | `#2C52C9` | **唯一品牌强调色**（选中态 / 按钮 / 图标字形） |
+| `--brand-mid` / `--brand-bright` | `#3A63D6` / `#5B7CFF` | 渐变次色 / 小面积点缀 |
+| `--gold` | `#C7A15A` | 香槟金强调（CTA / 等级 / 角色徽记），**不用于页面主色** |
+| `--glass-bg` 等 `--glass-*` | ivory 暖底系列（`--glass-bg #F4EEE4` 等） | 暖玻璃质感底（原冷玻璃已弃用） |
+| `--hero-gradient` | `radial-gradient(…香槟金光斑…) + linear-gradient(165deg,#111E36,#1B2C4D,#14233F)` | Hero 通栏 / 深色头（原型 `.m-head`） |
+| `--btn-primary-bg` | `linear-gradient(135deg,#2C52C9,#2444A8 60%,#1F3C92)` | **主按钮唯一底色**（皇家蓝） |
+| `--btn-primary-shadow` | `0 12rpx 28rpx rgba(44,82,201,.26)` | 主按钮投影 |
+| `--btn-gold-bg` / `--btn-gold-shadow` | `linear-gradient(135deg,#C7A15A,#D9BD86)` / 投影 | 香槟金强调 CTA（配 `--gold-text` 深字保对比度） |
 | `--btn-danger-bg` / `--btn-danger-shadow` | 红渐变 / 投影 | 危险操作 |
-| `--btn-glass-bg` / `--btn-glass-border` | `rgba(255,255,255,.72)` / `rgba(36,67,194,.28)` | 玻璃次按钮 / 状态胶囊 |
-| `--btn-disabled-bg` / `--btn-disabled-text` | `#DDE3EC` / `#9AA4B4` | 禁用态（**不用 opacity 压渐变**） |
-| `--bg-page` / `--bg-card` | `#F8FAFC` / `#FFFFFF` | 页面底 / 卡片底 |
-| `--text-primary` / `-secondary` / `-placeholder` | `#1A2336` / `#5B6678` / `#B6C0CE` | 三级文字 |
+| `--btn-glass-bg` / `--btn-glass-border` | `#FFFFFF` / `#CDD7EE` | 玻璃 / 描边次按钮（原型 `.m-btn.ghost`） |
+| `--btn-disabled-bg` / `--btn-disabled-text` | `#EDE9E0` / `#A6AEBE` | 禁用态（**不用 opacity 压渐变**） |
+| `--bg-page` / `--bg-card` | `#FBF8F2`（ivory）/ `#FFFFFF` | 页面底 / 卡片底 |
+| `--line` | `#ECE6DA` | 分割线 |
+| `--text-primary` / `-secondary` / `-placeholder` | `#1B2740` / `#6A768C` / `#A6AEBE` | 三级文字 |
 | `--radius-md` / `-lg` / `-full` | `24rpx` / `32rpx` / `999rpx` | 圆角体系 |
-| `--shadow-md` | `0 8rpx 24rpx rgba(15,23,42,0.06)` | 卡片阴影 |
+| `--shadow-md` | `0 8rpx 24rpx rgba(17,30,54,0.06)` | 卡片阴影 |
 
 **规则**：
 - 完整令牌见 `App.vue` 的 `page` 块与 `docs/knowledge-base/小程序首页设计规范.md`（冷玻璃风格唯一真源）。
@@ -78,9 +79,14 @@ description: >-
 - 新增组件命名 **App 前缀**（自动注册），放 `loan-mini/components/`
 - 卡片 / 按钮 / 空态 / 骨架屏 / 图标**一律用组件**，**禁止页面内复制样式**
 
-## 三、图标规范（v5 冷玻璃·线性）
+## 三、图标规范（v8 SVG 字形注册表；v5 PNG 方案已弃用）
 
-- **统一用 `<AppIcon name="..." />`**（PNG 资源渲染，跨端一致；`static/icons/` 下 144×144 高清图）
+> **2026-09-09/10 变更**：`components/AppIcon.vue` 已改为 **SVG 字形注册表 + CSS background-image(data URI)**
+> 渲染（修复 mp-weixin `<image>` 渲染 SVG 出现的实心圆 / 裁切细线 bug）。字形真源内嵌组件内：单 path 放 `SVGS`，
+> 多元素字形放 `RAWS`（2026-09-10 按 D70 移植原型 44 枚图标），别名表 `ALIAS`。**新增图标改组件内注册表，不再跑 PNG 脚本**。
+> 下列 v5 PNG 描述保留供追溯，已不适用。
+
+- **统一用 `<AppIcon name="..." />`**（v8：SVG 字形，跨端一致；`color` 传真实色值，**禁止传 `var(--…)`**）
 - **字形设计语言**：手写线性 SVG 字形，24×24 网格、stroke 1.75、round cap/join、安全边距 3u；
   语义细节齐全（doc 折角+行、order 单据+勾、bank 柱廊、enterprise 双楼+窗）。
   **禁止退回实心色块字形**。
@@ -142,12 +148,29 @@ description: >-
 - 底部统一三态：`加载中… / 已加载全部 / 点击加载更多`
 - 空态、加载中、有数据三态互斥，用 `loading` / `finished` / 数据长度推导
 
-## 六、TabBar：必须自绘，禁用原生（C17）
+## 六、TabBar：必须自绘，禁用原生（C17，结构按 D74）
 
 - **禁用原生 TabBar**（`pages.json` 的 `tabBar` 配置），改用**自绘 `components/TabBar.vue`**
-- 原因：7 业务角色 tabBar **结构不同**（客户 5 tab / 渠道 4 tab / 员工侧不同），原生 tabBar 无法角色化
-- **tabBar 结构以代码 `components/TabBar.vue` 为准**，文档（如 `01-角色权限模型.md`）与代码冲突时**以代码为准并回写文档**
-- 角色 tabBar 边界详见对应 `role-<角色>` 技能（T02 产出）
+- **角色 tab 结构唯一来源 = `loan-mini/utils/roles.js`**（D74 二次合并，各角色一律 ≤5）：
+  - 客户 5：首页 · 智能匹配 · 我的报告 · 服务单 · 我的
+  - 渠道 4：首页 · **线索录入** · **我的客户** · 我的（**唯一不可匹配**；我的客户只读、无公海/无认领/无报告，D50）
+  - 顾问 / 部门经理 4：首页 · **线索录入** · **我的客户** · 我的
+  - 运营 5：首页 · **线索录入** · **我的客户** · 审批中心 · 我的
+  - 老板 / 超级管理员 5：首页 · **线索录入** · 智能匹配 · **我的客户** · 我的
+- 代码与文档冲突时**以 `utils/roles.js` 为准并回写文档**；角色 tabBar 边界详见对应 `role-<角色>` 技能
+
+### 合并页与子页签（D74）
+
+- 相邻的细分 tab 合并为**一个 tab + 内部子页签**，避免 tab 数膨胀（移动端 >5 项体验崩坏）：
+  - 「线索录入」= 客户线索 / 产品 → `pages/lead-entry/lead-entry.vue`，子视图 `LeadEntryClient` / `LeadEntryProduct`
+  - 「我的客户」= 我的客户 / 公海 / 我的报告 → `pages/client/mine.vue`，子视图 `MyClientList` / `SeaClientList` / `MyReportList`
+- 子页签定义写在 `utils/roles.js`（`entry` / `hub` 字段），**禁止在页面里硬编码角色差异**；用 `resolveSeg()` 解析 `?seg=`
+- **合并页容器只负责切换与底部导航**；数据逻辑留在子组件，靠 `:active` 侦听刷新
+- **组件化改造注意（踩过的坑）**：
+  1. 页面抽成组件后，`onLoad` / `onShow` / `onReachBottom` / `onPullDownRefresh` **在组件内注册会失效** → 一律改 `onMounted` + `watch(active)`，上拉/下拉由**容器页转发**（子组件 `defineExpose({ loadMore, refresh })`）
+  2. `pages/xxx/`（两级目录）抽到 `components/`（一级）后，相对导入必须由 `../../` 降为 `../`，否则越出项目根
+  3. 组件内**不要内嵌 `<TabBar>`**（会与容器页重复渲染）；旧路由保留为**薄壳页**仅渲染子组件，避免打断既有跳转
+  4. 入口级守卫（如渠道禁入报告，D50）随页面钩子一起被移除时，**必须在容器页补回**（`v-if` 不挂载无权子视图），否则会向无权接口发请求
 
 ### fixed 元素限宽居中铁律（D64，用户 2026-09-07 报告叠影后固化）
 
@@ -171,7 +194,7 @@ description: >-
 
 ## 八、风格红线
 
-- 小程序是**客户端风格（冷玻璃体系：冷调低饱和蓝 + 磨砂油画/毛玻璃质感，唯一品牌色 `--brand-deep` #2443C2）**，Web 管理端是**企业风格**
+- 小程序是**客户端风格（墨蓝 + 皇家蓝 + 香槟金 + ivory 暖底，唯一品牌色 `--brand-deep` #2C52C9，Hero 为深墨蓝通栏）**，Web 管理端是**企业风格**
   —— **两侧品牌色故意不统一**（用户确认），**互不套用**
 - 不引入 AI 模板感：避免纯白卡片堆叠、霓虹渐变、过多 emoji
 - 页面结构统一：`page-head`（标题 + 副标题）→ 内容卡 → 底部安全区

@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>小程序功能菜单原型图 · D74 审核稿</title>
+<style>
+  :root {
+    --ink: #111E36;
+    --ink-2: #1B2C4D;
+    --royal: #2C52C9;
+    --royal-d: #2444A8;
+    --royal-l: #3A63D6;
+    --gold: #C7A15A;
+    --gold-l: #D9BD86;
+    --gold-s: #E7D3A6;
+    --ivory: #FBF8F2;
+    --ivory-2: #F3EEE4;
+    --line: #ECE6DA;
+    --t1: #1B2740;
+    --t2: #6A768C;
+    --t3: #9AA5B8;
+    --card: #FFFFFF;
+    --ok: #2E8B6B;
+    --warn: #B8861A;
+    --danger: #B5453C;
+    --r-s: 8px;
+    --r-m: 12px;
+    --r-l: 18px;
+    --sh: 0 6px 20px rgba(17, 30, 54, .07);
+    --sh-2: 0 14px 40px rgba(17, 30, 54, .12);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--ivory);
+    color: var(--t1);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* ===== 头部 ===== */
+  .hero {
+    background: linear-gradient(150deg, var(--ink) 0%, var(--ink-2) 62%, #24365C 100%);
+    border-radius: var(--r-l);
+    padding: 32px 34px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--sh-2);
+  }
+  .hero::after {
+    content: ""; position: absolute; right: -70px; top: -90px; width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(199,161,90,.34) 0%, rgba(199,161,90,0) 68%);
+  }
+  .hero h1 { margin: 0 0 8px; font-size: 25px; letter-spacing: .5px; }
+  .hero p { margin: 0; color: rgba(255,255,255,.72); font-size: 13.5px; max-width: 800px; }
+  .hero .tags { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; position: relative; z-index: 1; }
+  .tag {
+    font-size: 12px; padding: 5px 12px; border-radius: 999px;
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); color: #fff;
+  }
+  .tag.gold { background: rgba(199,161,90,.22); border-color: rgba(199,161,90,.45); color: var(--gold-s); }
+  .tag.royal { background: rgba(58,99,214,.3); border-color: rgba(58,99,214,.55); color: #C9D7FF; }
+
+  /* ===== 区块 ===== */
+  section { margin-top: 44px; }
+  .sec-h { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+  .sec-h h2 { margin: 0; font-size: 19px; }
+  .sec-h span { font-size: 12.5px; color: var(--t2); }
+  .sec-h .idx {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 7px; background: var(--ink); color: var(--gold);
+    font-size: 12.5px; font-weight: 700; flex: none;
+  }
+
+  /* ===== 角色选择 ===== */
+  .roles { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .role-btn {
+    border: 1px solid var(--line); background: var(--card); color: var(--t2);
+    padding: 9px 16px; border-radius: 999px; font-size: 13.5px; cursor: pointer;
+    transition: all .16s; font-family: inherit;
+  }
+  .role-btn:hover { border-color: var(--royal); color: var(--royal); }
+  .role-btn.on {
+    background: var(--royal); border-color: var(--royal); color: #fff; font-weight: 600;
+    box-shadow: 0 6px 16px rgba(44,82,201,.28);
+  }
+  .role-btn small { opacity: .7; margin-left: 5px; font-size: 11px; }
+
+  /* ===== 双栏 ===== */
+  .duo { display: grid; grid-template-columns: 340px 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 900px) { .duo { grid-template-columns: 1fr; } }
+
+  /* ===== 手机原型 ===== */
+  .phone {
+    width: 320px; margin: 0 auto; background: #fff; border-radius: 34px;
+    border: 9px solid var(--ink); box-shadow: var(--sh-2); overflow: hidden; position: relative;
+  }
+  .notch {
+    height: 22px; background: var(--ink); display: flex; align-items: center; justify-content: center;
+  }
+  .notch i { width: 62px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.26); display: block; }
+  .screen { background: var(--ivory); min-height: 540px; display: flex; flex-direction: column; }
+
+  /* 顶部问候 */
+  .m-head {
+    background: linear-gradient(155deg, var(--ink) 0%, #1D2F52 60%, #26396A 100%);
+    padding: 16px 16px 20px; color: #fff; position: relative; overflow: hidden;
+  }
+  .m-head::after {
+    content: ""; position: absolute; right: -40px; top: -50px; width: 170px; height: 170px;
+    background: radial-gradient(circle, rgba(199,161,90,.42) 0%, rgba(199,161,90,0) 70%);
+  }
+  .m-head-row { display: flex; align-items: center; gap: 11px; position: relative; z-index: 1; }
+  .m-ava {
+    width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,.14);
+    display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+    border: 1px solid rgba(255,255,255,.2);
+  }
+  .m-hi { font-size: 11.5px; color: rgba(255,255,255,.62); }
+  .m-nm { font-size: 15px; font-weight: 700; }
+  .m-bell { margin-left: auto; width: 30px; height: 30px; border-radius: 9px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; position: relative; }
+  .m-bell .dot { position: absolute; right: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+  .m-role {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 11px; position: relative; z-index: 1;
+    font-size: 11px; color: var(--gold-s); background: rgba(199,161,90,.16);
+    border: 1px solid rgba(199,161,90,.36); border-radius: 999px; padding: 4px 11px;
+  }
+
+  /* 统计行 */
+  .m-stats { display: flex; gap: 8px; padding: 12px 16px 0; }
+  .m-stat {
+    flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m);
+    padding: 10px 12px; box-shadow: var(--sh);
+  }
+  .m-stat b { display: block; font-size: 18px; color: var(--royal); letter-spacing: -.4px; }
+  .m-stat span { font-size: 11px; color: var(--t2); }
+
+  /* 宫格 */
+  .m-body { padding: 14px 16px 0; flex: 1; }
+  .m-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); box-shadow: var(--sh); overflow: hidden; }
+  .m-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 12px 8px; }
+  .m-qk { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 2px; border-radius: 10px; }
+  .m-qk .ic { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; color: #fff; }
+  .m-qk .lb { font-size: 10.5px; color: var(--t1); text-align: center; line-height: 1.25; }
+  .m-qk .web { font-size: 8.5px; color: var(--t3); }
+  /* 合并页内标记 */
+  .m-qk.merged .ic { position: relative; }
+  .m-qk.merged .ic::after {
+    content: "合"; position: absolute; right: -3px; top: -3px; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--gold); color: #fff; font-size: 9px; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; border: 1.5px solid #fff;
+  }
+  .m-sub { padding: 0 12px 14px; }
+  .m-section-t { font-size: 11.5px; color: var(--t2); margin: 0 2px 8px; display: flex; align-items: center; gap: 6px; }
+
+  /* TabBar */
+  .m-tabbar { display: flex; background: #fff; border-top: 1px solid var(--line); padding: 7px 0 10px; }
+  .m-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--t2); position: relative; }
+  .m-tab.on { color: var(--royal); }
+  .m-tab.on::before {
+    content: ""; position: absolute; top: -7px; width: 22px; height: 3px; border-radius: 0 0 3px 3px; background: var(--royal);
+  }
+  .m-tab .lb { font-size: 9.5px; white-space: nowrap; }
+  .m-tab.on .lb { font-weight: 700; }
+  .m-tab.merged-tab .lb::after { content: "·合"; color: var(--gold); font-size: 8px; }
+
+  /* ===== 详情面板 ===== */
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-l); padding: 22px 24px; box-shadow: var(--sh); }
+  .panel + .panel { margin-top: 18px; }
+  .panel h3 { margin: 0 0 14px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .panel h3 .pill { font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 999px; background: var(--ivory-2); color: var(--t2); }
+  .kv { display: grid; grid-template-columns: 96px 1fr; gap: 9px 14px; font-size: 13px; }
+  .kv dt { color: var(--t2); }
+  .kv dd { margin: 0; color: var(--t1); }
+  code {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 11.5px;
+    background: var(--ivory-2); padding: 1.5px 6px; border-radius: 5px; color: var(--royal-d);
+  }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-size: 12px; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--ivory); color: var(--t2);
+  }
+  .chip.on { background: var(--royal); border-color: var(--royal); color: #fff; font-weight: 600; }
+  .chip.gold { background: rgba(199,161,90,.14); border-color: rgba(199,161,90,.42); color: #8A6D2E; }
+  .chip.off { opacity: .5; text-decoration: line-through; }
+  .note { font-size: 12.5px; color: var(--t2); background: var(--ivory); border-left: 3px solid var(--gold); padding: 10px 14px; border-radius: 0 var(--r-s) var(--r-s) 0; margin-top: 14px; }
+  .note b { color: var(--t1); }
+
+  /* ===== 合并页详解 ===== */
+  .merge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .merge-grid { grid-template-columns: 1fr; } }
+  .segs { display: flex; gap: 8px; padding: 12px 14px; background: var(--ivory); border-bottom: 1px solid var(--line); }
+  .seg-i { flex: 1; text-align: center; font-size: 12px; padding: 8px 0; border-radius: 9px; background: #E8E2D6; color: var(--t2); }
+  .seg-i.on { background: #fff; color: var(--royal); font-weight: 700; box-shadow: var(--sh); }
+  .m-list { padding: 12px 14px; }
+  .m-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .m-row:first-of-type { border-top: none; }
+  .m-row .a { width: 34px; height: 34px; border-radius: 10px; background: var(--ivory-2); color: var(--royal); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex: none; }
+  .m-row .t { flex: 1; min-width: 0; }
+  .m-row .t b { display: block; font-size: 12.5px; font-weight: 600; }
+  .m-row .t span { font-size: 10.5px; color: var(--t2); }
+  .m-row .tg { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: rgba(46,139,107,.12); color: var(--ok); flex: none; }
+  .m-row .tg.btn { background: var(--royal); color: #fff; padding: 4px 12px; font-size: 11px; }
+  .m-row .tg.dim { background: var(--ivory-2); color: var(--t3); }
+  .m-row .tg.warn { background: rgba(184,134,26,.14); color: var(--warn); }
+
+  /* ===== 表格 ===== */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; min-width: 720px; }
+  th, td { padding: 11px 13px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--ivory-2); color: var(--t2); font-weight: 600; font-size: 12px; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.role { font-weight: 600; white-space: nowrap; }
+  .m-tagline { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; margin: 1px 3px 1px 0; padding: 2px 8px; border-radius: 6px; background: var(--ivory-2); color: var(--t1); }
+  .m-tagline.merged { background: rgba(44,82,201,.1); color: var(--royal); font-weight: 600; }
+  .m-tagline.merged::after { content: "合"; font-size: 9px; background: var(--gold); color: #fff; border-radius: 3px; padding: 0 3px; }
+  .diff-add { color: var(--ok); font-weight: 600; }
+  .diff-del { color: var(--danger); text-decoration: line-through; opacity: .75; }
+
+  /* ===== 页脚 ===== */
+  footer { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 12px; color: var(--t3); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--t2); margin-bottom: 16px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= 头部 ================= -->
+  <header class="hero">
+    <h1>功能菜单原型图 · 审核稿</h1>
+    <p>
+      按 <b>D74 / D75</b> 落地结果复刻：7 角色小程序 TabBar 结构、两个合并页（线索录入 / 我的客户）子页签、
+      首页快捷宫格、<b>分配 / 认领 / 审批 / 释放 / 回收全链路入口（按角色权限展示）</b>与 Web 菜单全量。用于<b>功能菜单审核</b>，非视觉设计参考。
+    </p>
+    <div class="tags">
+      <span class="tag gold">唯一设计参考仍为 redesign-role-business-review.html</span>
+      <span class="tag royal">各角色 tab 一律 ≤ 5</span>
+      <span class="tag">含 Web 管理端菜单</span>
+      <span class="tag">释放 / 回收按角色展示</span>
+      <span class="tag">零业务单号（D68）</span>
+      <span class="tag">渠道只读 / 不可认领（D50）</span>
+    </div>
+  </header>
+
+  <!-- ================= 一、按角色查看 ================= -->
+  <section>
+    <div class="sec-h">
+      <span class="idx">1</span>
+      <h2>按角色查看 TabBar 与首页入口</h2>
+      <span>点击角色切换，右侧同步展示该角色的 tab、统计行、快捷宫格与合并页归属</span>
+    </div>
+
+    <div class="roles" id="roles"></div>
+
+    <div class="duo">
+      <!-- 手机原型 -->
+      <div class="phone">
+        <div class="notch"><i></i></div>
+        <div class="screen">
+          <div class="m-head">
+            <div class="m-head-row">
+              <div class="m-ava" id="phAva">客</div>
+              <div>
+                <div class="m-hi" id="phHi">下午好</div>
+                <div class="m-nm" id="phNm">客户</div>
+              </div>
+              <div class="m-bell" title="消息中心">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15v-5a6 6 0 1 0-12 0v5l-2 3h16z"/><path d="M10 21h4"/></svg>
+                <span class="dot"></span>
+              </div>
+            </div>
+            <div class="m-role" id="phRole"></div>
+          </div>
+
+          <div class="m-stats" id="phStats"></div>
+
+          <div class="m-body">
+            <div class="m-card">
+              <div class="m-grid" id="phGrid"></div>
+              <div class="m-sub">
+                <div class="m-section-t">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#C7A15A" stroke-width="2"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h7M9 9h3"/></svg>
+                  我的报告
+                </div>
+                <div class="m-row"><div class="a">企</div><div class="t"><b>企业资质初筛报告</b><span>09-08 · 已出</span></div><div class="tg">已出</div></div>
+                <div class="m-row"><div class="a">流</div><div class="t"><b>流水分析报告</b><span>09-05 · 待补件</span></div><div class="tg warn">待补件</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="m-tabbar" id="phTabbar"></div>
+        </div>
+      </div>
+
+      <!-- 详情 -->
+      <div>
+        <div class="panel">
+          <h3>导航结构 <span class="pill" id="pTabCount"></span></h3>
+          <dl class="kv">
+            <dt>TabBar</dt><dd id="pTabs"></dd>
+            <dt>统计行</dt><dd id="pStats"></dd>
+            <dt>首页说明</dt><dd id="pSub"></dd>
+          </dl>
+        </div>
+
+        <div class="panel">
+          <h3>快捷宫格入口 <span class="pill">首页四宫格起</span></h3>
+          <div class="chips" id="pQuick"></div>
+          <div class="note" id="pNote"></div>
+        </div>
+
+        <div class="panel">
+          <h3>可达的合并页 <span class="pill">子页签</span></h3>
+          <dl class="kv">
+            <dt>线索录入</dt><dd id="pEntry"></dd>
+            <dt>我的客户</dt><dd id="pHub"></dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 二、合并页详解 ================= -->
+  <section>
+    <div class="sec-h">
+      <span class="idx">2</span>
+      <h2>两个合并页的页内结构</h2>
+      <span>相邻细分 tab 合并为一个 tab + 内部子页签，避免 tab 数膨胀</span>
+    </div>
+
+    <div class="merge-grid">
+      <!-- 线索录入 -->
+      <div class="phone" style="width:100%;max-width:340px">
+        <div class="notch"><i></i></div>
+        <div class="screen" style="min-height:auto">
+          <div class="segs">
+            <div class="seg-i on">客户线索</div>
+            <div class="seg-i">产品</div>
+          </div>
+          <div style="padding:12px 14px 0">
+            <div class="m-card" style="padding:12px">
+              <div style="font-size:12px;font-weight:700;margin-bottom:10px">基本信息</div>
+              <div style="background:var(--ivory-2);border-radius:9px;padding:9px 12px;font-size:11.5px;color:var(--t3);margin-bottom:8px">联系人姓名</div>
+              <div style="background:var(--ivory-2);border-radius:9px;padding:9px 12px;font-size:11.5px;color:var(--t3);margin-bottom:8px">手机号</div>
+              <div style="display:flex;gap:8px;margin-bottom:10px">
+                <div class="seg-i on" style="flex:1;padding:7px 0;font-size:11.5px">企业</div>
+                <div class="seg-i" style="flex:1;padding:7px 0;font-size:11.5px">个人</div>
+              </div>
+              <div style="background:var(--royal);color:#fff;text-align:center;border-radius:9px;padding:10px;font-size:12.5px;font-weight:600">提交录入</div>
+            </div>
+          </div>
+          <div class="m-list">
+            <div class="m-section-t" style="margin-top:10px">我录入的线索</div>
+            <div class="m-row"><div class="a">王</div><div class="t"><b>王先生 · 138****0001</b><span>09-09 · 待公司审核</span></div><div class="tg warn">待审核</div></div>
+            <div class="m-row"><div class="a">杭</div><div class="t"><b>杭州某某科技有限公司</b><span>09-07 · 审核通过</span></div><div class="tg">通过</div></div>
+          </div>
+          <div class="m-tabbar">
+            <div class="m-tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span class="lb">首页</span></div>
+            <div class="m-tab on merged-tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 3v18M5 8l7-5 7 5"/><circle cx="12" cy="14" r="2.4"/></svg><span class="lb">线索录入</span></div>
+            <div class="m-tab merged-tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M17 11a4 4 0 1 0 0-8M16 15a4 4 0 0 1 4 4v2"/></svg><span class="lb">我的客户</span></div>
+            <div class="m-tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21v-2a8 8 0 0 1 16 0v2"/></svg><span class="lb">我的</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 我的客户 -->
+      <div class="phone" style="width:100%;max-width:340px">
+        <div class="notch"><i></i></div>
+        <div class="screen" style="min-height:auto">
+          <div style="padding:14px 16px 0">
+            <div style="font-size:16px;font-weight:700">我的客户</div>
+            <div style="font-size:11px;color:var(--t2);margin-top:3px">本人归属客户 · 公海可认领 · 历史报告</div>
+          </div>
+          <div class="segs">
+            <div class="seg-i on">我的客户</div>
+            <div class="seg-i">团队<small style="font-size:9px;color:var(--gold)">DM</small></div>
+            <div class="seg-i">公海</div>
+            <div class="seg-i">我的报告</div>
+          </div>
+          <div class="m-list">
+            <div style="font-size:11px;color:var(--t2);margin-bottom:6px">共 <b style="color:var(--royal)">12</b> 位</div>
+            <div class="m-row"><div class="a">杭</div><div class="t"><b>杭州某某科技有限公司</b><span>归属 李顾问 · 最近 09-08</span></div><div class="tg">已建档</div><div class="tg dim">释放</div></div>
+            <div class="m-row"><div class="a">宁</div><div class="t"><b>宁波某某贸易有限公司</b><span>归属 李顾问 · 最近 09-06</span></div><div class="tg">已建档</div><div class="tg dim">释放</div></div>
+            <div class="m-row"><div class="a">嘉</div><div class="t"><b>嘉兴某某制造有限公司</b><span>归属 李顾问 · 最近 09-02</span></div><div class="tg">已建档</div><div class="tg dim">释放</div></div>
+          </div>
+          <div style="padding:0 14px 14px">
+            <div style="background:var(--ivory);border:1px dashed var(--line);border-radius:12px;padding:12px">
+              <div style="font-size:11.5px;color:var(--t2);margin-bottom:8px">「公海」子页签 · 可直接认领</div>
+              <div class="m-row" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px">
+                <div class="a">绍</div>
+                <div class="t"><b>绍兴某某纺织有限公司</b><span>公海客户 · 入库 09-04</span></div>
+                <div class="tg btn">认领</div>
+              </div>
+            </div>
+          </div>
+          <div class="m-tabbar">
+            <div class="m-tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span class="lb">首页</span></div>
+            <div class="m-tab merged-tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 3v18M5 8l7-5 7 5"/><circle cx="12" cy="14" r="2.4"/></svg><span class="lb">线索录入</span></div>
+            <div class="m-tab on merged-tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M17 11a4 4 0 1 0 0-8M16 15a4 4 0 0 1 4 4v2"/></svg><span class="lb">我的客户</span></div>
+            <div class="m-tab"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21v-2a8 8 0 0 1 16 0v2"/></svg><span class="lb">我的</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:20px">
+      <b>渠道差异：</b>渠道的「线索录入」子页签为 <code>录入客户 / 我的产品</code>；「我的客户」<b>只有 1 个子页签</b>（不显示页签条），
+      <b>无公海、无认领、无释放、无报告</b> —— 只读本人录入客户（D50）。<br />
+      <b>按钮按角色权限展示（D75）：</b>「释放」只在员工侧出现；「回收」只在部门经理的「团队」子页签出现；「认领」在员工侧公海子页签出现。
+    </div>
+  </section>
+
+  <!-- ================= 三、全角色对照 ================= -->
+  <section>
+    <div class="sec-h">
+      <span class="idx">3</span>
+      <h2>全角色 TabBar 对照表</h2>
+      <span>唯一真源：<code>loan-mini/utils/roles.js</code>；带「合」标记为合并页</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>角色</th><th>Tab 数</th><th>TabBar 结构</th><th>「线索录入」子页签</th><th>「我的客户」子页签</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role">客户 CUSTOMER</td><td>5</td>
+            <td><span class="m-tagline">首页</span><span class="m-tagline">智能匹配</span><span class="m-tagline">我的报告</span><span class="m-tagline">服务单</span><span class="m-tagline">我的</span></td>
+            <td style="color:var(--t3)">不承载</td><td style="color:var(--t3)">不承载</td>
+          </tr>
+          <tr>
+            <td class="role">渠道 CHANNEL</td><td>4</td>
+            <td><span class="m-tagline">首页</span><span class="m-tagline merged">线索录入</span><span class="m-tagline merged">我的客户</span><span class="m-tagline">我的</span></td>
+            <td>录入客户 / 我的产品</td>
+            <td><span class="chip on">我的客户</span> <span class="chip off">公海</span> <span class="chip off">报告</span><br /><small style="color:var(--t2)">只读 · 无认领（D50）</small></td>
+          </tr>
+          <tr>
+            <td class="role">顾问 ADVISER</td><td>4</td>
+            <td><span class="m-tagline">首页</span><span class="m-tagline merged">线索录入</span><span class="m-tagline merged">我的客户</span><span class="m-tagline">我的</span></td>
+            <td>客户线索 / 产品</td>
+            <td><span class="chip on">我的客户</span> <span class="chip on">公海</span> <span class="chip on">我的报告</span></td>
+          </tr>
+          <tr>
+            <td class="role">部门经理 DEPT_MANAGER</td><td>4</td>
+            <td><span class="m-tagline">首页</span><span class="m-tagline merged">线索录入</span><span class="m-tagline merged">我的客户</span><span class="m-tagline">我的</span></td>
+            <td>客户线索 / 产品</td>
+            <td><span class="chip on">我的客户</span> <span class="chip gold">团队</span> <span class="chip on">公海</span> <span class="chip on">我的报告</span><br /><small style="color:var(--t2)">仅部门经理 · 团队可回收 · 团队公海仅本部门（D75）</small></td>
+          </tr>
+          <tr>
+            <td class="role">运营管理员 OPERATOR</td><td>5</td>
+            <td><span class="m-tagline">首页</span><span class="m-tagline merged">线索录入</span><span class="m-tagline merged">我的客户</span><span class="m-tagline">审批中心</span><span class="m-tagline">我的</span></td>
+            <td>客户线索 / 产品</td>
+            <td><span class="chip on">我的客户</span> <span class="chip on">公海</span> <span class="chip on">我的报告</span></td>
+          </tr>
+          <tr>
+            <td class="role">老板 BOSS</td><td>5</td>
+            <td><span class="m-tagline">首页</span><span class="m-tagline merged">线索录入</span><span class="m-tagline">智能匹配</span><span class="m-tagline merged">我的客户</span><span class="m-tagline">我的</span></td>
+            <td>客户线索 / 产品</td>
+            <td><span class="chip on">我的客户</span> <span class="chip on">公海</span> <span class="chip on">我的报告</span></td>
+          </tr>
+          <tr>
+            <td class="role">超级管理员 SUPER</td><td>5</td>
+            <td><span class="m-tagline">首页</span><span class="m-tagline merged">线索录入</span><span class="m-tagline">智能匹配</span><span class="m-tagline merged">我的客户</span><span class="m-tagline">我的</span></td>
+            <td>客户线索 / 产品</td>
+            <td><span class="chip on">我的客户</span> <span class="chip on">公海</span> <span class="chip on">我的报告</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend" style="margin-top:14px">
+      <span><i style="background:var(--royal)"></i>合并页（tab 内含子页签）</span>
+      <span><i style="background:var(--gold)"></i>合并标记「合」</span>
+      <span><i style="background:var(--t3)"></i>划掉 = 该角色不承载</span>
+    </div>
+  </section>
+
+  <!-- ================= 四、分配 / 认领 / 审批 ================= -->
+  <section>
+    <div class="sec-h">
+      <span class="idx">4</span>
+      <h2>「分配 / 认领 / 审批」功能与入口全清单</h2>
+      <span>这些功能并未消失 —— 它们分处小程序与 Web 两端，逐个标出所在地与入口</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>功能</th><th>所在端</th><th>入口</th><th>可用角色</th><th>后端</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role">客户查重 → 申请认领 / 申请分配</td>
+            <td><span class="chip on">小程序</span></td>
+            <td>智能匹配页 → 命中已有客户后「申请分配给当前用户」；未命中则「创建客户并申请认领」</td>
+            <td>顾问 / 经理 / 运营 / 老板 / 超管；渠道禁入</td>
+            <td><code>POST /api/mini/client/{clientCode}/claim</code></td>
+          </tr>
+          <tr>
+            <td class="role">公海认领</td>
+            <td><span class="chip gold">小程序 · 本轮新增</span></td>
+            <td>我的客户 → <b>公海</b> 子页签 → 行内「认领」</td>
+            <td>员工；公司公海全员可认领、团队公海仅本部门</td>
+            <td><code>POST /api/mini/client/{clientCode}/claim</code>（复用）</td>
+          </tr>
+          <tr>
+            <td class="role">分配审批（归属流转审批）</td>
+            <td><span class="chip on">小程序</span></td>
+            <td>审批中心（<code>pages/approval/list</code>，类型「分配」）</td>
+            <td>运营（独立 tab）/ 经理（本团队）/ 老板·超管（全部）</td>
+            <td><code>POST /api/mini/approval/ALLOCATION/{approvalNo}/audit</code></td>
+          </tr>
+          <tr>
+            <td class="role">审核中心入口</td>
+            <td><span class="chip on">小程序</span></td>
+            <td>我的 → 审核中心（文案：无归宿客户分配申请 · 通过后归属流转）</td>
+            <td>员工</td>
+            <td>同上</td>
+          </tr>
+          <tr>
+            <td class="role"><b>客户分配（直接指定顾问）</b></td>
+            <td><span class="chip">Web 管理端</span></td>
+            <td>Web 菜单「客户分配」；覆盖式落归属、不生成审批单</td>
+            <td>部门经理（本部门）/ 老板 / 运营 / 超管</td>
+            <td><code>POST /api/admin/client/{clientCode}/assign</code></td>
+          </tr>
+          <tr>
+            <td class="role">客户公海（Web 版）</td>
+            <td><span class="chip">Web 管理端</span></td>
+            <td>Web 菜单「客户公海」→「未分配客户」页签（申请认领 / 管理指定顾问）</td>
+            <td>顾问 / 经理 / 老板 / 运营 / 超管</td>
+            <td>Web 接口</td>
+          </tr>
+          <tr>
+            <td class="role">团队客户</td>
+            <td><span class="chip">Web 管理端</span></td>
+            <td>Web 菜单「团队客户」（与「我的客户」独立展示）</td>
+            <td>部门经理</td>
+            <td>Web 接口</td>
+          </tr>
+          <tr>
+            <td class="role">客户总览</td>
+            <td><span class="chip">Web 管理端</span></td>
+            <td>Web 菜单「客户总览」（全司）</td>
+            <td>老板 / 超管</td>
+            <td>Web 接口</td>
+          </tr>
+          <tr>
+            <td class="role">释放本人客户回公海</td>
+            <td><span class="chip gold">小程序 · D75 新增</span></td>
+            <td>我的客户 → 行内「<b>释放</b>」（二次确认，告知进公司公海 + 冷却期）</td>
+            <td>员工（顾问 / 经理 / 运营 / 老板 / 超管，仅客户归属本人）；<b>渠道不可见</b>（只读 D50）</td>
+            <td><code>POST /api/mini/client/{clientCode}/release</code></td>
+          </tr>
+          <tr>
+            <td class="role">团队客户 + 回收进团队公海</td>
+            <td><span class="chip gold">小程序 · D75 新增</span></td>
+            <td>我的客户 → <b>团队</b> 子页签 → 行内「<b>回收</b>」（本部门成员名下客户）</td>
+            <td><b>仅部门经理</b>（本部门范围；跨团队由服务端拒绝）</td>
+            <td><code>GET /api/mini/client/team</code><br /><code>POST /api/mini/client/{clientCode}/recycle</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>结论：小程序侧从来没有「客户分配」这个菜单。</b>它是原型 <code>webMenus</code> 里 <b>Web 端</b> 的菜单项（仅部门经理那一行有）；
+      小程序内对管理角色的提示是「管理角色请在 Web 管理端直接分配客户给指定顾问，无需发起认领审核」。<br />
+      <b>「公海认领」</b>按 D74 决定已进小程序；<b>「释放 / 回收」</b>按 D75 已补齐，且按钮<b>按角色权限展示</b>：
+      释放 = 员工本人客户、回收 = 仅部门经理、认领 = 员工；渠道无任何写操作。<br />
+      <b>老板 / 运营 / 超管的回收</b>仍走 Web（其落地为<b>公司公海</b>）；小程序内无「全司客户」选择列表，故不放开。
+    </div>
+  </section>
+
+  <!-- ================= 五、Web 管理端菜单 ================= -->
+  <section>
+    <div class="sec-h">
+      <span class="idx">5</span>
+      <h2>Web 管理端菜单（原型 webMenus 全量）</h2>
+      <span>上一版原型图只画了小程序，把这一整列漏掉了 —— 「分配 / 公海 / 客户总览」都在这里</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>角色</th><th>Web 菜单</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role">客户</td>
+            <td style="color:var(--t3)">无 Web 管理端（原型 <code>web:false</code>）</td>
+          </tr>
+          <tr>
+            <td class="role">渠道</td>
+            <td>
+              <span class="m-tagline">工作台</span><span class="m-tagline">我的线索</span><span class="m-tagline">我的客户</span><span class="m-tagline">我的产品</span><span class="m-tagline">客户分析报告</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="role">顾问</td>
+            <td>
+              <span class="m-tagline">工作台</span><span class="m-tagline">我的客户</span><span class="m-tagline merged">客户公海</span><span class="m-tagline">智能匹配</span><span class="m-tagline">服务工单</span><span class="m-tagline">我的报告</span><span class="m-tagline">我录入的线索</span><span class="m-tagline">审批中心</span><span class="m-tagline">营销</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="role">部门经理</td>
+            <td>
+              <span class="m-tagline">工作台</span><span class="m-tagline">我的客户</span><span class="m-tagline">团队客户</span><span class="m-tagline merged">客户公海</span><span class="m-tagline">智能匹配</span><span class="m-tagline">服务工单</span><span class="m-tagline">我的报告</span><span class="m-tagline">我录入的线索</span><span class="m-tagline merged">客户分配</span><span class="m-tagline">审批中心</span><span class="m-tagline">营销</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="role">老板</td>
+            <td>
+              <span class="m-tagline">工作台</span><span class="m-tagline">客户总览</span><span class="m-tagline merged">客户公海</span><span class="m-tagline">智能匹配</span><span class="m-tagline">服务工单</span><span class="m-tagline">报告中心</span><span class="m-tagline">审批中心</span><span class="m-tagline">产品管理</span><span class="m-tagline">渠道管理</span><span class="m-tagline">规则模板</span><span class="m-tagline">报告模板</span><span class="m-tagline">短信中心</span><span class="m-tagline">黑名单</span><span class="m-tagline">组织管理</span><span class="m-tagline">营销审批</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="role">运营管理员</td>
+            <td>
+              <span class="m-tagline">工作台</span><span class="m-tagline">我的客户</span><span class="m-tagline merged">客户公海</span><span class="m-tagline">智能匹配</span><span class="m-tagline">服务工单</span><span class="m-tagline">我的报告</span><span class="m-tagline">我录入的线索</span><span class="m-tagline">产品管理</span><span class="m-tagline">审批中心</span><span class="m-tagline">规则模板</span><span class="m-tagline">报告模板</span><span class="m-tagline">短信中心</span><span class="m-tagline">审计中心</span><span class="m-tagline">营销</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="role">超级管理员</td>
+            <td>
+              <span class="m-tagline">工作台</span><span class="m-tagline">客户总览</span><span class="m-tagline merged">客户公海</span><span class="m-tagline">智能匹配</span><span class="m-tagline">服务工单</span><span class="m-tagline">报告中心</span><span class="m-tagline">审批中心</span><span class="m-tagline">产品管理</span><span class="m-tagline">渠道管理</span><span class="m-tagline">规则模板</span><span class="m-tagline">报告模板</span><span class="m-tagline">短信中心</span><span class="m-tagline">黑名单</span><span class="m-tagline">组织管理</span><span class="m-tagline">角色菜单权限</span><span class="m-tagline">审计中心</span><span class="m-tagline">调试中心</span><span class="m-tagline">营销</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend" style="margin-top:14px">
+      <span><i style="background:var(--royal)"></i>带「合」标记 = 与分配 / 公海相关的菜单，全部位于 Web 端</span>
+    </div>
+    <div class="note" style="margin-top:14px">
+      <b>边界说明：</b>这些 Web 菜单为原型定义，小程序<b>不承载</b>；<b>Web 管理端页面重构（P1）不在助手职责内</b>（02-红线），
+      如需推进需你确认后另开执行。本页仅做菜单清点，不涉及 Web 端实现。
+    </div>
+  </section>
+
+  <!-- ================= 六、变更对照 ================= -->
+  <section>
+    <div class="sec-h">
+      <span class="idx">6</span>
+      <h2>D70 → D74 结构变更对照</h2>
+      <span>合并后各角色 tab 数一律 ≤ 5（原老板/超管达 6）</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>角色</th><th>D70（变更前）</th><th>D74（当前）</th><th>净变化</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role">客户</td>
+            <td>首页 · 智能匹配 · 我的报告 · 服务单 · 我的（5）</td>
+            <td>首页 · 智能匹配 · 我的报告 · 服务单 · 我的（5）</td>
+            <td>不变</td>
+          </tr>
+          <tr>
+            <td class="role">渠道</td>
+            <td>首页 · <span class="diff-del">录入产品</span> · <span class="diff-del">录入线索</span> · 我的（4）</td>
+            <td>首页 · <span class="diff-add">线索录入</span> · <span class="diff-add">我的客户</span> · 我的（4）</td>
+            <td>2 → 1 合并；<b>新增只读我的客户</b></td>
+          </tr>
+          <tr>
+            <td class="role">顾问 / 部门经理</td>
+            <td>首页 · <span class="diff-del">录入线索</span> · <span class="diff-del">录入产品</span> · <span class="diff-del">我的报告</span> · 我的（5）</td>
+            <td>首页 · <span class="diff-add">线索录入</span> · <span class="diff-add">我的客户</span> · 我的（4）</td>
+            <td>3 → 2 合并；<b>新增我的客户</b></td>
+          </tr>
+          <tr>
+            <td class="role">运营</td>
+            <td>首页 · <span class="diff-del">录入线索</span> · <span class="diff-del">录入产品</span> · 审批中心 · 我的（5）</td>
+            <td>首页 · <span class="diff-add">线索录入</span> · <span class="diff-add">我的客户</span> · 审批中心 · 我的（5）</td>
+            <td>2 → 1 合并；<b>新增我的客户</b></td>
+          </tr>
+          <tr>
+            <td class="role">老板 / 超管</td>
+            <td>首页 · <span class="diff-del">录入线索</span> · <span class="diff-del">录入产品</span> · 智能匹配 · <span class="diff-del">我的报告</span> · 我的（<b>6</b>）</td>
+            <td>首页 · <span class="diff-add">线索录入</span> · 智能匹配 · <span class="diff-add">我的客户</span> · 我的（<b>5</b>）</td>
+            <td>3 → 2 合并；<b>6 → 5</b></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= 七、边界与落地清单 ================= -->
+  <section>
+    <div class="sec-h">
+      <span class="idx">7</span>
+      <h2>数据边界与落地清单</h2>
+      <span>审核时重点关注「谁能看到什么、谁能认领什么」</span>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>能力</th><th>客 户</th><th>渠 道</th><th>顾问 / 经理 / 运营 / 老板 / 超管</th><th>依据</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="role">我的客户（列表）</td><td>—</td>
+            <td>只读本人录入</td><td>本人归属（统一口径，不放大团队/全司）</td>
+            <td>D74 / 15-规则</td>
+          </tr>
+          <tr>
+            <td class="role">公海（列表）</td><td>—</td><td>不可见</td>
+            <td>公司公海全员可见；团队公海仅本部门可见（无部门返回空）</td>
+            <td>15-规则 §11/§12</td>
+          </tr>
+          <tr>
+            <td class="role">公海（认领）</td><td>—</td><td>不可认领</td>
+            <td>公司公海全员可认领；团队公海仅本团队成员可认领</td>
+            <td>15-规则 §17 / D50</td>
+          </tr>
+          <tr>
+            <td class="role">释放本人客户（D75）</td><td>—</td><td>不可见（只读）</td>
+            <td>员工可释放<b>本人归属</b>客户 → 公司公海 + 冷却；非本人归属服务端拒绝</td>
+            <td>15-规则 §31</td>
+          </tr>
+          <tr>
+            <td class="role">团队客户 + 回收（D75）</td><td>—</td><td>—</td>
+            <td><b>仅部门经理</b>：本部门成员名下客户 → 回收进<b>团队公海</b>；跨团队服务端拒绝。老板/运营/超管的回收走 Web（公司公海）</td>
+            <td>15-规则 §10/§32/§33/§34</td>
+          </tr>
+          <tr>
+            <td class="role">报告</td><td>自己（仅日期）</td><td>小程序不承载（Web）</td><td>按角色范围</td><td>D50 / 08 矩阵</td>
+          </tr>
+          <tr>
+            <td class="role">审批中心</td><td>—</td><td>—</td><td>运营（普通审批）/ 经理（本团队）/ 老板·超管（全部）</td><td>08 矩阵</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note" style="margin-top:18px">
+      <b>审核要点提示：</b>
+      ① 「我的客户」<b>只显示本人归属</b>是你拍板的口径 —— 若希望经理/老板查看团队或全司，需另行调整（会引入新的页签维度）；
+      ② 渠道「我的客户」为<b>只读</b>，无认领入口；
+      ③ 客户端列表仅展示企业名 / 联系人 / 归属姓名 / 建档时间，<b>不出现任何业务单号</b>（D68）；
+      ④ 手机号由服务端脱敏下发，前端不再二次处理。
+    </div>
+
+    <div class="tbl-wrap" style="margin-top:24px">
+      <table>
+        <thead>
+          <tr><th>落地对象</th><th>路径 / 接口</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="role">线索录入合并页</td><td><code>pages/lead-entry/lead-entry</code></td><td>子页签 客户线索 / 产品，支持 <code>?seg=</code> 直达</td></tr>
+          <tr><td class="role">我的客户合并页</td><td><code>pages/client/mine</code></td><td>子页签 我的客户 / 公海 / 我的报告，支持下拉刷新与上拉加载</td></tr>
+          <tr><td class="role">我的客户列表</td><td><code>GET /api/mini/client/my</code></td><td>仅本人归属；<code>api_key=mini:myClients</code></td></tr>
+          <tr><td class="role">公海列表</td><td><code>GET /api/mini/client/sea</code></td><td>公司/团队公海；<code>api_key=mini:seaClients</code></td></tr>
+          <tr><td class="role">渠道只读列表</td><td><code>GET /api/channel/client/page</code></td><td>复用既有接口，未新增后端</td></tr>
+          <tr><td class="role">认领（复用）</td><td><code>POST /api/mini/client/{clientCode}/claim</code></td><td>原子落归属，并发仅一人成功</td></tr>
+          <tr><td class="role">旧路由兼容壳</td><td><code>pages/client/create</code> · <code>pages/product/list</code> · <code>pages/report/list</code></td><td>仅渲染子组件，不打断既有跳转</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>D74 审核稿 · 生成于 2026-09-10</span>
+    <span>本页为功能菜单审核用原型，视觉设计唯一参考：<code>docs/prototypes/redesign-role-business-review.html</code></span>
+  </footer>
+</div>
+
+<script>
+/* ===== 角色数据（与 loan-mini/utils/roles.js 对齐） ===== */
+const ICON = {
+  home: '<path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+  match: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1.6"/>',
+  report: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h7M9 9h3"/>',
+  order: '<path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+  mine: '<path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21v-2a8 8 0 0 1 16 0v2"/>',
+  luru: '<path d="M12 3v18M5 8l7-5 7 5"/><circle cx="12" cy="14" r="2.4"/>',
+  clients: '<path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M17 11a4 4 0 1 0 0-8M16 15a4 4 0 0 1 4 4v2"/>',
+  approval: '<path d="M12 3l8 3v6a8 8 0 0 1-8 9 8 8 0 0 1-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  product: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  user: '<path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M17 11a4 4 0 1 0 0-8M16 15a4 4 0 0 1 4 4v2"/>',
+  shield: '<path d="M12 3l8 3v6a8 8 0 0 1-8 9 8 8 0 0 1-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  brief: '<path d="M4 21V7l8-4 8 4v14M4 21h16M9 21v-6h6v6"/>',
+  team: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14c2.6.3 4.5 1.9 4.5 4.5"/>',
+  sms: '<path d="M4 5h16v11H9l-4 3.5V16H4z"/><path d="M8 9h8M8 12h5"/>',
+  invite: '<path d="M12 5v14M5 12h14"/>',
+  audit: '<path d="M9 4h7l4 4v12H5V8z"/><path d="M9 13l2 2 4-4M9 20h10"/>',
+  org: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/><path d="M7.5 11v3h9v3"/>',
+  perm: '<path d="M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+};
+const TONE = {
+  royal: 'linear-gradient(140deg,#3A63D6,#2C52C9)',
+  gold: 'linear-gradient(140deg,#D9BD86,#C7A15A)',
+  ink: 'linear-gradient(140deg,#2A3A5E,#1B2C4D)',
+  green: 'linear-gradient(140deg,#3FB98A,#2E8B6B)',
+  blue: 'linear-gradient(140deg,#5B7CFF,#3A63D6)',
+};
+const ROLES = [
+  {
+    key: 'customer', label: '客户', short: '客', ut: '个人用户', tag: '客户',
+    tabs: [['home','首页'],['match','智能匹配'],['report','我的报告'],['order','服务单'],['mine','我的']],
+    stats: null,
+    sub: '您可自助智能匹配、查看我的报告与服务单',
+    quick: [
+      ['match','智能匹配','match','royal',1],['report','我的报告','report','gold',1],
+      ['order','服务单','order','ink',1],['advisor','我的顾问','user','green',1],['invite','邀请用户','invite','royal',1],
+    ],
+    entry: null, hub: null,
+    note: '客户无「线索录入」与「我的客户」概念：本人即客户，无录入他人线索、无名下客户列表。',
+  },
+  {
+    key: 'channel', label: '渠道', short: '渠', ut: '合作渠道', tag: '渠道合作方',
+    tabs: [['home','首页'],['luru','线索录入'],['clients','我的客户'],['mine','我的']],
+    stats: [['12','我录线索'],['6','已转化']],
+    sub: '仅展示您录入的线索所形成的客户与报告',
+    quick: [
+      ['leads','我的线索','luru','royal',1,'luru'],['product','我的产品','product','gold',1,'luru'],
+      ['leads','录入客户','luru','ink',1,'luru'],['report','客户分析报告','report','green',0],['invite','邀请用户','invite','royal',1],
+    ],
+    entry: ['录入客户','我的产品'],
+    hub: ['我的客户'],
+    note: '渠道「我的客户」<b>只读</b>本人录入客户：无公海、无认领、无报告（D50 沙箱）。「客户分析报告」仍只在 Web 查看，小程序内点按提示「请在 Web 管理端使用」。',
+  },
+  {
+    key: 'adviser', label: '顾问', short: '顾', ut: '公司员工', tag: '顾问',
+    tabs: [['home','首页'],['luru','线索录入'],['clients','我的客户'],['mine','我的']],
+    stats: [['12','我的客户'],['3','待跟进']],
+    sub: '查看您名下客户，跟进待办与申请进度',
+    quick: [
+      ['clients','我的客户','clients','royal',1,'clients'],['leads','录入线索','luru','gold',1,'luru'],
+      ['product','录入产品','product','ink',1,'luru'],['match','智能匹配','match','green',1],
+      ['invite','邀请用户','invite','royal',1],['audit','我的申请','audit','ink',1],
+    ],
+    entry: ['客户线索','产品'],
+    hub: ['我的客户','公海','我的报告'],
+    note: '「我的客户」只显示<b>本人归属</b>客户，行内可「<b>释放</b>」本人客户回公司公海（D75）；「公海」可直接认领（公司公海全员、团队公海仅本部门）。',
+  },
+  {
+    key: 'deptmgr', label: '部门经理', short: '经', ut: '公司员工', tag: '部门经理',
+    tabs: [['home','首页'],['luru','线索录入'],['clients','我的客户'],['mine','我的']],
+    stats: [['8','团队成员'],['5','待分配']],
+    sub: '团队客户、团队分配与本团队审批',
+    quick: [
+      ['clients','我的客户','clients','royal',1,'clients'],['team','团队客户','team','gold',0],
+      ['leads','录入线索','luru','ink',1,'luru'],['product','录入产品','product','green',1,'luru'],
+      ['invite','邀请用户','invite','royal',1],['approval','审批中心','approval','ink',1],
+    ],
+    entry: ['客户线索','产品'],
+    hub: ['我的客户','团队','公海','我的报告'],
+    note: '「我的客户」为本人归属，可「释放」本人客户（D75）；<b>「团队」子页签为本轮新增</b>：本部门成员名下客户 + 行内「<b>回收</b>」进团队公海（15-规则 §10/§34）。<b>跨团队的客户分配仍只在 Web</b>。',
+  },
+  {
+    key: 'boss', label: '老板', short: '老', ut: '公司管理者', tag: '老板',
+    tabs: [['home','首页'],['luru','线索录入'],['match','智能匹配'],['clients','我的客户'],['mine','我的']],
+    stats: [['3,180','全司客户'],['21','在途审批']],
+    sub: '全局经营、在途审批与业务全量',
+    quick: [
+      ['clients','我的客户','clients','royal',1,'clients'],['allclients','客户总览','brief','blue',0],
+      ['leads','录入线索','luru','gold',1,'luru'],['product','录入产品','product','ink',1,'luru'],
+      ['match','智能匹配','match','green',1],['invite','邀请用户','invite','royal',1],['approval','审批中心','approval','ink',1],
+    ],
+    entry: ['客户线索','产品'],
+    hub: ['我的客户','公海','我的报告'],
+    note: '「客户总览」（全司）仍只在 Web；小程序内点按提示「请在 Web 管理端使用」。合并后 tab 数由 6 降到 5。',
+  },
+  {
+    key: 'operator', label: '运营管理员', short: '运', ut: '公司员工', tag: '运营管理员',
+    tabs: [['home','首页'],['luru','线索录入'],['clients','我的客户'],['approval','审批中心'],['mine','我的']],
+    stats: [['42','我的客户'],['5','待我审批']],
+    sub: '我的客户、普通运营审批、模板与短信管理',
+    quick: [
+      ['clients','我的客户','clients','royal',1,'clients'],['leads','录入线索','luru','gold',1,'luru'],
+      ['product','录入产品','product','ink',1,'luru'],['invite','邀请用户','invite','green',1],
+      ['approval','审批中心','approval','royal',1],['sms','短信中心','sms','ink',0],
+    ],
+    entry: ['客户线索','产品'],
+    hub: ['我的客户','公海','我的报告'],
+    note: '「短信中心」仍只在 Web；审批中心保留为独立 tab（普通运营审批范围）。',
+  },
+  {
+    key: 'super', label: '超级管理员', short: '超', ut: '系统管理员', tag: '超级管理员',
+    tabs: [['home','首页'],['luru','线索录入'],['match','智能匹配'],['clients','我的客户'],['mine','我的']],
+    stats: [['3,180','全司客户'],['0','系统异常']],
+    sub: '组织·角色·菜单·权限与全量业务',
+    quick: [
+      ['clients','我的客户','clients','royal',1,'clients'],['allclients','客户总览','brief','blue',0],
+      ['leads','录入线索','luru','gold',1,'luru'],['product','录入产品','product','ink',1,'luru'],
+      ['match','智能匹配','match','green',1],['invite','邀请用户','invite','royal',1],
+      ['org','组织管理','org','ink',0],['perm','权限管理','perm','royal',0],
+    ],
+    entry: ['客户线索','产品'],
+    hub: ['我的客户','公海','我的报告'],
+    note: '「客户总览 / 组织管理 / 权限管理」仍只在 Web；合并后 tab 数由 6 降到 5。',
+  },
+];
+
+/* ===== 渲染 ===== */
+const MERGED = { luru: 1, clients: 1 };
+let cur = 'adviser';
+
+function svg(name, size, color) {
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="'
+    + (color || 'currentColor') + '" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+    + (ICON[name] || ICON.home) + '</svg>';
+}
+
+function renderRoleButtons() {
+  document.getElementById('roles').innerHTML = ROLES.map(function (r) {
+    return '<button class="role-btn' + (r.key === cur ? ' on' : '') + '" data-role="' + r.key + '">'
+      + r.label + '<small>' + r.tabs.length + ' tab</small></button>';
+  }).join('');
+  document.querySelectorAll('[data-role]').forEach(function (b) {
+    b.onclick = function () { cur = b.dataset.role; renderAll(); };
+  });
+}
+
+function renderPhone(r) {
+  document.getElementById('phAva').textContent = r.short;
+  document.getElementById('phNm').textContent = r.tag;
+  document.getElementById('phRole').innerHTML = svg('shield', 12, '#E7D3A6') + ' <span>' + r.tag + ' · ' + r.ut + '</span>';
+
+  // 统计行
+  var st = document.getElementById('phStats');
+  if (!r.stats) {
+    st.innerHTML = '<div class="m-stat" style="flex:1"><b style="color:var(--t2);font-size:13px">—</b><span>暂无统计行</span></div>';
+  } else {
+    st.innerHTML = r.stats.map(function (s) {
+      return '<div class="m-stat"><b>' + s[0] + '</b><span>' + s[1] + '</span></div>';
+    }).join('');
+  }
+
+  // 宫格
+  document.getElementById('phGrid').innerHTML = r.quick.map(function (q) {
+    var reachable = q[4];
+    var mergedTag = q[5] ? ' merged' : '';
+    return '<div class="m-qk' + mergedTag + '">'
+      + '<div class="ic" style="background:' + TONE[q[3]] + '">' + svg(q[2], 19, '#fff') + '</div>'
+      + '<div class="lb">' + q[1] + (reachable ? '' : '<br /><span class="web">Web</span>') + '</div>'
+      + '</div>';
+  }).join('');
+
+  // TabBar
+  document.getElementById('phTabbar').innerHTML = r.tabs.map(function (t, i) {
+    var on = i === 0 ? ' on' : '';
+    var mg = MERGED[t[0]] ? ' merged-tab' : '';
+    return '<div class="m-tab' + on + mg + '">' + svg(t[0], 18) + '<span class="lb">' + t[1] + '</span></div>';
+  }).join('');
+
+  // 详情
+  document.getElementById('pTabCount').textContent = r.tabs.length + ' 个 tab';
+  document.getElementById('pTabs').innerHTML = r.tabs.map(function (t) {
+    return '<span class="m-tagline' + (MERGED[t[0]] ? ' merged' : '') + '">' + t[1] + '</span>';
+  }).join('');
+  document.getElementById('pStats').innerHTML = r.stats
+    ? r.stats.map(function (s) { return '<b>' + s[0] + '</b> ' + s[1]; }).join(' &nbsp;·&nbsp; ')
+    : '<span style="color:var(--t3)">无统计行</span>';
+  document.getElementById('pSub').textContent = r.sub;
+
+  document.getElementById('pQuick').innerHTML = r.quick.map(function (q) {
+    var cls = q[4] ? 'chip on' : 'chip off';
+    var suffix = q[4] ? (q[5] ? ' → 合并页' : '') : ' → Web';
+    return '<span class="' + cls + '">' + q[1] + suffix + '</span>';
+  }).join('');
+
+  document.getElementById('pNote').innerHTML = r.note;
+
+  document.getElementById('pEntry').innerHTML = r.entry
+    ? r.entry.map(function (s) { return '<span class="chip gold">' + s + '</span>'; }).join(' ')
+    : '<span style="color:var(--t3)">不承载</span>';
+  document.getElementById('pHub').innerHTML = r.hub
+    ? r.hub.map(function (s) { return '<span class="chip gold">' + s + '</span>'; }).join(' ')
+    : '<span style="color:var(--t3)">不承载</span>';
+}
+
+function renderAll() {
+  var r = ROLES.find(function (x) { return x.key === cur; });
+  renderRoleButtons();
+  renderPhone(r);
+}
+renderAll();
+</script>
+</body>
+</html>

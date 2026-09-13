@@ -127,8 +127,12 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
   background: var(--bg-input);
   border: 1rpx solid var(--line);
   border-radius: var(--radius-md);
+  transition: border-color 0.15s;
 }
-.field input { flex: 1; min-width: 0; height: 92rpx; font-size: 28rpx; color: var(--text-primary); }
+/* 输入字号 ≥ 16px（32rpx）：低于 16px 会被 iOS Safari 聚焦自动放大视口（布局跳动根因） */
+.field input { flex: 1; min-width: 0; height: 92rpx; font-size: 32rpx; color: var(--text-primary); }
+/* 聚焦触控高亮：只改边框色不改宽高，避免布局跳动 */
+.field:focus-within { border-color: var(--brand-deep); }
 .code-btn {
   flex-shrink: 0;
   margin: 0;
@@ -144,5 +148,6 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
 }
 .code-btn::after { border: 0; }
 .code-btn[disabled] { color: var(--text-placeholder); }
+.code-btn:active { opacity: 0.6; }
 .submit { margin-top: 8rpx; }
 </style>
