@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
-/** D39：小程序替客建档不得把录入人直接写成服务顾问。 */
+/** 小程序直接建客户档案仍进入未分配池；线索录入的自动归属由 LeadService 负责。 */
 @ExtendWith(MockitoExtension.class)
 class MiniClientServiceTest {
 

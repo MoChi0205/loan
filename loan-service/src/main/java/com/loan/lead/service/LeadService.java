@@ -2,6 +2,7 @@ package com.loan.lead.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.loan.allocation.service.ClaimQuotaService;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
@@ -60,9 +61,10 @@ public class LeadService {
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final NotificationService notificationService;
     private final SensitiveViewService sensitiveViewService;
+    private final ClaimQuotaService claimQuotaService;
 
     /**
-     * 新增线索（谁录入归谁；来源 CHANNEL/VIP 不归属，其中 CHANNEL 终审通过后才对公海可见）。
+     * 新增线索（公司员工谁录入归谁；渠道/客户录入不建立员工归属）。
      *
      * @param lead          线索（contactName/phone/leadType 必填）
      * @param recorderCode  录入人工号（业务编码）
@@ -78,10 +80,10 @@ public class LeadService {
         lead.setPhoneHash(sha256(lead.getPhone()));
         lead.setRecorderStaffCode(recorderCode);
         lead.setFollowStatus(lead.getFollowStatus() == null ? "NEW" : lead.getFollowStatus());
-        // 渠道 / VIP / 小程序(MINI) 录入均不预设顾问归属；渠道是否进入公海另由审批状态控制。
-        boolean toPool = "CHANNEL".equalsIgnoreCase(lead.getSource())
-                || "VIP".equalsIgnoreCase(lead.getSource())
-                || "MINI".equalsIgnoreCase(lead.getSource());
+        // 员工录入一律直接归属本人。渠道/客户不是公司员工，不建立服务归属。
+        boolean toPool = !StringUtils.hasText(recorderCode)
+                || "CHANNEL".equalsIgnoreCase(lead.getSource())
+                || "VIP".equalsIgnoreCase(lead.getSource());
         lead.setOwnerStaffCode(toPool ? null : recorderCode);
         lead.setCreatedBy(recorderName);
         leadMapper.insert(lead);
@@ -97,7 +99,7 @@ public class LeadService {
      * <p>手机号出参：豁免角色（老板/主管）直接返回明文；受限角色（顾问）列表页统一脱敏，
      * 明文需经敏感查看授权流程（apply-view）单独获取。
      *
-     * @param ownerStaffCode 归属人工号（null 查公海）
+     * @param selfStaffCode  本人工号；非空 = 当前归属我的线索，null = 线索公海
      * @param leadType       客群（可选）
      * @param followStatus   跟进状态（可选）
      * @param keyword        关键字（可选）
@@ -107,12 +109,12 @@ public class LeadService {
      * @param userNo         当前工号
      * @return 线索分页
      */
-    public PageResult<Lead> page(String ownerStaffCode, String leadType, String followStatus,
+    public PageResult<Lead> page(String selfStaffCode, String leadType, String followStatus,
                                  String keyword, int page, int size, String roleCode, String userNo,
                                  String orderBy, String orderDir) {
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
-        if (ownerStaffCode != null) {
-            wrapper.eq(Lead::getOwnerStaffCode, ownerStaffCode);
+        if (selfStaffCode != null) {
+            wrapper.eq(Lead::getOwnerStaffCode, selfStaffCode);
         } else {
             wrapper.isNull(Lead::getOwnerStaffCode)
                     // 渠道线索只有终审通过变为 NEW 后才进入公司公海；待审/驳回仅渠道本人可见。
@@ -183,6 +185,7 @@ public class LeadService {
             row.put("contactName", lead.getContactName());
             row.put("phone", DesensitizeUtils.phone(com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone())));
             row.put("leadType", lead.getLeadType());
+            row.put("createdBy", lead.getCreatedBy());
             row.put("channelName", lead.getCreatedBy());
             row.put("followStatus", lead.getFollowStatus());
             row.put("createdAt", lead.getCreatedAt());
@@ -267,11 +270,41 @@ public class LeadService {
                 && lead.getRecorderStaffCode().equals(staffCode)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "回收冷却期内不可认领");
         }
-        int updated = leadMapper.claimIfUnowned(leadNo, staffCode, staffName);
+        // 每日认领上限（参考 tse daily_assign_limit_per_user）：先预占额度，失败回滚
+        claimQuotaService.consume(ClaimQuotaService.SCOPE_LEAD, staffCode, 1);
+        int updated;
+        try {
+            updated = leadMapper.claimIfUnowned(leadNo, staffCode, staffName);
+        } catch (RuntimeException e) {
+            claimQuotaService.refund(ClaimQuotaService.SCOPE_LEAD, staffCode, 1);
+            throw e;
+        }
         if (updated == 0) {
+            claimQuotaService.refund(ClaimQuotaService.SCOPE_LEAD, staffCode, 1);
             throw new BusinessException(ResultCode.PARAM_ERROR, "线索已被其他顾问认领，请刷新后查看");
         }
         allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "CLAIM", null, staffCode, staffName, "公海认领"));
+    }
+
+    /** 本人主动释放自己的线索到公司公海，释放后 7 天内本人不可重新认领。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void release(String leadNo, String staffCode, String staffName) {
+        if (!StringUtils.hasText(leadNo) || !StringUtils.hasText(staffCode)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "线索编号与当前员工不能为空");
+        }
+        Lead lead = leadMapper.selectOne(new LambdaQueryWrapper<Lead>().eq(Lead::getLeadNo, leadNo.trim()));
+        if (lead == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "线索不存在");
+        }
+        if (!staffCode.equals(lead.getOwnerStaffCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "只能释放归属自己的线索");
+        }
+        int updated = leadMapper.releaseOwned(leadNo.trim(), staffCode, staffName, LocalDateTime.now().plusDays(7));
+        if (updated == 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "线索归属已变化，请刷新后重试");
+        }
+        allocationRecordMapper.insert(buildRecord(leadNo.trim(), "RELEASE", staffCode, null,
+                staffName, "本人主动释放到公司公海"));
     }
 
     /**
@@ -306,13 +339,20 @@ public class LeadService {
     public int batchClaim(List<String> leadNos, String staffCode, String staffName) {
         List<String> distinct = normalizeBatch(leadNos);
         Map<String, Lead> leads = loadLeadMap(distinct);
-        for (String leadNo : distinct) {
-            Lead lead = requireBatchLead(leads, leadNo);
-            validateClaim(lead, staffCode);
-            if (leadMapper.claimIfUnowned(leadNo, staffCode, staffName) == 0) {
-                throw new BusinessException(ResultCode.PARAM_ERROR, "线索已被其他顾问认领，请刷新后查看");
+        // 每日认领上限：整批预占，事务回滚时整批退还
+        claimQuotaService.consume(ClaimQuotaService.SCOPE_LEAD, staffCode, distinct.size());
+        try {
+            for (String leadNo : distinct) {
+                Lead lead = requireBatchLead(leads, leadNo);
+                validateClaim(lead, staffCode);
+                if (leadMapper.claimIfUnowned(leadNo, staffCode, staffName) == 0) {
+                    throw new BusinessException(ResultCode.PARAM_ERROR, "线索已被其他顾问认领，请刷新后查看");
+                }
+                allocationRecordMapper.insert(buildRecord(leadNo, "CLAIM", null, staffCode, staffName, "批量公海认领"));
             }
-            allocationRecordMapper.insert(buildRecord(leadNo, "CLAIM", null, staffCode, staffName, "批量公海认领"));
+        } catch (RuntimeException e) {
+            claimQuotaService.refund(ClaimQuotaService.SCOPE_LEAD, staffCode, distinct.size());
+            throw e;
         }
         return distinct.size();
     }

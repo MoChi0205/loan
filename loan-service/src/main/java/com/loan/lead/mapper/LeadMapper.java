@@ -32,6 +32,15 @@ public interface LeadMapper extends BaseMapper<Lead> {
                        @Param("staffCode") String staffCode,
                        @Param("staffName") String staffName);
 
+    /** 本人主动释放线索到公司公海；条件更新防止越权或并发覆盖。 */
+    @Update("UPDATE t_lead SET owner_staff_code = NULL, assign_blocked_until = #{blockedUntil}, "
+            + "updated_by = #{staffName}, updated_at = CURRENT_TIMESTAMP "
+            + "WHERE lead_no = #{leadNo} AND owner_staff_code = #{staffCode}")
+    int releaseOwned(@Param("leadNo") String leadNo,
+                     @Param("staffCode") String staffCode,
+                     @Param("staffName") String staffName,
+                     @Param("blockedUntil") LocalDateTime blockedUntil);
+
     /** 按业务编码批量删除，调用方须先完成权限与审计校验。 */
     @Delete({"<script>DELETE FROM t_lead WHERE lead_no IN ",
             "<foreach collection='leadNos' item='no' open='(' separator=',' close=')'>#{no}</foreach>",

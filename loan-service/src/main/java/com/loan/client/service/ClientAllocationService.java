@@ -3,6 +3,7 @@ package com.loan.client.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.loan.allocation.service.ClaimQuotaService;
 import com.loan.api.dto.PageResult;
 import com.loan.approval.entity.ClientAllocationApproval;
 import com.loan.approval.mapper.ClientAllocationApprovalMapper;
@@ -29,7 +30,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -59,10 +59,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ClientAllocationService {
     private final StringRedisTemplate redisTemplate;
-    @Value("${loan.client.claim.max-holding:100}")
-    private int maxHolding;
-    @Value("${loan.client.claim.daily-limit:30}")
-    private int dailyLimit;
+    private final ClaimQuotaService claimQuotaService;
     private static final int MAX_BATCH_SIZE = 500;
 
     /** 分配审批状态。 */
@@ -238,19 +235,21 @@ public class ClientAllocationService {
         return applyResult(approval, target.getStaffName(), false);
     }
 
-    /** 认领配额：持有上限由数据库实时统计，每日上限由 Redis 原子计数控制。 */
+    /**
+     * 认领配额：持有上限与每日上限均读 {@code t_allocation_quota_config} 的 CLIENT 行
+     * （与线索侧同一张表、同一套读取与降级逻辑，参考 tse
+     * {@code max_new_customers_per_user} / {@code daily_assign_limit_per_user}，不再写死在代码里）。
+     * 持有上限 0 = 不限。
+     */
     private void enforceClaimQuota(String staffCode) {
         if (!StringUtils.hasText(staffCode)) return;
         long holding = clientProfileMapper.selectCount(new LambdaQueryWrapper<ClientProfile>()
                 .eq(ClientProfile::getOwnerStaffCode, staffCode));
-        if (holding >= maxHolding) throw new BusinessException(ResultCode.PARAM_ERROR, "已达到客户持有上限");
-        String key = "loan:client:claim:daily:" + staffCode + ":" + java.time.LocalDate.now();
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1L) redisTemplate.expire(key, Duration.ofDays(2));
-        if (count != null && count > dailyLimit) {
-            redisTemplate.opsForValue().decrement(key);
-            throw new BusinessException(ResultCode.PARAM_ERROR, "已达到今日认领上限");
+        int maxHolding = claimQuotaService.holdingLimitOf(ClaimQuotaService.SCOPE_CLIENT);
+        if (maxHolding > 0 && holding >= maxHolding) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "已达到客户持有上限（" + maxHolding + " 个）");
         }
+        claimQuotaService.consume(ClaimQuotaService.SCOPE_CLIENT, staffCode, 1);
     }
 
     /**

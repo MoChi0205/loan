@@ -40,6 +40,13 @@ public class LeadController {
     @PostMapping
     @OpLog(bizType = "线索", action = "CREATE")
     public Result<String> create(@RequestBody Lead lead, @CurrentUser LoanUser user) {
+        // 公司员工录入来源由后端按角色确定，禁止前端伪造 CHANNEL/VIP 绕过自动归属。
+        String role = user == null || user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
+        if (user != null && LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
+            lead.setSource("CHANNEL");
+        } else {
+            lead.setSource("BOSS".equals(role) ? "BOSS" : "ADVISER");
+        }
         return Result.ok(leadService.create(lead, user == null ? null : user.getUserNo(),
                 user == null ? "system" : user.getName()));
     }
@@ -73,11 +80,11 @@ public class LeadController {
             return Result.ok(leadService.pageByRecorder(user.getUserNo(), leadType, followStatus, keyword,
                     page, size, orderBy, orderDir));
         }
-        String ownerNo;
-        ownerNo = pool ? null : (user == null ? null : user.getUserNo());
+        // 「我的线索」只按当前归属人；创建人作为独立字段展示。释放后仅出现在公司公海。
+        String selfNo = pool ? null : (user == null ? null : user.getUserNo());
         String roleCode = user == null ? null : user.getRoleCode();
         String userNo = user == null ? null : user.getUserNo();
-        return Result.ok(leadService.page(ownerNo, leadType, followStatus, keyword, page, size, roleCode, userNo, orderBy, orderDir));
+        return Result.ok(leadService.page(selfNo, leadType, followStatus, keyword, page, size, roleCode, userNo, orderBy, orderDir));
     }
 
     /**
@@ -91,6 +98,16 @@ public class LeadController {
     @OpLog(bizType = "线索", action = "CLAIM")
     public Result<String> claim(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
         leadService.claim(body.get("leadNo"), user == null ? null : user.getUserNo(),
+                user == null ? "system" : user.getName());
+        return Result.ok("ok");
+    }
+
+    /** 本人主动释放归属自己的线索到公司公海。 */
+    @PostMapping("/{leadNo}/release")
+    @OpLog(bizType = "线索", action = "SELF_RELEASE")
+    public Result<String> release(@org.springframework.web.bind.annotation.PathVariable String leadNo,
+                                  @CurrentUser LoanUser user) {
+        leadService.release(leadNo, user == null ? null : user.getUserNo(),
                 user == null ? "system" : user.getName());
         return Result.ok("ok");
     }

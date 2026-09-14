@@ -70,7 +70,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     /** 顾问（ADVISER）默认可访问接口（一线业务） */
     private static final String[] ADVISER_APIS = {
             "order:page", "order:create", "order:detail", "order:updateStatus",
-            "lead:page", "lead:create", "lead:claim", "lead:batchClaim", "lead:applyView", "lead:quota",
+            "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim", "lead:applyView", "lead:quota",
             "client:pageLite", "client:detail", "client:update", "client:release", "client:follow", "client:history",
             "attachment:page",
             "screening:run",
@@ -80,7 +80,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             // 小程序客户链路（D74/D75）：查重 → 建档 → 申请认领/转分配 → 查状态 → 释放本人客户。
             // 注意：这些 api_key 长期缺失，导致顾问/部门经理在小程序调用该链路时被网关拒绝
             // （老板/运营/超管属全量角色，故此前只有他们能用）。
-            "mini:search", "mini:create", "mini:claim", "mini:claimStatus", "mini:release",
+            "mini:search", "mini:create", "mini:claim", "mini:claimStatus", "mini:release", "mini:releaseLead",
             "mini:myClients", "mini:seaClients",
             // 站内消息中心（mini 端）：客户角色按 `mini:` 前缀整体放行，员工角色需显式授权，
             // 否则消息接口对其被网关拒绝（2026-09-11 审计 P0-2）。
@@ -129,7 +129,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "execution-plan:createStep", "execution-plan:updateStep", "execution-plan:deleteStep",
             "execution-plan:applyTemplate", "execution-plan:saveAsTemplate",
             "mini:stats",
-            "mini:search", "mini:create", "mini:claim", "mini:claimStatus", "mini:release",
+            "mini:search", "mini:create", "mini:claim", "mini:claimStatus", "mini:release", "mini:releaseLead",
             "mini:myClients", "mini:seaClients",
             // 站内消息中心（mini 端）：主管同样需要，避免部门经理看得到入口却调不通
             "mini:messageList", "mini:messageUnreadCount", "mini:messageReadAll",

@@ -2,6 +2,7 @@ package com.loan.common.service;
 
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.common.cache.UnifiedCacheService;
 import com.loan.invitation.entity.Invitation;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
@@ -20,6 +21,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -31,11 +34,15 @@ class BusinessNameServiceTest {
     @Mock private StaffMapper staffMapper;
     @Mock private ClientProfileMapper clientProfileMapper;
     @Mock private BankProductMapper bankProductMapper;
+    @Mock private UnifiedCacheService cacheService;
     private BusinessNameService service;
 
     @BeforeEach
     void setUp() {
-        service = new BusinessNameService(staffMapper, clientProfileMapper, bankProductMapper);
+        service = new BusinessNameService(staffMapper, clientProfileMapper, bankProductMapper, cacheService);
+        // 缓存 mock 直接透传 loader，让断言仍作用于真实查询逻辑（lenient：空入参用例不会触发缓存）
+        lenient().when(cacheService.getOrLoad(anyString(), any(), any()))
+                .thenAnswer(invocation -> ((java.util.function.Supplier<?>) invocation.getArgument(2)).get());
     }
 
     @Test

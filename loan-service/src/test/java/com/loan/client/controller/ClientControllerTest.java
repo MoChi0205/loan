@@ -22,6 +22,8 @@ import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -119,6 +121,52 @@ class ClientControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(2001))
                 .andExpect(jsonPath("$.message").value("仅顾问可从未分配客户池申请认领"));
+    }
+
+    @Test
+    @DisplayName("老板查看全司已分配客户时强制排除公海")
+    void allScopeMeansCompanyAssignedOnly() throws Exception {
+        ClientService clientService = mock(ClientService.class);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard);
+        mvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
+                .build();
+        UserContext.setUser(staff("BOSS", "B001"));
+        when(clientService.pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
+                isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
+                eq("ASSIGNED"))).thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
+
+        mvc.perform(get("/api/admin/client/page-lite").param("scope", "ALL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
+                isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
+                eq("ASSIGNED"));
+    }
+
+    @Test
+    @DisplayName("公司公海统一使用 ENTERPRISE 枚举")
+    void companySeaUsesEnterpriseLevel() throws Exception {
+        ClientService clientService = mock(ClientService.class);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard);
+        mvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
+                .build();
+        UserContext.setUser(staff("ADVISER", "S001"));
+        when(clientService.pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
+                isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
+                eq("ENTERPRISE"))).thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
+
+        mvc.perform(get("/api/admin/client/page-lite").param("scope", "COMPANY_SEA"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
+                isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
+                eq("ENTERPRISE"));
     }
 
     private LoanUser staff(String roleCode, String staffCode) {

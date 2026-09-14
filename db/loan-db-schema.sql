@@ -1187,6 +1187,25 @@ CREATE TABLE `t_lead_person_ext` (
   UNIQUE KEY `uk_lead_id` (`lead_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='个人线索扩展(1:1;占位,认证/匹配入口预留置灰)';
 
+DROP TABLE IF EXISTS `t_allocation_quota_config`;
+CREATE TABLE `t_allocation_quota_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `scope` varchar(16) NOT NULL COMMENT '适用范围(LEAD线索认领/CLIENT客户认领)',
+  `daily_claim_limit` int NOT NULL DEFAULT '30' COMMENT '每员工每日公海认领上限(0=不限);参照tse daily_assign_limit_per_user',
+  `max_holding` int NOT NULL DEFAULT '0' COMMENT '每员工持有上限(0=不限);参照tse max_new_customers_per_user',
+  `remark` varchar(255) DEFAULT NULL COMMENT '说明',
+  `updated_by` varchar(64) DEFAULT NULL COMMENT '更新人姓名',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_scope` (`scope`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='认领配额参数(全参数化不写死;参考tse daily_assign_limit_per_user/max_new_customers_per_user)';
+
+-- 完整 DDL + 种子数据 + 「认领设置」菜单见 db/migrate-allocation-quota-config-2026-09-14.sql
+INSERT INTO `t_allocation_quota_config` (`scope`, `daily_claim_limit`, `max_holding`, `remark`) VALUES
+  ('LEAD', 30, 0, '线索：每日认领上限 30；持有上限不限'),
+  ('CLIENT', 30, 100, '客户：每日认领上限 30；持有上限 100');
+
 DROP TABLE IF EXISTS `t_lead_recycle_config`;
 CREATE TABLE `t_lead_recycle_config` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',

@@ -165,12 +165,12 @@ public class MiniLeadService {
     }
 
     /**
-     * 我录入的线索（仅当前用户本人，沙箱脱敏）。
+     * 我的线索（员工按当前归属人；渠道按本人录入，沙箱脱敏）。
      *
      * @param page 页码
      * @param size 每页大小
      * @param user 当前登录用户
-     * @return 分页（leadNo/contactName脱敏/entName/phone掩码/followStatus/createdAt）
+     * @return 分页（leadNo/contactName脱敏/entName/phone掩码/followStatus/ownerStaffCode/createdBy/createdAt）
      */
     public PageResult<Map<String, Object>> myLeads(int page, int size, LoanUser user) {
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
@@ -181,7 +181,9 @@ public class MiniLeadService {
                             .or().apply("JSON_UNQUOTE(JSON_EXTRACT(ext_json, '$.recorderChannelNo')) = {0}",
                                     user.getUserNo()));
         } else if (StringUtils.hasText(user.getUserNo())) {
-            wrapper.eq(Lead::getRecorderStaffCode, user.getUserNo());
+            // 公司员工的“我的线索”按当前归属筛选：本人释放后 owner 为空，不再出现在列表；
+            // 被主管指派给本人的线索，即使创建人是其他员工，也应进入列表。
+            wrapper.eq(Lead::getOwnerStaffCode, user.getUserNo());
         } else {
             wrapper.eq(Lead::getCreatedBy, user.getName());
         }
@@ -200,10 +202,20 @@ public class MiniLeadService {
             m.put("phone", plain == null ? "" : DesensitizeUtils.phone(plain));
             m.put("followStatus", l.getFollowStatus());
             m.put("clientCode", l.getClientProfileCode());
+            m.put("ownerStaffCode", l.getOwnerStaffCode());
+            m.put("createdBy", l.getCreatedBy());
             m.put("createdAt", l.getCreatedAt() == null ? null : l.getCreatedAt().toLocalDate().format(DATE_FMT));
             records.add(m);
         }
         return PageResult.build(page, size, p.getTotal(), records);
+    }
+
+    /** 员工主动释放本人归属线索；渠道/客户没有员工归属，不允许调用。 */
+    public void releaseLead(String leadNo, LoanUser user) {
+        if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅公司员工可释放线索");
+        }
+        leadService.release(leadNo, user.getUserNo(), user.getName());
     }
 
     /**

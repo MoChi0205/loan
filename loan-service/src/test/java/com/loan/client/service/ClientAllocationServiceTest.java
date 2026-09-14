@@ -3,6 +3,7 @@ package com.loan.client.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.loan.allocation.service.ClaimQuotaService;
 import com.loan.approval.entity.ClientAllocationApproval;
 import com.loan.approval.mapper.ClientAllocationApprovalMapper;
 import com.loan.client.entity.ClientProfile;
@@ -49,6 +50,7 @@ class ClientAllocationServiceTest {
     @Mock private NotificationService notificationService;
     @Mock private BusinessNameService businessNameService;
     @Mock private StringRedisTemplate redisTemplate;
+    @Mock private ClaimQuotaService claimQuotaService;
 
     private ClientAllocationService service;
 
@@ -62,8 +64,8 @@ class ClientAllocationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ClientAllocationService(redisTemplate, clientMapper, approvalMapper, staffMapper,
-                recordMapper, clientRecycleConfigMapper, notificationService, businessNameService);
+        service = new ClientAllocationService(redisTemplate, claimQuotaService, clientMapper, approvalMapper,
+                staffMapper, recordMapper, clientRecycleConfigMapper, notificationService, businessNameService);
     }
 
     @Test

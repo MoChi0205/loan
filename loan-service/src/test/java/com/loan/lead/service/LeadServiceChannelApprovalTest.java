@@ -2,6 +2,7 @@ package com.loan.lead.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.loan.allocation.service.ClaimQuotaService;
 import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
 import com.loan.lead.entity.Lead;
@@ -45,7 +46,8 @@ class LeadServiceChannelApprovalTest {
         leadMapper = mock(LeadMapper.class);
         recordMapper = mock(LeadAllocationRecordMapper.class);
         service = new LeadService(leadMapper, recordMapper,
-                mock(NotificationService.class), mock(SensitiveViewService.class));
+                mock(NotificationService.class), mock(SensitiveViewService.class),
+                mock(ClaimQuotaService.class));
     }
 
     @Test
@@ -143,6 +145,52 @@ class LeadServiceChannelApprovalTest {
 
         assertEquals(ResultCode.PARAM_ERROR.getCode(), error.getCode());
         verify(recordMapper, never()).insert(any());
+    }
+
+    @Test
+    void staffCreatedLeadIsOwnedByRecorderAndKeepsCreatorName() {
+        Lead lead = new Lead();
+        lead.setContactName("客户甲");
+        lead.setPhone("13800138000");
+        lead.setSource("ADVISER");
+
+        service.create(lead, "ADV001", "张顾问");
+
+        ArgumentCaptor<Lead> captor = ArgumentCaptor.forClass(Lead.class);
+        verify(leadMapper).insert(captor.capture());
+        assertEquals("ADV001", captor.getValue().getRecorderStaffCode());
+        assertEquals("ADV001", captor.getValue().getOwnerStaffCode());
+        assertEquals("张顾问", captor.getValue().getCreatedBy());
+    }
+
+    @Test
+    void ownerCanReleaseLeadToCompanyPool() {
+        Lead lead = channelLead("NEW");
+        lead.setLeadNo("lead-1");
+        lead.setOwnerStaffCode("ADV001");
+        when(leadMapper.selectOne(any())).thenReturn(lead);
+        when(leadMapper.releaseOwned(org.mockito.ArgumentMatchers.eq("lead-1"),
+                org.mockito.ArgumentMatchers.eq("ADV001"), org.mockito.ArgumentMatchers.eq("张顾问"), any()))
+                .thenReturn(1);
+
+        service.release("lead-1", "ADV001", "张顾问");
+
+        verify(leadMapper).releaseOwned(org.mockito.ArgumentMatchers.eq("lead-1"),
+                org.mockito.ArgumentMatchers.eq("ADV001"), org.mockito.ArgumentMatchers.eq("张顾问"), any());
+        verify(recordMapper).insert(any());
+    }
+
+    @Test
+    void nonOwnerCannotReleaseLead() {
+        Lead lead = channelLead("NEW");
+        lead.setOwnerStaffCode("ADV002");
+        when(leadMapper.selectOne(any())).thenReturn(lead);
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.release("lead-own", "ADV001", "张顾问"));
+
+        assertEquals(ResultCode.FORBIDDEN.getCode(), error.getCode());
+        verify(leadMapper, never()).releaseOwned(any(), any(), any(), any());
     }
 
     private Lead channelLead(String status) {

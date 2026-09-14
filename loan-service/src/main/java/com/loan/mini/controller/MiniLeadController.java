@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -58,7 +59,7 @@ public class MiniLeadController {
      * @param page 页码
      * @param size 每页大小
      * @param user 当前登录用户
-     * @return 分页（leadNo/contactName脱敏/entName/phone掩码/followStatus/createdAt）
+     * @return 分页（leadNo/contactName脱敏/entName/phone掩码/followStatus/ownerStaffCode/createdBy/createdAt）
      */
     @GetMapping("/my")
     public Result<PageResult<Map<String, Object>>> my(
@@ -69,5 +70,12 @@ public class MiniLeadController {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "请先登录");
         }
         return Result.ok(miniLeadService.myLeads(page, size, user));
+    }
+
+    /** 本人主动释放归属自己的线索到公司公海。 */
+    @PostMapping("/{leadNo}/release")
+    public Result<String> releaseLead(@PathVariable String leadNo, @CurrentUser LoanUser user) {
+        miniLeadService.releaseLead(leadNo, user);
+        return Result.ok("ok");
     }
 }

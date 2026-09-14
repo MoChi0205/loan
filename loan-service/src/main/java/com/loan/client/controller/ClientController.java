@@ -236,7 +236,7 @@ public class ClientController {
         miniRoleGuard.requireStaff(user);
         String scopedOwner = ownerStaffCode;
         String ownerDeptCode = null;
-        String seaLevel = null;
+        String ownershipScope = null;
         String normalizedScope = scope == null ? "ALL" : scope.trim().toUpperCase();
         if ("MY".equals(normalizedScope)) {
             scopedOwner = user.getUserNo();
@@ -245,20 +245,31 @@ public class ClientController {
                 throw new com.loan.exception.BusinessException(
                         com.loan.common.ResultCode.FORBIDDEN, "仅部门经理可查看团队客户");
             }
+            scopedOwner = null;
             ownerDeptCode = user.getDeptCode();
         } else if ("COMPANY_SEA".equals(normalizedScope)) {
-            seaLevel = "COMPANY";
+            scopedOwner = null;
+            ownershipScope = "ENTERPRISE";
         } else if ("TEAM_SEA".equals(normalizedScope)) {
             if (!"DEPT_MANAGER".equalsIgnoreCase(user.getRoleCode())) {
                 throw new com.loan.exception.BusinessException(
                         com.loan.common.ResultCode.FORBIDDEN, "仅部门经理可查看团队公海");
             }
-            seaLevel = "TEAM";
+            scopedOwner = null;
+            ownershipScope = "TEAM";
             ownerDeptCode = user.getDeptCode();
+        } else if ("ALL".equals(normalizedScope)) {
+            String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
+            if (!java.util.Arrays.asList("BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER").contains(role)) {
+                throw new com.loan.exception.BusinessException(
+                        com.loan.common.ResultCode.FORBIDDEN, "当前角色无权查看全司已分配客户");
+            }
+            scopedOwner = null;
+            ownershipScope = "ASSIGNED";
         }
         return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
                 scopedOwner, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir, ownerDeptCode, seaLevel));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, ownerDeptCode, ownershipScope));
     }
 
     /**
