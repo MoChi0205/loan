@@ -9,6 +9,11 @@ import { useUserStore } from './store/user';
 import AppEmpty from './components/AppEmpty.vue';
 import AppSkeleton from './components/AppSkeleton.vue';
 import './styles/index.css';
+// Element Plus 按需引入（ElementPlusResolver）只处理模板中的组件；
+// 命令式 API（ElMessage toast / ElMessageBox 确认弹窗）的样式不会被自动引入，
+// 需显式补齐，否则弹窗 / toast 无样式渲染（标题/内容/按钮堆叠、图标缺失）。
+import 'element-plus/theme-chalk/el-message.css';
+import 'element-plus/theme-chalk/el-message-box.css';
 
 /**
  * 应用入口：挂载 Vue + Element Plus + Pinia + 路由。

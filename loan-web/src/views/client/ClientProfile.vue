@@ -23,10 +23,8 @@
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
       <el-tabs v-model="clientScope" class="client-scope-tabs" @tab-change="onScopeChange">
         <el-tab-pane label="我的客户" name="MY" />
-        <el-tab-pane v-if="isDeptManager" label="团队客户" name="TEAM" />
-        <el-tab-pane label="公司客户" name="ALL" />
-        <el-tab-pane label="公司公海" name="COMPANY_SEA" />
-        <el-tab-pane v-if="isDeptManager" label="团队公海" name="TEAM_SEA" />
+        <el-tab-pane v-if="canViewCompanyAssigned" label="全司已分配客户" name="ALL" />
+        <el-tab-pane v-if="!isChannel" label="公司公海" name="COMPANY_SEA" />
       </el-tabs>
       <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
         <el-input v-model="clientQuery.keyword" placeholder="搜索客户：身份证、信用代码、企业名、联系人或手机号" clearable style="width: 340px" @keyup.enter="searchClients" />
@@ -259,8 +257,8 @@ const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 const isAdviser = computed(() => userStore.roleCode === 'ADVISER');
 const showOwnClientList = computed(() => isChannel.value || isAdviser.value);
-const isDeptManager = computed(() => userStore.roleCode === 'DEPT_MANAGER');
-const clientScope = ref(isAdviser.value ? 'MY' : 'ALL');
+const canViewCompanyAssigned = computed(() => ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
+const clientScope = ref(canViewCompanyAssigned.value ? 'ALL' : 'MY');
 const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
@@ -283,7 +281,7 @@ const {
   createdAtEnd: '',
   dealTimeStart: '',
   dealTimeEnd: '',
-  scope: isAdviser.value ? 'MY' : 'ALL',
+  scope: canViewCompanyAssigned.value ? 'ALL' : 'MY',
 });
 
 function onScopeChange(scope) {

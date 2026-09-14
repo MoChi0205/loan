@@ -27,7 +27,8 @@ export function pageClients(params) {
   const channel = isChannel();
   const url = channel ? '/api/channel/client/page' : '/api/admin/client/page-lite';
   const payload = { ...params };
-  if (!channel && user?.roleCode === 'ADVISER' && !payload.ownerStaffCode) {
+  if (!channel && user?.roleCode === 'ADVISER'
+      && (!payload.scope || payload.scope === 'MY') && !payload.ownerStaffCode) {
     payload.ownerStaffCode = user.userNo;
   }
   return request({ url, method: 'get', params: payload });

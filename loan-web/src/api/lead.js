@@ -19,6 +19,11 @@ export function claimLead(leadNo) {
   return request({ url: '/api/admin/lead/claim', method: 'post', data: { leadNo } });
 }
 
+/** 本人主动释放归属自己的线索到公司公海。 */
+export function releaseLead(leadNo) {
+  return request({ url: `/api/admin/lead/${leadNo}/release`, method: 'post' });
+}
+
 export function assignLead(leadNo, toStaffCode) {
   return request({ url: '/api/admin/lead/assign', method: 'post', data: { leadNo, toStaffCode } });
 }

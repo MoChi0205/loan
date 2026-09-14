@@ -2,8 +2,8 @@
   <div class="lead-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ isChannel ? '我的线索' : '线索公海' }}</h2>
-        <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审核通过后进入公海' : '线索认领与客户顾问分配统一管理' }}</p>
+        <h2 class="loan-page-title">{{ isChannel ? '我的线索' : '线索管理' }}</h2>
+        <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审核通过后进入公海' : '我的线索＝当前归属我的线索；线索公海＝尚未分配的线索；创建人始终单独展示' }}</p>
       </div>
       <el-button v-permission="ACTION_PERMISSION.LEAD_CREATE" type="primary" @click="openCreate">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
@@ -14,8 +14,8 @@
     <div class="loan-card">
       <el-tabs v-model="activeTab" @tab-change="onTabChange">
         <el-tab-pane label="我的线索" name="mine" />
-        <el-tab-pane v-if="!isChannel" label="公海" name="pool" />
-        <el-tab-pane v-if="!isChannel && userStore.hasPerm(ACTION_PERMISSION.CLIENT_POOL_VIEW)" label="未分配客户" name="clients" />
+        <el-tab-pane v-if="!isChannel" label="线索公海" name="pool" />
+        <el-tab-pane v-if="!isChannel && userStore.hasPerm(ACTION_PERMISSION.CLIENT_POOL_VIEW)" label="客户公海（未分配）" name="clients" />
       </el-tabs>
 
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
@@ -66,8 +66,8 @@
         >
           <template #empty>
             <AppEmpty
-              :title="activeTab === 'clients' ? '暂无未分配客户' : (isChannel ? '暂无本人录入的线索' : '暂无线索')"
-              :desc="activeTab === 'clients' ? '新注册且尚未分配服务顾问的客户会显示在这里' : (isChannel ? '新增成功后会立即显示，审核通过后进入公司公海' : '点击右上角「新增线索」录入第一条客户线索')"
+              :title="activeTab === 'clients' ? '暂无未分配客户' : (isChannel ? '暂无本人录入的线索' : (activeTab === 'pool' ? '暂无线索公海' : '暂无我的线索'))"
+              :desc="activeTab === 'clients' ? '尚未分配服务顾问的客户会显示在这里，认领后进入「我的客户」' : (isChannel ? '新增成功后会立即显示，审核通过后进入公司公海' : (activeTab === 'pool' ? '已释放或审核通过的未分配线索会显示在这里' : '新增线索自动归属本人，释放后移入公司公海'))"
             />
           </template>
           <el-table-column v-if="activeTab !== 'clients' && !isChannel" type="selection" width="44" fixed="left" reserve-selection />
@@ -90,6 +90,9 @@
           <template #default="{ row }">
             <span class="loan-tag" :class="sourceTag(row.source)">{{ sourceText(row.source) }}</span>
           </template>
+        </el-table-column>
+        <el-table-column v-if="activeTab !== 'clients'" label="创建人" width="110" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.createdBy || '—' }}</template>
         </el-table-column>
         <el-table-column v-if="hasReferrer" label="邀请归因" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
@@ -140,13 +143,8 @@
             <el-option label="个人" value="PERSONAL" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="!isChannel" label="来源">
-          <el-select v-model="form.source" style="width: 100%" placement="top-start">
-            <el-option label="老板" value="BOSS" />
-            <el-option label="顾问" value="ADVISER" />
-            <el-option label="渠道" value="CHANNEL" />
-            <el-option label="VIP 客户" value="VIP" />
-          </el-select>
+        <el-form-item v-if="!isChannel" label="归属">
+          <el-input model-value="创建后自动归属本人" disabled />
         </el-form-item>
       </el-form>
     </AppDialog>
@@ -196,7 +194,7 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { pageLead, createLead, claimLead, assignLead, batchClaimLead, batchAssignLead, batchDeleteLead } from '@/api/lead';
+import { pageLead, createLead, claimLead, releaseLead, assignLead, batchClaimLead, batchAssignLead, batchDeleteLead } from '@/api/lead';
 import { staffPage } from '@/api/org';
 import { pageUnassignedClients, claimUnassignedClient, assignClient } from '@/api/client';
 import { useUserStore } from '@/store/user';
@@ -314,8 +312,19 @@ function rowActions(row) {
   }
   if (activeTab.value === 'pool' && userStore.hasPerm(ACTION_PERMISSION.LEAD_CLAIM)) {
     actions.push({ key: 'claim', label: '认领', type: 'success', confirm: `确认认领「${row.contactName}」？`, onClick: () => onClaim(row) });
-  } else if (activeTab.value === 'mine' && userStore.hasPerm(ACTION_PERMISSION.LEAD_ASSIGN)) {
-    actions.push({ key: 'assign', label: '指派', onClick: () => openAssign(row) });
+  } else if (activeTab.value === 'mine') {
+    if (!isChannel.value && row.ownerStaffCode === userStore.user?.userNo) {
+      actions.push({
+        key: 'release',
+        label: '释放到公海',
+        type: 'warning',
+        confirm: `确认将「${row.contactName}」释放到公司公海？释放后其他员工可认领。`,
+        onClick: () => onRelease(row),
+      });
+    }
+    if (userStore.hasPerm(ACTION_PERMISSION.LEAD_ASSIGN)) {
+      actions.push({ key: 'assign', label: '指派', onClick: () => openAssign(row) });
+    }
   }
   return actions;
 }
@@ -401,20 +410,30 @@ async function onClaim(row) {
   }
 }
 
+async function onRelease(row) {
+  try {
+    await releaseLead(row.leadNo);
+    ElMessage.success('已释放到公司公海');
+    load();
+  } catch (e) {
+    // 拦截器已提示
+  }
+}
+
 // ============================================================
 // 新增线索
 // ============================================================
 const createVisible = ref(false);
 const creating = ref(false);
 const formRef = ref();
-const form = reactive({ contactName: '', phone: '', leadType: 'ENTERPRISE', source: 'ADVISER' });
+const form = reactive({ contactName: '', phone: '', leadType: 'ENTERPRISE' });
 const formRules = {
   contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
   phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
 };
 
 function openCreate() {
-  Object.assign(form, { contactName: '', phone: '', leadType: 'ENTERPRISE', source: isChannel.value ? 'CHANNEL' : 'ADVISER' });
+  Object.assign(form, { contactName: '', phone: '', leadType: 'ENTERPRISE' });
   createVisible.value = true;
 }
 
@@ -422,8 +441,8 @@ async function onCreate() {
   await formRef.value.validate();
   creating.value = true;
   try {
-    await createLead({ ...form, source: isChannel.value ? 'CHANNEL' : form.source });
-    ElMessage.success(isChannel.value ? '已提交，等待公司审核' : '新增成功');
+    await createLead({ ...form });
+    ElMessage.success(isChannel.value ? '已提交，等待公司审核' : '新增成功，已自动归属本人');
     createVisible.value = false;
     load();
   } catch (e) {

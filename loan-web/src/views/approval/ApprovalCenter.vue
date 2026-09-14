@@ -92,7 +92,7 @@
           <el-table-column label="手机号" width="140">
             <template #default="{ row }">{{ desensitizePhone(row.phone) }}</template>
           </el-table-column>
-          <el-table-column prop="channelName" label="录入渠道" min-width="150" />
+          <el-table-column prop="createdBy" label="创建人" min-width="150" />
           <el-table-column prop="leadType" label="客群" width="100"><template #default="{ row }">{{ row.leadType === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
           <el-table-column prop="createdAt" label="提交时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
           <el-table-column label="操作" width="120" fixed="right">

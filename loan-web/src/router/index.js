@@ -198,6 +198,12 @@ const routes = [
         component: () => import('@/views/blacklist/BlacklistCenter.vue'),
         meta: { title: '风控名单', permission: 'page:blacklist' },
       },
+      {
+        path: 'allocation-quota',
+        name: 'AllocationQuotaConfig',
+        component: () => import('@/views/system/AllocationQuotaConfig.vue'),
+        meta: { title: '认领设置' },
+      },
       // 无权限页（Layout 子路由：保留侧栏/标签栏不丢失上下文，T8；未登录访问仍被守卫拦到登录页）
       {
         path: '403',
