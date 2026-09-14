@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>确认稿 · 客户首页（快捷宫格 / 空态 / 报告入口）</title>
+<style>
+  :root{
+    --ink:#111e36; --ink2:#1b2c4d; --royal:#2c52c9; --gold:#c7a15a; --gold-lt:#d9bd86;
+    --page:#f5f7fb; --card:#fff; --line:#e7ebf2; --muted:#6a768c; --t1:#16203a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#e7eaf0;color:var(--t1);
+    font:14px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  .bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;
+    padding:14px 20px;background:var(--ink);color:#fff;flex-wrap:wrap}
+  .bar b{font-size:15px}
+  .bar em{font-style:normal;color:#bdc9dc;font-size:12px}
+  .stage{display:flex;gap:36px;justify-content:center;align-items:flex-start;
+    padding:28px 20px 8px;flex-wrap:wrap}
+  .col{width:390px}
+  .cap{display:flex;align-items:baseline;gap:8px;margin:0 0 10px 4px}
+  .cap s{text-decoration:none;font-size:13px;font-weight:700;color:var(--t1)}
+  .cap i{font-style:normal;font-size:11px;color:#6a768c}
+  .badge{font-size:11px;padding:3px 9px;border-radius:99px;background:#eef1f6;color:#53627b}
+  .badge.new{background:#e7f4ee;color:#2e8b6b}
+  .device{height:844px;background:#0b1220;border-radius:40px;padding:10px;
+    box-shadow:0 24px 60px #24324c55}
+  .screen{height:100%;overflow:hidden;border-radius:32px;background:var(--page);
+    display:flex;flex-direction:column}
+  .scroll{flex:1;overflow:hidden}
+
+  /* ── Hero（对齐 .m-head：padding 28/16/20、说明 11.5px、角色胶囊） ── */
+  .hero{position:relative;padding:28px 16px 20px;color:#fff;
+    background:
+      radial-gradient(120% 80% at 88% -8%, rgba(199,161,90,.28), transparent 60%),
+      linear-gradient(160deg,#111e36 0%,#16243f 60%,#1b2c4d 100%)}
+  .u{display:flex;align-items:center;gap:11px}
+  .ava{width:48px;height:48px;border-radius:14px;flex:0 0 48px;display:grid;place-items:center;
+    font-size:20px;font-weight:800;color:#20180b;
+    background:linear-gradient(135deg,#e7d3a6,#b8883f);border:1px solid rgba(255,255,255,.55)}
+  .hi{font-size:12px;color:rgba(255,255,255,.72)}
+  .nm{margin-top:2px;font-size:19px;font-weight:800;letter-spacing:.3px}
+  .act{margin-top:3px;font-size:11px;color:rgba(255,255,255,.82)}
+  .bell{position:relative;margin-left:auto;width:38px;height:38px;display:grid;place-items:center;flex:0 0 38px}
+  .bell svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .dot{position:absolute;right:5px;top:4px;width:8px;height:8px;border-radius:50%;
+    background:#e66b65;border:1.5px solid #111e36}
+  .sub{margin-top:9px;font-size:11.5px;line-height:1.5;color:rgba(255,255,255,.66)}
+  .pill{display:inline-block;margin-top:10px;padding:3px 9px;border-radius:99px;font-size:10.5px;
+    font-weight:700;color:#e7d3a6;background:rgba(199,161,90,.2);border:1px solid rgba(199,161,90,.4)}
+  .pill svg{width:11px;height:11px;vertical-align:-1px;margin-right:4px;
+    stroke:currentColor;fill:none;stroke-width:1.8}
+
+  /* ── 内容区（对齐 .m-body：padding 12px） ── */
+  .body{padding:12px}
+  /* 快捷宫格：flex 换行 + 定宽磁贴；左稿不居中（=改动前左对齐），右稿 justify-content:center（=改动后居中） */
+  .grid{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:20px}
+  .grid > .qk{width:calc((100% - 28px)/3)}
+  .grid.c3{justify-content:center}
+  .qk{min-height:94px;background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:14px 6px 12px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:9px;box-shadow:0 5px 15px rgba(17,30,54,.05)}
+  .qk .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+  .qk .ic svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round}
+  .qk .qt{font-size:11px;font-weight:700;color:var(--t1);white-space:nowrap}
+  .royal{background:linear-gradient(140deg,#3a63d6,#2c52c9)}
+  .gold{background:linear-gradient(140deg,#d9bd86,#c7a15a)}
+  .inkbg{background:linear-gradient(140deg,#2a3a5e,#1b2c4d)}
+  .green{background:linear-gradient(140deg,#3fb98a,#2e8b6b)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px;margin-bottom:12px;box-shadow:0 2px 4px rgba(15,23,42,.04)}
+  .card h3{margin:0 0 8px;font-size:15px;font-weight:800;color:var(--t1)}
+  .hdr{display:flex;align-items:center;min-height:20px;margin-bottom:8px}
+  .hdr h3{margin:0}
+  .more{margin-left:auto;font-size:12px;font-weight:700;color:var(--royal)}
+  .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+  .row:first-of-type{border-top:0}
+  .main{flex:1;min-width:0}
+  .main b{display:block;font-size:13.5px;font-weight:700;color:var(--t1)}
+  .main small{display:block;margin-top:3px;font-size:11px;color:var(--muted)}
+  .go{font-size:18px;color:var(--muted);flex:0 0 auto}
+  .chip{width:38px;height:38px;border-radius:11px;flex:0 0 38px;display:grid;place-items:center}
+  .chip svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round}
+
+  /* 空态：左=现状（纵向居中） 右=调整后（横向） */
+  .empty-v{display:flex;flex-direction:column;align-items:center;padding:15px 0 5px}
+  .empty-v .ill{width:44px;height:44px;border-radius:12px;background:#eef1f6;
+    display:grid;place-items:center;margin-bottom:7px}
+  .empty-v .ill svg,.empty-h .ill svg{width:22px;height:22px;stroke:var(--gold);fill:none;
+    stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .empty-v .tx{font-size:11px;color:var(--muted)}
+  .empty-h{display:flex;align-items:center;gap:10px;padding:11px 0 4px}
+  .empty-h .ill{width:38px;height:38px;border-radius:11px;background:#eef1f6;
+    display:grid;place-items:center;flex:0 0 38px}
+  .empty-h .tx{font-size:12px;color:var(--muted)}
+
+  .note{padding:4px 2px 6px;text-align:center;font-size:11px;color:var(--muted)}
+
+  /* 量尺 */
+  .measure{position:relative;height:20px;margin:0 0 6px;display:flex;align-items:center}
+  .measure:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px dashed #9fb0cb}
+  .measure span{position:relative;margin:0 auto;background:#e7eaf0;padding:0 8px;
+    font-size:10.5px;color:#53627b}
+
+  .legend{max-width:900px;margin:10px auto 40px;background:#fff;border:1px solid var(--line);
+    border-radius:12px;padding:18px 20px;color:#53627b;line-height:1.9;font-size:13px}
+  .legend h4{margin:0 0 8px;font-size:14px;color:var(--t1)}
+  .legend code{background:#f1f4f9;border-radius:4px;padding:1px 5px;font-size:12px;color:#2c52c9}
+  .legend ul{margin:0;padding-left:20px}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <b>确认稿 · 客户首页</b>
+  <em>等比例 390×844 · 与 loan-mini/pages/home/home.vue 同源取值 · 不改现有原型</em>
+</div>
+
+<div class="stage">
+
+  <div class="col">
+    <div class="cap"><s>现状（改动前）</s><i>空态纵向 · 报告入口无图标</i></div>
+    <div class="device"><div class="screen"><div class="scroll">
+      <div class="hero">
+        <div class="u">
+          <div class="ava">陈</div>
+          <div>
+            <div class="hi">下午好</div>
+            <div class="nm">陈女士</div>
+            <div class="act">授权使用微信头像</div>
+          </div>
+          <div class="bell">
+            <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+            <div class="dot"></div>
+          </div>
+        </div>
+        <div class="sub">完善资料后发起匹配，结果与经营诊断会同步保存在报告中</div>
+        <div class="pill">
+          <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6z"/><path d="M8.8 12l2.2 2.2L15.6 9.4"/></svg>客户 · 个人用户
+        </div>
+      </div>
+      <div class="body">
+        <div class="grid">
+          <div class="qk"><div class="ic royal"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg></div><div class="qt">智能匹配</div></div>
+          <div class="qk"><div class="ic gold"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 13h5M9.5 16.5h3"/></svg></div><div class="qt">我的报告</div></div>
+          <div class="qk"><div class="ic inkbg"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg></div><div class="qt">服务单</div></div>
+          <div class="qk"><div class="ic green"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></div><div class="qt">我的顾问</div></div>
+          <div class="qk"><div class="ic royal"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.6 19.6c0-3.2 2.4-5.4 5.4-5.4s5.4 2.2 5.4 5.4"/><path d="M18 7v6M15 10h6"/></svg></div><div class="qt">邀请用户</div></div>
+        </div>
+
+        <div class="card">
+          <div class="hdr"><h3>为您匹配的顾问</h3></div>
+          <div class="empty-v">
+            <div class="ill"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></div>
+            <div class="tx">暂未分配服务顾问</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="hdr"><h3>我的报告</h3><span class="more">全部 ›</span></div>
+          <div class="row">
+            <div class="main"><b>同时查看匹配与诊断结果</b><small>按生成时间查看历史结果</small></div>
+            <span class="go">›</span>
+          </div>
+        </div>
+
+        <div class="note">合规提示：匹配结果仅供参考，不代表资金机构通过承诺</div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><s>调整后</s><i>空态横向 · 报告入口加图标锚点</i><span class="badge new">本轮改动</span></div>
+    <div class="device"><div class="screen"><div class="scroll">
+      <div class="hero">
+        <div class="u">
+          <div class="ava">陈</div>
+          <div>
+            <div class="hi">下午好</div>
+            <div class="nm">陈女士</div>
+            <div class="act">授权使用微信头像</div>
+          </div>
+          <div class="bell">
+            <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+            <div class="dot"></div>
+          </div>
+        </div>
+        <div class="sub">完善资料后发起匹配，结果与经营诊断会同步保存在报告中</div>
+        <div class="pill">
+          <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6z"/><path d="M8.8 12l2.2 2.2L15.6 9.4"/></svg>客户 · 个人用户
+        </div>
+      </div>
+      <div class="body">
+        <div class="measure"><span>Hero 说明 ↔ 宫格首行 = 20px 正常留白（无叠层）</span></div>
+        <div class="grid c3">
+          <div class="qk"><div class="ic royal"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg></div><div class="qt">智能匹配</div></div>
+          <div class="qk"><div class="ic gold"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 13h5M9.5 16.5h3"/></svg></div><div class="qt">我的报告</div></div>
+          <div class="qk"><div class="ic inkbg"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg></div><div class="qt">服务单</div></div>
+          <div class="qk"><div class="ic green"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></div><div class="qt">我的顾问</div></div>
+          <div class="qk"><div class="ic royal"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.6 19.6c0-3.2 2.4-5.4 5.4-5.4s5.4 2.2 5.4 5.4"/><path d="M18 7v6M15 10h6"/></svg></div><div class="qt">邀请用户</div></div>
+        </div>
+
+        <div class="card">
+          <div class="hdr"><h3>为您匹配的顾问</h3></div>
+          <div class="empty-h">
+            <div class="ill"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></div>
+            <div class="tx">暂未分配服务顾问</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="hdr"><h3>我的报告</h3><span class="more">全部 ›</span></div>
+          <div class="row">
+            <div class="chip gold"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 13h5M9.5 16.5h3"/></svg></div>
+            <div class="main"><b>同时查看匹配与诊断结果</b><small>按生成时间查看历史结果</small></div>
+            <span class="go">›</span>
+          </div>
+        </div>
+
+        <div class="note">合规提示：匹配结果仅供参考，不代表资金机构通过承诺</div>
+      </div>
+    </div></div></div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <h4>本稿与代码的对应关系</h4>
+  <ul>
+    <li><b>5 个快捷入口 = 3＋2 栅格，末行居中</b>：列数由 <code>utils/grid.js#gridCols(5)=3</code> 决定，单列宽 <code>calc((100% - 28rpx*2) / 3)</code>。左稿第二行左对齐（原状），右稿 <code>justify-content:center</code> 居中。<b>原型侧同步把 <code>.m-grid</code> 由 <code>display:grid</code> 换成 flex</b>——grid 的等宽轨道无法居中不满的末行，两端现用同一套 flex + 注入宽度实现。</li>
+    <li><b>Hero 说明 ↔ 宫格 = 20px 正常留白</b>：<code>.m-head</code> 下内距 20px + <code>.m-body</code> 上内距 12px + <code>.m-grid</code> 无负外边距。仓库内<b>不存在 <code>margin-top:-12px</code></b>（已全库检索）。</li>
+    <li><b>空态改横向</b>：<code>.m-empty</code> 由 <code>flex-direction:column</code> + 居中 → <code>align-items:center</code> 横向；图标底 88→76rpx（与 <code>.m-ava</code> 同尺寸），字形 48→42rpx（占 55%，与磁贴 52.5% 同节奏）。三处空态（顾问 / 线索 / 审批）同时生效。</li>
+    <li><b>报告入口加图标锚点</b>：<code>.m-row</code> 行首新增 <code>.row-ic</code>（76rpx 圆角 22rpx，金色渐变 <code>toneBg('gold')</code> + 白色 report 字形），与其它行的头像/图标同轴心。</li>
+  </ul>
+</div>
+
+</body>
+</html>

@@ -80,8 +80,12 @@
   .m-tag.ink { color:#46577a; background:#eef1f6; }
   .m-go { color:var(--royal); font-weight:800; font-size:17px; }
 
-  .m-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
-  .m-qk { min-height:94px; background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px 6px 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; box-shadow:0 5px 15px rgba(17,30,54,.05); transition:transform .18s,box-shadow .18s; cursor:pointer; }
+  /* 快捷宫格：flex 换行 + 定宽磁贴 + justify-content:center。
+     为什么不用 grid：grid 的等宽轨道无法把「不满的末行」（如 5 项 3+2 的第二行）居中，只能左对齐；
+     flex 每行独立居中。磁贴宽度由 gridStyle(n) 注入的 --qk-w 决定，列数规则与 App 端
+     utils/grid.js 完全一致（2–4 列中取末行空位最少者），两端同源。 */
+  .m-grid { display:flex; flex-wrap:wrap; gap:14px; justify-content:center; margin-bottom:20px; }
+  .m-qk { width:var(--qk-w, calc((100% - 28px) / 3)); min-height:94px; background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px 6px 12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; box-shadow:0 5px 15px rgba(17,30,54,.05); transition:transform .18s,box-shadow .18s; cursor:pointer; }
   .m-qk:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(17,30,54,.11); }
   /* 磁贴图标底：唯一实现。原「.m-qk .ic 类规则（42px / 13px）」与「chip() 内联样式（40px / 12px、21px 图标）」
      两套并存，且类规则无任何标记引用（死代码），尺寸/圆角/配色互相打架；现统一为 .m-qk-ic + 色调修饰类 */
@@ -123,10 +127,13 @@
   .m-tab.on { color:var(--royal); }
   .m-tab.on svg { fill:rgba(44,82,201,.12); stroke:var(--royal); }
 
-  .m-empty { text-align:center; padding:34px 18px; color:var(--t2); font-size:13px; }
-  .m-empty .ill { width:58px; height:58px; margin:0 auto 11px; border-radius:18px; background:var(--ivory-2); display:grid; place-items:center; color:var(--gold); }
-  .m-empty .ill svg { width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
-  .m-empty { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* 空态：横向（图标左、文案右），与 App 端 `.m-empty` 逐项等值（rpx÷2 = px）。
+     原为纵向居中（图标在上、文案在下）：占高更多，且与卡片内 `.m-row`（头像在左）不同轴心。
+     文案须包在 <span> 里——省略号写在 flex 容器上对子项不生效，会硬裁切。 */
+  .m-empty { display:flex; align-items:center; gap:10px; padding:11px 0 4px; color:var(--t2); font-size:12px; }
+  .m-empty .ill { width:38px; height:38px; flex:0 0 38px; border-radius:11px; background:var(--ivory-2); display:grid; place-items:center; color:var(--gold); }
+  .m-empty .ill svg { width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .m-empty > span { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .m-row > .m-btn { flex:0 0 auto; min-width:104px; }
 
   .sheet-mask { position:absolute; inset:0; background:rgba(17,30,54,.42); opacity:0; pointer-events:none; transition:.22s; z-index:30; }
@@ -405,7 +412,8 @@ function gridCols(n){
   for(let c=2;c<=4;c++){ const def=(c-(n%c))%c; if(def<bestDef||(def===bestDef&&c>best)){ bestDef=def; best=c; } }
   return Math.min(best,n);
 }
-function gridStyle(n){ return ` style="grid-template-columns:repeat(${gridCols(n)},minmax(0,1fr))"`; }
+/* 注入磁贴宽度（flex 换行布局）：列数取 gridCols(n)，扣除 (列数-1) 个 14px 列间距 */
+function gridStyle(n){ const c=gridCols(n); return ` style="--qk-w:calc((100% - ${(c-1)*14}px) / ${c})"`; }
 
 /* ===== 7 角色配置 ===== */
 const ROLES = {
@@ -583,7 +591,7 @@ function mqk(ic,label,cls){ return `<div class="m-qk" data-mqk="${ic}">${chip(ic
 function approvalRows(role){
   if(role==='adviser') return `<div class="m-row"><div class="main"><div class="t1">产品录入申请《企业经营贷》</div><div class="t2">已提交 · 等待审批</div></div><div class="m-tag warn">待审批</div></div>`;
   const list = APPROVALS[role]||[];
-  if(!list.length) return `<div class="m-empty"><div class="ill">${svg('check')}</div>暂无待办审批</div>`;
+  if(!list.length) return `<div class="m-empty"><div class="ill">${svg('check')}</div><span>暂无待办审批</span></div>`;
   return list.map(a=>`<div class="m-row"><div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} · ${a.time}</div></div><div class="m-tag ${a.status}">${a.st}</div></div>`).join('');
 }
 
@@ -591,7 +599,7 @@ function approvalRows(role){
 function renderMatch(){ return `<div class="m-card"><div class="m-card-h"><b>智能匹配</b><div class="more">匹配记录</div></div>
   <div class="m-row"><div class="main"><div class="t1">匹配经营贷方案</div><div class="t2">填写资质后获取适合的融资方案</div></div><button class="m-btn match-primary">${svg('match')}开始匹配</button></div>
   <div class="m-row"><div class="main"><div class="t1">经营诊断</div><div class="t2">融资健康度评估</div></div><div class="m-go">›</div></div></div>
-  <div class="m-empty"><div class="ill">${svg('match')}</div>匹配结果按客户、方案、时间展示</div>`; }
+  <div class="m-empty"><div class="ill">${svg('match')}</div><span>匹配结果按客户、方案、时间展示</span></div>`; }
 function renderReport(){ return `<div class="m-card"><div class="m-card-h"><b>我的报告</b></div>
   <div class="m-row"><div class="main"><div class="t1">宏远科技 · 2026-09-09</div><div class="t2">初筛报告 · 已生成</div></div><div class="m-go">›</div></div>
   <div class="m-row"><div class="main"><div class="t1">恒通物流 · 2026-09-06</div><div class="t2">诊断报告 · 已生成</div></div><div class="m-go">›</div></div></div>`; }
@@ -601,7 +609,7 @@ function renderOrder(){ return `<div class="m-card"><div class="m-card-h"><b>服
 function renderApproval(role){
   const list = APPROVALS[role]||[];
   const head = `<div class="m-card"><div class="m-card-h"><b>审批中心</b><div class="more">待我审批 ${list.length}</div></div>`;
-  if(!list.length) return head + `<div class="m-empty"><div class="ill">${svg('shield')}</div>暂无待办审批</div></div>`;
+  if(!list.length) return head + `<div class="m-empty"><div class="ill">${svg('shield')}</div><span>暂无待办审批</span></div></div>`;
   const rows = list.map((a,i)=>`<div class="m-row"><div class="m-ava">${a.who[0]}</div><div class="main"><div class="t1">${a.matter}</div><div class="t2">${a.who} · ${a.time}</div></div><div class="m-tag ${a.status}">${a.st}</div></div><div class="approval-actions"><button class="m-btn sm ghost" data-approve="${i}" data-act="reject">驳回</button><button class="m-btn sm" data-approve="${i}" data-act="pass">通过</button></div>`).join('');
   return head + rows + `</div>`;
 }
@@ -617,7 +625,7 @@ function renderStaffProduct(role){ return `<div class="m-card"><div class="m-car
 function renderLeadEntry(){ return `<div class="m-card"><div class="m-card-h"><b>录入客户（线索）</b></div>
   <div class="login-field" style="margin:0"><label>企业名称</label><div class="login-field"><div class="box" style="padding:11px 13px;background:#fff;border:1px solid var(--line);border-radius:12px">输入企业全称</div></div></div>
   <button class="m-btn block" style="margin-top:14px">提交录入</button>
-  <div class="m-empty" style="padding:20px 0 0"><div class="ill">${svg('leads')}</div>提交前自动校验手机号、身份证号和统一信用代码；提交后可查看处理状态</div></div>`; }
+  <div class="m-empty" style="padding:20px 0 0"><div class="ill">${svg('leads')}</div><span>提交前自动校验手机号、身份证号和统一信用代码；提交后可查看处理状态</span></div></div>`; }
 function renderEntryHub(role){
   const channel = role==='channel';
   const seg = STATE.entrySeg === 'product' ? 'product' : 'lead';
@@ -669,7 +677,7 @@ function renderClientList(role){
   if(STATE.chip!=='全部'){ list = list.filter(c=> c.st===STATE.chip || (STATE.chip==='公海'&&c.st==='公海')); }
   const chips = role==='channel' ? ['全部','待跟进','已认证','已成交'] : ['全部','待跟进','已认证','已成交','公海'];
   const body = list.length? list.map(c=>`<div class="m-row" data-client="${c.nm}"><div class="m-ava">${c.nm[0]}</div><div class="main"><div class="t1">${c.nm}</div><div class="t2">${c.owner==='—'?'公海客户':('归属 '+c.owner)} · 最近 ${c.follow}</div></div><div class="m-tag ${c.status}">${c.st}</div></div>`).join('') :
-    `<div class="m-empty"><div class="ill">${svg('search')}</div>无匹配客户，试试其他关键词</div>`;
+    `<div class="m-empty"><div class="ill">${svg('search')}</div><span>无匹配客户，试试其他关键词</span></div>`;
   const searchPh = role==='channel'?'搜索企业名称 / 联系人 / 手机号':(role==='customer'?'搜索服务单 / 报告':'搜索姓名 / 手机号 / 企业名称');
   return `<div class="m-search">${svg('search')}<input placeholder="${searchPh}" value="${STATE.q}" data-q="1"/><span class="m-clear" data-clear="1">清空</span></div>
     <div class="m-chips">${chips.map(c=>`<div class="m-chip-btn ${STATE.chip===c?'on':''}" data-chip="${c}">${c}</div>`).join('')}</div>
