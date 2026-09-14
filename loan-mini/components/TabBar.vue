@@ -1,5 +1,11 @@
 <template>
-  <view class="tab-bar" :class="{ 'is-tablet': store.isTablet }" role="tablist" aria-label="主要导航">
+  <view
+    class="tab-bar"
+    :class="{ 'is-tablet': store.isTablet }"
+    :data-theme="themeMode"
+    role="tablist"
+    aria-label="主要导航"
+  >
     <view
       v-for="item in tabList"
       :key="item.key"
@@ -14,9 +20,13 @@
       @keydown.enter="onTap(item)"
       @keydown.space.prevent="onTap(item)"
     >
-      <view class="tab-indicator" v-if="item.key === current" />
       <view class="tab-icon-wrap" :class="{ 'icon-active': item.key === current }">
-        <AppIcon :name="item.icon" size="lg" :color="item.key === current ? activeColor : inactiveColor" />
+        <AppIcon
+          :name="item.icon"
+          size="md"
+          variant="tab"
+          :color="item.key === current ? activeColor : inactiveColor"
+        />
       </view>
       <text class="tab-label">{{ item.label }}</text>
     </view>
@@ -120,6 +130,8 @@ function onTap(item) {
   background: var(--bg-card);
   border-top: 1rpx solid var(--line);
   box-shadow: 0 -4rpx 24rpx rgba(17, 30, 54, 0.06);
+  /* 原型 m-tabbar min-height: 68px；rpx 下固定为 136rpx，4/5 个 Tab 高度一致。 */
+  min-height: 136rpx;
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -131,28 +143,16 @@ function onTap(item) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16rpx 0 14rpx;
+  padding: 0;
   transition: opacity 0.15s;
 }
 
 .tab-item:active { opacity: 0.7; }
 
-/* 选中态顶部指示条 */
-.tab-indicator {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 48rpx;
-  height: 6rpx;
-  border-radius: 0 0 6rpx 6rpx;
-  background: var(--tab-active-color, var(--brand-deep));
-}
-
 .tab-icon-wrap {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 16rpx;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 12rpx;
   display: flex;
   align-items: center;
   justify-content: center;

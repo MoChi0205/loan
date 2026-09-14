@@ -133,6 +133,7 @@ export const useUserStore = defineStore('user', {
         'mini:approval:sms-template': ['boss', 'super'],
         'mini:approval:report-template': ['boss', 'super'],
         'mini:lead:mine': ['channel', 'adviser', 'deptmgr', 'boss', 'operator', 'super'],
+        'mini:lead:release': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],
         'mini:client:claim': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],
         'mini:client:batch-claim': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],
         'mini:client:release': ['adviser', 'deptmgr', 'boss', 'operator', 'super'],

@@ -7,7 +7,8 @@
  *   成功返回 { leadNo, duplicated:false }；重复时 HTTP 200 但 msg="该客户已被录入，请联系运营"、
  *   data={ leadNo:null, duplicated:true }（沙箱脱敏，不泄归属人）。前端据 duplicated 判断友好文案。
  * - GET  /api/mini/lead/my?page=&size=：分页返回本人录入的线索（PageResult<Map>），
- *   每条字段：leadNo / contactName(脱敏) / entName / phone(掩码) / followStatus / createdAt。
+ *   每条字段：leadNo / contactName(脱敏) / entName / phone(掩码) / followStatus /
+ *   ownerStaffCode / createdBy / createdAt。
  */
 import { requestGet, requestPost } from './request';
 
@@ -34,6 +35,11 @@ export function submitLead(payload) {
  */
 export function myLeads(page = 1, size = 10) {
   return requestGet('/api/mini/lead/my', { page, size });
+}
+
+/** 本人主动释放归属自己的线索到公司公海。 */
+export function releaseLead(leadNo) {
+  return requestPost(`/api/mini/lead/${leadNo}/release`, {});
 }
 
 /**

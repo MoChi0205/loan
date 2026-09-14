@@ -11,6 +11,10 @@
           <view class="name-col">
             <text class="profile-name">{{ displayName }}</text>
             <text class="profile-phone">{{ phoneDisplay }}</text>
+            <view class="profile-role">
+              <AppIcon name="shield" size="xs" color="#DCE5F3" />
+              <text class="profile-role-text">{{ identityLabel }}</text>
+            </view>
           </view>
           <AppClickable v-if="!isChannelRole && !isStaffRole" class="auth-chip" :class="store.isAuthed ?' chip-ok' :' chip-todo'" @click="onGoAuth">
             {{ store.isAuthed ? '已认证' : '去认证' }}
@@ -205,6 +209,7 @@ import { useUserStore } from '../../store/user';
 import TabBar from '../../components/TabBar.vue';
 import MessageSheet from '../../components/MessageSheet.vue';
 import { toggleThemeMode, useThemeMode } from '../../theme';
+import { roleConfig } from '../../utils/roles';
 import { mine as getMyInviteCode } from '../../api/invitation';
 import { orderList, rewardSummary } from '../../api/order';
 import { approvalCounts } from '../../api/approval';
@@ -289,6 +294,10 @@ const isChannelRole = computed(() => role.value === 'channel');
 const isStaffRole = computed(
   () => ['adviser', 'deptmgr', 'boss', 'operator', 'super'].indexOf(role.value) >= 0,
 );
+/** 角色属于账户资料，不作为首页状态强调；统一在“我的”资料头弱展示。 */
+const identityLabel = computed(() => (
+  role.value === 'customer' ? '客户账号' : roleConfig(role.value).label
+));
 /** 审核中心可操作角色：D39 纳入部门经理；08-矩阵「四类审核均开放」含顾问 adviser。 */
 const isApproverRole = computed(() => store.hasPermission('mini:approval:view'));
 
@@ -515,6 +524,15 @@ function onLogout() {
 .profile-name { color: var(--text-invert); font-size: 34rpx; font-weight: 700; }
 
 .profile-phone { margin-top: 8rpx; color: rgba(255, 255, 255, 0.55); font-size: 24rpx; }
+
+.profile-role {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: 12rpx;
+}
+
+.profile-role-text { color: var(--hero-text-weak); font-size: 24rpx; font-weight: 500; line-height: 1; }
 
 .auth-chip {
   padding: 10rpx 24rpx;

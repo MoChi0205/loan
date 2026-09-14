@@ -19,7 +19,6 @@
           <view class="head-col">
             <text class="hi">{{ greetingText }}</text>
             <text class="nm">{{ displayName }}</text>
-            <text class="avatar-action" @click="onChooseAvatarClick">授权使用微信头像</text>
           </view>
           <view class="head-msg" @click="openMsg" aria-label="消息中心">
             <AppIcon name="bell" size="md" color="#FFFFFF" />
@@ -27,10 +26,6 @@
           </view>
         </view>
         <text class="sub">{{ rc.homeSub }}</text>
-        <view class="role-pill">
-          <AppIcon name="shield" size="sm" color="#E7D3A6" />
-          <text class="role-pill-text">{{ rc.tag }} · {{ rc.ut }}</text>
-        </view>
       </view>
 
       <!-- ===== 内容区 ===== -->
@@ -75,7 +70,7 @@
             <view class="m-tag ok">服务中</view>
           </view>
           <view v-else class="m-empty">
-            <view class="ill"><AppIcon name="support" size="md" color="#C7A15A" /></view>
+            <view class="ill"><AppIcon name="support" size="tile" color="#C7A15A" /></view>
             <text class="m-empty-t">暂未分配服务顾问</text>
           </view>
         </view>
@@ -86,12 +81,12 @@
           <view v-for="(l, i) in myLeadList" :key="i" class="m-row">
             <view class="m-row-main">
               <text class="t1">{{ l.entName || '—' }}</text>
-              <text class="t2">录入于 {{ l.createdAt || '—' }}</text>
+              <text class="t2">创建人：{{ l.createdBy || '—' }} · 录入于 {{ l.createdAt || '—' }}</text>
             </view>
             <view :class="['m-tag', leadStatusTone(l.followStatus)]">{{ leadStatusLabel(l.followStatus) }}</view>
           </view>
           <view v-if="!myLeadList.length" class="m-empty">
-            <view class="ill"><AppIcon name="leads" size="md" color="#C7A15A" /></view>
+            <view class="ill"><AppIcon name="leads" size="tile" color="#C7A15A" /></view>
             <text class="m-empty-t">暂无录入线索</text>
           </view>
         </view>
@@ -110,7 +105,7 @@
             <view class="m-tag warn">待审批</view>
           </view>
           <view v-else class="m-empty">
-            <view class="ill"><AppIcon name="check" size="md" color="#C7A15A" /></view>
+            <view class="ill"><AppIcon name="check" size="tile" color="#C7A15A" /></view>
             <text class="m-empty-t">暂无待办审批</text>
           </view>
         </view>
@@ -118,13 +113,16 @@
         <!-- 我的报告入口（有报告权限的角色） -->
         <view v-if="store.hasPermission('mini:report:view')" class="m-card">
           <view class="m-card-h">
-            <text class="m-card-t">我的报告</text>
+            <text class="m-card-t">{{ rc.reportTitle }}</text>
             <text class="m-card-more" @click="goReport">全部 ›</text>
           </view>
           <view class="m-row" @click="goReport">
+            <view class="row-ic" :style="{ background: toneBg('gold') }">
+              <AppIcon name="report" size="tile" color="#FFFFFF" />
+            </view>
             <view class="m-row-main">
-              <text class="t1">查看匹配与诊断报告</text>
-              <text class="t2">按客户与日期查看</text>
+              <text class="t1">{{ rc.reportPrompt }}</text>
+              <text class="t2">{{ rc.reportDesc }}</text>
             </view>
             <text class="m-go">›</text>
           </view>
@@ -163,7 +161,7 @@ import { uploadAvatar } from '../../utils/avatar';
 
 /**
  * 首页（角色化，唯一视觉真源 = docs/prototypes/redesign-all-roles-v1.html）。
- * 结构：深色墨蓝 Hero（头像 + 问候 + 角色胶囊 + 消息铃铛）→ 统计行 → 角色化快捷宫格 → 角色化信息卡。
+ * 结构：深色墨蓝 Hero（头像 + 问候 + 角色化业务说明 + 消息铃铛）→ 统计行 → 角色化快捷宫格 → 角色化信息卡。
  */
 const store = useUserStore();
 const themeMode = useThemeMode();
@@ -388,16 +386,9 @@ function openMsg() { msgOpen.value = true; }
 .head-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hi { font-size: 24rpx; color: var(--hero-text-dim); }
 .nm { margin-top: 4rpx; font-size: 38rpx; font-weight: 800; color: var(--text-invert); }
-.avatar-action { margin-top: 6rpx; font-size: 22rpx; color: var(--hero-text-weak); }
 .head-msg { position: relative; width: 76rpx; height: 76rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .head-msg .dot { position: absolute; right: 14rpx; top: 12rpx; width: 16rpx; height: 16rpx; border-radius: 50%; background: var(--hero-dot); border: 3rpx solid var(--brand-navy); }
 .sub { margin-top: 18rpx; font-size: 23rpx; color: var(--hero-text-muted); }
-.role-pill {
-  display: inline-flex; align-items: center; gap: 8rpx; margin-top: 18rpx;
-  background: rgba(199, 161, 90, 0.20); border: 1rpx solid rgba(199, 161, 90, 0.4);
-  padding: 8rpx 18rpx; border-radius: 999rpx;
-}
-.role-pill-text { font-size: 22rpx; font-weight: 700; color: var(--hero-gold); }
 
 /* ===== 内容区 ===== */
 .m-body { padding: 24rpx 24rpx 24rpx; }
@@ -413,8 +404,10 @@ function openMsg() { msgOpen.value = true; }
 
 /* 与设计真源原型 .m-grid / .m-qk 逐项对齐（px→rpx ×2）：
    列间距 14px→28rpx、下外边距 20px→40rpx、磁贴高 94px→188rpx、圆角 16px→32rpx、
-   内距 14/6/12px→28/12/24rpx、内 gap 9px→18rpx、浮起阴影同原型（--shadow-tile） */
-.m-grid { display: flex; flex-wrap: wrap; gap: 28rpx; margin-bottom: 40rpx; }
+   内距 14/6/12px→28/12/24rpx、内 gap 9px→18rpx、浮起阴影同原型（--shadow-tile）。
+   justify-content:center 让「不满的末行」居中（5 项 = 3+2，第二行 2 项居中而非左对齐）；
+   列数仍由 utils/grid.js#gridCols 决定，与原型 gridStyle 同源。 */
+.m-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 28rpx; margin-bottom: 40rpx; }
 .m-qk {
   /* 宽度由 script 按磁贴数量注入（utils/grid.js），不再写死 4 列的 1/4 */
   min-height: 188rpx;
@@ -452,6 +445,8 @@ function openMsg() { msgOpen.value = true; }
   background: var(--bg-input); color: var(--brand-deep); font-size: 28rpx; font-weight: 800;
 }
 .m-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* 行首图标锚点：与 .m-ava 同尺寸（76rpx/22rpx），让「我的报告」入口与其它行有同一视觉锚点 */
+.row-ic { width: 76rpx; height: 76rpx; border-radius: 22rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .t1 { font-size: 27rpx; font-weight: 700; color: var(--text-primary); }
 .t2 { margin-top: 6rpx; font-size: 22rpx; color: var(--text-secondary); }
 .m-go { font-size: 36rpx; color: var(--text-secondary); flex-shrink: 0; }
@@ -461,9 +456,9 @@ function openMsg() { msgOpen.value = true; }
 .m-tag.warn { color: var(--warning-text); background: var(--warning-bg); }
 .m-tag.info { color: var(--info-text); background: var(--brand-bg); }
 
-.m-empty { display: flex; flex-direction: column; align-items: center; padding: 30rpx 0 10rpx; }
-.m-empty .ill { width: 88rpx; height: 88rpx; border-radius: 24rpx; background: var(--bg-input); display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; }
-.m-empty-t { font-size: 22rpx; color: var(--text-secondary); text-align: center; }
+.m-empty { display: flex; align-items: center; gap: 20rpx; padding: 22rpx 0 8rpx; }
+.m-empty .ill { width: 76rpx; height: 76rpx; border-radius: 22rpx; background: var(--bg-input); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.m-empty-t { font-size: 24rpx; color: var(--text-secondary); text-align: left; }
 
 .m-note { padding: 8rpx 4rpx 12rpx; }
 .m-note-t { display: block; text-align: center; font-size: 22rpx; color: var(--text-secondary); }

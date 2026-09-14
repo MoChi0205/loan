@@ -6,7 +6,7 @@
       <!-- 提示条：录入客户进入公海，由顾问跟进（渠道沙箱隔离） -->
       <view class="tip-bar">
         <AppIcon name="users" size="md" />
-        <text class="tip-text">新增后仅本人立即可见，待公司审核通过后进入公海并由顾问跟进</text>
+        <text class="tip-text">{{ store.isStaff ? '新增线索自动归属本人，可主动释放到公司公海' : '新增后仅本人立即可见，待公司审核通过后进入公海并由顾问跟进' }}</text>
       </view>
 
       <!-- 员工专属：录入前客户查重（多条件：企业名/信用代码/手机号/身份证/联系人） -->
@@ -132,7 +132,11 @@
           <text v-if="item.entName" class="lead-ent">{{ item.entName }}</text>
           <view class="lead-meta">
             <text class="lead-status">{{ leadStatusLabel(item.followStatus) }}</text>
+            <text class="lead-date">创建人：{{ item.createdBy || '—' }}</text>
             <text class="lead-date">{{ formatDate(item.createdAt) }}</text>
+          </view>
+          <view v-if="canRelease(item)" class="lead-actions">
+            <AppButton variant="secondary" size="sm" @click="onRelease(item)">释放到公司公海</AppButton>
           </view>
         </view>
         <AppLoadMore v-if="records.length" :loading="loadingMore" :finished="finished" :error="hasError" @load="loadMore" />
@@ -154,7 +158,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useUserStore } from '../store/user';
 import { useThemeMode } from '../theme';
-import { submitLead, myLeads, leadStatusLabel } from '../api/lead';
+import { submitLead, myLeads, releaseLead, leadStatusLabel } from '../api/lead';
 import { searchClient, claimClient } from '../api/client';
 import AppIcon from './AppIcon.vue';
 import AppButton from './AppButton.vue';
@@ -180,6 +184,7 @@ const loadingMore = ref(false);
 const finished = ref(false);
 const hasError = ref(false);
 const submitting = ref(false);
+const releasingLeadNo = ref('');
 
 // 客户查重（员工专属，录入前多条件查重；提交时仍由后端 MiniLeadService 兜底）
 const clientSearchKw = ref('');
@@ -325,6 +330,31 @@ async function loadMore() {
 
 function reload() { loadLeads(); }
 
+function canRelease(item) {
+  return store.isStaff && store.hasPermission('mini:lead:release')
+    && item.ownerStaffCode && item.ownerStaffCode === (store.user && store.user.userNo);
+}
+
+async function onRelease(item) {
+  if (releasingLeadNo.value) return;
+  const confirmed = await new Promise((resolve) => {
+    uni.showModal({
+      title: '释放线索',
+      content: '释放后该线索将进入公司公海，其他员工可以认领。确认释放？',
+      success: (res) => resolve(!!res.confirm),
+      fail: () => resolve(false),
+    });
+  });
+  if (!confirmed) return;
+  releasingLeadNo.value = item.leadNo;
+  try {
+    await releaseLead(item.leadNo);
+    uni.showToast({ title: '已释放到公司公海', icon: 'none' });
+    loadLeads();
+  } catch (e) { /* toast 已由请求层弹出 */ }
+  finally { releasingLeadNo.value = ''; }
+}
+
 /** 提交录入 */
 async function onSubmit() {
   if (submitting.value) return;
@@ -344,7 +374,10 @@ async function onSubmit() {
       uni.showToast({ title: '该客户已存在，可申请认领', icon: 'none', duration: 2500 });
       return;
     }
-    uni.showToast({ title: res && res.sameNameWarning ? '录入成功，存在同名客户请注意核对' : '录入成功，等待公司审核', icon: 'none', duration: 2600 });
+    const successText = store.isStaff
+      ? '录入成功，已自动归属本人'
+      : '录入成功，等待公司审核';
+    uni.showToast({ title: res && res.sameNameWarning ? '录入成功，存在同名客户请注意核对' : successText, icon: 'none', duration: 2600 });
     resetForm();
     loadLeads();
   } catch (e) {
@@ -374,6 +407,12 @@ watch(() => props.active, (on) => {
 .content {
   padding: var(--space-4);
   padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom));
+}
+
+.lead-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-2);
 }
 
 /* 提示条 */

@@ -49,6 +49,8 @@ const props = defineProps({
   name: { type: String, default: 'home' },
   size: { type: String, default: 'md' },
   color: { type: String, default: '' },
+  /** 专用字形集合：tab 对齐原型底部导航，其它场景继续使用默认图标库。 */
+  variant: { type: String, default: 'default' },
 });
 
 /**
@@ -141,14 +143,30 @@ const RAWS = {
   invite: '<path d="M12 5v14M5 12h14"/>',
   channel: '<circle cx="7" cy="12" r="3"/><circle cx="17" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/><path d="M9.6 11l5.4-3M9.6 13l5.4 3"/>',
 };
+
+/**
+ * 底部导航专用字形：直接对齐 redesign-all-roles-v1.html 的 ICON 表。
+ * 独立于通用图标库，避免调整 TabBar 几何时改变页面内其它图标。
+ */
+const TAB_RAWS = {
+  home: '<path d="M4 11l8-6 8 6M6 10v9h12v-9"/>',
+  match: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16" opacity=".0"/><path d="M8.5 12l2.3 2.3L16 9"/>',
+  report: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h7M9 9h3"/>',
+  order: '<path d="M5 6h14v13H5zM5 6l1.5-2h11L19 6M9 11h6"/>',
+  person: '<circle cx="12" cy="8" r="3.4"/><path d="M5.2 20c0-3.5 3-6 6.8-6s6.8 2.5 6.8 6"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3.6 19.6c0-3.2 2.4-5.4 5.4-5.4s5.4 2.2 5.4 5.4"/><circle cx="17.2" cy="9.4" r="2.4"/><path d="M15.6 15.1c2.5.4 4.2 2.3 4.2 4.5"/>',
+  leads: '<path d="M12 3v18M5 8l7-5 7 5"/><circle cx="12" cy="14" r="2.4"/>',
+  shield: '<path d="M12 3l7 3v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V6z"/><path d="M8.8 12l2.2 2.2L15.6 9.4"/>',
+};
 /** 图标别名：原型名 → 既有名（避免重复维护） */
 const ALIAS = { user: 'person', work: 'workbench' };
 
-function buildSvg(name, color) {
+function buildSvg(name, color, variant) {
   // 关键：width/height 显式声明，让 mp-weixin 拿到 intrinsic 尺寸；
   // stroke 写死真实色值，不用 currentColor；fill="none" 保证只描边不填充。
   const key = (RAWS[name] || SVGS[name]) ? name : (ALIAS[name] || name);
-  const inner = RAWS[key] || `<path d="${SVGS[key] || SVGS.home}"/>`;
+  const tabInner = variant === 'tab' ? TAB_RAWS[name] : '';
+  const inner = tabInner || RAWS[key] || `<path d="${SVGS[key] || SVGS.home}"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
 }
 
@@ -176,7 +194,7 @@ function toBase64(str) {
 }
 
 const src = computed(() => {
-  const svg = buildSvg(props.name, resolvedColor.value);
+  const svg = buildSvg(props.name, resolvedColor.value, props.variant);
   // base64 data URI 在 H5/小程序渲染管线中最稳定（避免 url-encoded data URI 被部分浏览器截断）
   return `data:image/svg+xml;base64,${toBase64(svg)}`;
 });
@@ -190,6 +208,7 @@ const src = computed(() => {
   flex-shrink: 0;
   line-height: 0;
 }
+.icon-xs { width: 24rpx; height: 24rpx; }
 .icon-sm { width: 32rpx; height: 32rpx; }
 /* 宫格磁贴图标底（80rpx）内专用：42rpx = 21px，占容器 52.5%，与设计真源原型一致 */
 .icon-tile { width: 42rpx; height: 42rpx; }

@@ -92,7 +92,10 @@ const quick = (key, label, icon, tone, route, segKey) => ({
 export const ROLES = {
   customer: {
     label: '客户', tag: '客户', ut: '个人用户', color: '#3AA37E',
-    homeSub: '您可自助智能匹配、查看我的报告与服务单',
+    homeSub: '完善资料后发起匹配，结果与经营诊断会同步保存在报告中',
+    reportTitle: '我的报告',
+    reportPrompt: '同时查看匹配与诊断结果',
+    reportDesc: '按生成时间查看历史结果',
     tabs: [tab('home', '首页'), tab('match', '智能匹配'), tab('report', '我的报告'), tab('order', '服务单'), tab('mine', '我的')],
     entry: null,
     hub: null,
@@ -107,7 +110,10 @@ export const ROLES = {
   },
   channel: {
     label: '渠道合作方', tag: '渠道合作方', ut: '合作渠道', color: '#7A5CC0',
-    homeSub: '仅展示您录入的线索所形成的客户与报告',
+    homeSub: '录入客户线索，跟进本人客户与线索处理进度',
+    reportTitle: '客户报告',
+    reportPrompt: '查看客户的匹配与诊断结果',
+    reportDesc: '报告详情请在管理端查看',
     // 「我的客户」只读；无公海、无认领（D50）
     tabs: [tab('home', '首页'), tab('luru', '线索录入'), tab('clients', '我的客户'), tab('mine', '我的')],
     entry: ENTRY_SEG_CHANNEL,
@@ -123,7 +129,10 @@ export const ROLES = {
   },
   adviser: {
     label: '顾问', tag: '顾问', ut: '公司员工', color: '#2C52C9',
-    homeSub: '查看您名下客户，跟进待办与申请进度',
+    homeSub: '跟进名下客户，发起匹配并掌握诊断进展',
+    reportTitle: '客户报告',
+    reportPrompt: '同时查看匹配与诊断结果',
+    reportDesc: '按客户与日期快速定位',
     tabs: [tab('home', '首页'), tab('luru', '线索录入'), tab('clients', '我的客户'), tab('mine', '我的')],
     entry: ENTRY_SEG_STAFF,
     hub: HUB_SEG_STAFF,
@@ -139,7 +148,10 @@ export const ROLES = {
   },
   deptmgr: {
     label: '部门经理', tag: '部门经理', ut: '公司员工', color: '#C7A15A',
-    homeSub: '团队客户、团队分配与本团队审批',
+    homeSub: '管理团队客户与审批待办，掌握匹配和诊断进展',
+    reportTitle: '团队报告',
+    reportPrompt: '查看团队客户的匹配与诊断结果',
+    reportDesc: '按客户、顾问与日期筛选',
     // 部门经理是审批人（后端 MANAGER_APIS 含 approval:*），与运营一致承载审批中心 tab
     tabs: [tab('home', '首页'), tab('luru', '线索录入'), tab('clients', '我的客户'), tab('approval', '审批中心'), tab('mine', '我的')],
     entry: ENTRY_SEG_STAFF,
@@ -158,7 +170,10 @@ export const ROLES = {
   },
   boss: {
     label: '老板', tag: '老板', ut: '公司管理者', color: '#B5443B',
-    homeSub: '全局经营、在途审批与业务全量',
+    homeSub: '掌握全司客户、审批与匹配诊断进展',
+    reportTitle: '经营报告',
+    reportPrompt: '查看全司匹配与诊断结果',
+    reportDesc: '按团队、客户与日期查看',
     // 老板是审批人（全量角色）→ 承载审批中心 tab；智能匹配让位给审批中心，
     // 仍可从首页快捷宫格「智能匹配」磁贴进入（D79 已给全部员工加该磁贴）。
     tabs: [tab('home', '首页'), tab('luru', '线索录入'), tab('approval', '审批中心'), tab('clients', '我的客户'), tab('mine', '我的')],
@@ -176,7 +191,10 @@ export const ROLES = {
   },
   operator: {
     label: '运营管理员', tag: '运营管理员', ut: '公司员工', color: '#2E8B6B',
-    homeSub: '我的客户、普通运营审批、模板与短信管理',
+    homeSub: '处理客户线索与审批，跟进匹配诊断进度',
+    reportTitle: '运营报告',
+    reportPrompt: '查看客户的匹配与诊断结果',
+    reportDesc: '按客户、状态与日期筛选',
     tabs: [tab('home', '首页'), tab('luru', '线索录入'), tab('clients', '我的客户'), tab('approval', '审批中心'), tab('mine', '我的')],
     entry: ENTRY_SEG_STAFF,
     hub: HUB_SEG_STAFF,
@@ -192,7 +210,10 @@ export const ROLES = {
   },
   super: {
     label: '超级管理员', tag: '超级管理员', ut: '系统管理员', color: '#1B2C4D',
-    homeSub: '组织·角色·菜单·权限与全量业务',
+    homeSub: '管理全量客户与审批，查看匹配诊断运行情况',
+    reportTitle: '全量报告',
+    reportPrompt: '查看全量匹配与诊断结果',
+    reportDesc: '按客户、角色与日期检索',
     // 超管是审批人（全量角色）→ 承载审批中心 tab；智能匹配让位给审批中心，
     // 仍可从首页快捷宫格「智能匹配」磁贴进入（D79 已给全部员工加该磁贴）。
     tabs: [tab('home', '首页'), tab('luru', '线索录入'), tab('approval', '审批中心'), tab('clients', '我的客户'), tab('mine', '我的')],
