@@ -8,6 +8,7 @@ import com.loan.approval.entity.ClientAllocationApproval;
 import com.loan.approval.mapper.ClientAllocationApprovalMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.client.mapper.ClientLifecycleEventMapper;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.lead.entity.LeadAllocationRecord;
@@ -47,6 +48,7 @@ class ClientAllocationServiceTest {
     @Mock private StaffMapper staffMapper;
     @Mock private LeadAllocationRecordMapper recordMapper;
     @Mock private ClientRecycleConfigMapper clientRecycleConfigMapper;
+    @Mock private ClientLifecycleEventMapper lifecycleEventMapper;
     @Mock private NotificationService notificationService;
     @Mock private BusinessNameService businessNameService;
     @Mock private StringRedisTemplate redisTemplate;
@@ -65,7 +67,8 @@ class ClientAllocationServiceTest {
     @BeforeEach
     void setUp() {
         service = new ClientAllocationService(redisTemplate, claimQuotaService, clientMapper, approvalMapper,
-                staffMapper, recordMapper, clientRecycleConfigMapper, notificationService, businessNameService);
+                staffMapper, recordMapper, clientRecycleConfigMapper, lifecycleEventMapper,
+                notificationService, businessNameService);
     }
 
     @Test

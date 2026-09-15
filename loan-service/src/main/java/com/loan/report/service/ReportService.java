@@ -996,8 +996,11 @@ public class ReportService {
                 }
             });
         }
+        long total = screeningMapper.selectCount(wrapper);
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, ClientScreening::getCreatedAt);
-        Page<ClientScreening> result = screeningMapper.selectPage(new Page<>(PageParams.page(page), PageParams.size(size)), wrapper);
+        Page<ClientScreening> requestPage = new Page<>(PageParams.page(page), PageParams.size(size), false);
+        Page<ClientScreening> result = screeningMapper.selectPage(requestPage, wrapper);
+        result.setTotal(total);
 
         List<String> clientCodes = result.getRecords().stream().map(ClientScreening::getClientProfileCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());

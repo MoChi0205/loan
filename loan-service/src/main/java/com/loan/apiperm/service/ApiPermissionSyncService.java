@@ -72,6 +72,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "order:page", "order:create", "order:detail", "order:updateStatus",
             "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim", "lead:applyView", "lead:quota",
             "client:pageLite", "client:detail", "client:update", "client:release", "client:follow", "client:history",
+            "client:unassignedPage", "client:claim",
             "attachment:page",
             "screening:run",
             "notification:mine", "notification:unreadCount", "notification:markAsRead",

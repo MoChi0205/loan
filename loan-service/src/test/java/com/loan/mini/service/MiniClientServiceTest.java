@@ -3,7 +3,9 @@ package com.loan.mini.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.loan.client.entity.ClientProfile;
+import com.loan.client.entity.ClientLifecycleEvent;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.client.mapper.ClientLifecycleEventMapper;
 import com.loan.client.service.ClientAllocationService;
 import com.loan.common.service.BusinessNameService;
 import com.loan.context.LoanUser;
@@ -22,7 +24,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.verify;
 class MiniClientServiceTest {
 
     @Mock private ClientProfileMapper clientProfileMapper;
+    @Mock private ClientLifecycleEventMapper lifecycleEventMapper;
     @Mock private LeadAllocationRecordMapper allocationRecordMapper;
     @Mock private StaffMapper staffMapper;
     @Mock private ClientAllocationService clientAllocationService;
@@ -46,12 +48,12 @@ class MiniClientServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MiniClientService(clientProfileMapper, allocationRecordMapper,
+        service = new MiniClientService(clientProfileMapper, lifecycleEventMapper, allocationRecordMapper,
                 staffMapper, clientAllocationService, businessNameService);
     }
 
     @Test
-    void createLeavesNewCustomerUnassigned() {
+    void createAssignsNewCustomerToCreator() {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("entName", "测试企业");
         payload.put("contactPhone", "13800138000");
@@ -65,9 +67,13 @@ class MiniClientServiceTest {
 
         ArgumentCaptor<ClientProfile> captor = ArgumentCaptor.forClass(ClientProfile.class);
         verify(clientProfileMapper).insert(captor.capture());
-        assertNull(captor.getValue().getOwnerStaffCode());
+        assertEquals("S001", captor.getValue().getOwnerStaffCode());
         assertEquals("S001", captor.getValue().getCreatedBy());
-        assertEquals("CREATED_UNASSIGNED", result.get("action"));
-        assertNull(result.get("ownerStaffCode"));
+        assertEquals("CREATED_ASSIGNED", result.get("action"));
+        assertEquals("S001", result.get("ownerStaffCode"));
+        ArgumentCaptor<ClientLifecycleEvent> eventCaptor = ArgumentCaptor.forClass(ClientLifecycleEvent.class);
+        verify(lifecycleEventMapper).insert(eventCaptor.capture());
+        assertEquals("OWNER_ASSIGNED", eventCaptor.getValue().getEventType());
+        assertEquals("SELF_CREATE", eventCaptor.getValue().getReasonCode());
     }
 }

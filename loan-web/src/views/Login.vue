@@ -147,6 +147,9 @@ const rules = {
 const demoAccounts = [
   { username: 'crm-boss-001', password: '123456', role: '张老板' },
   { username: 'crm-adv-001', password: '123456', role: '李顾问' },
+  { username: 'crm-dept-001', password: '123456', role: '王经理 · 团队经理' },
+  { username: 'crm-op-001', password: '123456', role: '赵运营 · 运营人员' },
+  { username: 'crm-sup-001', password: '123456', role: '孙超管 · 超级管理员' },
   { username: '13911112222', password: 'loan-sim-pwd', role: '渠道-陈', channel: true },
 ];
 

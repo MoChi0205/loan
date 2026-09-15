@@ -192,14 +192,9 @@
     </AppDialog>
 
     <!-- 分配归属弹窗：角色门控（DEPT_MANAGER/BOSS/OPERATOR/SUPER_ADMIN/SUPER） -->
-    <AppDialog v-model:visible="assignVisible" title="分配归属" width="560px" :loading="assigning" @confirm="onAssignConfirm">
-      <el-form label-width="84px" label-position="right">
-        <el-form-item label="目标角色">
-          <el-radio-group v-model="assignRole" @change="onAssignRoleChange">
-            <el-radio value="ADVISER">顾问</el-radio>
-            <el-radio value="DEPT_MANAGER">部门经理</el-radio>
-          </el-radio-group>
-        </el-form-item>
+    <AppDialog v-model:visible="assignVisible" title="分配客户归属" width="560px" :loading="assigning" @confirm="onAssignConfirm">
+      <p class="assign-dialog-hint">从我司在职人员中选择归属人，支持按姓名或工号搜索；分配后立即生效。</p>
+      <el-form label-width="72px" label-position="right">
         <el-form-item label="归属人">
           <el-select
             v-model="assignTarget"
@@ -207,14 +202,15 @@
             remote
             :remote-method="searchAssignStaff"
             :loading="assignLoading"
-            placeholder="输入姓名搜索"
+            placeholder="搜索姓名或工号"
             style="width: 100%"
+            placement="bottom-start"
             @visible-change="(v) => { if (v) searchAssignStaff('') }"
           >
             <el-option
               v-for="o in assignOptions"
               :key="o.staffCode"
-              :label="staffDisplayLabel(o)"
+              :label="`${o.staffName} · ${o.roleName || o.roleCode} · ${o.deptName || '未分部门'}（${o.staffCode}）`"
               :value="o.staffCode"
               :disabled="o.status && o.status !== 'ACTIVE'"
             />
@@ -249,7 +245,6 @@ import { getClientDetail, pageClients, updateClientDetail, assignClient, recycle
 import { staffPage } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
-import { staffDisplayLabel } from '@/utils/display';
 import { ACTION_PERMISSION } from '@/utils/access';
 import AppTableActions from '@/components/AppTableActions.vue';
 
@@ -401,7 +396,7 @@ function ownClientActions(row) {
       onClick: () => onRecycleListRow(row),
     });
   }
-  if (isAdviser.value) {
+  if (isAdviser.value && clientScope.value === 'MY' && row.ownerStaffCode === userStore.userNo) {
     actions.push({ key: 'follow', label: '跟进', onClick: () => openFollow(row) });
     actions.push({
       key: 'release',
@@ -663,7 +658,6 @@ function goScreening() {
 // ============================================================
 const assignVisible = ref(false);
 const assigning = ref(false);
-const assignRole = ref('ADVISER');
 const assignTarget = ref('');
 const assignOptions = ref([]);
 const assignLoading = ref(false);
@@ -671,14 +665,9 @@ let assignSeq = 0;
 let assignTimer;
 
 function openAssign() {
-  assignRole.value = 'ADVISER';
   assignTarget.value = '';
   assignOptions.value = [];
   assignVisible.value = true;
-  searchAssignStaff('');
-}
-function onAssignRoleChange() {
-  assignTarget.value = '';
   searchAssignStaff('');
 }
 function searchAssignStaff(keyword) {
@@ -687,12 +676,20 @@ function searchAssignStaff(keyword) {
     const seq = ++assignSeq;
     assignLoading.value = true;
     try {
-      const res = await staffPage({ roleCode: assignRole.value, keyword: keyword.trim() || undefined, page: 1, size: 50 });
+      const query = { keyword: keyword.trim() || undefined, page: 1, size: 50 };
+      const [advisers, managers] = await Promise.all([
+        staffPage({ ...query, roleCode: 'ADVISER' }),
+        staffPage({ ...query, roleCode: 'DEPT_MANAGER' }),
+      ]);
       if (seq !== assignSeq) return;
-      assignOptions.value = (res.data?.records || []).map((s) => ({
+      const merged = new Map();
+      [...(advisers.data?.records || []), ...(managers.data?.records || [])].forEach((s) => merged.set(s.staffCode, s));
+      assignOptions.value = [...merged.values()].map((s) => ({
         staffCode: s.staffCode,
         staffName: s.staffName,
         deptName: s.deptName,
+        roleCode: s.roleCode,
+        roleName: s.roleName,
         status: s.status,
       }));
     } catch (e) {
@@ -794,5 +791,14 @@ watch(
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 16px;
+}
+.assign-dialog-hint {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--loan-text-secondary, var(--loan-text-muted));
+  background: var(--loan-fill-light, rgba(148, 163, 184, 0.1));
+  font-size: 13px;
+  line-height: 1.6;
 }
 </style>
