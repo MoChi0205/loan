@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>企业经营诊断报告 · 原型 V1</title>
+  <style>
+    :root{
+      --bg:#0e1626;--sider:#0b1322;--card:#131e33;--surface:#1b2945;--line:#26344f;--line2:#3a4d6e;
+      --text:#e8edf5;--sub:#b6c2d6;--muted:#8391a9;--gold:#d9a441;--gold2:#f2c879;--blue:#4c7bd9;
+      --green:#2fa37a;--orange:#c98a2b;--red:#d8695f;--purple:#9b7ad8;--radius:12px;
+    }
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+    button{font:inherit}.app{min-width:1180px;min-height:100vh;display:flex}.sider{width:214px;background:var(--sider);border-right:1px solid #1e2a42;position:fixed;left:0;top:0;bottom:0;padding:20px 14px}
+    .brand{display:flex;align-items:center;gap:11px;padding:0 10px 22px}.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(145deg,var(--gold),#966c20);display:grid;place-items:center;color:#111827;font-weight:900;box-shadow:0 8px 26px #d9a4412a}.brand b{font-size:15px}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.8px}
+    .group{color:#637089;font-size:11px;padding:15px 12px 7px}.nav{display:flex;align-items:center;gap:11px;height:42px;border-radius:9px;padding:0 12px;color:var(--sub);margin:3px 0}.nav svg{width:17px;height:17px}.nav.active{color:var(--gold2);background:#d9a4411c;box-shadow:inset 3px 0 var(--gold)}
+    .main{margin-left:214px;width:calc(100% - 214px)}.topbar{height:58px;border-bottom:1px solid var(--line);background:#101a2ccc;backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:sticky;top:0;z-index:3}.crumb{color:var(--muted);font-size:12px}.crumb b{color:var(--sub);font-weight:500}.avatar{display:flex;align-items:center;gap:9px;color:var(--sub)}.avatar i{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:#172033;font-style:normal;font-weight:800}
+    .tabs{height:40px;border-bottom:1px solid var(--line);display:flex;align-items:flex-end;padding:0 24px;gap:4px;background:#101a2c}.tab{height:34px;padding:0 14px;display:flex;align-items:center;color:var(--muted);border-radius:8px 8px 0 0}.tab.on{color:var(--gold2);background:var(--surface);border-bottom:2px solid var(--gold)}
+    .content{max-width:1500px;margin:auto;padding:22px 26px 50px}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:16px}.back{color:var(--muted);font-size:12px;margin-bottom:5px}.title-row{display:flex;align-items:center;gap:12px}.title-row h1{font-size:24px;line-height:1.25;margin:0;letter-spacing:.2px}.badge{font-size:11px;border-radius:999px;padding:3px 9px;border:1px solid #d9a44155;background:#d9a44118;color:var(--gold2)}.meta{color:var(--muted);font-size:12px;margin-top:7px}.actions{display:flex;gap:9px}.btn{height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line2);background:var(--surface);color:var(--text)}.btn.primary{background:var(--gold);border-color:var(--gold);color:#172033;font-weight:700}
+    .notice{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 15px;margin-bottom:14px;border:1px solid #c98a2b55;background:#c98a2b12;border-radius:10px;color:#e5c68f}.notice strong{color:var(--gold2)}.notice small{color:#bca476}.link{color:var(--gold2);font-weight:600;white-space:nowrap}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 2px 8px #00000024}.hero{display:grid;grid-template-columns:270px minmax(0,1fr) 310px;min-height:235px;margin-bottom:14px;overflow:hidden}.score{padding:24px;border-right:1px solid var(--line);display:flex;gap:20px;align-items:center}.ring{position:relative;width:128px;height:128px;border-radius:50%;background:conic-gradient(var(--gold) 0 74%,#26344f 74%);display:grid;place-items:center;flex:none}.ring:before{content:"";width:104px;height:104px;border-radius:50%;background:var(--card);position:absolute}.ring .n{position:relative;text-align:center;font:800 34px/1 ui-monospace,SFMono-Regular,Menlo,monospace}.ring small{position:relative;display:block;color:var(--muted);font-size:10px;margin-top:5px}.score-copy b{font-size:22px;color:var(--gold2)}.score-copy span{display:block;color:var(--muted);font-size:12px;margin-top:5px}.summary{padding:24px}.eyebrow{color:var(--gold2);font-size:11px;letter-spacing:1px;font-weight:700}.summary h2{font-size:20px;margin:7px 0 10px}.summary p{color:var(--sub);margin:0 0 14px;max-width:680px}.chips{display:flex;flex-wrap:wrap;gap:7px}.chip{padding:3px 9px;border-radius:6px;font-size:11px;background:var(--surface);color:var(--sub);border:1px solid var(--line2)}.chip.good{background:#2fa37a18;border-color:#2fa37a55;color:#77d6b4}.chip.warn{background:#c98a2b18;border-color:#c98a2b55;color:#e4bc78}
+    .readiness{padding:22px;border-left:1px solid var(--line);background:linear-gradient(155deg,#17243c,#131e33)}.readiness-head{display:flex;justify-content:space-between;align-items:center}.readiness-head b{font-size:15px}.readiness-head strong{color:#77d6b4;font-size:18px}.step{display:flex;gap:10px;margin-top:15px}.step i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:800;background:#2fa37a24;color:#77d6b4;border:1px solid #2fa37a55}.step div{flex:1}.step b{font-size:12px}.step small{display:block;color:var(--muted);font-size:11px;margin-top:2px}.step.current i{background:#d9a44124;color:var(--gold2);border-color:#d9a44155}
+    .section-head{display:flex;align-items:flex-end;justify-content:space-between;margin:20px 0 10px}.section-head h3{font-size:16px;margin:0}.section-head p{margin:2px 0 0;color:var(--muted);font-size:11px}.legend{display:flex;gap:12px;color:var(--muted);font-size:11px}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}.dot.sys{background:var(--green)}.dot.ocr{background:var(--blue)}.dot.todo{border:1px solid var(--orange)}
+    .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.kpi{padding:15px 16px;position:relative;overflow:hidden}.kpi:after{content:"";position:absolute;right:-18px;top:-22px;width:65px;height:65px;border-radius:50%;background:var(--tone,var(--gold));opacity:.08}.kpi .label{font-size:11px;color:var(--muted)}.kpi .value{font:750 22px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;margin:7px 0 5px}.kpi .change{font-size:11px;color:#77d6b4}.kpi .change.down{color:#efaaa2}.source{position:absolute;right:9px;bottom:8px;width:7px;height:7px;border-radius:50%;background:var(--tone,var(--green))}
+    .two{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(360px,.7fr);gap:12px}.panel{padding:18px}.panel-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.panel-title b{font-size:14px}.panel-title small{color:var(--muted);font-size:10px}.dimension{display:grid;grid-template-columns:75px 1fr 42px 110px;gap:10px;align-items:center;margin:13px 0}.dimension label{font-size:12px}.track{height:8px;border-radius:999px;background:var(--surface);position:relative}.track .bar{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--blue),#79a4ff)}.track .avg{position:absolute;top:-4px;width:2px;height:16px;background:var(--gold2)}.dimension strong{font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace}.dimension em{font-style:normal;font-size:10px;color:var(--muted)}
+    .matrix{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.risk{border:1px solid var(--line);border-radius:9px;padding:12px;background:#101a2b}.risk-top{display:flex;justify-content:space-between}.risk b{font-size:12px}.risk p{font-size:11px;color:var(--muted);margin:7px 0 0}.level{padding:2px 7px;border-radius:5px;font-size:10px}.level.high{background:#d8695f22;color:#efaaa2}.level.mid{background:#c98a2b22;color:#e6bf7d}.level.low{background:#2fa37a22;color:#77d6b4}
+    .trend-card{padding:18px}.chart{height:210px;position:relative;padding:10px 15px 25px 42px;border-left:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;gap:20px;align-items:flex-end}.chart:before,.chart:after{content:"";position:absolute;left:0;right:0;border-top:1px dashed #26344f}.chart:before{top:65px}.chart:after{top:125px}.year{flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;gap:7px;position:relative}.bar{width:28px;border-radius:5px 5px 0 0;position:relative}.bar.rev{background:linear-gradient(#688fe4,#3f67bc)}.bar.profit{background:linear-gradient(#d9a441,#a87722)}.bar.cash{background:linear-gradient(#46b991,#247c61)}.bar span{position:absolute;top:-19px;left:50%;transform:translateX(-50%);font:9px ui-monospace;white-space:nowrap;color:var(--sub)}.year label{position:absolute;bottom:-23px;font-size:10px;color:var(--muted)}.chart-legend{display:flex;gap:16px;justify-content:center;color:var(--muted);font-size:10px;margin-top:10px}
+    .finance{display:grid;grid-template-columns:1fr 1fr;gap:12px}.finance-card{padding:18px}.finance-score{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.mini{padding:12px;border-radius:8px;background:var(--surface)}.mini label{display:block;color:var(--muted);font-size:10px}.mini b{display:block;font-size:15px;margin-top:4px}.product{display:grid;grid-template-columns:1.4fr .8fr .8fr 78px;align-items:center;gap:8px;padding:11px 0;border-top:1px solid var(--line)}.product:first-of-type{border-top:0}.product b{font-size:12px}.product span{font-size:11px;color:var(--sub)}.match{height:6px;background:var(--surface);border-radius:99px;overflow:hidden}.match i{display:block;height:100%;background:var(--green)}
+    .action-list{display:flex;flex-direction:column}.action{display:grid;grid-template-columns:62px 1fr 92px 70px;gap:12px;align-items:center;padding:13px 0;border-top:1px solid var(--line)}.action:first-child{border-top:0}.days{font:800 12px ui-monospace;color:var(--gold2)}.action b{font-size:12px}.action small{display:block;color:var(--muted);font-size:10px;margin-top:2px}.owner{font-size:11px;color:var(--sub)}.status{font-size:10px;text-align:center;padding:3px 7px;border-radius:5px;background:var(--surface);color:var(--sub)}.status.now{background:#d9a4411f;color:var(--gold2)}
+    .data-map{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.data-item{padding:12px;border:1px solid var(--line);border-radius:8px}.data-item b{font-size:11px}.data-item span{display:block;color:var(--muted);font-size:10px;margin-top:3px}.data-state{float:right;width:7px;height:7px;border-radius:50%;margin-top:5px}.data-state.ok{background:var(--green)}.data-state.ocr{background:var(--blue)}.data-state.missing{border:1px solid var(--orange)}
+    .foot{margin-top:16px;padding:13px 16px;border:1px dashed var(--line2);border-radius:9px;color:var(--muted);font-size:10px;display:flex;justify-content:space-between}.prototype{position:fixed;right:14px;bottom:14px;background:#d9a441;color:#172033;border-radius:999px;padding:6px 11px;font-size:10px;font-weight:800;box-shadow:0 8px 20px #0008;z-index:6}
+    @media(max-width:1280px){.hero{grid-template-columns:240px 1fr}.readiness{display:none}.kpis{grid-template-columns:repeat(3,1fr)}.two{grid-template-columns:1fr}.data-map{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sider">
+    <div class="brand"><div class="logo">融</div><div><b>企业资金咨询</b><small>LOAN ADVISORY</small></div></div>
+    <div class="nav"><span>⌂</span>我的工作台</div><div class="group">客户经营</div>
+    <div class="nav"><span>◎</span>客户档案</div><div class="nav"><span>◫</span>线索管理</div><div class="group">报告分析</div>
+    <div class="nav active"><span>▥</span>经营诊断</div><div class="nav"><span>⌁</span>初筛报告</div><div class="nav"><span>↗</span>经营概览</div>
+    <div class="group">业务协同</div><div class="nav"><span>□</span>服务工单</div><div class="nav"><span>✓</span>审核中心</div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div class="crumb">企业资金咨询　/　报告分析　/　<b>经营诊断</b></div><div class="avatar"><i>王</i><div>王经理<br><small style="color:var(--muted)">部门经理</small></div></div></header>
+    <div class="tabs"><div class="tab">经营概览</div><div class="tab on">旭荣网络经营诊断　×</div></div>
+    <div class="content">
+      <div class="page-head"><div><div class="back">← 返回诊断报告列表</div><div class="title-row"><h1>上海旭荣网络科技有限公司 · 经营诊断报告</h1><span class="badge">已生成</span></div><div class="meta">报告编号 RPT-20260915-0187　·　数据截止 2026-08-31　·　报告版本 V2.1　·　归属顾问 王静</div></div><div class="actions"><button class="btn">导出 PDF</button><button class="btn">查看数据依据</button><button class="btn primary">上传最新材料</button></div></div>
+      <div class="notice"><div><strong>材料时效提醒：</strong>银行流水更新于 45 天前，建议补充最近一个月流水后重新诊断。 <small>税务与工商数据已核验。</small></div><div class="link">补充材料 →</div></div>
+
+      <section class="card hero">
+        <div class="score"><div class="ring"><div><div class="n">74</div><small>综合健康分</small></div></div><div class="score-copy"><b>BBB</b><span>经营基本稳健</span><span>行业前 32%</span></div></div>
+        <div class="summary"><div class="eyebrow">EXECUTIVE SUMMARY · 诊断结论</div><h2>资质优势突出，经营稳定；现金流与资本实力是当前融资关键约束</h2><p>企业具备高新技术、专精特新、科技小巨人及 A 级纳税人资质，未发现司法红牌。建议优先使用政策性增信和属地科技金融产品，补齐最新流水并降低短期负债集中度后再扩大授信申请。</p><div class="chips"><span class="chip good">高新技术企业</span><span class="chip good">专精特新</span><span class="chip good">A级纳税人</span><span class="chip warn">实缴比例偏低</span><span class="chip warn">流水需更新</span></div></div>
+        <div class="readiness"><div class="readiness-head"><b>融资准备度</b><strong>82%</strong></div><div class="step"><i>✓</i><div><b>企业与资质核验</b><small>工商、税务、资质已确认</small></div></div><div class="step"><i>✓</i><div><b>经营与财务分析</b><small>核心指标已完成诊断</small></div></div><div class="step current"><i>3</i><div><b>材料补充</b><small>待更新最近一个月流水</small></div></div><div class="step"><i>4</i><div><b>产品申报</b><small>预计可申报 4 款产品</small></div></div></div>
+      </section>
+
+      <div class="section-head"><div><h3>核心经营指标</h3><p>本期、同比、行业位置与数据来源在同一层呈现</p></div><div class="legend"><span><i class="dot sys"></i>系统已核验</span><span><i class="dot ocr"></i>OCR 提取</span><span><i class="dot todo"></i>待补采集</span></div></div>
+      <div class="kpis">
+        <div class="card kpi" style="--tone:#4c7bd9"><div class="label">营业收入</div><div class="value">¥3,860万</div><div class="change">↑ 18.6% 同比</div><i class="source" style="--tone:#4c7bd9"></i></div>
+        <div class="card kpi" style="--tone:#2fa37a"><div class="label">净利润</div><div class="value">¥426万</div><div class="change">利润率 11.0%</div><i class="source"></i></div>
+        <div class="card kpi" style="--tone:#d9a441"><div class="label">年开票额</div><div class="value">¥3,420万</div><div class="change">↑ 13.2% 同比</div><i class="source" style="--tone:#4c7bd9"></i></div>
+        <div class="card kpi" style="--tone:#9b7ad8"><div class="label">年纳税额</div><div class="value">¥182万</div><div class="change">纳税信用 A 级</div><i class="source"></i></div>
+        <div class="card kpi" style="--tone:#c98a2b"><div class="label">资产负债率</div><div class="value">58.7%</div><div class="change down">高于行业 4.7pct</div><i class="source" style="--tone:#c98a2b;border:1px solid #c98a2b;background:transparent"></i></div>
+      </div>
+
+      <div class="section-head"><div><h3>经营质量诊断</h3><p>六维评分不仅展示分数，同时对照行业基准与诊断证据</p></div></div>
+      <div class="two">
+        <section class="card panel"><div class="panel-title"><b>经营健康六维</b><small>金色刻度 = 行业均值</small></div>
+          <div class="dimension"><label>盈利能力</label><div class="track"><div class="bar" style="width:78%"></div><i class="avg" style="left:61%"></i></div><strong>78</strong><em>毛利与净利稳健</em></div>
+          <div class="dimension"><label>成长能力</label><div class="track"><div class="bar" style="width:84%"></div><i class="avg" style="left:58%"></i></div><strong>84</strong><em>营收连续增长</em></div>
+          <div class="dimension"><label>偿债能力</label><div class="track"><div class="bar" style="width:63%"></div><i class="avg" style="left:67%"></i></div><strong>63</strong><em>短债相对集中</em></div>
+          <div class="dimension"><label>现金流</label><div class="track"><div class="bar" style="width:59%"></div><i class="avg" style="left:64%"></i></div><strong>59</strong><em>回款周期偏长</em></div>
+          <div class="dimension"><label>经营稳定</label><div class="track"><div class="bar" style="width:82%"></div><i class="avg" style="left:62%"></i></div><strong>82</strong><em>客户结构稳定</em></div>
+          <div class="dimension"><label>合规资质</label><div class="track"><div class="bar" style="width:91%"></div><i class="avg" style="left:70%"></i></div><strong>91</strong><em>资质与税信突出</em></div>
+        </section>
+        <section class="card panel"><div class="panel-title"><b>风险优先级矩阵</b><small>仅展示需处理项</small></div><div class="matrix">
+          <div class="risk"><div class="risk-top"><b>短期偿债压力</b><span class="level high">高</span></div><p>一年内到期借款占有息负债 68%，建议优化期限结构。</p></div>
+          <div class="risk"><div class="risk-top"><b>银行流水时效</b><span class="level mid">中</span></div><p>最新流水距今 45 天，影响授信数据一致性核验。</p></div>
+          <div class="risk"><div class="risk-top"><b>实缴资本比例</b><span class="level mid">中</span></div><p>实缴 300 万 / 注册 1,000 万，部分产品关注资本实力。</p></div>
+          <div class="risk"><div class="risk-top"><b>司法与税务</b><span class="level low">低</span></div><p>暂未发现重大司法红牌，纳税信用维持 A 级。</p></div>
+        </div></section>
+      </div>
+
+      <div class="section-head"><div><h3>历年经营趋势</h3><p>收入、净利润与经营性现金流三线联看，识别“有利润但缺现金”</p></div></div>
+      <section class="card trend-card"><div class="chart">
+        <div class="year"><div class="bar rev" style="height:51%"><span>2,180</span></div><div class="bar profit" style="height:24%"><span>238</span></div><div class="bar cash" style="height:20%"><span>196</span></div><label>2023</label></div>
+        <div class="year"><div class="bar rev" style="height:68%"><span>3,255</span></div><div class="bar profit" style="height:36%"><span>361</span></div><div class="bar cash" style="height:27%"><span>248</span></div><label>2024</label></div>
+        <div class="year"><div class="bar rev" style="height:83%"><span>3,860</span></div><div class="bar profit" style="height:45%"><span>426</span></div><div class="bar cash" style="height:29%"><span>271</span></div><label>2025</label></div>
+        <div class="year"><div class="bar rev" style="height:91%"><span>4,320E</span></div><div class="bar profit" style="height:50%"><span>468E</span></div><div class="bar cash" style="height:37%"><span>338E</span></div><label>2026E</label></div>
+      </div><div class="chart-legend"><span><i class="dot" style="background:#4c7bd9"></i>营业收入（万元）</span><span><i class="dot" style="background:#d9a441"></i>净利润（万元）</span><span><i class="dot" style="background:#2fa37a"></i>经营现金流（万元）</span><span>2026E 为预测值</span></div></section>
+
+      <div class="section-head"><div><h3>融资诊断与建议</h3><p>从经营事实过渡到产品策略，不承诺最终授信结果</p></div></div>
+      <div class="finance">
+        <section class="card finance-card"><div class="panel-title"><b>融资承载能力</b><small>建议区间</small></div><div class="finance-score"><div class="mini"><label>建议融资额度</label><b>800–1,500 万</b></div><div class="mini"><label>建议期限</label><b>12–36 个月</b></div><div class="mini"><label>优先路径</label><b>政策增信</b></div></div><p style="color:var(--muted);font-size:11px;margin:13px 0 0">结合纳税、开票、利润与负债结构测算；正式额度以银行尽调与审批为准。</p></section>
+        <section class="card finance-card"><div class="panel-title"><b>优先产品方向</b><small>当前命中 4 款</small></div>
+          <div class="product"><b>专精特新信用贷</b><span>最高 1,500 万</span><div class="match"><i style="width:92%"></i></div><span>匹配 92%</span></div>
+          <div class="product"><b>嘉定科创贷</b><span>最高 1,000 万</span><div class="match"><i style="width:88%"></i></div><span>匹配 88%</span></div>
+          <div class="product"><b>电子保函授信</b><span>最高 1,000 万</span><div class="match"><i style="width:83%"></i></div><span>匹配 83%</span></div>
+        </section>
+      </div>
+
+      <div class="section-head"><div><h3>30 / 60 / 90 天行动计划</h3><p>建议必须落到责任人、期限和复核动作</p></div></div>
+      <section class="card panel"><div class="action-list">
+        <div class="action"><div class="days">0–30 天</div><div><b>补齐最近 1 个月银行流水与应收账款明细</b><small>重新计算现金流覆盖倍数，解除材料时效预警</small></div><div class="owner">企业财务 / 顾问</div><div class="status now">立即执行</div></div>
+        <div class="action"><div class="days">31–60 天</div><div><b>梳理短期借款到期结构并准备续贷安排</b><small>将一年内集中到期比例由 68% 降至 50% 以下</small></div><div class="owner">企业财务</div><div class="status">待启动</div></div>
+        <div class="action"><div class="days">61–90 天</div><div><b>优先申报政策性增信与专精特新专项产品</b><small>同时保留电子保函备用方案，避免集中申请多家银行</small></div><div class="owner">归属顾问</div><div class="status">待材料完成</div></div>
+      </div></section>
+
+      <div class="section-head"><div><h3>数据完整度与诊断依据</h3><p>结合当前系统字段，明确哪些已具备、哪些需要扩展</p></div><div class="badge">完整度 78%</div></div>
+      <section class="card panel"><div class="data-map">
+        <div class="data-item"><i class="data-state ok"></i><b>企业档案与资质</b><span>工商、信用代码、认证资料</span></div><div class="data-item"><i class="data-state ok"></i><b>纳税 / 开票</b><span>现有提交事实 + OCR 回灌</span></div>
+        <div class="data-item"><i class="data-state ocr"></i><b>利润与资产负债</b><span>需从财报 OCR 扩展字段</span></div><div class="data-item"><i class="data-state ocr"></i><b>银行流水 / 现金流</b><span>需流水结构化与月度聚合</span></div>
+        <div class="data-item"><i class="data-state ok"></i><b>匹配产品与规则</b><span>初筛报告、命中产品、规则日志</span></div><div class="data-item"><i class="data-state ok"></i><b>行业基准</b><span>t_industry_benchmark 当前可用</span></div>
+        <div class="data-item"><i class="data-state missing"></i><b>客户集中度</b><span>待采集 TOP5 客户收入占比</span></div><div class="data-item"><i class="data-state missing"></i><b>预测数据</b><span>需明确预测模型与人工确认</span></div>
+      </div></section>
+      <div class="foot"><span>本报告基于企业提供及系统核验的数据生成，仅用于经营与融资决策参考，不构成银行授信承诺。</span><span>示例原型数据 · 待接入真实诊断接口</span></div>
+    </div>
+  </main>
+</div>
+<div class="prototype">FIGMA SKILLS · DESIGN PROTOTYPE V1</div>
+</body>
+</html>

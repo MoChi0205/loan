@@ -44,7 +44,7 @@ INSERT INTO `t_channel_user` (`bank_channel_id`, `phone`, `phone_hash`, `passwor
 -- 菜单树（2026-09-01 补全 27 项，与 loan-web BASE_MENU_GROUPS 路径对齐；显式 id 供角色权限引用）
 INSERT INTO `t_menu` (`id`, `parent_id`, `menu_name`, `path`, `component`, `menu_type`, `permission_code`, `sort`, `status`, `created_by`) VALUES
 (1,  NULL, '工作台',     '/workbench',          'views/Workbench',                 'MENU', NULL,           1,  'ACTIVE', 'system'),
-(2,  NULL, '线索公海',   '/lead',               'views/lead/LeadPool',             'MENU', NULL,           2,  'ACTIVE', 'system'),
+(2,  NULL, '线索管理',   '/lead',               'views/lead/LeadPool',             'MENU', NULL,           2,  'ACTIVE', 'system'),
 (3,  NULL, '客户档案',   '/client',             'views/client/ClientProfile',      'MENU', 'page:client',  3,  'ACTIVE', 'system'),
 (4,  NULL, '初筛任务',   '/screening',          'views/screening/ScreeningCenter', 'MENU', NULL,           4,  'ACTIVE', 'system'),
 (5,  NULL, '服务工单',   '/order',              'views/order/OrderList',           'MENU', NULL,           5,  'ACTIVE', 'system'),

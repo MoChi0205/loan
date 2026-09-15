@@ -23,8 +23,10 @@
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
       <el-tabs v-model="clientScope" class="client-scope-tabs" @tab-change="onScopeChange">
         <el-tab-pane label="我的客户" name="MY" />
+        <el-tab-pane v-if="canViewTeamAssigned" label="团队已分配客户" name="TEAM" />
         <el-tab-pane v-if="canViewCompanyAssigned" label="全司已分配客户" name="ALL" />
         <el-tab-pane v-if="!isChannel" label="公司公海" name="COMPANY_SEA" />
+        <el-tab-pane v-if="canViewTeamAssigned" label="团队公海" name="TEAM_SEA" />
       </el-tabs>
       <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
         <el-input v-model="clientQuery.keyword" placeholder="搜索客户：身份证、信用代码、企业名、联系人或手机号" clearable style="width: 340px" @keyup.enter="searchClients" />
@@ -243,7 +245,7 @@ import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory } from '@/api/client';
+import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory, claimUnassignedClient } from '@/api/client';
 import { staffPage } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
@@ -257,8 +259,13 @@ const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 const isAdviser = computed(() => userStore.roleCode === 'ADVISER');
 const showOwnClientList = computed(() => isChannel.value || isAdviser.value);
+const canViewTeamAssigned = computed(() => userStore.roleCode === 'DEPT_MANAGER');
 const canViewCompanyAssigned = computed(() => ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
-const clientScope = ref(canViewCompanyAssigned.value ? 'ALL' : 'MY');
+const defaultClientScope = computed(() => {
+  if (canViewCompanyAssigned.value) return 'ALL';
+  return 'MY';
+});
+const clientScope = ref(defaultClientScope.value);
 const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
@@ -281,13 +288,25 @@ const {
   createdAtEnd: '',
   dealTimeStart: '',
   dealTimeEnd: '',
-  scope: canViewCompanyAssigned.value ? 'ALL' : 'MY',
+  scope: defaultClientScope.value,
 });
 
 function onScopeChange(scope) {
   clientQuery.scope = scope;
   clientQuery.page = 1;
   loadClients();
+}
+
+/** 菜单直达范围；未授权或缺失参数时回到当前角色默认范围。 */
+function resolveRouteScope() {
+  const requested = String(route.query.scope || '').toUpperCase();
+  const allowed = new Set(['MY', 'COMPANY_SEA']);
+  if (canViewTeamAssigned.value) {
+    allowed.add('TEAM');
+    allowed.add('TEAM_SEA');
+  }
+  if (canViewCompanyAssigned.value) allowed.add('ALL');
+  return allowed.has(requested) ? requested : defaultClientScope.value;
 }
 
 /** 建档时间范围（daterange）→ 拆成起止两个查询参数 */
@@ -360,6 +379,28 @@ async function loadHistory(code) {
 /** 我的客户列表操作列：查看档案 +（顾问）跟进 / 释放回公海 */
 function ownClientActions(row) {
   const actions = [{ key: 'detail', label: '查看档案', onClick: () => openChannelClient(row) }];
+  if (['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope.value)) {
+    if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {
+      actions.push({ key: 'assign-pool', label: '分配归属', type: 'primary', onClick: () => openAssignForRow(row) });
+    } else if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_CLAIM)) {
+      actions.push({
+        key: 'claim-pool',
+        label: '认领',
+        type: 'success',
+        confirm: '确认认领该客户？认领成功后将进入「我的客户」。',
+        onClick: () => onClaimPoolClient(row),
+      });
+    }
+  }
+  if (clientScope.value === 'TEAM' && canViewTeamAssigned.value) {
+    actions.push({
+      key: 'recycle-team',
+      label: '回收至团队公海',
+      type: 'warning',
+      confirm: '确认将该客户回收至本团队公海？回收后本团队成员可再次认领。',
+      onClick: () => onRecycleListRow(row),
+    });
+  }
   if (isAdviser.value) {
     actions.push({ key: 'follow', label: '跟进', onClick: () => openFollow(row) });
     actions.push({
@@ -371,6 +412,28 @@ function ownClientActions(row) {
     });
   }
   return actions;
+}
+
+function openAssignForRow(row) {
+  clientCode.value = row.clientCode;
+  loadDetail(row.clientCode);
+  openAssign();
+}
+
+async function onClaimPoolClient(row) {
+  try {
+    await claimUnassignedClient(row.clientCode);
+    ElMessage.success('认领成功，已归入我的客户');
+    loadClients();
+  } catch (e) { /* 拦截器已提示 */ }
+}
+
+async function onRecycleListRow(row) {
+  try {
+    await recycleClient(row.clientCode);
+    ElMessage.success('已回收至团队公海');
+    loadClients();
+  } catch (e) { /* 拦截器已提示 */ }
 }
 
 const followVisible = ref(false);
@@ -682,8 +745,8 @@ async function onRecycle() {
 // 路由参数 clientCode（query 或 path 参数均可）变化时重载
 // 所有角色均可看到客户列表（D67）：未选中客户时加载列表，选中时加载档案 + 历史
 watch(
-  () => route.query.clientCode || route.params.clientCode,
-  (code) => {
+  () => [route.query.clientCode || route.params.clientCode, route.query.scope],
+  ([code]) => {
     if (code) {
       clientCode.value = code;
       loadDetail(code);
@@ -691,6 +754,8 @@ watch(
       return;
     }
     clientCode.value = '';
+    clientScope.value = resolveRouteScope();
+    clientQuery.scope = clientScope.value;
     loadHistory('');
     loadClients();
   },

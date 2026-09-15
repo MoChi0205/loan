@@ -6,6 +6,8 @@ import com.loan.api.dto.PageResult;
 import com.loan.approval.entity.ClientAllocationApproval;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.client.entity.ClientLifecycleEvent;
+import com.loan.client.mapper.ClientLifecycleEventMapper;
 import com.loan.client.service.ClientAllocationService;
 import com.loan.common.ResultCode;
 import com.loan.common.service.BusinessNameService;
@@ -78,6 +80,7 @@ public class MiniClientService {
     public static final String SEA_TEAM = "TEAM";
 
     private final ClientProfileMapper clientProfileMapper;
+    private final ClientLifecycleEventMapper lifecycleEventMapper;
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final StaffMapper staffMapper;
     private final ClientAllocationService clientAllocationService;
@@ -169,9 +172,9 @@ public class MiniClientService {
         // 历史误写为 "NORMAL"，无任何查询按该值过滤，故此处归位为 ACTIVE。
         client.setStatus(CLIENT_STATUS_ACTIVE);
         client.setSource("MINI_STAFF_CREATE");
-        // 引荐人、录入人与服务顾问是三类关系。新档案先进入未分配客户池，
-        // 顾问认领走审批；管理角色通过管理端选择目标归属人后直接分配。
-        client.setOwnerStaffCode(null);
+        // 员工自行新增的客户直接归属本人；只有主动释放后才进入公司公海。
+        client.setOwnerStaffCode(staffCode);
+        client.setSeaLevel(null);
         client.setCreatedBy(staffCode);
         if (StringUtils.hasText(phone)) {
             client.setPhoneHash(sha256(phone));
@@ -183,7 +186,18 @@ public class MiniClientService {
         client.setUpdatedAt(LocalDateTime.now());
         clientProfileMapper.insert(client);
 
-        return result(client.getClientCode(), null, "CREATED_UNASSIGNED");
+        ClientLifecycleEvent event = new ClientLifecycleEvent();
+        event.setClientCode(client.getClientCode());
+        event.setEventType(staffCode == null ? "ENTER_COMPANY_SEA" : "OWNER_ASSIGNED");
+        event.setStaffCode(staffCode);
+        event.setSeaLevel(staffCode == null ? SEA_ENTERPRISE : null);
+        event.setEpisodeNo(1);
+        event.setEventAt(client.getCreatedAt());
+        event.setOperatorStaffCode(staffCode);
+        event.setReasonCode(staffCode == null ? "SYSTEM_CREATE" : "SELF_CREATE");
+        lifecycleEventMapper.insert(event);
+
+        return result(client.getClientCode(), staffCode, "CREATED_ASSIGNED");
     }
 
     /**

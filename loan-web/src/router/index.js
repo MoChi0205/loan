@@ -102,7 +102,7 @@ const routes = [
         path: 'lead',
         name: 'LeadPool',
         component: () => import('@/views/lead/LeadPool.vue'),
-        meta: { title: '线索公海' },
+        meta: { title: '线索管理' },
       },
       {
         path: 'client',

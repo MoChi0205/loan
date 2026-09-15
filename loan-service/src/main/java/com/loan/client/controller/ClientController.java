@@ -61,9 +61,9 @@ public class ClientController {
                                               @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
         String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
-        if (!"ADVISER".equals(role)) {
+        if (!java.util.Arrays.asList("ADVISER", "DEPT_MANAGER", "OPERATOR", "BOSS", "SUPER_ADMIN", "SUPER").contains(role)) {
             throw new com.loan.exception.BusinessException(
-                    com.loan.common.ResultCode.FORBIDDEN, "仅顾问可从未分配客户池申请认领");
+                    com.loan.common.ResultCode.FORBIDDEN, "当前角色无权从客户公海申请认领");
         }
         return Result.ok(clientAllocationService.applyTransfer(clientCode, user.getUserNo(), user));
     }

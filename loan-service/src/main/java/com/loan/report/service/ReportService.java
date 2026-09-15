@@ -9,14 +9,21 @@ import com.loan.api.dto.PageResult;
 import com.loan.common.util.PageOrder;
 import com.loan.common.util.PageParams;
 import com.loan.client.entity.ClientProfile;
+import com.loan.client.entity.ClientRecycleConfig;
+import com.loan.client.entity.ClientLifecycleEvent;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.client.mapper.ClientRecycleConfigMapper;
+import com.loan.client.mapper.ClientLifecycleEventMapper;
+import com.loan.common.ResultCode;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.lead.entity.Lead;
+import com.loan.lead.entity.LeadAllocationRecord;
+import com.loan.lead.mapper.LeadAllocationRecordMapper;
 import com.loan.lead.mapper.LeadMapper;
 import com.loan.order.entity.ServiceOrder;
 import com.loan.order.mapper.ServiceOrderMapper;
 import com.loan.context.LoanUser;
-import com.loan.lead.entity.Lead;
+import com.loan.exception.BusinessException;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
 import com.loan.report.entity.ClientScreening;
@@ -61,7 +68,10 @@ public class ReportService {
     private final ServiceOrderMapper orderMapper;
     private final RewardRecordMapper rewardRecordMapper;
     private final LeadMapper leadMapper;
+    private final LeadAllocationRecordMapper allocationRecordMapper;
     private final ClientProfileMapper clientProfileMapper;
+    private final ClientRecycleConfigMapper recycleConfigMapper;
+    private final ClientLifecycleEventMapper lifecycleEventMapper;
     private final ClientScreeningMapper screeningMapper;
     private final BankProductMapper bankProductMapper;
     private final StaffMapper staffMapper;
@@ -69,6 +79,9 @@ public class ReportService {
     /** 报表全量可见角色（运营/超管/老板/超级管理员）：跨全部数据范围。 */
     private static final Set<String> REPORT_FULL_ROLES =
             new HashSet<>(java.util.Arrays.asList("BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER"));
+
+    private static final Set<String> CLIENT_ASSIGN_ACTIONS =
+            new HashSet<>(java.util.Arrays.asList("CLAIM_APPROVED", "MANAGER_ASSIGN", "MANUAL", "AUTO"));
 
     /**
      * 计算当前用户报表数据可见范围（按角色）：
@@ -82,11 +95,11 @@ public class ReportService {
      */
     private Set<String> buildOwnerScope(LoanUser user) {
         if (user == null) {
-            return null;
+            return Collections.emptySet();
         }
         String role = user.getRoleCode();
         if (!StringUtils.hasText(role)) {
-            return null;
+            return Collections.emptySet();
         }
         role = role.toUpperCase();
         if (REPORT_FULL_ROLES.contains(role)) {
@@ -170,15 +183,301 @@ public class ReportService {
                 scopedCountCreated(rewardRecordMapper, RewardRecord::getCreatedAt, prev, orderNos, RewardRecord::getServiceOrderNo)));
         m.put("rewardAmountSumDelta", pctDelta(scopedSumRewardAmount(cur, orderNos), scopedSumRewardAmount(prev, orderNos)));
         m.put("screeningCountDelta", pctDelta(
-                scopedCountCreated(screeningMapper, ClientScreening::getCreatedAt, cur, clientCodes, ClientScreening::getClientProfileCode),
-                scopedCountCreated(screeningMapper, ClientScreening::getCreatedAt, prev, clientCodes, ClientScreening::getClientProfileCode)));
+                scopedScreeningCountCreated(scope, cur[0], cur[1]),
+                scopedScreeningCountCreated(scope, prev[0], prev[1])));
 
-        // 转化漏斗 + 分布维度（全局汇总，不按个人范围切割）
-        m.put("funnel", funnel());
-        m.put("customerGroupDist", distribution("customerGroup"));
-        m.put("productDist", distribution("product"));
-        m.put("orderStatusDist", distribution("orderStatus"));
+        // 转化漏斗 + 分布维度严格复用同一归属范围，避免经理/顾问侧泄露全司数据。
+        m.put("funnel", funnel(scope, orderNos));
+        m.put("customerGroupDist", distribution("customerGroup", scope));
+        m.put("productDist", distribution("product", scope));
+        m.put("orderStatusDist", distribution("orderStatus", scope));
         return m;
+    }
+
+    /**
+     * 客户运营分析（参考 TSE 的本人/团队/全司数据范围与公海流转口径）。
+     *
+     * <p>资产与 SLA 为查询时点快照；公海、分配与转化为近 days 天经营流量。
+     * scope 由后端按角色强制校验，不能依赖前端隐藏实现权限隔离。</p>
+     */
+    public Map<String, Object> operations(String requestedScope, int requestedDays, LoanUser user) {
+        int days = Math.max(7, Math.min(requestedDays, 365));
+        String scopeName = resolveOperationsScope(requestedScope, user);
+        Set<String> ownerScope = ownerScopeFor(scopeName, user);
+        LocalDateTime to = LocalDateTime.now();
+        LocalDateTime from = to.minusDays(days);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("scope", scopeName);
+        result.put("scopeLabel", scopeLabel(scopeName));
+        result.put("periodDays", days);
+        result.put("periodStart", from);
+        result.put("periodEnd", to);
+        result.put("availableScopes", availableOperationScopes(user));
+
+        Map<String, Object> assets = new LinkedHashMap<>();
+        assets.put("assigned", scopedClientCount(ownerScope));
+        assets.put("companySea", countSea("ENTERPRISE", null));
+        boolean teamSeaVisible = user != null && StringUtils.hasText(user.getDeptCode())
+                && ("DEPT_MANAGER".equalsIgnoreCase(user.getRoleCode())
+                || REPORT_FULL_ROLES.contains(normalizeRole(user)));
+        assets.put("teamSeaVisible", teamSeaVisible);
+        assets.put("teamSea", teamSeaVisible ? countSea("TEAM", user.getDeptCode()) : 0L);
+        assets.put("cooldown", countVisibleCooldown(user, teamSeaVisible));
+        result.put("clientAssets", assets);
+
+        long entered = countAllocationActions(Collections.singleton("CLIENT_RECYCLE"), from, to,
+                ownerScope, false, false, scopeName, user);
+        long claimed = countPoolAssignments(from, to, ownerScope);
+        long assigned = countAllocationActions(CLIENT_ASSIGN_ACTIONS, from, to,
+                ownerScope, false, true, scopeName, user);
+        long released = countSelfReleased(from, to, ownerScope);
+        Map<String, Object> sea = new LinkedHashMap<>();
+        sea.put("entered", entered);
+        sea.put("claimed", claimed);
+        sea.put("recycled", entered);
+        sea.put("released", released);
+        List<Map<String, Object>> seaDurations = lifecycleEventMapper.seaStayDurations(from, to, ownerScope);
+        double avgStay = averageHours(seaDurations);
+        sea.put("claimRate", rate(claimed, entered));
+        sea.put("avgStayHours", seaDurations.isEmpty() ? null : round1(avgStay));
+        sea.put("completedEpisodes", seaDurations.size());
+        sea.put("avgStayMetricAvailable", !seaDurations.isEmpty());
+        sea.put("currentPoolAgeHours", currentPoolAgeHours(ownerScope, scopeName, user));
+        result.put("seaEfficiency", sea);
+
+        Map<String, Object> allocation = new LinkedHashMap<>();
+        allocation.put("assigned", assigned);
+        allocation.put("claimed", claimed);
+        allocation.put("recycled", entered);
+        allocation.put("selfReleased", released);
+        result.put("allocationFlow", allocation);
+
+        ClientRecycleConfig cfg = recycleConfigMapper.selectOne(new LambdaQueryWrapper<ClientRecycleConfig>()
+                .eq(ClientRecycleConfig::getConfigKey, "GLOBAL").last("LIMIT 1"));
+        int recycleDays = cfg != null && cfg.getRecycleDays() != null && cfg.getRecycleDays() > 0
+                ? cfg.getRecycleDays() : 30;
+        int warnDays = cfg != null && cfg.getWarnDays() != null && cfg.getWarnDays() > 0
+                ? cfg.getWarnDays() : 3;
+        LocalDateTime overdueAt = to.minusDays(recycleDays);
+        LocalDateTime dueSoonAt = to.minusDays(Math.max(0, recycleDays - warnDays));
+        Map<String, Object> sla = new LinkedHashMap<>();
+        sla.put("neverFollowed", countNeverFollowed(ownerScope));
+        sla.put("overdue", countFollowClock(ownerScope, null, overdueAt, true));
+        sla.put("dueSoon", countFollowClock(ownerScope, overdueAt, dueSoonAt, false));
+        sla.put("recycleDays", recycleDays);
+        sla.put("warnDays", warnDays);
+        List<Map<String, Object>> firstDurations = lifecycleEventMapper.firstFollowDurations(from, to, ownerScope);
+        sla.put("avgFirstFollowHours", firstDurations.isEmpty() ? null : round1(averageHours(firstDurations)));
+        sla.put("firstFollowMetricAvailable", !firstDurations.isEmpty());
+        sla.put("firstFollowCompletedEpisodes", firstDurations.size());
+        result.put("followSla", sla);
+
+        Map<String, Object> conversion = new LinkedHashMap<>();
+        conversion.put("leads", scopedCountCreated(leadMapper, Lead::getCreatedAt,
+                new LocalDateTime[]{from, to}, ownerScope, Lead::getOwnerStaffCode));
+        conversion.put("clients", scopedCountCreated(clientProfileMapper, ClientProfile::getCreatedAt,
+                new LocalDateTime[]{from, to}, ownerScope, ClientProfile::getOwnerStaffCode));
+        conversion.put("screenings", scopedScreeningCountCreated(ownerScope, from, to));
+        conversion.put("orders", scopedCountCreated(orderMapper, ServiceOrder::getCreatedAt,
+                new LocalDateTime[]{from, to}, ownerScope, ServiceOrder::getOwnerStaffCode));
+        conversion.put("deals", scopedCountDealOrder(new LocalDateTime[]{from, to}, ownerScope));
+        conversion.put("dealAmount", scopedSumDealAmount(new LocalDateTime[]{from, to}, ownerScope));
+        conversion.put("timeBasis", "线索/客户/初筛/工单按创建时间，成交按成交时间");
+        result.put("conversion", conversion);
+        return result;
+    }
+
+    private String resolveOperationsScope(String requested, LoanUser user) {
+        String role = normalizeRole(user);
+        String defaultScope = REPORT_FULL_ROLES.contains(role) ? "ALL"
+                : "DEPT_MANAGER".equals(role) ? "TEAM" : "MY";
+        String scope = StringUtils.hasText(requested) ? requested.trim().toUpperCase() : defaultScope;
+        if (!availableOperationScopes(user).contains(scope)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "当前角色无权查看该经营统计范围");
+        }
+        return scope;
+    }
+
+    private List<String> availableOperationScopes(LoanUser user) {
+        String role = normalizeRole(user);
+        List<String> scopes = new ArrayList<>();
+        if (user != null && StringUtils.hasText(user.getUserNo())) scopes.add("MY");
+        if ("DEPT_MANAGER".equals(role) && StringUtils.hasText(user.getDeptCode())) scopes.add("TEAM");
+        if (REPORT_FULL_ROLES.contains(role)) scopes.add("ALL");
+        return scopes;
+    }
+
+    private Set<String> ownerScopeFor(String scope, LoanUser user) {
+        if ("ALL".equals(scope)) return null;
+        if ("MY".equals(scope)) return Collections.singleton(user.getUserNo());
+        if ("TEAM".equals(scope)) {
+            return staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                            .eq(Staff::getDeptCode, user.getDeptCode()))
+                    .stream().map(Staff::getStaffCode).filter(StringUtils::hasText).collect(Collectors.toSet());
+        }
+        return Collections.emptySet();
+    }
+
+    private String normalizeRole(LoanUser user) {
+        return user == null || user.getRoleCode() == null ? "" : user.getRoleCode().trim().toUpperCase();
+    }
+
+    private String scopeLabel(String scope) {
+        if ("ALL".equals(scope)) return "全司";
+        if ("TEAM".equals(scope)) return "本团队";
+        return "我的";
+    }
+
+    private long countSea(String seaLevel, String deptCode) {
+        LambdaQueryWrapper<ClientProfile> w = new LambdaQueryWrapper<ClientProfile>()
+                .isNull(ClientProfile::getOwnerStaffCode).eq(ClientProfile::getSeaLevel, seaLevel);
+        if (StringUtils.hasText(deptCode)) w.eq(ClientProfile::getSeaDeptCode, deptCode);
+        return clientProfileMapper.selectCount(w);
+    }
+
+    private long countVisibleCooldown(LoanUser user, boolean teamSeaVisible) {
+        LambdaQueryWrapper<ClientProfile> w = new LambdaQueryWrapper<ClientProfile>()
+                .isNull(ClientProfile::getOwnerStaffCode)
+                .gt(ClientProfile::getAssignBlockedUntil, LocalDateTime.now());
+        if (teamSeaVisible) {
+            w.and(q -> q.eq(ClientProfile::getSeaLevel, "ENTERPRISE")
+                    .or(x -> x.eq(ClientProfile::getSeaLevel, "TEAM")
+                            .eq(ClientProfile::getSeaDeptCode, user.getDeptCode())));
+        } else {
+            w.eq(ClientProfile::getSeaLevel, "ENTERPRISE");
+        }
+        return clientProfileMapper.selectCount(w);
+    }
+
+    private long countAllocationActions(Set<String> actions, LocalDateTime from, LocalDateTime to,
+                                        Set<String> scope, boolean fromNull, boolean toRequired,
+                                        String scopeName, LoanUser user) {
+        if (scope != null && scope.isEmpty()) return 0;
+        LambdaQueryWrapper<LeadAllocationRecord> w = new LambdaQueryWrapper<LeadAllocationRecord>()
+                .likeRight(LeadAllocationRecord::getLeadNo, "client")
+                .in(LeadAllocationRecord::getActionType, actions)
+                .ge(LeadAllocationRecord::getCreatedAt, from).lt(LeadAllocationRecord::getCreatedAt, to);
+        if (fromNull) w.isNull(LeadAllocationRecord::getFromStaffCode);
+        if (toRequired) w.isNotNull(LeadAllocationRecord::getToStaffCode);
+        applyAllocationScope(w, scope);
+        applyFullRolePersonalScope(w, scopeName, user);
+        return allocationRecordMapper.selectCount(w);
+    }
+
+    private long countPoolAssignments(LocalDateTime from, LocalDateTime to, Set<String> scope) {
+        if (scope != null && scope.isEmpty()) return 0;
+        LambdaQueryWrapper<LeadAllocationRecord> w = new LambdaQueryWrapper<LeadAllocationRecord>()
+                .likeRight(LeadAllocationRecord::getLeadNo, "client")
+                .in(LeadAllocationRecord::getActionType, java.util.Arrays.asList("CLAIM_APPROVED", "MANAGER_ASSIGN"))
+                .isNull(LeadAllocationRecord::getFromStaffCode)
+                .isNotNull(LeadAllocationRecord::getToStaffCode)
+                .ge(LeadAllocationRecord::getCreatedAt, from).lt(LeadAllocationRecord::getCreatedAt, to);
+        if (scope != null) w.in(LeadAllocationRecord::getToStaffCode, scope);
+        return allocationRecordMapper.selectCount(w);
+    }
+
+    private long countSelfReleased(LocalDateTime from, LocalDateTime to, Set<String> scope) {
+        if (scope != null && scope.isEmpty()) return 0;
+        LambdaQueryWrapper<LeadAllocationRecord> w = new LambdaQueryWrapper<LeadAllocationRecord>()
+                .likeRight(LeadAllocationRecord::getLeadNo, "client")
+                .eq(LeadAllocationRecord::getActionType, "CLIENT_RECYCLE")
+                .like(LeadAllocationRecord::getRemark, "主动释放")
+                .ge(LeadAllocationRecord::getCreatedAt, from).lt(LeadAllocationRecord::getCreatedAt, to);
+        if (scope != null) w.in(LeadAllocationRecord::getFromStaffCode, scope);
+        return allocationRecordMapper.selectCount(w);
+    }
+
+    private void applyAllocationScope(LambdaQueryWrapper<LeadAllocationRecord> w, Set<String> scope) {
+        if (scope != null) {
+            w.and(q -> q.in(LeadAllocationRecord::getFromStaffCode, scope)
+                    .or().in(LeadAllocationRecord::getToStaffCode, scope));
+        }
+    }
+
+    /** 全量角色选择“我的”时，流转记录仍必须限制到本人。 */
+    private void applyFullRolePersonalScope(LambdaQueryWrapper<LeadAllocationRecord> w,
+                                            String scopeName, LoanUser user) {
+        if ("MY".equals(scopeName) && user != null && StringUtils.hasText(user.getUserNo())) {
+            w.and(q -> q.eq(LeadAllocationRecord::getFromStaffCode, user.getUserNo())
+                    .or().eq(LeadAllocationRecord::getToStaffCode, user.getUserNo()));
+        }
+    }
+
+    private long countNeverFollowed(Set<String> scope) {
+        if (scope != null && scope.isEmpty()) return 0;
+        LambdaQueryWrapper<ClientProfile> w = new LambdaQueryWrapper<ClientProfile>()
+                .isNotNull(ClientProfile::getOwnerStaffCode)
+                .notExists("SELECT 1 FROM t_lead_allocation_record ar WHERE ar.lead_no = t_client_profile.client_code "
+                        + "AND ar.action_type = 'FOLLOW_UP'");
+        if (scope != null) w.in(ClientProfile::getOwnerStaffCode, scope);
+        return clientProfileMapper.selectCount(w);
+    }
+
+    private long countFollowClock(Set<String> scope, LocalDateTime lowerExclusive,
+                                  LocalDateTime upperInclusive, boolean includeNever) {
+        if (scope != null && scope.isEmpty()) return 0;
+        LambdaQueryWrapper<ClientProfile> w = new LambdaQueryWrapper<ClientProfile>()
+                .isNotNull(ClientProfile::getOwnerStaffCode);
+        if (includeNever) {
+            w.and(q -> q.isNull(ClientProfile::getLastFollowedAt)
+                    .or().le(ClientProfile::getLastFollowedAt, upperInclusive));
+        } else {
+            w.gt(ClientProfile::getLastFollowedAt, lowerExclusive)
+                    .le(ClientProfile::getLastFollowedAt, upperInclusive);
+        }
+        if (scope != null) w.in(ClientProfile::getOwnerStaffCode, scope);
+        return clientProfileMapper.selectCount(w);
+    }
+
+    private long scopedScreeningCountCreated(Set<String> scope, LocalDateTime from, LocalDateTime to) {
+        if (scope != null && scope.isEmpty()) return 0;
+        LambdaQueryWrapper<ClientScreening> w = new LambdaQueryWrapper<ClientScreening>()
+                .ge(ClientScreening::getCreatedAt, from).lt(ClientScreening::getCreatedAt, to);
+        if (scope != null) {
+            w.exists("SELECT 1 FROM t_client_profile cp WHERE cp.client_code = t_client_screening.client_profile_code "
+                    + "AND cp.owner_staff_code IN (" + sqlQuoted(scope) + ")");
+        } else {
+            w.exists("SELECT 1 FROM t_client_profile cp WHERE cp.client_code = t_client_screening.client_profile_code "
+                    + "AND cp.owner_staff_code IS NOT NULL");
+        }
+        return screeningMapper.selectCount(w);
+    }
+
+    private String sqlQuoted(Set<String> values) {
+        return values.stream().map(x -> "'" + x.replace("'", "''") + "'").collect(Collectors.joining(","));
+    }
+
+    private Double rate(long numerator, long denominator) {
+        if (denominator == 0) return null;
+        return Math.round(numerator * 1000.0 / denominator) / 10.0;
+    }
+
+    private double averageHours(List<Map<String, Object>> rows) {
+        if (rows == null || rows.isEmpty()) return 0d;
+        double total = 0d;
+        int count = 0;
+        for (Map<String, Object> row : rows) {
+            Object value = row.get("hours");
+            if (value == null) continue;
+            try { total += Double.parseDouble(value.toString()); count++; } catch (NumberFormatException ignored) { }
+        }
+        return count == 0 ? 0d : total / count;
+    }
+
+    private double round1(double value) {
+        return Math.round(value * 10d) / 10d;
+    }
+
+    private Double currentPoolAgeHours(Set<String> scope, String scopeName, LoanUser user) {
+        if (scope != null && scope.isEmpty()) return null;
+        String seaLevel = "TEAM".equals(scopeName) ? "TEAM" : "ENTERPRISE";
+        String seaDeptCode = "TEAM".equals(scopeName) ? user.getDeptCode() : null;
+        Map<String, Object> row = lifecycleEventMapper.averageCurrentPoolAgeHours(seaLevel, seaDeptCode);
+        Object value = row == null ? null : row.get("hours");
+        if (value == null) return null;
+        try { return round1(Double.parseDouble(value.toString())); }
+        catch (NumberFormatException e) { return null; }
     }
 
     /** 客户数：按归属范围。 */
@@ -189,6 +488,8 @@ public class ReportService {
         LambdaQueryWrapper<ClientProfile> w = new LambdaQueryWrapper<>();
         if (scope != null) {
             w.in(ClientProfile::getOwnerStaffCode, scope);
+        } else {
+            w.isNotNull(ClientProfile::getOwnerStaffCode);
         }
         return clientProfileMapper.selectCount(w);
     }
@@ -201,6 +502,8 @@ public class ReportService {
         LambdaQueryWrapper<Lead> w = new LambdaQueryWrapper<>();
         if (scope != null) {
             w.in(Lead::getOwnerStaffCode, scope);
+        } else {
+            w.isNotNull(Lead::getOwnerStaffCode);
         }
         return leadMapper.selectCount(w);
     }
@@ -216,6 +519,8 @@ public class ReportService {
         }
         if (scope != null) {
             w.in(ServiceOrder::getOwnerStaffCode, scope);
+        } else {
+            w.isNotNull(ServiceOrder::getOwnerStaffCode);
         }
         return orderMapper.selectCount(w);
     }
@@ -229,6 +534,8 @@ public class ReportService {
                 .select("IFNULL(SUM(deal_amount),0) AS amt").eq("status", ServiceOrder.STATUS_DEAL);
         if (scope != null) {
             w.in("owner_staff_code", scope);
+        } else {
+            w.isNotNull("owner_staff_code");
         }
         return firstSum(w, orderMapper);
     }
@@ -236,7 +543,9 @@ public class ReportService {
     /** 奖励数：按归属工单范围。 */
     private long scopedRewardCount(Set<String> scope, Set<String> orderNos) {
         if (scope == null) {
-            return rewardRecordMapper.selectCount(null);
+            return rewardRecordMapper.selectCount(new LambdaQueryWrapper<RewardRecord>()
+                    .exists("SELECT 1 FROM t_service_order o WHERE o.order_no = t_reward_record.service_order_no "
+                            + "AND o.owner_staff_code IS NOT NULL"));
         }
         if (scope.isEmpty() || orderNos.isEmpty()) {
             return 0;
@@ -248,7 +557,11 @@ public class ReportService {
     /** 奖励金额：按归属工单范围。 */
     private BigDecimal scopedRewardAmountSum(Set<String> scope, Set<String> orderNos) {
         if (scope == null) {
-            return rewardSum();
+            QueryWrapper<RewardRecord> w = new QueryWrapper<RewardRecord>()
+                    .select("IFNULL(SUM(reward_amount),0) AS amt")
+                    .exists("SELECT 1 FROM t_service_order o WHERE o.order_no = t_reward_record.service_order_no "
+                            + "AND o.owner_staff_code IS NOT NULL");
+            return firstSum(w, rewardRecordMapper);
         }
         if (scope.isEmpty() || orderNos.isEmpty()) {
             return BigDecimal.ZERO;
@@ -261,7 +574,9 @@ public class ReportService {
     /** 初筛报告数：按归属客户范围。 */
     private long scopedScreeningCount(Set<String> scope, Set<String> clientCodes) {
         if (scope == null) {
-            return screeningMapper.selectCount(null);
+            return screeningMapper.selectCount(new LambdaQueryWrapper<ClientScreening>()
+                    .exists("SELECT 1 FROM t_client_profile cp WHERE cp.client_code = t_client_screening.client_profile_code "
+                            + "AND cp.owner_staff_code IS NOT NULL"));
         }
         if (scope.isEmpty() || clientCodes.isEmpty()) {
             return 0;
@@ -280,6 +595,8 @@ public class ReportService {
         w.ge(col, range[0]).lt(col, range[1]);
         if (scope != null) {
             w.in(ownerCol, scope);
+        } else {
+            w.isNotNull(ownerCol);
         }
         return mapper.selectCount(w);
     }
@@ -294,6 +611,8 @@ public class ReportService {
                 .ge(ServiceOrder::getDealTime, range[0]).lt(ServiceOrder::getDealTime, range[1]);
         if (scope != null) {
             w.in(ServiceOrder::getOwnerStaffCode, scope);
+        } else {
+            w.isNotNull(ServiceOrder::getOwnerStaffCode);
         }
         return orderMapper.selectCount(w);
     }
@@ -308,6 +627,8 @@ public class ReportService {
                 .ge("deal_time", range[0]).lt("deal_time", range[1]);
         if (scope != null) {
             w.in("owner_staff_code", scope);
+        } else {
+            w.isNotNull("owner_staff_code");
         }
         return firstSum(w, orderMapper);
     }
@@ -315,7 +636,12 @@ public class ReportService {
     /** 奖励金额（created_at 落在 [range)，按归属工单范围）。orderNos=null 表示全量。 */
     private BigDecimal scopedSumRewardAmount(LocalDateTime[] range, Set<String> orderNos) {
         if (orderNos == null) {
-            return sumRewardAmount(range);
+            QueryWrapper<RewardRecord> w = new QueryWrapper<RewardRecord>()
+                    .select("IFNULL(SUM(reward_amount),0) AS amt")
+                    .ge("created_at", range[0]).lt("created_at", range[1])
+                    .exists("SELECT 1 FROM t_service_order o WHERE o.order_no = t_reward_record.service_order_no "
+                            + "AND o.owner_staff_code IS NOT NULL");
+            return firstSum(w, rewardRecordMapper);
         }
         if (orderNos.isEmpty()) {
             return BigDecimal.ZERO;
@@ -331,13 +657,16 @@ public class ReportService {
      * 转化漏斗：线索池 → 客户(转正) → 服务工单 → 成交 → 发放奖励（累计口径）。
      */
     public List<Map<String, Object>> funnel() {
+        return funnel(null, null);
+    }
+
+    private List<Map<String, Object>> funnel(Set<String> scope, Set<String> orderNos) {
         List<Map<String, Object>> list = new ArrayList<>();
-        list.add(stage("线索池", leadMapper.selectCount(null)));
-        list.add(stage("客户(转正)", clientProfileMapper.selectCount(null)));
-        list.add(stage("服务工单", orderMapper.selectCount(null)));
-        list.add(stage("成交", orderMapper.selectCount(new LambdaQueryWrapper<ServiceOrder>()
-                .eq(ServiceOrder::getStatus, ServiceOrder.STATUS_DEAL))));
-        list.add(stage("发放奖励", rewardRecordMapper.selectCount(null)));
+        list.add(stage("线索池", scopedLeadCount(scope)));
+        list.add(stage("客户(转正)", scopedClientCount(scope)));
+        list.add(stage("服务工单", scopedOrderCount(scope, false)));
+        list.add(stage("成交", scopedOrderCount(scope, true)));
+        list.add(stage("发放奖励", scopedRewardCount(scope, orderNos)));
         return list;
     }
 
@@ -347,11 +676,19 @@ public class ReportService {
      * @param dim customerGroup | product | orderStatus
      */
     public List<Map<String, Object>> distribution(String dim) {
+        return distribution(dim, null);
+    }
+
+    private List<Map<String, Object>> distribution(String dim, Set<String> scope) {
+        if (scope != null && scope.isEmpty()) return new ArrayList<>();
         switch (dim) {
             case "customerGroup": {
-                List<Map<String, Object>> rows = clientProfileMapper.selectMaps(new QueryWrapper<ClientProfile>()
-                        .select("COALESCE(customer_group, 'UNKNOWN') AS name", "COUNT(*) AS value")
-                        .groupBy("customer_group"));
+                QueryWrapper<ClientProfile> wrapper = new QueryWrapper<ClientProfile>()
+                        .select("COALESCE(customer_group, 'UNKNOWN') AS name", "COUNT(*) AS value");
+                if (scope != null) wrapper.in("owner_staff_code", scope);
+                else wrapper.isNotNull("owner_staff_code");
+                wrapper.groupBy("customer_group");
+                List<Map<String, Object>> rows = clientProfileMapper.selectMaps(wrapper);
                 return rows.stream().map(r -> {
                     Map<String, Object> x = new LinkedHashMap<>();
                     x.put("name", r.get("name"));
@@ -360,12 +697,15 @@ public class ReportService {
                 }).collect(Collectors.toList());
             }
             case "product": {
-                List<Map<String, Object>> rows = orderMapper.selectMaps(new QueryWrapper<ServiceOrder>()
+                QueryWrapper<ServiceOrder> wrapper = new QueryWrapper<ServiceOrder>()
                         .select("bank_product_code AS code", "COUNT(*) AS orderCount",
                                 "SUM(CASE WHEN status = 'DEAL' THEN 1 ELSE 0 END) AS dealCount",
                                 "IFNULL(SUM(CASE WHEN status = 'DEAL' THEN deal_amount ELSE 0 END), 0) AS dealAmount")
-                        .isNotNull("bank_product_code").ne("bank_product_code", "")
-                        .groupBy("bank_product_code").orderByDesc("dealAmount").last("LIMIT 8"));
+                        .isNotNull("bank_product_code").ne("bank_product_code", "");
+                if (scope != null) wrapper.in("owner_staff_code", scope);
+                else wrapper.isNotNull("owner_staff_code");
+                wrapper.groupBy("bank_product_code").orderByDesc("dealAmount").last("LIMIT 8");
+                List<Map<String, Object>> rows = orderMapper.selectMaps(wrapper);
                 java.util.Set<String> codes = new java.util.HashSet<>();
                 for (Map<String, Object> r : rows) {
                     Object c = r.get("code");
@@ -384,8 +724,12 @@ public class ReportService {
                 return rows;
             }
             case "orderStatus": {
-                List<Map<String, Object>> rows = orderMapper.selectMaps(new QueryWrapper<ServiceOrder>()
-                        .select("status AS name", "COUNT(*) AS value").groupBy("status"));
+                QueryWrapper<ServiceOrder> wrapper = new QueryWrapper<ServiceOrder>()
+                        .select("status AS name", "COUNT(*) AS value");
+                if (scope != null) wrapper.in("owner_staff_code", scope);
+                else wrapper.isNotNull("owner_staff_code");
+                wrapper.groupBy("status");
+                List<Map<String, Object>> rows = orderMapper.selectMaps(wrapper);
                 return rows.stream().map(r -> {
                     Map<String, Object> x = new LinkedHashMap<>();
                     x.put("name", r.get("name"));
@@ -519,6 +863,8 @@ public class ReportService {
                     .lt("deal_time", to);
             if (scope != null) {
                 wrapper.in("owner_staff_code", scope);
+            } else {
+                wrapper.isNotNull("owner_staff_code");
             }
             List<Map<String, Object>> rows = orderMapper.selectMaps(wrapper);
             Object cnt = rows.isEmpty() ? 0 : rows.get(0).get("cnt");
@@ -564,6 +910,9 @@ public class ReportService {
                 } else {
                     wrapper.in("service_order_no", orderNos);
                 }
+            } else {
+                wrapper.exists("SELECT 1 FROM t_service_order o WHERE o.order_no = t_reward_record.service_order_no "
+                        + "AND o.owner_staff_code IS NOT NULL");
             }
             List<Map<String, Object>> rows = rewardRecordMapper.selectMaps(wrapper);
             Object cnt = rows.isEmpty() ? 0 : rows.get(0).get("cnt");

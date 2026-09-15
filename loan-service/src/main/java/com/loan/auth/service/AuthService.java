@@ -7,6 +7,8 @@ import com.loan.channel.entity.ChannelUser;
 import com.loan.channel.mapper.ChannelUserMapper;
 import com.loan.common.ResultCode;
 import com.loan.context.LoanUser;
+import com.loan.client.entity.ClientLifecycleEvent;
+import com.loan.client.mapper.ClientLifecycleEventMapper;
 import com.loan.exception.BusinessException;
 import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.JwtService;
@@ -59,6 +61,7 @@ public class AuthService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final com.loan.client.mapper.ClientProfileMapper clientProfileMapper;
+    private final ClientLifecycleEventMapper lifecycleEventMapper;
     private final com.loan.sms.service.SmsService smsService;
     private final com.loan.invitation.service.InvitationService invitationService;
 
@@ -100,6 +103,14 @@ public class AuthService {
             client.setCreatedBy("mini");
             client.setCreatedAt(LocalDateTime.now());
             clientProfileMapper.insert(client);
+            ClientLifecycleEvent event = new ClientLifecycleEvent();
+            event.setClientCode(client.getClientCode());
+            event.setEventType("ENTER_COMPANY_SEA");
+            event.setSeaLevel("ENTERPRISE");
+            event.setEpisodeNo(1);
+            event.setEventAt(client.getCreatedAt());
+            event.setReasonCode("CUSTOMER_SELF_REGISTER");
+            lifecycleEventMapper.insert(event);
         }
         // 2. 绑定邀请码（可选）
         String referrerNo = null;

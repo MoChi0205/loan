@@ -20,7 +20,7 @@ ON DUPLICATE KEY UPDATE `role_name`=VALUES(`role_name`), `description`=VALUES(`d
 -- 2. 菜单 upsert（按 path 唯一键 uk_path，幂等）
 INSERT INTO `t_menu` (`menu_name`, `path`, `component`, `menu_type`, `sort`, `status`, `created_by`) VALUES
 ('工作台',      '/workbench',          'views/Workbench',                 'MENU', 1,  'ACTIVE', 'system'),
-('线索公海',    '/lead',               'views/lead/LeadPool',             'MENU', 2,  'ACTIVE', 'system'),
+('线索管理',    '/lead',               'views/lead/LeadPool',             'MENU', 2,  'ACTIVE', 'system'),
 ('客户档案',    '/client',             'views/client/ClientProfile',      'MENU', 3,  'ACTIVE', 'system'),
 ('初筛任务',    '/screening',          'views/screening/ScreeningCenter', 'MENU', 4,  'ACTIVE', 'system'),
 ('服务工单',    '/order',              'views/order/OrderList',           'MENU', 5,  'ACTIVE', 'system'),
@@ -46,6 +46,12 @@ INSERT INTO `t_menu` (`menu_name`, `path`, `component`, `menu_type`, `sort`, `st
 ('系统配置',    '/config-wizard',      'views/config/ConfigurationWizard','MENU', 25, 'ACTIVE', 'system'),
 ('调试中心',    '/debug',              'views/debug/DebugCenter',         'MENU', 26, 'ACTIVE', 'system'),
 ('材料识别',    '/ocr',                'views/ocr/OcrCenter',              'MENU', 27, 'ACTIVE', 'system')
+ON DUPLICATE KEY UPDATE `menu_name`=VALUES(`menu_name`), `component`=VALUES(`component`),
+  `sort`=VALUES(`sort`), `status`='ACTIVE';
+
+-- 部门经理团队公海入口：页面仍由 /client 承载，查询范围由后端 TEAM_SEA 强制校验。
+INSERT INTO `t_menu` (`menu_name`, `path`, `component`, `menu_type`, `sort`, `status`, `created_by`)
+VALUES ('团队公海', '/client?scope=TEAM_SEA', 'views/client/ClientProfile', 'MENU', 3, 'ACTIVE', 'system')
 ON DUPLICATE KEY UPDATE `menu_name`=VALUES(`menu_name`), `component`=VALUES(`component`),
   `sort`=VALUES(`sort`), `status`='ACTIVE';
 
@@ -86,6 +92,10 @@ SELECT 'ADVISER', m.`id`, 'system' FROM `t_menu` m WHERE m.`path` IN
 INSERT INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`)
 SELECT 'CHANNEL', m.`id`, 'system' FROM `t_menu` m WHERE m.`path` IN
 ('/workbench','/lead','/client','/product','/report/screening');
+
+INSERT IGNORE INTO `t_role_permission` (`role_code`, `menu_id`, `created_by`)
+SELECT 'DEPT_MANAGER', m.`id`, 'system' FROM `t_menu` m
+WHERE m.`path`='/client?scope=TEAM_SEA';
 
 -- ============================================================
 -- 4. 补充示例员工（覆盖 7 角色中 5 个管理角色，便于逐角色验收菜单）

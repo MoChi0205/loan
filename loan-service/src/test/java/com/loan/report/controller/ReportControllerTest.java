@@ -81,6 +81,13 @@ class ReportControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/admin/report/operations")
+    void get_api_admin_report_operations() throws Exception {
+        mvc.perform(get("/api/admin/report/operations"))
+            .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").exists());
+    }
+
+    @Test
     @DisplayName("GET /api/admin/report/order-trend")
     void get_api_admin_report_order_trend() throws Exception {
         mvc.perform(get("/api/admin/report/order-trend"))

@@ -263,8 +263,9 @@ const BASE_MENU_GROUPS = [
     short: '客户',
     icon: 'client',
     items: [
-      { path: '/lead', title: '线索公海', icon: 'lead' },
+      { path: '/lead', title: '线索管理', icon: 'lead' },
       { path: '/client', title: '客户档案', icon: 'client' },
+      { path: '/client?scope=TEAM_SEA', title: '团队公海', icon: 'sea', roles: ['DEPT_MANAGER'] },
       { path: '/ocr', title: '材料识别', icon: 'ocr' },
     ],
   },
@@ -369,7 +370,10 @@ const menuGroups = computed(() => {
   if (allowedCodes.value.size === 0) return [SAFE_MENU_GROUPS[0]]; // 仅工作台
   const set = allowedCodes.value;
   const filtered = raw
-    .map((g) => ({ ...g, items: g.items.filter((it) => !it.path || set.has(it.path.split('?')[0])) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) =>
+      (!it.roles || it.roles.includes(userStore.roleCode))
+      && (!it.path || set.has(it.path.split('?')[0]))
+    ) }))
     .filter((g) => g.items.length);
   return filtered.length ? filtered : [SAFE_MENU_GROUPS[0]];
 });

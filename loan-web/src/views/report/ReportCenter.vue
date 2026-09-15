@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">经营概览</h2>
-        <p class="loan-page-subtitle">经营总览 · 成交 / 奖励趋势 · 初筛报告</p>
+        <p class="loan-page-subtitle">客户资产 · 公海效率 · 跟进时效 · 成交趋势</p>
       </div>
     </div>
 
@@ -12,6 +12,80 @@
       <div v-for="card in statCards" :key="card.label" class="stat-card">
         <div class="stat-label">{{ card.label }}</div>
         <div class="stat-value mono">{{ card.value }}</div>
+      </div>
+    </div>
+
+    <!-- TSE 经验：资产、公海效率、分配回收与跟进 SLA -->
+    <div class="operations-section" v-loading="loadingOperations">
+      <div class="section-heading">
+        <div>
+          <div class="panel-title no-border">客户运营分析</div>
+          <div class="section-hint">{{ operations.scopeLabel || '当前' }}范围 · 资产/SLA 看当前，流转/转化统计近 {{ operations.periodDays || operationQuery.days }} 天</div>
+        </div>
+        <div class="report-filters">
+          <el-radio-group v-model="operationQuery.scope" size="small" @change="loadOperations">
+            <el-radio-button v-for="item in scopeOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </el-radio-button>
+          </el-radio-group>
+          <el-select v-model="operationQuery.days" size="small" style="width: 112px" @change="loadOperations">
+            <el-option label="近 30 天" :value="30" />
+            <el-option label="近 90 天" :value="90" />
+            <el-option label="近 180 天" :value="180" />
+          </el-select>
+        </div>
+      </div>
+
+      <div class="metric-panel-grid">
+        <div class="loan-card metric-panel">
+          <div class="metric-panel-title">客户资产</div>
+          <div class="mini-stat-grid">
+            <div v-for="item in assetMetrics" :key="item.label" class="mini-stat">
+              <span>{{ item.label }}</span><strong class="mono">{{ item.value }}</strong>
+            </div>
+          </div>
+        </div>
+        <div class="loan-card metric-panel">
+          <div class="metric-panel-title">公海效率</div>
+          <div class="mini-stat-grid">
+            <div v-for="item in seaMetrics" :key="item.label" class="mini-stat">
+              <span>{{ item.label }}</span><strong class="mono">{{ item.value }}</strong>
+            </div>
+          </div>
+        </div>
+        <div class="loan-card metric-panel">
+          <div class="metric-panel-title">分配 / 回收</div>
+          <div class="mini-stat-grid">
+            <div v-for="item in allocationMetrics" :key="item.label" class="mini-stat">
+              <span>{{ item.label }}</span><strong class="mono">{{ item.value }}</strong>
+            </div>
+          </div>
+        </div>
+        <div class="loan-card metric-panel">
+          <div class="metric-panel-title">跟进 SLA</div>
+          <div class="mini-stat-grid">
+            <div v-for="item in slaMetrics" :key="item.label" class="mini-stat" :class="item.level">
+              <span>{{ item.label }}</span><strong class="mono">{{ item.value }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="loan-card conversion-panel">
+        <div class="conversion-head">
+          <div>
+            <div class="metric-panel-title">线索到成交漏斗</div>
+            <div class="section-hint">各阶段独立按发生时间统计，用于观察经营流量，不代表同一批客户队列转化率</div>
+          </div>
+          <div class="deal-total">成交金额 <strong class="mono">¥{{ fmtAmount(operations.conversion?.dealAmount) }}</strong></div>
+        </div>
+        <div class="funnel-grid">
+          <div v-for="(item, index) in conversionMetrics" :key="item.label" class="funnel-stage">
+            <div class="funnel-index">{{ index + 1 }}</div>
+            <div class="funnel-copy"><span>{{ item.label }}</span><strong class="mono">{{ item.value }}</strong></div>
+            <div v-if="index < conversionMetrics.length - 1" class="funnel-arrow">→</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -153,7 +227,7 @@ import AppEChart from '@/components/AppEChart.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { reportDisplayTitle } from '@/utils/display';
-import { reportOverview, orderTrend, rewardTrend, pageScreenings, screeningDetail } from '@/api/report';
+import { reportOverview, reportOperations, orderTrend, rewardTrend, pageScreenings, screeningDetail } from '@/api/report';
 
 const gradeText = { HIGH: '高', MIDDLE: '中', LOW: '低' };
 const gradeTag = (g) => ({ HIGH: 'loan-tag-success', MIDDLE: 'loan-tag-warning', LOW: 'loan-tag-muted' }[g] || 'loan-tag-muted');
@@ -185,6 +259,76 @@ const statCards = computed(() => [
   { label: '奖励金额', value: '¥' + fmtAmount(overview.value.rewardAmountSum) },
   { label: '初筛报告', value: overview.value.screeningCount ?? '-' },
 ]);
+
+const loadingOperations = ref(false);
+const operations = ref({});
+const operationQuery = reactive({ scope: '', days: 30 });
+const scopeText = { MY: '我的', TEAM: '本团队', ALL: '全司' };
+const scopeOptions = computed(() => (operations.value.availableScopes || [])
+  .map((value) => ({ value, label: scopeText[value] || value })));
+const showTeamSea = computed(() => operations.value.clientAssets?.teamSeaVisible === true);
+const assetMetrics = computed(() => {
+  const data = operations.value.clientAssets || {};
+  const rows = [
+    { label: '已分配客户', value: data.assigned ?? '—' },
+    { label: '公司公海', value: data.companySea ?? '—' },
+  ];
+  if (showTeamSea.value) rows.push({ label: '团队公海', value: data.teamSea ?? '—' });
+  rows.push({ label: '冷却中', value: data.cooldown ?? '—' });
+  return rows;
+});
+const percent = (v) => v === null || v === undefined ? '待积累' : `${Number(v).toFixed(1)}%`;
+const seaMetrics = computed(() => {
+  const data = operations.value.seaEfficiency || {};
+  return [
+    { label: '进入公海', value: data.entered ?? '—' },
+    { label: '公海出池', value: data.claimed ?? '—' },
+    { label: '出入池比', value: percent(data.claimRate) },
+    { label: '平均停留', value: data.avgStayMetricAvailable ? `${data.avgStayHours} 小时` : '待补采集' },
+    { label: '当前平均池龄', value: data.currentPoolAgeHours == null ? '待补采集' : `${Number(data.currentPoolAgeHours).toFixed(1)} 小时` },
+  ];
+});
+const allocationMetrics = computed(() => {
+  const data = operations.value.allocationFlow || {};
+  return [
+    { label: '完成分配', value: data.assigned ?? '—' },
+    { label: '公海认领', value: data.claimed ?? '—' },
+    { label: '回收公海', value: data.recycled ?? '—' },
+    { label: '主动释放', value: data.selfReleased ?? '—' },
+  ];
+});
+const slaMetrics = computed(() => {
+  const data = operations.value.followSla || {};
+  return [
+    { label: '从未跟进', value: data.neverFollowed ?? '—', level: 'is-warning' },
+    { label: `超 ${data.recycleDays || 30} 天未跟进`, value: data.overdue ?? '—', level: 'is-danger' },
+    { label: `${data.warnDays || 3} 天内将到期`, value: data.dueSoon ?? '—', level: 'is-warning' },
+    { label: '首次跟进均时', value: data.firstFollowMetricAvailable ? `${data.avgFirstFollowHours} 小时` : '待补采集' },
+  ];
+});
+const conversionMetrics = computed(() => {
+  const data = operations.value.conversion || {};
+  return [
+    { label: '新增线索', value: data.leads ?? '—' },
+    { label: '新增客户', value: data.clients ?? '—' },
+    { label: '初筛报告', value: data.screenings ?? '—' },
+    { label: '新建工单', value: data.orders ?? '—' },
+    { label: '成交', value: data.deals ?? '—' },
+  ];
+});
+
+async function loadOperations() {
+  loadingOperations.value = true;
+  try {
+    const params = { days: operationQuery.days };
+    if (operationQuery.scope) params.scope = operationQuery.scope;
+    const res = await reportOperations(params);
+    operations.value = res.data || {};
+    operationQuery.scope = operations.value.scope || operationQuery.scope;
+  } catch (e) { /* 拦截器已提示 */ } finally {
+    loadingOperations.value = false;
+  }
+}
 
 // ============================================================
 // 趋势图表
@@ -338,7 +482,7 @@ onMounted(async () => {
   loadS();
   loadingOv.value = true;
   try {
-    const [ov, ot, rt] = await Promise.all([reportOverview(), orderTrend(12), rewardTrend(12)]);
+    const [ov, ot, rt] = await Promise.all([reportOverview(), orderTrend(12), rewardTrend(12), loadOperations()]);
     overview.value = ov.data || {};
     orderTrendData.value = ot.data || [];
     rewardTrendData.value = rt.data || [];
@@ -371,6 +515,45 @@ onMounted(async () => {
   font-weight: 700;
   color: var(--loan-text);
 }
+.report-filters { display: flex; align-items: center; gap: 10px; }
+.operations-section { margin-bottom: 16px; }
+.section-heading, .conversion-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.panel-title.no-border { border: 0; padding: 0; margin-bottom: 4px; }
+.section-hint { color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; line-height: 1.5; }
+.metric-panel-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.metric-panel { padding: 16px; }
+.metric-panel-title { font-size: 14px; font-weight: 600; color: var(--loan-text); margin-bottom: 12px; }
+.mini-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.mini-stat {
+  min-width: 0;
+  padding: 10px;
+  background: var(--loan-surface, rgba(127, 127, 127, 0.06));
+  border-radius: 8px;
+}
+.mini-stat span { display: block; min-height: 32px; color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; line-height: 16px; }
+.mini-stat strong { display: block; margin-top: 4px; color: var(--loan-text); font-size: 18px; overflow: hidden; text-overflow: ellipsis; }
+.mini-stat.is-warning strong { color: var(--loan-warning); }
+.mini-stat.is-danger strong { color: var(--loan-danger); }
+.conversion-panel { margin-top: 12px; padding: 16px; }
+.conversion-head { align-items: center; }
+.deal-total { color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; white-space: nowrap; }
+.deal-total strong { color: var(--loan-text); font-size: 16px; margin-left: 8px; }
+.funnel-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.funnel-stage { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; padding: 8px 24px 8px 8px; }
+.funnel-index {
+  display: grid; place-items: center; flex: 0 0 26px; height: 26px; border-radius: 50%;
+  color: var(--loan-primary); background: color-mix(in srgb, var(--loan-primary) 12%, transparent); font-size: 12px; font-weight: 700;
+}
+.funnel-copy { min-width: 0; }
+.funnel-copy span { display: block; color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; }
+.funnel-copy strong { display: block; margin-top: 3px; color: var(--loan-text); font-size: 18px; }
+.funnel-arrow { position: absolute; right: 7px; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .trend-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -381,6 +564,10 @@ onMounted(async () => {
 }
 @media (max-width: 900px) {
   .trend-grid { grid-template-columns: 1fr; }
+  .metric-panel-grid { grid-template-columns: 1fr; }
+  .funnel-grid { grid-template-columns: 1fr; }
+  .funnel-arrow { display: none; }
+  .report-filters { width: 100%; flex-wrap: wrap; }
 }
 .panel-title {
   font-size: 14px;

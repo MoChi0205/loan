@@ -10,6 +10,8 @@ import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.client.entity.ClientLifecycleEvent;
+import com.loan.client.mapper.ClientLifecycleEventMapper;
 import com.loan.channel.entity.ChannelUser;
 import com.loan.channel.mapper.ChannelUserMapper;
 import com.loan.config.entity.ConfigItem;
@@ -56,6 +58,7 @@ public class MiniAuthService {
     private static final Duration SESSION_TTL = Duration.ofHours(2);
 
     private final ClientProfileMapper clientProfileMapper;
+    private final ClientLifecycleEventMapper lifecycleEventMapper;
     private final ConfigItemMapper configItemMapper;
     private final WxCode2SessionService wxCode2SessionService;
     private final JwtService jwtService;
@@ -109,6 +112,14 @@ public class MiniAuthService {
             client.setCreatedBy("mini");
             client.setCreatedAt(LocalDateTime.now());
             clientProfileMapper.insert(client);
+            ClientLifecycleEvent event = new ClientLifecycleEvent();
+            event.setClientCode(client.getClientCode());
+            event.setEventType("ENTER_COMPANY_SEA");
+            event.setSeaLevel("ENTERPRISE");
+            event.setEpisodeNo(1);
+            event.setEventAt(client.getCreatedAt());
+            event.setReasonCode("WECHAT_SELF_REGISTER");
+            lifecycleEventMapper.insert(event);
         }
         // 绑定邀请码只记录分享引荐关系，服务顾问由独立分配审批流程产生。
         // 邀请码为可选项：不存在/已用/过期时降级跳过，绝不阻断登录主流程。

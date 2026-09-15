@@ -10,6 +10,9 @@ const isChannel = () => isChannelUser(getStorageJSON(KEYS.USER, null));
 export function reportOverview() {
   return request({ url: '/api/admin/report/overview', method: 'get' });
 }
+export function reportOperations(params = {}) {
+  return request({ url: '/api/admin/report/operations', method: 'get', params });
+}
 export function orderTrend(months = 12) {
   return request({ url: '/api/admin/report/order-trend', method: 'get', params: { months } });
 }

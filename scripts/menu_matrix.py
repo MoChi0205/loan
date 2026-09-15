@@ -4,7 +4,7 @@ ROLES = ("CHANNEL", "ADVISER", "DEPT_MANAGER", "OPERATOR", "BOSS", "SUPER_ADMIN"
 
 MENUS = {
     "/workbench": {"name": "工作台", "domain": "工作台", "roles": set(ROLES)},
-    "/lead": {"name": "线索公海", "domain": "客户经营", "roles": set(ROLES)},
+    "/lead": {"name": "线索管理", "domain": "客户经营", "roles": set(ROLES)},
     "/client": {"name": "客户档案", "domain": "客户经营", "roles": set(ROLES)},
     "/ocr": {"name": "材料识别", "domain": "客户经营", "roles": {"ADVISER", "DEPT_MANAGER", "OPERATOR", "BOSS", "SUPER_ADMIN", "SUPER"}},
     "/screening": {"name": "初筛任务", "domain": "匹配与规则", "roles": {"ADVISER", "DEPT_MANAGER", "OPERATOR", "BOSS", "SUPER_ADMIN", "SUPER"}},

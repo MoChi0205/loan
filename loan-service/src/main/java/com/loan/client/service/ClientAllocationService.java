@@ -9,8 +9,10 @@ import com.loan.approval.entity.ClientAllocationApproval;
 import com.loan.approval.mapper.ClientAllocationApprovalMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.entity.ClientRecycleConfig;
+import com.loan.client.entity.ClientLifecycleEvent;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.client.mapper.ClientRecycleConfigMapper;
+import com.loan.client.mapper.ClientLifecycleEventMapper;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.common.service.BusinessNameService;
@@ -81,6 +83,7 @@ public class ClientAllocationService {
     private final StaffMapper staffMapper;
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final ClientRecycleConfigMapper clientRecycleConfigMapper;
+    private final ClientLifecycleEventMapper lifecycleEventMapper;
     private final NotificationService notificationService;
     private final BusinessNameService businessNameService;
 
@@ -284,7 +287,11 @@ public class ClientAllocationService {
         // 管理者直接分配优先级高于顾问转移申请：关闭同客户尚未处理的待审单，避免后续审批再次覆盖本次决定。
         closePendingApplications(clientCode, operator);
         // 归属落定后刷新跟进基准并清除回收冷却，回收倒计时从本次归属起算
+        if (!StringUtils.hasText(expectedOwner) && StringUtils.hasText(client.getSeaLevel())) {
+            lifecycleEvent(clientCode, "EXIT_SEA", targetStaffCode, client.getSeaLevel(), client.getSeaDeptCode(), operator);
+        }
         touchAssignment(clientCode);
+        lifecycleEvent(clientCode, "OWNER_ASSIGNED", targetStaffCode, null, null, operator);
         record(clientCode, expectedOwner, targetStaffCode, "MANAGER_ASSIGN",
                 operator == null ? "system" : operator.getName(), "管理者直接指定归属人（无需审批）");
         Map<String, Object> result = new LinkedHashMap<>();
@@ -460,7 +467,7 @@ public class ClientAllocationService {
         if (changed != 1) {
             throw new BusinessException(ResultCode.COMMON_ERROR, "该审批单已处理");
         }
-        requireClient(approval.getClientCode());
+        ClientProfile assignedClient = requireClient(approval.getClientCode());
         int assigned = StringUtils.hasText(approval.getFromOwnerStaffCode())
                 ? clientProfileMapper.transferOwnerIfUnchanged(approval.getClientCode(), approval.getApplicantStaffCode(),
                 approval.getFromOwnerStaffCode(), user == null ? "system" : user.getName(), LocalDateTime.now())
@@ -470,7 +477,12 @@ public class ClientAllocationService {
             throw new BusinessException(ResultCode.COMMON_ERROR, "客户已由其他流程完成分配，请刷新后重试");
         }
         // 审批通过后刷新跟进基准并清除回收冷却
+        if (!StringUtils.hasText(approval.getFromOwnerStaffCode()) && StringUtils.hasText(assignedClient.getSeaLevel())) {
+            lifecycleEvent(approval.getClientCode(), "EXIT_SEA", approval.getApplicantStaffCode(),
+                    assignedClient.getSeaLevel(), assignedClient.getSeaDeptCode(), user);
+        }
         touchAssignment(approval.getClientCode());
+        lifecycleEvent(approval.getClientCode(), "OWNER_ASSIGNED", approval.getApplicantStaffCode(), null, null, user);
         record(approval.getClientCode(), approval.getFromOwnerStaffCode(), approval.getApplicantStaffCode(),
                 "CLAIM_APPROVED", user == null ? "system" : user.getName(), "客户分配审批通过");
         return auditResult(approvalNo, APPROVED, approval.getClientCode());
@@ -789,7 +801,7 @@ public class ClientAllocationService {
         String from = client.getOwnerStaffCode();
         recycleClient(client, "已被部门经理回收进团队公海", operator == null ? "system" : operator.getName(),
                 isDeptManager(operator) ? "TEAM" : "ENTERPRISE",
-                isDeptManager(operator) ? operator.getDeptCode() : null);
+                isDeptManager(operator) ? operator.getDeptCode() : null, operator, "MANAGER_RECYCLE");
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("clientCode", clientCode);
         result.put("recycled", true);
@@ -815,7 +827,7 @@ public class ClientAllocationService {
         }
         String from = client.getOwnerStaffCode();
         recycleClient(client, "顾问主动释放回公司公海", operator == null ? "system" : operator.getName(),
-                "ENTERPRISE", null);
+                "ENTERPRISE", null, operator, "SELF_RELEASE");
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("clientCode", clientCode);
         result.put("released", true);
@@ -843,6 +855,8 @@ public class ClientAllocationService {
                 .eq(ClientProfile::getClientCode, clientCode)
                 .set(ClientProfile::getLastFollowedAt, now)
                 .set(ClientProfile::getUpdatedBy, operator == null ? "system" : operator.getName()));
+        // 仅首条真实跟进写 FIRST_FOLLOW；后续跟进仍保留既有流水。
+        recordFirstFollowIfNeeded(clientCode, staffNo, operator);
         record(clientCode, staffNo, staffNo, "FOLLOW_UP",
                 operator == null ? "system" : operator.getName(),
                 StringUtils.hasText(content) ? content.trim() : "记录跟进");
@@ -913,11 +927,11 @@ public class ClientAllocationService {
      * {@code updateById} 下对 phone / creditCode 二次加密的隐患。</p>
      */
     private void recycleClient(ClientProfile client, String reason, String operatorName) {
-        recycleClient(client, reason, operatorName, "ENTERPRISE", null);
+        recycleClient(client, reason, operatorName, "ENTERPRISE", null, null, "AUTO_RECYCLE");
     }
 
     private void recycleClient(ClientProfile client, String reason, String operatorName,
-                               String seaLevel, String seaDeptCode) {
+                               String seaLevel, String seaDeptCode, LoanUser operator, String reasonCode) {
         String from = client.getOwnerStaffCode();
         ClientRecycleConfig cfg = recycleConfig();
         int cooldown = (cfg != null && cfg.getCooldownDays() != null && cfg.getCooldownDays() > 0)
@@ -929,6 +943,8 @@ public class ClientAllocationService {
                 .set(ClientProfile::getSeaDeptCode, seaDeptCode)
                 .set(ClientProfile::getAssignBlockedUntil, LocalDateTime.now().plusDays(cooldown))
                 .set(ClientProfile::getUpdatedBy, operatorName));
+        lifecycleEvent(client.getClientCode(), "ENTER_" + ("TEAM".equalsIgnoreCase(seaLevel) ? "TEAM_SEA" : "COMPANY_SEA"),
+                from, seaLevel, seaDeptCode, operator, reasonCode);
         record(client.getClientCode(), from, null, "CLIENT_RECYCLE", operatorName, reason);
         if (from != null) {
             String name = client.getEnterpriseName() != null ? client.getEnterpriseName() : client.getContactName();
@@ -997,5 +1013,58 @@ public class ClientAllocationService {
         record.setRemark(remark);
         record.setCreatedAt(LocalDateTime.now());
         allocationRecordMapper.insert(record);
+    }
+
+    /** 生命周期事件采用独立周期号，避免分配刷新 last_followed_at 干扰首跟统计。 */
+    private void lifecycleEvent(String clientCode, String eventType, String staffCode,
+                                String seaLevel, String seaDeptCode, LoanUser operator) {
+        lifecycleEvent(clientCode, eventType, staffCode, seaLevel, seaDeptCode, operator,
+                eventType.startsWith("ENTER_") ? "UNSPECIFIED" : null);
+    }
+
+    private void lifecycleEvent(String clientCode, String eventType, String staffCode,
+                                String seaLevel, String seaDeptCode, LoanUser operator, String reasonCode) {
+        Integer episode = clientLifecycleEpisode(clientCode, eventType);
+        ClientLifecycleEvent event = new ClientLifecycleEvent();
+        event.setClientCode(clientCode);
+        event.setEventType(eventType);
+        event.setStaffCode(staffCode);
+        event.setSeaLevel(seaLevel);
+        event.setSeaDeptCode(seaDeptCode);
+        event.setEpisodeNo(episode);
+        event.setEventAt(LocalDateTime.now());
+        event.setOperatorStaffCode(operator == null ? null : operator.getUserNo());
+        event.setReasonCode(reasonCode);
+        lifecycleEventMapper.insert(event);
+    }
+
+    private Integer clientLifecycleEpisode(String clientCode, String eventType) {
+        List<ClientLifecycleEvent> rows = lifecycleEventMapper.selectList(
+                new LambdaQueryWrapper<ClientLifecycleEvent>().eq(ClientLifecycleEvent::getClientCode, clientCode)
+                        .orderByDesc(ClientLifecycleEvent::getEpisodeNo).last("LIMIT 1"));
+        if (rows.isEmpty() || rows.get(0).getEpisodeNo() == null) return 1;
+        ClientLifecycleEvent latest = rows.get(0);
+        // 入池开启新周期；已有归属再次转交/改派时也开启新归属周期。
+        boolean newSeaEpisode = eventType.startsWith("ENTER_");
+        boolean reassignment = "OWNER_ASSIGNED".equals(eventType)
+                && ("OWNER_ASSIGNED".equals(latest.getEventType())
+                    || "FIRST_FOLLOW".equals(latest.getEventType()));
+        return (newSeaEpisode || reassignment) ? latest.getEpisodeNo() + 1 : latest.getEpisodeNo();
+    }
+
+    private boolean hasFirstFollowInCurrentEpisode(String clientCode) {
+        List<ClientLifecycleEvent> rows = lifecycleEventMapper.selectList(
+                new LambdaQueryWrapper<ClientLifecycleEvent>().eq(ClientLifecycleEvent::getClientCode, clientCode)
+                        .eq(ClientLifecycleEvent::getEventType, "FIRST_FOLLOW")
+                        .orderByDesc(ClientLifecycleEvent::getEpisodeNo).last("LIMIT 1"));
+        if (rows.isEmpty()) return false;
+        Integer latestEpisode = clientLifecycleEpisode(clientCode, "CURRENT");
+        return latestEpisode.equals(rows.get(0).getEpisodeNo());
+    }
+
+    private void recordFirstFollowIfNeeded(String clientCode, String staffNo, LoanUser operator) {
+        Integer episode = clientLifecycleEpisode(clientCode, "CURRENT");
+        lifecycleEventMapper.insertFirstFollowIgnore(clientCode, staffNo, episode, LocalDateTime.now(),
+                operator == null ? null : operator.getUserNo());
     }
 }

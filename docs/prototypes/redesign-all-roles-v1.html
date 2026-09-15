@@ -56,12 +56,8 @@
   .m-head-user .head-msg .dot { position:absolute; right:3px; top:4px; width:8px; height:8px; border-radius:50%; background:#e66b65; border:2px solid var(--ink); }
   .m-head-avatar { width:52px; height:52px; border-radius:16px; display:grid; place-items:center; background:linear-gradient(135deg,#e7d3a6,#b8883f); color:#20180b; font-size:18px; font-weight:800; flex-shrink:0; border:2px solid rgba(255,255,255,.55); }
   .m-head-avatar.authorized { background:#fff; color:var(--royal); background-size:cover; }
-  .avatar-action { font-size:11px; color:#dce5f3; margin-top:4px; cursor:pointer; white-space:nowrap; }
-  .role-pill { display:inline-flex; align-items:center; gap:6px; max-width:100%; background:rgba(199,161,90,.20); border:1px solid rgba(199,161,90,.4); color:var(--gold-s); font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; margin-top:12px; white-space:nowrap; }
-  /* 角色胶囊图标：原缺尺寸规则 → svg 塌成 0×0，盾牌完全不可见 */
-  .role-pill svg { width:12px; height:12px; flex:0 0 12px; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
-
-  .m-body { padding:20px 16px 24px; margin-top:-14px; }
+  /* 首页内容区不再上移，避免快捷宫格压住 Hero 说明文字。 */
+  .m-body { padding:20px 16px 24px; margin-top:0; }
   .m-card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:0 6px 18px rgba(17,30,54,.05); margin-bottom:16px; }
   .m-card-h { display:flex; align-items:center; margin-bottom:14px; min-height:22px; }
   .m-card-h b { font-size:15px; font-weight:800; color:var(--t1); }
@@ -502,7 +498,6 @@ function renderMobile(role){
       <div class="hi">${role==='customer'?'您好':'下午好'}</div>
       <div class="nm">${R.label} · ${R.ut==='CUSTOMER'?'尊享客户':'金融服务'}</div>
       <div class="sub">${homeSub(role)}</div>
-      <div class="role-pill">${svg('shield')} ${R.tag} · ${R.ut}</div>
     </div>`;
   let body;
   if(STATE.view==='login'){ return renderLogin('mini'); }
@@ -516,7 +511,7 @@ function renderMobile(role){
   else if(STATE.tab[role]==='approval'){ body = renderApproval(role); }
   else { body = renderHome(role); }
   const tabs = R.miniTabs.map(t=>`<div class="m-tab ${STATE.tab[role]===t[0]?'on':''}" data-mtab="${t[0]}">${svg(tabIcon(t[0]))}<span>${t[1]}</span></div>`).join('');
-  return `<div class="m-scroll"><div class="m-head"><div class="m-head-user"><div class="m-head-avatar" data-avatar-auth="1">${R.label[0]}</div><div><div class="hi">${role==='customer'?'您好':'下午好'}</div><div class="nm">${R.label}</div><div class="avatar-action" data-avatar-auth="1">授权使用微信头像</div></div><div class="head-msg" data-msgopen="1" aria-label="消息中心">${svg('bell')}${MESSAGES.some(m=>m.unread)?'<div class="dot"></div>':''}</div></div><div class="sub">${homeSub(role)}</div><div class="role-pill">${svg('shield')} ${R.tag} · ${R.ut}</div></div><div class="m-body">${body}</div></div>` +
+  return `<div class="m-scroll"><div class="m-head"><div class="m-head-user"><div class="m-head-avatar" data-avatar-auth="1">${R.label[0]}</div><div><div class="hi">${role==='customer'?'您好':'下午好'}</div><div class="nm">${R.label}</div></div><div class="head-msg" data-msgopen="1" aria-label="消息中心">${svg('bell')}${MESSAGES.some(m=>m.unread)?'<div class="dot"></div>':''}</div></div><div class="sub">${homeSub(role)}</div></div><div class="m-body">${body}</div></div>` +
     `<div class="m-tabbar">${tabs}</div>` + sheetHtml() + toastHtml();
 }
 function tabIcon(t){ return {home:'home',match:'match',report:'report',order:'order',mine:'user',luru:'leads',clients:'client',approval:'shield'}[t]||'home'; }

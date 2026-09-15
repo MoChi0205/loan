@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">{{ isChannel ? '我的线索' : '线索管理' }}</h2>
-        <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审核通过后进入公海' : '我的线索＝当前归属我的线索；线索公海＝尚未分配的线索；创建人始终单独展示' }}</p>
+        <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审核通过后进入公海' : '我的线索＝当前归属我的线索；线索公海＝未分配线索；客户公海＝未分配客户；创建人始终单独展示' }}</p>
       </div>
       <el-button v-permission="ACTION_PERMISSION.LEAD_CREATE" type="primary" @click="openCreate">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
@@ -15,7 +15,7 @@
       <el-tabs v-model="activeTab" @tab-change="onTabChange">
         <el-tab-pane label="我的线索" name="mine" />
         <el-tab-pane v-if="!isChannel" label="线索公海" name="pool" />
-        <el-tab-pane v-if="!isChannel && userStore.hasPerm(ACTION_PERMISSION.CLIENT_POOL_VIEW)" label="客户公海（未分配）" name="clients" />
+        <el-tab-pane v-if="!isChannel && userStore.hasPerm(ACTION_PERMISSION.CLIENT_POOL_VIEW)" label="客户公海" name="clients" />
       </el-tabs>
 
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">

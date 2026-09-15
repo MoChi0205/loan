@@ -36,6 +36,15 @@ public class ReportController {
         return Result.ok(reportService.overview(user));
     }
 
+    /** 客户运营、公海效率、分配回收与跟进 SLA（角色数据范围由服务端强制校验）。 */
+    @GetMapping("/operations")
+    public Result<Map<String, Object>> operations(
+            @RequestParam(required = false) String scope,
+            @RequestParam(defaultValue = "30") int days,
+            @CurrentUser LoanUser user) {
+        return Result.ok(reportService.operations(scope, days, user));
+    }
+
     /**
      * 成交趋势（按月）。
      *
