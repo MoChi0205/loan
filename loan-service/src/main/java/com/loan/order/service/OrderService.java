@@ -85,7 +85,13 @@ public class OrderService {
         ClientProfile client = clientProfileMapper.selectOne(
                 new LambdaQueryWrapper<ClientProfile>().eq(ClientProfile::getClientCode, req.getClientCode()));
         if (client == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "客户不存在");
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "客户不存在，请先在线索管理中新建线索并完成客户转化");
+        }
+        if (!StringUtils.hasText(client.getOwnerStaffCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "客户尚未分配，请先在客户公海认领，归属本人后再创建工单");
+        }
+        if (!client.getOwnerStaffCode().equals(operatorCode)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "该客户不属于你，请先在用户查询中提交认领申请，审批通过后再创建工单");
         }
         if (StringUtils.hasText(req.getBankProductCode())) {
             BankProduct product = bankProductMapper.selectOne(new LambdaQueryWrapper<BankProduct>()

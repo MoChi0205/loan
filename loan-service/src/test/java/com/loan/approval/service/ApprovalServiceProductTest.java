@@ -57,6 +57,7 @@ class ApprovalServiceProductTest {
     @Mock private SmsTemplateMapper smsTemplateMapper;
     @Mock private ReportTemplateMapper reportTemplateMapper;
     @Mock private NotificationService notificationService;
+    @Mock private com.loan.attachment.mapper.ServiceAttachmentMapper serviceAttachmentMapper;
 
     private ApprovalService service;
 
@@ -65,7 +66,7 @@ class ApprovalServiceProductTest {
         service = new ApprovalService(productApprovalMapper, downloadApprovalMapper, materialReviewMapper,
                 materialReviewService, bankProductMapper, miniClientService, staffMapper,
                 businessNameService, partnerProductService, contentApprovalMapper, smsTemplateMapper,
-                reportTemplateMapper, notificationService);
+                reportTemplateMapper, notificationService, serviceAttachmentMapper);
     }
 
     @Test

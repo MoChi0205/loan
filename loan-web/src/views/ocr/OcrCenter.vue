@@ -9,6 +9,13 @@
 
     <div class="loan-card">
       <el-form label-position="top" class="ocr-form">
+        <el-form-item label="所属客户" required>
+          <el-select v-model="form.clientCode" filterable remote :remote-method="searchClients" :loading="clientLoading"
+            placeholder="先选择本人名下客户（姓名 / 手机号 / 企业名）" style="width: 100%">
+            <el-option v-for="c in clientOptions" :key="c.clientCode" :label="clientDisplayLabel(c)" :value="c.clientCode" />
+          </el-select>
+          <div class="form-help">材料、识别结果、初筛报告和下载审批都将绑定到该客户。</div>
+        </el-form-item>
         <el-form-item label="材料文件">
           <el-upload
             ref="uploadRef"
@@ -52,7 +59,7 @@
             <el-button
               type="primary"
               :loading="loading"
-              :disabled="!file"
+              :disabled="!file || !form.clientCode"
               @click="onRecognize"
             >
               开始识别
@@ -95,9 +102,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ocrRecognize } from '@/api/ocr';
+import { pageClientLite } from '@/api/order';
+import { clientDisplayLabel } from '@/utils/display';
 
 /** 资料类型字典（对齐 t_ocr_record.biz_scene 映射） */
 const bizTypeOptions = [
@@ -110,14 +120,29 @@ const bizTypeOptions = [
 ];
 
 const uploadRef = ref();
+const route = useRoute();
 const loading = ref(false);
 const file = ref(null);
 const result = ref(null);
+const clientLoading = ref(false);
+const clientOptions = ref([]);
+let clientTimer;
 
 const form = reactive({
   bizType: 'BUSINESS_LICENSE',
   customerGroup: 'ENTERPRISE',
+  clientCode: '',
 });
+
+function searchClients(keyword) {
+  clearTimeout(clientTimer);
+  clientTimer = setTimeout(async () => {
+    clientLoading.value = true;
+    try { const res = await pageClientLite({ keyword: keyword || '', page: 1, size: 20 }); clientOptions.value = res.data?.records || []; }
+    catch { clientOptions.value = []; }
+    finally { clientLoading.value = false; }
+  }, 300);
+}
 
 /** 识别结果 facts → 表格行（保留原始字段顺序） */
 const factRows = computed(() => {
@@ -141,12 +166,17 @@ async function onRecognize() {
     ElMessage.warning('请先选择材料文件');
     return;
   }
+  if (!form.clientCode) {
+    ElMessage.warning('请先选择材料所属客户');
+    return;
+  }
   loading.value = true;
   try {
     const fd = new FormData();
     fd.append('file', file.value);
     fd.append('bizType', form.bizType);
     fd.append('customerGroup', form.customerGroup);
+    fd.append('clientCode', form.clientCode);
     const res = await ocrRecognize(fd);
     result.value = res.data || {};
     const n = Object.keys(result.value.facts || {}).length;
@@ -163,12 +193,20 @@ function resetResult() {
   file.value = null;
   if (uploadRef.value) uploadRef.value.clearFiles();
 }
+
+onMounted(async () => {
+  if (route.query.clientCode) {
+    form.clientCode = String(route.query.clientCode);
+    await searchClients(form.clientCode);
+  }
+});
 </script>
 
 <style scoped>
 .ocr-form {
   max-width: 860px;
 }
+.form-help { margin-top: 6px; color: var(--loan-text-muted); font-size: 12px; }
 .ocr-upload {
   width: 100%;
 }

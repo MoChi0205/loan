@@ -307,7 +307,7 @@ const BASE_MENU_GROUPS = [
     short: '报表',
     icon: 'report',
     items: [
-      { path: '/report/center', title: '经营概览', icon: 'report' },
+      { path: '/report/center', title: '经营概览', icon: 'report', roleTitles: { OPERATOR: '实时看板', DEPT_MANAGER: '实时看板', ADVISER: '实时看板' } },
       { path: '/report/trend', title: '趋势分析', icon: 'trend' },
       { path: '/report/screening', title: '初筛报告', icon: 'reportDoc' },
       { path: '/report-template', title: '报告模板', icon: 'reportDoc' },
@@ -360,13 +360,16 @@ const menuGroups = computed(() => {
         ...group,
         items: group.items.map((item) => ({
           ...item,
-          title: item.path === '/lead' ? '我的线索'
+          title: item.roleTitles?.[userStore.roleCode] || (item.path === '/lead' ? '我的线索'
             : item.path === '/client' ? '我的客户'
               : item.path === '/product' ? '我的产品'
-                : item.path === '/report/screening' ? '客户分析报告' : item.title,
+                : item.path === '/report/screening' ? '客户分析报告' : item.title),
         })),
       }))
-    : SAFE_MENU_GROUPS;
+    : SAFE_MENU_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.map((item) => ({ ...item, title: item.roleTitles?.[userStore.roleCode] || item.title })),
+      }));
   if (allowedCodes.value == null) return [SAFE_MENU_GROUPS[0]];
   if (allowedCodes.value.size === 0) return [SAFE_MENU_GROUPS[0]]; // 仅工作台
   const set = allowedCodes.value;

@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">我的工作台</h2>
-        <p class="loan-page-subtitle">{{ isChannel ? '管理本人录入的线索、客户、产品与分析报告' : '客户、产品、工单与审核的统一业务工作台' }}</p>
+        <p class="loan-page-subtitle">{{ workbenchSubtitle }}</p>
       </div>
       <div class="header-meta">
         <el-tooltip :content="nowText" placement="bottom">
@@ -51,7 +51,7 @@
     </div>
 
     <!-- 合作库到期预警 -->
-    <div v-if="!isChannel && canViewProduct" class="loan-card expire-card">
+    <div v-if="!isChannel && canManagePartner" class="loan-card expire-card">
       <h3 class="panel-title">
         合作库到期预警
         <span v-if="expiring.length" class="panel-tip">{{ expiring.length }} 个产品即将到期</span>
@@ -156,9 +156,20 @@ import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
+const roleCode = computed(() => userStore.roleCode || '');
 const allowedPaths = ref(new Set(['/workbench']));
 const canViewProduct = computed(() => allowedPaths.value.has('/product'));
 const canViewAudit = computed(() => allowedPaths.value.has('/audit'));
+const canManagePartner = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value));
+const workbenchSubtitle = computed(() => ({
+  ADVISER: '聚焦我的客户、线索跟进、服务工单与本人审批申请',
+  DEPT_MANAGER: '掌握团队客户分配、团队待办与服务进度',
+  OPERATOR: '处理运营审批、服务工单与经营协同事项',
+  BOSS: '查看全司经营数据并处理关键审批事项',
+  SUPER_ADMIN: '查看全司业务运行、审批与系统治理事项',
+  SUPER: '查看全司业务运行、审批与系统治理事项',
+  CHANNEL: '管理本人录入的线索、客户、产品与分析报告',
+}[roleCode.value] || '客户、工单与审批的统一业务工作台'));
 
 const nowText = ref('');
 const status = ref({});
@@ -178,7 +189,8 @@ onMounted(async () => {
     await loadMenuAccess();
     loadRecent();
     loadStats();
-    if (canViewProduct.value) loadExpiring();
+    // 合作库仅老板/超管可查看和操作；普通员工虽可查看全量产品库，不得请求合作库接口。
+    if (canManagePartner.value) loadExpiring();
   }
 });
 onUnmounted(() => {
@@ -201,6 +213,18 @@ async function loadStats() {
 const metrics = computed(() => {
   const c = status.value || {};
   const o = overview.value || {};
+  if (roleCode.value === 'ADVISER') return [
+    metric('我的客户', o.clientCount, '当前归属客户', 'client', 'var(--loan-info)'),
+    metric('我的线索', o.leadCount, '本人范围线索', 'lead', 'var(--loan-primary)'),
+    metric('服务工单', o.orderCount, '本人负责工单', 'order', 'var(--loan-accent)'),
+    metric('成交金额', '¥' + fmtAmount(o.dealAmountSum), `${o.dealOrderCount ?? 0} 单已成交`, 'money', 'var(--loan-success)'),
+  ];
+  if (roleCode.value === 'DEPT_MANAGER') return [
+    metric('团队客户', o.clientCount, '本团队数据范围', 'client', 'var(--loan-info)'),
+    metric('团队线索', o.leadCount, '本团队线索', 'lead', 'var(--loan-primary)'),
+    metric('团队工单', o.orderCount, '本团队服务工单', 'order', 'var(--loan-accent)'),
+    metric('团队成交', '¥' + fmtAmount(o.dealAmountSum), `${o.dealOrderCount ?? 0} 单已成交`, 'money', 'var(--loan-success)'),
+  ];
   return [
     {
       label: '合作银行',
@@ -236,25 +260,34 @@ const metrics = computed(() => {
     },
   ];
 });
+function metric(label, value, foot, icon, color) {
+  return { label, value: String(value ?? '-'), foot, icon, color, bg: `color-mix(in srgb, ${color} 10%, transparent)` };
+}
 
 /** 待办事项（真实统计） */
 const todos = computed(() => {
   const t = todo.value || {};
+  const mine = [
+    { name: '我的认领申请', count: t.myAllocationApply ?? 0, desc: '待处理的客户认领/转移', path: '/approval?tab=mine' },
+    { name: '我的下载申请', count: t.myDownloadApply ?? 0, desc: '待处理的资料下载申请', path: '/approval?tab=mine' },
+    { name: '我的工单', count: t.myOrderCount ?? 0, desc: '服务中的客户工单', path: '/order' },
+    { name: '我的线索', count: t.myLeadCount ?? 0, desc: '当前归属我的线索', path: '/lead' },
+  ];
+  if (roleCode.value === 'ADVISER') return mine;
+  const allocation = { name: roleCode.value === 'DEPT_MANAGER' ? '团队认领待审批' : '客户认领待审批', count: t.pendingAllocationApproval ?? 0, desc: roleCode.value === 'DEPT_MANAGER' ? '本团队客户归属流转' : '客户归属流转审核', path: '/approval?tab=allocation' };
+  if (roleCode.value === 'DEPT_MANAGER') return [allocation, ...mine];
+  if (roleCode.value === 'OPERATOR') return [
+    { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval?tab=download' }, allocation,
+    { name: '奖励待处理', count: t.pendingReward ?? 0, desc: '成交奖励审核与发放', path: '/reward' }, ...mine.slice(2),
+  ];
   return [
-    // 待我审核 X（仅当前用户作为审核人时显示非零；ADVISER 通常为 0）
-    { name: '待我审核产品', count: t.pendingProductApproval ?? 0, desc: '渠道产品入全量库审核', path: '/approval' },
-    { name: '待我审核下载', count: t.pendingDownloadApproval ?? 0, desc: '无水印下载申请审核', path: '/approval' },
-    { name: '待我审核分配', count: t.pendingAllocationApproval ?? 0, desc: '客户归属流转审核', path: '/approval' },
-    { name: '待审核奖励', count: t.pendingReward ?? 0, desc: '成交自动结算待发放', path: '/reward' },
-    // 我的 X 申请（申请人视角：提交后等待审核的工单）
-    { name: '我的下载申请', count: t.myDownloadApply ?? 0, desc: '我提交的无水印下载申请', path: '/approval?tab=download' },
-    { name: '我的分配申请', count: t.myAllocationApply ?? 0, desc: '我提交的客户归属申请', path: '/approval?tab=allocation' },
-    // 我的 X（owner 视角）
-    { name: '我的工单', count: t.myOrderCount ?? 0, desc: '服务中工单', path: '/order' },
-    { name: '我的线索', count: t.myLeadCount ?? 0, desc: '跟进中线索', path: '/lead' },
+    { name: '产品待审批', count: t.pendingProductApproval ?? 0, desc: '新增产品发布审核', path: '/approval?tab=product' },
+    { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval?tab=download' },
+    allocation,
+    { name: '奖励待处理', count: t.pendingReward ?? 0, desc: '成交奖励审核与发放', path: '/reward' },
   ];
 });
-const visibleTodos = computed(() => todos.value.filter((item) => allowedPaths.value.has(item.path)));
+const visibleTodos = computed(() => todos.value.filter((item) => allowedPaths.value.has(item.path.split('?')[0])));
 
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

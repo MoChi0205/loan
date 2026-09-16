@@ -7,6 +7,12 @@ import com.loan.ocr.entity.ExtractFieldDef;
 import com.loan.ocr.entity.OcrRecord;
 import com.loan.ocr.model.OcrResult;
 import com.loan.ocr.service.OcrService;
+import com.loan.attachment.entity.ServiceAttachment;
+import com.loan.attachment.mapper.ServiceAttachmentMapper;
+import com.loan.approval.service.MaterialReviewService;
+import com.loan.client.service.ClientAllocationService;
+import com.loan.context.CurrentUser;
+import com.loan.context.LoanUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +43,9 @@ import java.util.UUID;
 public class OcrController {
 
     private final OcrService ocrService;
+    private final ServiceAttachmentMapper attachmentMapper;
+    private final MaterialReviewService materialReviewService;
+    private final ClientAllocationService clientAllocationService;
 
     @Value("${loan.upload.base-dir:./uploads}")
     private String baseDir;
@@ -79,17 +88,22 @@ public class OcrController {
     public Result<OcrResult> recognize(
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String bizType,
-            @RequestParam(required = false) String customerGroup) {
+            @RequestParam(required = false) String customerGroup,
+            @RequestParam String clientCode,
+            @RequestParam(required = false) String reportNo,
+            @CurrentUser LoanUser user) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "上传文件为空");
         }
+        String scopedClientCode = clientAllocationService.requireOperationClientCode(user, clientCode);
         String fileKey;
+        String original;
         try {
             // 绝对路径化，避免相对路径在 Servlet 容器下解析到 Tomcat work 临时目录（D28 修复：原 FileNotFoundException）
             Path dir = Paths.get(baseDir).toAbsolutePath().normalize();
             Files.createDirectories(dir);
             fileKey = "att" + UUID.randomUUID().toString().replace("-", "").substring(0, 32);
-            String original = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
+            original = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
             String suffix = "";
             int dot = original.lastIndexOf('.');
             if (dot > 0) {
@@ -103,6 +117,23 @@ public class OcrController {
         }
         OcrResult result = ocrService.recognize(fileKey,
                 StringUtils.hasText(bizType) ? bizType : "OTHER", customerGroup);
+        ServiceAttachment attachment = new ServiceAttachment();
+        attachment.setClientProfileCode(scopedClientCode);
+        attachment.setReportNo(reportNo);
+        attachment.setAttachmentType(StringUtils.hasText(bizType) ? bizType : "OTHER");
+        attachment.setFileKey(fileKey);
+        attachment.setFileName(original);
+        attachment.setFileSize(file.getSize());
+        attachment.setSensitiveFlag(1);
+        attachment.setEncryptedFlag(1);
+        attachment.setUploadStaffId(user == null ? null : user.getUserId());
+        attachment.setUploadTime(java.time.LocalDateTime.now());
+        attachment.setCreatedBy(user == null ? "system" : user.getName());
+        attachmentMapper.insert(attachment);
+        if (result.getFacts() != null && !result.getFacts().isEmpty()) {
+            materialReviewService.createPending(fileKey, attachment.getAttachmentType(), scopedClientCode,
+                    reportNo, result.getFacts(), user == null ? "system" : user.getName());
+        }
         return Result.ok(result);
     }
 }

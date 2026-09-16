@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">初筛执行</h2>
-        <p class="loan-page-subtitle">选客户 + 经营事实 → 规则引擎匹配 → 生成初筛报告（档位 + 数量）</p>
+        <p class="loan-page-subtitle">选客户 → 上传并复核材料 → OCR 结构化事实 → 规则引擎精准匹配 → 生成详细报告</p>
       </div>
     </div>
 
@@ -33,6 +33,11 @@
           </el-form-item>
 
           <el-divider content-position="left">经营事实（{{ selectedClient?.customerGroup === 'PERSONAL' ? '个人：年龄 / 收入 / 信用分 / 房产' : '企业：纳税 / 开票 / 成立年限 / 行业' }}）</el-divider>
+          <el-alert type="info" :closable="false" show-icon class="material-guide">
+            <template #title>精准初筛建议先上传客户材料</template>
+            已复核的 OCR 数据会作为客户事实参与匹配；手填数据仅补充缺失项。
+            <el-button link type="primary" @click="goMaterial">前往材料识别</el-button>
+          </el-alert>
 
           <!-- 企业字段：两列网格 -->
           <template v-if="!selectedClient || selectedClient.customerGroup === 'ENTERPRISE'">
@@ -288,6 +293,10 @@ function goReport() {
   } else {
     router.push('/report/screening');
   }
+}
+
+function goMaterial() {
+  router.push({ path: '/ocr', query: form.clientCode ? { clientCode: form.clientCode } : {} });
 }
 
 // ============================================================

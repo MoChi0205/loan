@@ -174,7 +174,7 @@ const routes = [
         path: 'report/center',
         name: 'ReportCenter',
         component: () => import('@/views/report/ReportCenter.vue'),
-        meta: { title: '经营概览' },
+        meta: { title: '经营概览', roleTitles: { OPERATOR: '实时看板', DEPT_MANAGER: '实时看板', ADVISER: '实时看板' } },
       },
       {
         path: 'report',

@@ -143,8 +143,14 @@
           <template #default="{ row }">{{ row.applicantStaffName || '姓名待补充' }}</template>
         </el-table-column>
         <el-table-column prop="purpose" label="用途说明" min-width="180" show-overflow-tooltip />
-        <el-table-column label="资料清单" min-width="120">
-          <template #default="{ row }">{{ attachmentCount(row.attachmentIds) }} 份资料</template>
+        <el-table-column label="客户与资料" min-width="260">
+          <template #default="{ row }">
+            <div v-for="item in (row.attachmentDetails || [])" :key="item.id" class="attachment-detail">
+              <strong>{{ item.clientName || '客户信息缺失' }}</strong> · {{ item.fileName || `附件 ${item.id}` }}
+              <span v-if="item.reportNo" class="muted"> · 报告 {{ item.reportNo }}</span>
+            </div>
+            <span v-if="!row.attachmentDetails?.length">{{ attachmentCount(row.attachmentIds) }} 份资料（历史数据未绑定明细）</span>
+          </template>
         </el-table-column>
         <el-table-column label="期望期限" width="90">
           <template #default="{ row }">{{ row.expectDays ? row.expectDays + ' 天' : '—' }}</template>
@@ -232,10 +238,10 @@
     </AppDialog>
 
     <!-- 下载申请弹窗 -->
-    <AppDialog v-model:visible="applyVisible" title="发起无水印下载申请" :loading="applying" @confirm="onApply">
+    <AppDialog v-model:visible="applyVisible" title="发起无水印下载申请" width="640px" modal-class="loan-app-dialog download-apply-dialog" :loading="applying" @confirm="onApply">
       <el-form ref="applyFormRef" :model="applyForm" :rules="applyRules" label-width="110px" label-position="right">
         <el-form-item label="资料清单" prop="attachmentIds">
-          <el-select v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或客户名称搜索" style="width: 100%" placement="top-start" @visible-change="(v) => { if (v) searchAttachments('') }">
+          <el-select v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或客户名称搜索" style="width: 100%" placement="bottom-start" :teleported="false" popper-class="attachment-select-popper" @visible-change="onAttachmentVisible">
             <el-option v-for="item in attachmentOptions" :key="item.value" :label="item.label" :value="item.value" />
             <div v-if="!attachmentFinished && attachmentOptions.length" class="remote-more" @mousedown.prevent @click="loadMoreAttachments">{{ attachmentLoading ? '加载中…' : '加载更多' }}</div>
           </el-select>
@@ -254,6 +260,7 @@
 <script setup>
 defineOptions({ name: '_approval' });
 import { ref, reactive, computed, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
@@ -279,11 +286,13 @@ import {
 import { pageAttachments } from '@/api/attachment';
 
 const userStore = useUserStore();
+const route = useRoute();
 /** D39/C24：DM 可审本团队分配，跨团队由后端拒绝并上收 BOSS。 */
 const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.ALLOCATION_AUDIT));
 const canAuditChannelContent = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
 
-const activeTab = ref('mine');
+const requestedTab = String(route.query.tab || 'mine');
+const activeTab = ref(['mine', 'download', 'allocation', 'product'].includes(requestedTab) ? requestedTab : 'mine');
 const loadedTabs = reactive({ mine: false, product: false, download: false, allocation: false, channelLead: false, smsTemplate: false, reportTemplate: false });
 const mineRows = ref([]); const mineLoading = ref(false);
 const typeText = { PRODUCT: '产品审批', DOWNLOAD: '附件下载', ALLOCATION: '客户认领/转移' };
@@ -437,9 +446,13 @@ const {
   items: attachmentOptions, loading: attachmentLoading, finished: attachmentFinished,
   search: searchAttachments, loadMore: loadMoreAttachments,
 } = useRemoteOptions(pageAttachments, {
+  debounce: 400,
   // 业务编码仅作为提交值，用户侧只展示可理解的资料、客户信息。
-  normalize: (a) => ({ value: a.id, label: `${a.fileName || '未命名资料'} · ${a.attachmentType || '其他资料'}${a.clientName ? ` · ${a.clientName}` : ''}` }),
+  normalize: (a) => ({ value: a.id, label: `${a.clientName || '客户未绑定'} · ${a.fileName || '未命名资料'} · ${a.attachmentType || '其他资料'}${a.reportNo ? ` · 报告 ${a.reportNo}` : ''}` }),
 });
+function onAttachmentVisible(visible) {
+  if (visible && !attachmentOptions.value.length && !attachmentLoading.value) searchAttachments('');
+}
 const applyFormRef = ref();
 const applyRules = {
   attachmentIds: [
@@ -524,5 +537,11 @@ watch(activeTab, async (tab) => {
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 .link-token { font-size: 12px; color: var(--loan-primary); }
 .muted { color: var(--loan-text-secondary, var(--loan-text-muted)); }
+.attachment-detail { line-height: 20px; white-space: normal; }
 .remote-more { min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--loan-primary); cursor: pointer; font-size: 13px; }
+:global(.download-apply-dialog .el-dialog) { max-width: calc(100vw - 32px); overflow: visible; }
+:global(.download-apply-dialog .el-dialog__body) { overflow: visible; }
+:global(.download-apply-dialog .attachment-select-popper) { max-width: 490px; }
+:global(.download-apply-dialog .attachment-select-popper .el-select-dropdown__wrap) { max-height: 220px; }
+:global(.download-apply-dialog .attachment-select-popper .el-select-dropdown__item) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

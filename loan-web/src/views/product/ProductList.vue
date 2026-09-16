@@ -186,7 +186,7 @@
           <span style="margin: 0 8px">~</span>
           <el-input-number v-model="dialogForm.termMax" :controls="false" placeholder="上限" style="width: 130px" />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
+        <el-form-item v-if="editing" label="状态" prop="status">
           <DictSelect v-model="dialogForm.status" type="productStatus" placement="top-start" />
         </el-form-item>
       </el-form>
@@ -605,7 +605,6 @@ const formRules = {
   bankName: [{ required: true, message: '请输入所属银行', trigger: 'blur' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
   source: [{ required: true, message: '请选择来源', trigger: 'change' }],
-  status: [{ required: true, message: '请选择状态', trigger: 'change' }],
 };
 
 async function onSave() {
@@ -613,6 +612,7 @@ async function onSave() {
   saving.value = true;
   try {
     const payload = { ...dialogForm };
+    if (!editing.value) delete payload.status;
     if (editing.value) {
       await updateProduct(payload);
       ElMessage.success('编辑成功');

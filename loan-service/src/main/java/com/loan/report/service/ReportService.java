@@ -80,6 +80,14 @@ public class ReportService {
     private static final Set<String> REPORT_FULL_ROLES =
             new HashSet<>(java.util.Arrays.asList("BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER"));
 
+    /** 可访问经营看板的公司员工角色；渠道与客户账号不得进入内部经营报表。 */
+    private static final Set<String> REPORT_ROLES =
+            new HashSet<>(java.util.Arrays.asList("BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER", "DEPT_MANAGER", "ADVISER"));
+
+    /** 使用“经营概览”决策视角的角色，其余员工使用“实时看板”。 */
+    private static final Set<String> EXECUTIVE_REPORT_ROLES =
+            new HashSet<>(java.util.Arrays.asList("BOSS", "SUPER_ADMIN", "SUPER"));
+
     private static final Set<String> CLIENT_ASSIGN_ACTIONS =
             new HashSet<>(java.util.Arrays.asList("CLAIM_APPROVED", "MANAGER_ASSIGN", "MANUAL", "AUTO"));
 
@@ -94,14 +102,7 @@ public class ReportService {
      * @return 受限的 ownerStaffCode 集合；null 表示全量；空集表示无权
      */
     private Set<String> buildOwnerScope(LoanUser user) {
-        if (user == null) {
-            return Collections.emptySet();
-        }
-        String role = user.getRoleCode();
-        if (!StringUtils.hasText(role)) {
-            return Collections.emptySet();
-        }
-        role = role.toUpperCase();
+        String role = requireReportRole(user);
         if (REPORT_FULL_ROLES.contains(role)) {
             return null;
         }
@@ -122,6 +123,21 @@ public class ReportService {
         return Collections.emptySet();
     }
 
+    private String requireReportRole(LoanUser user) {
+        String role = normalizeRole(user);
+        if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType()) || !REPORT_ROLES.contains(role)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "当前账号无权查看公司经营报表");
+        }
+        return role;
+    }
+
+    private String fixedReportScope(LoanUser user) {
+        String role = requireReportRole(user);
+        if ("DEPT_MANAGER".equals(role)) return "TEAM";
+        if ("ADVISER".equals(role)) return "MY";
+        return "ALL";
+    }
+
     /**
      * 经营总览（全部走 COUNT/SUM 聚合 SQL，不拉全表）。
      * 按角色数据可见范围过滤（老板全量 / 部门主管本部门 / 顾问本人）。
@@ -130,6 +146,14 @@ public class ReportService {
      */
     public Map<String, Object> overview(LoanUser user) {
         Map<String, Object> m = new LinkedHashMap<>();
+
+        String role = requireReportRole(user);
+        String dataScope = fixedReportScope(user);
+        m.put("viewType", EXECUTIVE_REPORT_ROLES.contains(role) ? "BUSINESS_OVERVIEW" : "REALTIME_DASHBOARD");
+        m.put("viewTitle", EXECUTIVE_REPORT_ROLES.contains(role) ? "经营概览" : "实时看板");
+        m.put("dataScope", dataScope);
+        m.put("dataScopeLabel", scopeLabel(dataScope));
+        m.put("roleCode", role);
 
         // 角色数据可见范围：null=全量；空集=无权；非空=受限 ownerStaffCode 集合
         Set<String> scope = buildOwnerScope(user);
@@ -289,9 +313,7 @@ public class ReportService {
     }
 
     private String resolveOperationsScope(String requested, LoanUser user) {
-        String role = normalizeRole(user);
-        String defaultScope = REPORT_FULL_ROLES.contains(role) ? "ALL"
-                : "DEPT_MANAGER".equals(role) ? "TEAM" : "MY";
+        String defaultScope = fixedReportScope(user);
         String scope = StringUtils.hasText(requested) ? requested.trim().toUpperCase() : defaultScope;
         if (!availableOperationScopes(user).contains(scope)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "当前角色无权查看该经营统计范围");
@@ -300,12 +322,7 @@ public class ReportService {
     }
 
     private List<String> availableOperationScopes(LoanUser user) {
-        String role = normalizeRole(user);
-        List<String> scopes = new ArrayList<>();
-        if (user != null && StringUtils.hasText(user.getUserNo())) scopes.add("MY");
-        if ("DEPT_MANAGER".equals(role) && StringUtils.hasText(user.getDeptCode())) scopes.add("TEAM");
-        if (REPORT_FULL_ROLES.contains(role)) scopes.add("ALL");
-        return scopes;
+        return Collections.singletonList(fixedReportScope(user));
     }
 
     private Set<String> ownerScopeFor(String scope, LoanUser user) {

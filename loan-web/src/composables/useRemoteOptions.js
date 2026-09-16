@@ -14,6 +14,7 @@ export function useRemoteOptions(loader, options = {}) {
   let page = 1;
   let sequence = 0;
   let timer;
+  let lastLoadedKeyword = null;
 
   async function fetchPage(append = false) {
     const current = ++sequence;
@@ -34,6 +35,7 @@ export function useRemoteOptions(loader, options = {}) {
         return true;
       });
       finished.value = items.value.length >= Number(payload.total || 0) || records.length < pageSize;
+      lastLoadedKeyword = keyword;
     } catch (e) {
       if (current === sequence) {
         if (!append) items.value = [];
@@ -45,8 +47,11 @@ export function useRemoteOptions(loader, options = {}) {
   }
 
   function search(value = '') {
+    const nextKeyword = String(value || '').trim();
+    // Element Plus 在聚焦、展开和输入时可能连续触发相同 remote-method；相同条件只请求一次。
+    if (nextKeyword === keyword && (loading.value || lastLoadedKeyword === nextKeyword)) return;
     clearTimeout(timer);
-    keyword = String(value || '').trim();
+    keyword = nextKeyword;
     page = 1;
     finished.value = false;
     timer = setTimeout(() => fetchPage(false), debounce);

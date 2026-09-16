@@ -44,7 +44,7 @@ public class ProductService {
      */
     @Transactional(rollbackFor = Exception.class)
     public String create(ProductSaveReq req, String operator) {
-        validate(req);
+        validate(req, false);
         if (bankProductMapper.selectCount(new LambdaQueryWrapper<BankProduct>()
                 .eq(BankProduct::getProductName, req.getProductName())
                 .eq(BankProduct::getCustomerGroup, req.getCustomerGroup())
@@ -85,6 +85,7 @@ public class ProductService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(ProductSaveReq req, String operator) {
+        validate(req, true);
         if (!StringUtils.hasText(req.getProductCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "产品编码必填");
         }
@@ -130,7 +131,7 @@ public class ProductService {
     /**
      * 校验必填项。
      */
-    private void validate(ProductSaveReq req) {
+    private void validate(ProductSaveReq req, boolean requireStatus) {
         if (!StringUtils.hasText(req.getProductCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "产品编码必填");
         }
@@ -140,7 +141,7 @@ public class ProductService {
         if (!StringUtils.hasText(req.getBankName())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "所属银行必填");
         }
-        if (!StringUtils.hasText(req.getStatus())) {
+        if (requireStatus && !StringUtils.hasText(req.getStatus())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "状态必填");
         }
     }

@@ -87,6 +87,11 @@
           >
             <el-option v-for="c in clientOptions" :key="c.clientCode" :label="clientLabel(c)" :value="c.clientCode" />
           </el-select>
+          <div class="field-help">
+            仅显示本人名下客户；未找到时请先
+            <el-link type="primary" :underline="false" @click="goToLead">新建线索</el-link>
+            ，未分配或归属他人的客户需先完成认领。
+          </div>
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
           <el-radio-group v-model="createForm.customerGroup">
@@ -177,6 +182,7 @@ import { appConfirm } from '@/utils/confirm';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { clientDisplayLabel } from '@/utils/display';
 import { useUserStore } from '@/store/user';
+import { useRouter } from 'vue-router';
 import { ACTION_PERMISSION, availableOrderTransitions } from '@/utils/access';
 import { pageOrders, createOrder, orderDetail, updateOrderStatus, pageClientLite } from '@/api/order';
 
@@ -188,6 +194,7 @@ const statusText = {
   REFUND: '已退款',
 };
 const userStore = useUserStore();
+const router = useRouter();
 const statusTag = (s) => ({
   NEW: 'loan-tag-info',
   IN_SERVICE: 'loan-tag-warning',
@@ -294,6 +301,11 @@ function searchClients(keyword) {
   clientSearchTimer = setTimeout(() => loadClients(keyword), 250);
 }
 
+function goToLead() {
+  createVisible.value = false;
+  router.push('/lead');
+}
+
 async function onAdd() {
   Object.assign(createForm, {
     clientCode: '',
@@ -387,5 +399,11 @@ onMounted(load);
 }
 .mono {
   font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+.field-help {
+  margin-top: 6px;
+  color: var(--loan-text-secondary, var(--loan-text-muted));
+  font-size: 12px;
+  line-height: 18px;
 }
 </style>

@@ -32,7 +32,7 @@ public class AttachmentController {
      * @return 附件分页
      */
     @GetMapping("/page")
-    public Result<PageResult<ServiceAttachment>> page(
+    public Result<PageResult<java.util.Map<String, Object>>> page(
             @RequestParam(required = false) String clientProfileCode,
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String keyword,

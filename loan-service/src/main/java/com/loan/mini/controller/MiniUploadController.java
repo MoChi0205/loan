@@ -112,9 +112,9 @@ public class MiniUploadController {
             data.put("fileSize", file.getSize());
             data.put("url", "/api/mini/upload/" + fileKey);
 
-            // OCR 材料识别与诊断回灌（T2）：仅当 reportNo 非空时触发；
-            // 识别/回灌失败仅告警，绝不阻塞上传主流程（向后兼容原有 4 字段返回）。
-            if (StringUtils.hasText(reportNo)) {
+            // OCR 材料识别与复核：新报告生成前也必须可上传，先按客户绑定并进入材料复核；
+            // 已有 reportNo 时额外关联既有报告，供补充材料诊断回灌。
+            if (StringUtils.hasText(scopedClientCode)) {
                 try {
                     Map<String, Object> ocr = materialService.ingest(
                             fileKey, bizType, scopedClientCode, reportNo, user);

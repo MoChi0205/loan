@@ -32,6 +32,12 @@ public class AttachmentDownloadApproval implements Serializable {
     /** 资料清单（JSON 数组附件 ID） */
     private String attachmentIds;
 
+    /** 本次申请唯一所属客户编码（禁止跨客户混选）。 */
+    private String clientProfileCode;
+
+    /** 申请时冻结的材料明细快照（客户/报告/文件），供审批追溯。 */
+    private String attachmentSummaryJson;
+
     /** 用途说明（必填） */
     private String purpose;
 

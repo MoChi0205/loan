@@ -2,8 +2,8 @@
   <div class="report-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">经营概览</h2>
-        <p class="loan-page-subtitle">客户资产 · 公海效率 · 跟进时效 · 成交趋势</p>
+        <h2 class="loan-page-title">{{ pageTitle }}</h2>
+        <p class="loan-page-subtitle">{{ pageSubtitle }}</p>
       </div>
     </div>
 
@@ -23,7 +23,7 @@
           <div class="section-hint">{{ operations.scopeLabel || '当前' }}范围 · 资产/SLA 看当前，流转/转化统计近 {{ operations.periodDays || operationQuery.days }} 天</div>
         </div>
         <div class="report-filters">
-          <el-radio-group v-model="operationQuery.scope" size="small" @change="loadOperations">
+          <el-radio-group v-if="scopeOptions.length > 1" v-model="operationQuery.scope" size="small" @change="loadOperations">
             <el-radio-button v-for="item in scopeOptions" :key="item.value" :value="item.value">
               {{ item.label }}
             </el-radio-button>
@@ -240,6 +240,20 @@ import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { reportDisplayTitle } from '@/utils/display';
 import { reportOverview, reportOperations, orderTrend, rewardTrend, pageScreenings, screeningDetail } from '@/api/report';
+import { useUserStore } from '@/store/user';
+
+const userStore = useUserStore();
+const executiveRoles = ['BOSS', 'SUPER_ADMIN', 'SUPER'];
+const pageTitle = computed(() => executiveRoles.includes(userStore.roleCode) ? '经营概览' : '实时看板');
+const roleScopeText = computed(() => ({
+  BOSS: '全公司经营决策数据',
+  SUPER_ADMIN: '全公司经营决策数据',
+  SUPER: '全公司经营决策数据',
+  OPERATOR: '全公司实时运营数据',
+  DEPT_MANAGER: '本团队实时经营数据',
+  ADVISER: '本人实时业务数据',
+}[userStore.roleCode] || '当前角色可见数据'));
+const pageSubtitle = computed(() => `${roleScopeText.value} · 客户资产 · 公海效率 · 跟进时效 · 成交趋势`);
 
 const gradeText = { HIGH: '高', MIDDLE: '中', LOW: '低' };
 const gradeTag = (g) => ({ HIGH: 'loan-tag-success', MIDDLE: 'loan-tag-warning', LOW: 'loan-tag-muted' }[g] || 'loan-tag-muted');

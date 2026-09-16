@@ -29,6 +29,11 @@ import com.loan.report.mapper.ReportTemplateMapper;
 import com.loan.report.mapper.ScreeningProductMapper;
 import com.loan.submission.entity.ClientSubmission;
 import com.loan.submission.service.SubmissionService;
+import com.loan.submission.mapper.ClientSubmissionMapper;
+import com.loan.approval.entity.MaterialReview;
+import com.loan.approval.mapper.MaterialReviewMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +55,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ScreeningService {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final ClientProfileMapper clientProfileMapper;
     private final PlanLoaderService planLoaderService;
     private final MatchService matchService;
@@ -59,6 +66,8 @@ public class ScreeningService {
     private final ReportTemplateMapper reportTemplateMapper;
     private final SubmissionService submissionService;
     private final ScreeningProductMapper screeningProductMapper;
+    private final ClientSubmissionMapper submissionMapper;
+    private final MaterialReviewMapper materialReviewMapper;
 
     /**
      * 执行初筛并生成报告（无客户端幂等键的入口，兼容既有调用方）。
@@ -97,6 +106,12 @@ public class ScreeningService {
         if (client == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "客户不存在");
         }
+        if (materialReviewMapper.selectCount(new LambdaQueryWrapper<MaterialReview>()
+                .eq(MaterialReview::getClientProfileCode, client.getClientCode())
+                .eq(MaterialReview::getReviewStatus, "PENDING_REVIEW")) > 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "该客户存在待复核材料，请在材料复核通过后再生成精准报告");
+        }
+        facts = mergeReviewedMaterialFacts(client.getClientCode(), facts);
         // P0-4：执行前幂等落提交单 + 经营事实（key 即 t_rule.field_code，与引擎入参对齐）
         ClientSubmission submission = submissionService.submit(client.getClientCode(),
                 client.getCustomerGroup(), facts, clientSubmitId, operator);
@@ -151,6 +166,33 @@ public class ScreeningService {
             submissionService.markMatched(submission.getSubmissionNo(), context.getTraceUuid());
         }
         return screening.getReportNo();
+    }
+
+    /** 已复核材料事实优先，页面手填字段只补充材料未识别出的空项。 */
+    private Map<String, Object> mergeReviewedMaterialFacts(String clientCode, Map<String, Object> manualFacts) {
+        Map<String, Object> merged = new LinkedHashMap<>();
+        ClientSubmission latest = submissionMapper.selectOne(new LambdaQueryWrapper<ClientSubmission>()
+                .eq(ClientSubmission::getClientProfileCode, clientCode)
+                .orderByDesc(ClientSubmission::getCreatedAt).last("limit 1"));
+        if (latest != null && StringUtils.hasText(latest.getDataJson())) {
+            try {
+                Map<String, Object> materialFacts = OBJECT_MAPPER.readValue(latest.getDataJson(),
+                        new TypeReference<Map<String, Object>>() { });
+                materialFacts.remove("_ocrMeta");
+                merged.putAll(materialFacts);
+            } catch (Exception e) {
+                throw new BusinessException(ResultCode.INTERNAL_ERROR, "客户材料事实解析失败，请重新复核材料");
+            }
+        }
+        if (manualFacts != null) {
+            manualFacts.forEach((key, value) -> {
+                Object current = merged.get(key);
+                if (current == null || (current instanceof String && !StringUtils.hasText((String) current))) {
+                    if (value != null && (!(value instanceof String) || StringUtils.hasText((String) value))) merged.put(key, value);
+                }
+            });
+        }
+        return merged;
     }
 
     /**

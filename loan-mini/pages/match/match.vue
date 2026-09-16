@@ -273,7 +273,7 @@
       <AppCard v-else-if="currentStep === 3" class="step-card">
         <view class="step-head">
           <text class="step-title">材料核验</text>
-          <AppTag type="muted" size="sm">匹配前最后一步</AppTag>
+          <AppTag :type="materialReviewPending ? 'warning' : 'success'" size="sm">{{ materialReviewPending ? '等待材料复核' : '可执行匹配' }}</AppTag>
         </view>
         <view v-for="(v, i) in verifyList" :key="i" class="verify-row">
           <view class="verify-ic" :class="v.status"><AppIcon :name="v.status === 'ok' ? 'check' : 'refresh'" /></view>
@@ -282,7 +282,7 @@
             <text class="verify-desc">{{ v.desc }}</text>
           </view>
         </view>
-        <AppButton variant="primary" size="lg" block :loading="submitting" @click="onSubmit">
+        <AppButton variant="primary" size="lg" block :loading="submitting" :disabled="materialReviewPending" @click="onSubmit">
           开始匹配 · 生成报告
         </AppButton>
         <text class="step-tip center">基于核验后的材料生成匹配报告 + 经营诊断</text>
@@ -520,6 +520,7 @@ const materials = reactive([
 const uploadedMaterialCount = computed(
   () => materials.filter(m => m.status === 'ok').length,
 );
+const materialReviewPending = computed(() => materials.some(m => m.pendingReview));
 const activeClientCode = computed(() => (isStaff.value ? targetClientCode.value : store.clientCode));
 
 async function onUpload(m) {
@@ -532,7 +533,10 @@ async function onUpload(m) {
     m.statusText = '已上传';
     m.fileKey = data.fileKey;
     m.fileName = data.fileName;
-    uni.showToast({ title: '上传成功', icon: 'success' });
+    m.pendingReview = data.pendingReview === true;
+    m.reviewNo = data.reviewNo;
+    m.statusText = m.pendingReview ? '待我司复核' : '已上传';
+    uni.showToast({ title: m.pendingReview ? '已提交材料复核' : '上传成功', icon: 'success' });
   } catch (e) {
     if (e && /cancel/i.test(e.message || '')) return;
     m.status = 'fail';
@@ -554,9 +558,10 @@ async function onSupplement() {
 
 /* ===== 步骤 3：核验 & 匹配 ===== */
 const verifyList = computed(() => materials.map((m) => ({
-  status: m.status === 'ok' ? 'ok' : 'pending',
-  title: `${m.name}${m.status === 'ok' ? '已上传' : '待核验'}`,
-  desc: m.status === 'ok' ? (m.fileName || '材料已接收，最终核验结果以服务端为准') : '尚无真实核验结果',
+  status: m.status === 'ok' && !m.pendingReview ? 'ok' : 'pending',
+  title: `${m.name}${m.pendingReview ? '待我司复核' : m.status === 'ok' ? '已通过上传校验' : '待上传'}`,
+  desc: m.pendingReview ? `复核单 ${m.reviewNo || '已生成'}，通过后结构化事实才参与精准匹配`
+    : m.status === 'ok' ? (m.fileName || '材料已接收') : '尚未上传材料',
 })));
 
 /* ===== 步骤导航 ===== */

@@ -17,6 +17,8 @@ import com.loan.sms.entity.SmsTemplate;
 import com.loan.report.entity.ReportTemplate;
 import com.loan.notification.service.NotificationService;
 import com.loan.notification.dto.NotificationReq;
+import com.loan.attachment.entity.ServiceAttachment;
+import com.loan.attachment.mapper.ServiceAttachmentMapper;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.common.util.PageOrder;
@@ -121,6 +123,7 @@ public class ApprovalService {
     private final SmsTemplateMapper smsTemplateMapper;
     private final ReportTemplateMapper reportTemplateMapper;
     private final NotificationService notificationService;
+    private final ServiceAttachmentMapper serviceAttachmentMapper;
 
     /**
      * 已开放的审批类型白名单（配置 {@code loan.mini.approval.types}，逗号分隔）。
@@ -307,10 +310,36 @@ public class ApprovalService {
         if (!StringUtils.hasText(attachmentIds) || !StringUtils.hasText(purpose)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "资料清单与用途说明必填");
         }
+        List<Long> requestedIds = parseAttachmentIds(attachmentIds);
+        if (requestedIds.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "至少选择一份资料");
+        }
+        List<ServiceAttachment> requestedAttachments = serviceAttachmentMapper.selectBatchIds(requestedIds);
+        if (requestedAttachments.size() != requestedIds.size()) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "部分材料不存在或已失效，请重新选择");
+        }
+        Set<String> requestedClients = requestedAttachments.stream().map(ServiceAttachment::getClientProfileCode)
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        if (requestedClients.size() != 1 || requestedAttachments.stream().anyMatch(x -> !StringUtils.hasText(x.getClientProfileCode()))) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "一次下载申请只能选择同一客户且已完成客户绑定的材料");
+        }
+        String clientCode = requestedClients.iterator().next();
+        String clientName = businessNameService.clientNames(Collections.singleton(clientCode)).get(clientCode);
+        List<Map<String, Object>> summary = requestedAttachments.stream().map(item -> {
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("id", item.getId()); detail.put("fileName", item.getFileName());
+            detail.put("attachmentType", item.getAttachmentType()); detail.put("clientCode", clientCode);
+            detail.put("clientName", clientName); detail.put("reportNo", item.getReportNo());
+            detail.put("orderNo", item.getOrderNo()); detail.put("fileSize", item.getFileSize());
+            return detail;
+        }).collect(Collectors.toList());
         AttachmentDownloadApproval a = new AttachmentDownloadApproval();
         a.setApprovalNo(BizIdGenerator.generate("dldapr"));
         a.setApplicantStaffCode(applicantCode);
         a.setAttachmentIds(attachmentIds);
+        a.setClientProfileCode(clientCode);
+        try { a.setAttachmentSummaryJson(OBJECT_MAPPER.writeValueAsString(summary)); }
+        catch (Exception e) { throw new BusinessException(ResultCode.INTERNAL_ERROR, "材料审批快照生成失败"); }
         a.setPurpose(purpose);
         a.setExpectDays(expectDays);
         a.setApproveStatus("PENDING");
@@ -364,12 +393,30 @@ public class ApprovalService {
                 .flatMap(a -> java.util.stream.Stream.of(a.getApplicantStaffCode(), a.getApproverStaffCode()))
                 .filter(StringUtils::hasText).collect(Collectors.toSet());
         Map<String, String> staffNameMap = businessNameService.staffNames(staffCodes);
+        Set<Long> attachmentIds = result.getRecords().stream().flatMap(a -> parseAttachmentIds(a.getAttachmentIds()).stream())
+                .collect(Collectors.toSet());
+        Map<Long, ServiceAttachment> attachmentMap = attachmentIds.isEmpty() ? Collections.emptyMap()
+                : serviceAttachmentMapper.selectBatchIds(attachmentIds).stream().collect(Collectors.toMap(ServiceAttachment::getId, x -> x));
+        Set<String> clientCodes = attachmentMap.values().stream().map(ServiceAttachment::getClientProfileCode)
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, String> clientNames = businessNameService.clientNames(clientCodes);
         List<Map<String, Object>> records = result.getRecords().stream().map(a -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("approvalNo", a.getApprovalNo());
             m.put("applicantStaffCode", a.getApplicantStaffCode());
             m.put("applicantStaffName", staffNameMap.get(a.getApplicantStaffCode()));
             m.put("attachmentIds", a.getAttachmentIds());
+            List<Map<String, Object>> details = parseAttachmentSummary(a.getAttachmentSummaryJson());
+            if (details.isEmpty()) details = parseAttachmentIds(a.getAttachmentIds()).stream().map(id -> {
+                ServiceAttachment item = attachmentMap.get(id);
+                Map<String, Object> detail = new LinkedHashMap<>(); detail.put("id", id);
+                if (item != null) { detail.put("fileName", item.getFileName()); detail.put("attachmentType", item.getAttachmentType());
+                    detail.put("clientCode", item.getClientProfileCode()); detail.put("clientName", clientNames.get(item.getClientProfileCode()));
+                    detail.put("reportNo", item.getReportNo()); detail.put("orderNo", item.getOrderNo()); }
+                return detail;
+            }).collect(Collectors.toList());
+            m.put("attachmentDetails", details);
+            m.put("clientProfileCode", a.getClientProfileCode());
             m.put("purpose", a.getPurpose());
             m.put("expectDays", a.getExpectDays());
             m.put("approveStatus", a.getApproveStatus());
@@ -384,6 +431,19 @@ public class ApprovalService {
             return m;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    private List<Long> parseAttachmentIds(String json) {
+        if (!StringUtils.hasText(json)) return Collections.emptyList();
+        try { return OBJECT_MAPPER.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<List<Long>>() { }); }
+        catch (Exception e) { throw new BusinessException(ResultCode.PARAM_ERROR, "资料清单格式错误"); }
+    }
+
+    private List<Map<String, Object>> parseAttachmentSummary(String json) {
+        if (!StringUtils.hasText(json)) return Collections.emptyList();
+        try { return OBJECT_MAPPER.readValue(json,
+                new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() { }); }
+        catch (Exception e) { return Collections.emptyList(); }
     }
 
     /**
