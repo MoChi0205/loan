@@ -56,7 +56,7 @@ public class PartnerProductController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
-        requireStaff(user);
+        requireManager(user);
         int p = PageParams.page(page);
         int s = PageParams.size(size);
         return Result.ok(partnerProductService.page(status, keyword, p, s));
@@ -72,7 +72,7 @@ public class PartnerProductController {
     @PostMapping("/api/admin/partner-product")
     @OpLog(bizType = "合作库", action = "CREATE")
     public Result<String> create(@RequestBody PartnerProductSaveReq req, @CurrentUser LoanUser user) {
-        requireStaff(user);
+        requireManager(user);
         return Result.ok(partnerProductService.create(req, user == null ? "system" : user.getName()));
     }
 
@@ -88,7 +88,7 @@ public class PartnerProductController {
     @OpLog(bizType = "合作库", action = "RENEW")
     public Result<Void> renew(@PathVariable String code, @RequestBody Map<String, String> body,
                               @CurrentUser LoanUser user) {
-        requireStaff(user);
+        requireManager(user);
         String until = body == null ? null : body.get("cooperateUntil");
         if (!StringUtils.hasText(until)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "cooperateUntil 必填");
@@ -110,7 +110,7 @@ public class PartnerProductController {
     @OpLog(bizType = "合作库", action = "STATUS")
     public Result<Void> updateStatus(@PathVariable String code, @RequestBody Map<String, String> body,
                                      @CurrentUser LoanUser user) {
-        requireStaff(user);
+        requireManager(user);
         String status = body == null ? null : body.get("status");
         if (!StringUtils.hasText(status)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "status 必填");
@@ -141,6 +141,14 @@ public class PartnerProductController {
     private void requireStaff(LoanUser user) {
         if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "仅员工可操作合作库");
+        }
+    }
+
+    private void requireManager(LoanUser user) {
+        requireStaff(user);
+        String role = String.valueOf(user.getRoleCode()).toUpperCase();
+        if (!java.util.Arrays.asList("BOSS", "SUPER_ADMIN", "SUPER").contains(role)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "合作库仅老板或超级管理员可查看和操作");
         }
     }
 }

@@ -265,6 +265,7 @@ const BASE_MENU_GROUPS = [
     items: [
       { path: '/lead', title: '线索管理', icon: 'lead' },
       { path: '/client', title: '客户档案', icon: 'client' },
+      { path: '/client-lookup', title: '用户查询', icon: 'search' },
       { path: '/client?scope=TEAM_SEA', title: '团队公海', icon: 'sea', roles: ['DEPT_MANAGER'] },
       { path: '/ocr', title: '材料识别', icon: 'ocr' },
     ],
@@ -287,7 +288,7 @@ const BASE_MENU_GROUPS = [
     icon: 'order',
     items: [
       { path: '/order', title: '服务工单', icon: 'order' },
-      { path: '/approval', title: '审核中心', icon: 'approval' },
+      { path: '/approval', title: '我的审批', icon: 'approval' },
     ],
   },
   {

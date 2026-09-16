@@ -250,7 +250,8 @@ public class ApprovalService {
         product.setUpdatedBy(operator);
         product.setUpdatedAt(now);
         bankProductMapper.updateById(product);
-        if (approve) {
+        // 内部员工提交的产品仅进入全量库；合作库由老板/超管单独维护。
+        if (approve && a.getChannelUserId() != null) {
             partnerProductService.activateByApproval(a.getBankProductCode(),
                     cooperateUntil(a.getAfterSnapshotJson()), operator);
         }
@@ -473,6 +474,28 @@ public class ApprovalService {
      */
     public PageResult<Map<String, Object>> allocationPage(int page, int size) {
         return miniClientService.pendingAllocations(normalizePage(page), normalizeSize(size));
+    }
+
+    /** 当前员工发起的审批工单，所有员工均可查看，不授予审核权限。 */
+    public List<Map<String, Object>> myApplications(LoanUser user) {
+        if (user == null || !StringUtils.hasText(user.getUserNo())) return Collections.emptyList();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        productApprovalMapper.selectList(new LambdaQueryWrapper<ProductApproval>()
+                .eq(ProductApproval::getCreatedBy, user.getName()).orderByDesc(ProductApproval::getCreatedAt)
+                .last("LIMIT 100")).forEach(a -> {
+            Map<String,Object> m=new LinkedHashMap<>(); m.put("type",TYPE_PRODUCT); m.put("approvalNo",a.getApprovalNo());
+            m.put("subject", businessNameService.productNames(Collections.singleton(a.getBankProductCode())).get(a.getBankProductCode()));
+            m.put("approveStatus",a.getApproveStatus()); m.put("opinion",a.getApproveOpinion()); m.put("createdAt",a.getCreatedAt()); rows.add(m);
+        });
+        downloadApprovalMapper.selectList(new LambdaQueryWrapper<AttachmentDownloadApproval>()
+                .eq(AttachmentDownloadApproval::getApplicantStaffCode, user.getUserNo()).orderByDesc(AttachmentDownloadApproval::getCreatedAt)
+                .last("LIMIT 100")).forEach(a -> {
+            Map<String,Object> m=new LinkedHashMap<>(); m.put("type",TYPE_DOWNLOAD); m.put("approvalNo",a.getApprovalNo());
+            m.put("subject",a.getPurpose()); m.put("approveStatus",a.getApproveStatus()); m.put("opinion",a.getApproveOpinion()); m.put("createdAt",a.getCreatedAt()); rows.add(m);
+        });
+        miniClientService.myAllocationApplications(user.getUserNo()).forEach(a -> rows.add(a));
+        rows.sort(new CreatedAtDescComparator());
+        return rows.size() > 100 ? rows.subList(0, 100) : rows;
     }
 
     /**

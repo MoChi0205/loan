@@ -50,6 +50,15 @@ public class ClientAllocationApproval implements Serializable {
     /** 状态（PENDING/APPROVED/REJECTED） */
     private String approveStatus;
 
+    /** 当前审批阶段（TEAM_REVIEW / BOSS_REVIEW）；同团队仅 TEAM_REVIEW。 */
+    private String approvalStage;
+
+    /** 第一阶段团队负责人。 */
+    private String teamApproverStaffCode;
+
+    /** 第一阶段完成时间。 */
+    private LocalDateTime teamApprovedAt;
+
     /** 审批人员工工号（运营/超管） */
     private String approverStaffCode;
 

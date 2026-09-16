@@ -41,6 +41,13 @@ public class ApprovalController {
         miniRoleGuard.requireApproverFor(type, user);
     }
 
+    /** 我的审批申请：所有公司员工可查看本人发起记录。 */
+    @GetMapping("/mine")
+    public Result<java.util.List<Map<String, Object>>> mine(@CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        return Result.ok(approvalService.myApplications(user));
+    }
+
     // ============================================================
     // 渠道新增线索终审
     // ============================================================

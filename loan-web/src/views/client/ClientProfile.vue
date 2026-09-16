@@ -25,7 +25,7 @@
         <el-tab-pane label="我的客户" name="MY" />
         <el-tab-pane v-if="canViewTeamAssigned" label="团队已分配客户" name="TEAM" />
         <el-tab-pane v-if="canViewCompanyAssigned" label="全司已分配客户" name="ALL" />
-        <el-tab-pane v-if="!isChannel" label="公司公海" name="COMPANY_SEA" />
+        <el-tab-pane v-if="!isChannel" label="客户公海" name="COMPANY_SEA" />
         <el-tab-pane v-if="canViewTeamAssigned" label="团队公海" name="TEAM_SEA" />
       </el-tabs>
       <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
@@ -53,13 +53,17 @@
           style="width: 260px"
         />
       </AppSearchBar>
-      <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode" @sort-change="handleClientSortChange">
+      <div v-if="['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope)" class="batch-bar">
+        <el-button type="primary" :disabled="!selectedClientCodes.length" @click="onBatchClaim">批量认领（{{ selectedClientCodes.length }}）</el-button>
+      </div>
+      <el-table :data="clientRows" v-loading="listLoading" stripe row-key="clientCode" @selection-change="onClientSelection" @sort-change="handleClientSortChange">
         <template #empty>
           <AppEmpty
             :title="showOwnClientList ? '暂无客户' : '暂无符合条件的客户'"
             :desc="showOwnClientList ? (isChannel ? '本人录入的线索转化为客户后会显示在这里' : '本人归属的客户会显示在这里') : '试试调整筛选条件'"
           />
         </template>
+        <el-table-column v-if="['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope)" type="selection" width="46" />
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.enterpriseName || row.contactName || '—' }}</div>
@@ -67,7 +71,12 @@
           </template>
         </el-table-column>
         <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
-        <el-table-column label="最近跟进" width="170"><template #default="{ row }">{{ row.lastFollowedAt ? formatDateTime(row.lastFollowedAt) : '—' }}</template></el-table-column>
+        <el-table-column label="最近跟进" width="190">
+          <template #default="{ row }">
+            <div v-if="row.lastFollowedAt">{{ formatDateTime(row.lastFollowedAt) }}</div>
+            <span v-else class="loan-tag loan-tag-warning">尚未跟进</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="createdAt" label="建档时间" width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
@@ -241,7 +250,7 @@ import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory, claimUnassignedClient } from '@/api/client';
+import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory, claimUnassignedClient, batchClaimClients } from '@/api/client';
 import { staffPage } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
@@ -264,6 +273,15 @@ const clientScope = ref(defaultClientScope.value);
 const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
+const selectedClientCodes = ref([]);
+function onClientSelection(rows) { selectedClientCodes.value = rows.map((row) => row.clientCode); }
+async function onBatchClaim() {
+  await ElMessageBox.confirm(`确认批量认领选中的 ${selectedClientCodes.value.length} 位客户？`, '批量认领');
+  await batchClaimClients(selectedClientCodes.value);
+  ElMessage.success('批量认领成功');
+  selectedClientCodes.value = [];
+  loadClients();
+}
 const {
   loading: listLoading,
   data: clientRows,
@@ -396,7 +414,7 @@ function ownClientActions(row) {
       onClick: () => onRecycleListRow(row),
     });
   }
-  if (isAdviser.value && clientScope.value === 'MY' && row.ownerStaffCode === userStore.userNo) {
+  if (clientScope.value === 'MY' && row.ownerStaffCode === userStore.user?.userNo && !isChannel.value) {
     actions.push({ key: 'follow', label: '跟进', onClick: () => openFollow(row) });
     actions.push({
       key: 'release',

@@ -4,7 +4,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">产品库</h2>
-        <p class="loan-page-subtitle">全量库（内部代号化） / 合作库（对客可见，有效期到期自动下架）</p>
+        <p class="loan-page-subtitle">全量库（公司产品）<template v-if="canManageProduct"> / 合作库（渠道展示）</template></p>
       </div>
       <el-button type="primary" @click="onHeaderAction">
         <AppIcon name="add" :size="14" />
@@ -14,7 +14,7 @@
 
     <el-tabs v-model="activeTab" @tab-change="onTabChange">
       <el-tab-pane label="全量库" name="all" />
-      <el-tab-pane label="合作库" name="cooperate" />
+      <el-tab-pane v-if="canManageProduct" label="合作库" name="cooperate" />
     </el-tabs>
 
     <div class="loan-card">
@@ -72,7 +72,7 @@
             <template #default="{ row }">{{ row.createdByName || row.createdBy || '—' }}</template>
           </el-table-column>
           <!-- 操作列 -->
-          <el-table-column label="操作" width="180" fixed="right">
+          <el-table-column v-if="canManageProduct" label="操作" width="180" fixed="right">
             <template #default="{ row }">
               <AppTableActions :actions="rowActions(row)" />
             </template>
@@ -283,6 +283,7 @@ import ChannelProductWorkspace from './ChannelProductWorkspace.vue';
 
 const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
+const canManageProduct = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
 
 const activeTab = ref('all');
 
@@ -617,7 +618,7 @@ async function onSave() {
       ElMessage.success('编辑成功');
     } else {
       await createProduct(payload);
-      ElMessage.success('新增成功');
+      ElMessage.success('已提交审批，老板或超级管理员通过后展示');
     }
     dialogVisible.value = false;
     loadAll();

@@ -8,6 +8,7 @@ import com.loan.client.service.ClientAllocationService;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.mini.service.MiniRoleGuard;
+import com.loan.mini.service.MiniClientService;
 import com.loan.log.annotation.OpLog;
 import com.loan.common.util.PageParams;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,20 @@ public class ClientController {
     private final ClientService clientService;
     private final ClientAllocationService clientAllocationService;
     private final MiniRoleGuard miniRoleGuard;
+    private final MiniClientService miniClientService;
+
+    /** 用户查询：姓名/企业/手机号/证件号查重，并返回当前归属供前端分流。 */
+    @GetMapping("/lookup")
+    public Result<Map<String, Object>> lookup(@RequestParam String keyword, @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        if (keyword == null || keyword.trim().length() < 2) return Result.ok(null);
+        Map<String, Object> result = miniClientService.search(keyword);
+        if (result != null) {
+            result.put("ownedByMe", user.getUserNo() != null
+                    && user.getUserNo().equals(result.get("ownerStaffCode")));
+        }
+        return Result.ok(result);
+    }
 
     /**
      * 未分配客户池。新微信客户只要 ownerStaffCode 为空即自动进入，无需伪造线索。

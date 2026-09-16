@@ -10,8 +10,8 @@
     <!-- 总览卡片 -->
     <div class="stat-grid" v-loading="loadingOv">
       <div v-for="card in statCards" :key="card.label" class="stat-card">
-        <div class="stat-label">{{ card.label }}</div>
-        <div class="stat-value mono">{{ card.value }}</div>
+        <div class="stat-card-icon" :class="card.tone"><AppIcon :name="card.icon" :size="20" /></div>
+        <div><div class="stat-label">{{ card.label }}</div><div class="stat-value mono">{{ card.value }}</div></div>
       </div>
     </div>
 
@@ -33,6 +33,17 @@
             <el-option label="近 90 天" :value="90" />
             <el-option label="近 180 天" :value="180" />
           </el-select>
+        </div>
+      </div>
+
+      <div class="visual-grid">
+        <div class="loan-card visual-card">
+          <div class="visual-title"><span>客户资产结构</span><small>{{ operations.scopeLabel || '当前' }}范围</small></div>
+          <AppEChart :option="assetChartOption" height="260px" />
+        </div>
+        <div class="loan-card visual-card">
+          <div class="visual-title"><span>经营流转对比</span><small>近 {{ operations.periodDays || operationQuery.days }} 天</small></div>
+          <AppEChart :option="flowChartOption" height="260px" />
         </div>
       </div>
 
@@ -119,8 +130,8 @@
       </div>
     </div>
 
-    <!-- 初筛报告 -->
-    <div class="loan-card" style="margin-top: 16px">
+    <!-- 初筛报告已独立到「数据与报表 / 初筛报告」，经营概览仅保留汇总与趋势。 -->
+    <div v-if="false" class="loan-card" style="margin-top: 16px">
       <div class="panel-title">初筛报告</div>
       <AppSearchBar :loading="loadingS" @search="searchS" @reset="resetS">
         <el-select v-model="queryS.grade" placeholder="档位" clearable style="width: 120px">
@@ -224,6 +235,7 @@ import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppEChart from '@/components/AppEChart.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { reportDisplayTitle } from '@/utils/display';
@@ -250,14 +262,14 @@ function prettyJson(s) {
 const loadingOv = ref(false);
 const overview = ref({});
 const statCards = computed(() => [
-  { label: '客户数', value: overview.value.clientCount ?? '-' },
-  { label: '线索数', value: overview.value.leadCount ?? '-' },
-  { label: '工单数', value: overview.value.orderCount ?? '-' },
-  { label: '成交单数', value: overview.value.dealOrderCount ?? '-' },
-  { label: '成交金额', value: '¥' + fmtAmount(overview.value.dealAmountSum) },
-  { label: '奖励单数', value: overview.value.rewardCount ?? '-' },
-  { label: '奖励金额', value: '¥' + fmtAmount(overview.value.rewardAmountSum) },
-  { label: '初筛报告', value: overview.value.screeningCount ?? '-' },
+  { label: '客户数', value: overview.value.clientCount ?? '-', icon: 'client', tone: 'blue' },
+  { label: '线索数', value: overview.value.leadCount ?? '-', icon: 'lead', tone: 'cyan' },
+  { label: '工单数', value: overview.value.orderCount ?? '-', icon: 'order', tone: 'violet' },
+  { label: '成交单数', value: overview.value.dealOrderCount ?? '-', icon: 'success', tone: 'green' },
+  { label: '成交金额', value: '¥' + fmtAmount(overview.value.dealAmountSum), icon: 'trend', tone: 'orange' },
+  { label: '奖励单数', value: overview.value.rewardCount ?? '-', icon: 'reward', tone: 'red' },
+  { label: '奖励金额', value: '¥' + fmtAmount(overview.value.rewardAmountSum), icon: 'reward', tone: 'orange' },
+  { label: '初筛报告', value: overview.value.screeningCount ?? '-', icon: 'reportDoc', tone: 'blue' },
 ]);
 
 const loadingOperations = ref(false);
@@ -315,6 +327,34 @@ const conversionMetrics = computed(() => {
     { label: '新建工单', value: data.orders ?? '—' },
     { label: '成交', value: data.deals ?? '—' },
   ];
+});
+
+const assetChartOption = computed(() => {
+  const d = operations.value.clientAssets || {};
+  const data = [
+    { name: '已分配客户', value: Number(d.assigned || 0) },
+    { name: '公司公海', value: Number(d.companySea || 0) },
+  ];
+  if (d.teamSeaVisible) data.push({ name: '团队公海', value: Number(d.teamSea || 0) });
+  return {
+    tooltip: { trigger: 'item', formatter: '{b}<br/><strong>{c}</strong> 位（{d}%）' },
+    legend: { orient: 'vertical', right: 12, top: 'middle', itemWidth: 10, itemHeight: 10 },
+    series: [{ type: 'pie', radius: ['52%', '76%'], center: ['35%', '52%'], avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 8, borderWidth: 3, borderColor: 'transparent' },
+      label: { show: false }, data }],
+  };
+});
+
+const flowChartOption = computed(() => {
+  const d = operations.value.allocationFlow || {};
+  return {
+    grid: { left: 12, right: 22, top: 18, bottom: 8, containLabel: true },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    xAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', opacity: 0.22 } } },
+    yAxis: { type: 'category', data: ['完成分配', '公海认领', '回收公海', '主动释放'], axisTick: { show: false } },
+    series: [{ type: 'bar', barWidth: 18, data: [d.assigned || 0, d.claimed || 0, d.recycled || 0, d.selfReleased || 0],
+      itemStyle: { borderRadius: [0, 8, 8, 0], color: '#4f7cff' }, label: { show: true, position: 'right', fontWeight: 700 } }],
+  };
 });
 
 async function loadOperations() {
@@ -500,11 +540,24 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 .stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: var(--loan-card-bg, var(--loan-paper));
   border: 1px solid var(--loan-border);
   border-radius: var(--loan-radius-md, 10px);
-  padding: 14px 16px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  transition: transform .2s ease, box-shadow .2s ease;
 }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); }
+.stat-card-icon { display:grid; place-items:center; flex:0 0 42px; height:42px; border-radius:12px; color:#fff; }
+.stat-card-icon.blue { background:linear-gradient(135deg,#4f7cff,#6aa5ff); }
+.stat-card-icon.cyan { background:linear-gradient(135deg,#06b6d4,#22d3ee); }
+.stat-card-icon.violet { background:linear-gradient(135deg,#7c3aed,#a78bfa); }
+.stat-card-icon.green { background:linear-gradient(135deg,#10b981,#34d399); }
+.stat-card-icon.orange { background:linear-gradient(135deg,#f59e0b,#fb923c); }
+.stat-card-icon.red { background:linear-gradient(135deg,#ef4444,#fb7185); }
 .stat-label {
   font-size: 12px;
   color: var(--loan-text-secondary, var(--loan-text-muted));
@@ -517,6 +570,10 @@ onMounted(async () => {
 }
 .report-filters { display: flex; align-items: center; gap: 10px; }
 .operations-section { margin-bottom: 16px; }
+.visual-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:12px 0; }
+.visual-card { padding:16px; overflow:hidden; }
+.visual-title { display:flex; justify-content:space-between; align-items:center; font-weight:650; color:var(--loan-text); }
+.visual-title small { font-size:12px; font-weight:400; color:var(--loan-text-secondary,var(--loan-text-muted)); }
 .section-heading, .conversion-head {
   display: flex;
   align-items: flex-start;
@@ -565,6 +622,7 @@ onMounted(async () => {
 @media (max-width: 900px) {
   .trend-grid { grid-template-columns: 1fr; }
   .metric-panel-grid { grid-template-columns: 1fr; }
+  .visual-grid { grid-template-columns:1fr; }
   .funnel-grid { grid-template-columns: 1fr; }
   .funnel-arrow { display: none; }
   .report-filters { width: 100%; flex-wrap: wrap; }

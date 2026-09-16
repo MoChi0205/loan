@@ -11,6 +11,8 @@ import com.loan.product.entity.BankProduct;
 import com.loan.product.service.ProductQueryService;
 import com.loan.product.service.ProductService;
 import com.loan.common.util.PageParams;
+import com.loan.common.ResultCode;
+import com.loan.exception.BusinessException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -73,7 +75,13 @@ public class ProductController {
             return Result.ok(productQueryService.queryProductsForAdmin(
                     customerGroup, status, productName, null, null, "channel-self", channelCode, p, s));
         }
-        return Result.ok(productQueryService.queryProductsForAdmin(customerGroup, status, productName, bankName, city, scope, null, p, s));
+        boolean manager = isProductManager(user);
+        if ("cooperate".equalsIgnoreCase(scope) && !manager) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "合作库仅老板或超级管理员可访问");
+        }
+        // 普通员工仅查看已审批发布的公司产品；同时可在审批中心查看自己提交的状态。
+        String visibleStatus = manager ? status : "APPROVED";
+        return Result.ok(productQueryService.queryProductsForAdmin(customerGroup, visibleStatus, productName, bankName, city, scope, null, p, s));
     }
 
     /**
@@ -99,6 +107,7 @@ public class ProductController {
     @PutMapping
     @OpLog(bizType = "产品", action = "UPDATE")
     public Result<Void> update(@RequestBody ProductSaveReq req, @CurrentUser LoanUser user) {
+        requireProductManager(user);
         productService.update(req, user == null ? "system" : user.getName());
         return Result.ok();
     }
@@ -124,7 +133,18 @@ public class ProductController {
     @DeleteMapping("/{productCode}")
     @OpLog(bizType = "产品", action = "DELETE")
     public Result<Void> delete(@PathVariable String productCode, @CurrentUser LoanUser user) {
+        requireProductManager(user);
         productService.deleteByCode(productCode, user == null ? "system" : user.getName());
         return Result.ok();
+    }
+
+    private boolean isProductManager(LoanUser user) {
+        if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType())) return false;
+        String role = String.valueOf(user.getRoleCode()).toUpperCase();
+        return "BOSS".equals(role) || "SUPER_ADMIN".equals(role) || "SUPER".equals(role);
+    }
+
+    private void requireProductManager(LoanUser user) {
+        if (!isProductManager(user)) throw new BusinessException(ResultCode.FORBIDDEN, "已发布产品仅老板或超级管理员可操作");
     }
 }

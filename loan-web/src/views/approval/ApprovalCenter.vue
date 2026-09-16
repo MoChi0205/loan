@@ -2,12 +2,13 @@
   <div class="approval-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">审核中心</h2>
-        <p class="loan-page-subtitle">产品审核入全量库 · 附件无水印下载审核（通过生成 24h 限时链接）</p>
+        <h2 class="loan-page-title">我的审批</h2>
+        <p class="loan-page-subtitle">查看本人提交的审批工单；有审核权限时可处理对应待办</p>
       </div>
     </div>
 
     <el-tabs v-model="activeTab">
+      <el-tab-pane label="我的申请" name="mine" />
       <el-tab-pane v-if="canAuditChannelContent" label="产品审核" name="product" />
       <el-tab-pane label="附件下载审核" name="download" />
       <el-tab-pane v-if="canAuditAllocation" label="客户分配审核" name="allocation" />
@@ -15,6 +16,18 @@
       <el-tab-pane v-if="canAuditChannelContent" label="短信模板审核" name="smsTemplate" />
       <el-tab-pane v-if="canAuditChannelContent" label="报告模板审核" name="reportTemplate" />
     </el-tabs>
+
+    <div v-show="activeTab === 'mine'" class="loan-card">
+      <el-table :data="mineRows" v-loading="mineLoading" stripe row-key="approvalNo">
+        <template #empty><AppEmpty title="暂无审批申请" desc="认领转移、产品新增或附件下载申请会显示在这里" /></template>
+        <el-table-column label="审批类型" width="130"><template #default="{ row }">{{ typeText[row.type] || row.type }}</template></el-table-column>
+        <el-table-column label="申请事项" min-width="220"><template #default="{ row }">{{ row.subject || row.clientCode || '审批申请' }}</template></el-table-column>
+        <el-table-column label="状态" width="110"><template #default="{ row }"><span class="loan-tag" :class="statusTag(row.approveStatus)">{{ statusText[row.approveStatus] || row.approveStatus }}</span></template></el-table-column>
+        <el-table-column label="审批进度" width="150"><template #default="{ row }">{{ row.approvalStage === 'BOSS_REVIEW' ? '等待老板/超管终审' : (row.approveStatus === 'PENDING' ? '审批中' : '已完成') }}</template></el-table-column>
+        <el-table-column label="审批意见" min-width="180"><template #default="{ row }">{{ row.opinion || '—' }}</template></el-table-column>
+        <el-table-column label="提交时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+      </el-table>
+    </div>
 
     <div v-for="kind in ['smsTemplate','reportTemplate']" :key="kind" v-show="activeTab === kind" class="loan-card">
       <el-table :data="contentRows[kind]" v-loading="contentLoading[kind]" stripe row-key="approvalNo">
@@ -261,6 +274,7 @@ import {
   pageAllocationApprovals, auditAllocationApproval,
   pageChannelLeadApprovals, auditChannelLeadApproval,
   pageContentApprovals, auditContentApproval,
+  myApprovalApplications,
 } from '@/api/approval';
 import { pageAttachments } from '@/api/attachment';
 
@@ -269,8 +283,11 @@ const userStore = useUserStore();
 const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.ALLOCATION_AUDIT));
 const canAuditChannelContent = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
 
-const activeTab = ref(canAuditChannelContent.value ? 'product' : 'download');
-const loadedTabs = reactive({ product: false, download: false, allocation: false, channelLead: false, smsTemplate: false, reportTemplate: false });
+const activeTab = ref('mine');
+const loadedTabs = reactive({ mine: false, product: false, download: false, allocation: false, channelLead: false, smsTemplate: false, reportTemplate: false });
+const mineRows = ref([]); const mineLoading = ref(false);
+const typeText = { PRODUCT: '产品审批', DOWNLOAD: '附件下载', ALLOCATION: '客户认领/转移' };
+async function loadMine() { mineLoading.value = true; try { const res = await myApprovalApplications(); mineRows.value = res.data || []; } finally { mineLoading.value = false; } }
 const contentRows = reactive({ smsTemplate: [], reportTemplate: [] });
 const contentLoading = reactive({ smsTemplate: false, reportTemplate: false });
 async function loadContent(kind) {
@@ -377,7 +394,7 @@ async function onAudit() {
     const payload = { approve: auditForm.approve, opinion: auditForm.opinion.trim() || null };
     if (auditForm.kind === 'product') {
       await auditProductApproval(auditForm.approvalNo, payload);
-      ElMessage.success(auditForm.approve ? '已通过，产品已进入全量库与合作库' : '已驳回');
+      ElMessage.success(auditForm.approve ? '已通过，产品已进入全量库' : '已驳回');
       loadP();
     } else if (auditForm.kind === 'allocation') {
       await auditAllocationApproval(auditForm.approvalNo, payload);
@@ -489,7 +506,8 @@ watch(activeTab, async (tab) => {
   if (tab === 'channelLead' && !canAuditChannelContent.value) return;
   loadedTabs[tab] = true;
   try {
-    if (tab === 'product') await loadP();
+    if (tab === 'mine') await loadMine();
+    else if (tab === 'product') await loadP();
     else if (tab === 'download') await loadD();
     else if (tab === 'allocation') await loadA();
     else if (tab === 'channelLead') await loadCL();

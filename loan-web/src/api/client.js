@@ -44,9 +44,18 @@ export function pageUnassignedClients(params) {
   return request({ url: '/api/admin/client/unassigned/page', method: 'get', params });
 }
 
+/** 用户查询：返回是否已有归属顾问，供直接认领/申请转移分流。 */
+export function lookupClient(keyword) {
+  return request({ url: '/api/admin/client/lookup', method: 'get', params: { keyword } });
+}
+
 /** 顾问申请认领未分配客户，审核通过后才建立归属。 */
 export function claimUnassignedClient(clientCode) {
   return request({ url: `/api/admin/client/${clientCode}/claim`, method: 'post' });
+}
+
+export function batchClaimClients(clientCodes) {
+  return request({ url: '/api/admin/client/batch-claim', method: 'post', data: { clientCodes } });
 }
 
 /** 管理者直接指定归属（D39/C23）：立即落归属、无需审核。body 兼容 adviserStaffCode，新前端统一用 targetStaffCode。 */

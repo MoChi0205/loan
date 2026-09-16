@@ -42,7 +42,7 @@ class ClientControllerTest {
         ClientService clientService = mock(ClientService.class);
         allocationService = mock(ClientAllocationService.class);
         roleGuard = mock(MiniRoleGuard.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null);
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
@@ -113,21 +113,24 @@ class ClientControllerTest {
     }
 
     @Test
-    @DisplayName("非顾问不能从未分配客户池申请认领")
-    void claimRejectsNonAdviser() throws Exception {
-        UserContext.setUser(staff("DEPT_MANAGER", "M001"));
+    @DisplayName("公司员工均可从未分配客户池直接认领")
+    void staffCanClaimUnassignedClient() throws Exception {
+        LoanUser managerUser = staff("DEPT_MANAGER", "M001");
+        UserContext.setUser(managerUser);
+        when(allocationService.applyTransfer("client001", "M001", managerUser))
+                .thenReturn(directAssignResult());
 
         mvc.perform(post("/api/admin/client/client001/claim"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(2001))
-                .andExpect(jsonPath("$.message").value("仅顾问可从未分配客户池申请认领"));
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.direct").value(true));
     }
 
     @Test
     @DisplayName("老板查看全司已分配客户时强制排除公海")
     void allScopeMeansCompanyAssignedOnly() throws Exception {
         ClientService clientService = mock(ClientService.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null);
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
@@ -150,7 +153,7 @@ class ClientControllerTest {
     @DisplayName("公司公海统一使用 ENTERPRISE 枚举")
     void companySeaUsesEnterpriseLevel() throws Exception {
         ClientService clientService = mock(ClientService.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null);
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())

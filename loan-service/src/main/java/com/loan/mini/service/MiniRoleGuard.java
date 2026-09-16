@@ -117,7 +117,7 @@ public class MiniRoleGuard {
             // 渠道合作方提交的产品仍由业务层按 channelUserId 做终审范围校验。
             requireStaff(user);
             String code = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
-            if (!APPROVAL_ROLES.contains(code)) {
+            if (!CHANNEL_FINAL_APPROVER_ROLES.contains(code)) {
                 throw new BusinessException(ResultCode.FORBIDDEN, "无产品审批权限");
             }
             return;

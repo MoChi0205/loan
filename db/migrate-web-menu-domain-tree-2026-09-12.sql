@@ -15,7 +15,7 @@ ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name), component=NULL, menu_type='
   permission_code=VALUES(permission_code), status='ACTIVE';
 
 UPDATE t_menu m JOIN t_menu p ON p.path='/domain/client' SET m.parent_id=p.id
- WHERE m.path IN ('/lead','/client','/ocr');
+ WHERE m.path IN ('/lead','/client','/client-lookup','/ocr');
 UPDATE t_menu m JOIN t_menu p ON p.path='/domain/matching' SET m.parent_id=p.id
  WHERE m.path IN ('/screening','/rule-template','/rule','/strategy-template','/plan-edit');
 UPDATE t_menu m JOIN t_menu p ON p.path='/domain/service' SET m.parent_id=p.id
@@ -55,6 +55,32 @@ JOIN t_menu m ON m.path='/domain/system';
 INSERT IGNORE INTO t_role_permission (role_code, menu_id, created_by)
 SELECT 'ADVISER', id, 'system' FROM t_menu WHERE path='/product';
 
+-- 公司员工用户查询入口。
+INSERT INTO t_menu (menu_name, path, component, menu_type, permission_code, sort, status, created_by)
+SELECT '用户查询', '/client-lookup', 'client/ClientLookup', 'MENU', 'page:client', 230, 'ACTIVE', 'system'
+WHERE NOT EXISTS (SELECT 1 FROM t_menu WHERE path='/client-lookup');
+UPDATE t_menu m JOIN t_menu p ON p.path='/domain/client' SET m.parent_id=p.id WHERE m.path='/client-lookup';
+INSERT IGNORE INTO t_role_permission (role_code, menu_id, created_by)
+SELECT r.role_code, m.id, 'system'
+FROM (SELECT 'ADVISER' role_code UNION ALL SELECT 'DEPT_MANAGER' UNION ALL SELECT 'OPERATOR'
+      UNION ALL SELECT 'BOSS' UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r
+JOIN t_menu m ON m.path='/client-lookup';
+
 SELECT m.path, m.parent_id, p.path parent_path FROM t_menu m
 LEFT JOIN t_menu p ON p.id=m.parent_id
 WHERE m.path LIKE '/domain/%' OR m.path IN ('/lead','/client','/ocr','/approval','/product');
+
+-- 审批模块对全部公司员工开放；页面内仅本人申请可全员查看，审核动作仍按角色控制。
+UPDATE t_menu SET menu_name='我的审批' WHERE path='/approval';
+INSERT IGNORE INTO t_role_permission (role_code, menu_id, created_by)
+SELECT r.role_code,m.id,'system'
+FROM (SELECT 'ADVISER' role_code UNION ALL SELECT 'DEPT_MANAGER' UNION ALL SELECT 'OPERATOR'
+      UNION ALL SELECT 'BOSS' UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r
+JOIN t_menu m ON m.path='/approval';
+
+-- 初筛报告作为数据与报表独立菜单，所有公司员工按各自数据范围查看。
+INSERT IGNORE INTO t_role_permission (role_code, menu_id, created_by)
+SELECT r.role_code,m.id,'system'
+FROM (SELECT 'ADVISER' role_code UNION ALL SELECT 'DEPT_MANAGER' UNION ALL SELECT 'OPERATOR'
+      UNION ALL SELECT 'BOSS' UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r
+JOIN t_menu m ON m.path='/report/screening';

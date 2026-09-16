@@ -15,7 +15,6 @@
       <el-tabs v-model="activeTab" @tab-change="onTabChange">
         <el-tab-pane label="我的线索" name="mine" />
         <el-tab-pane v-if="!isChannel" label="线索公海" name="pool" />
-        <el-tab-pane v-if="!isChannel && userStore.hasPerm(ACTION_PERMISSION.CLIENT_POOL_VIEW)" label="客户公海" name="clients" />
       </el-tabs>
 
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">

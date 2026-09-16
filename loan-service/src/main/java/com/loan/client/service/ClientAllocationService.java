@@ -68,6 +68,8 @@ public class ClientAllocationService {
     public static final String PENDING = "PENDING";
     public static final String APPROVED = "APPROVED";
     public static final String REJECTED = "REJECTED";
+    public static final String TEAM_REVIEW = "TEAM_REVIEW";
+    public static final String BOSS_REVIEW = "BOSS_REVIEW";
 
     /**
      * 可直接落归属的目标角色（D39）：顾问 + 团队管理者。
@@ -161,6 +163,7 @@ public class ClientAllocationService {
         approval.setClientCode(clientCode);
         approval.setApplicantStaffCode(targetStaffCode);
         approval.setApproveStatus(PENDING);
+        approval.setApprovalStage(TEAM_REVIEW);
         approval.setPendingKey(clientCode);
         approval.setApplySource(source);
         approval.setApplyOperatorCode(operator == null ? null : operator.getUserNo());
@@ -220,6 +223,7 @@ public class ClientAllocationService {
         approval.setApplicantStaffCode(targetStaffCode);
         approval.setFromOwnerStaffCode(client.getOwnerStaffCode());
         approval.setApproveStatus(PENDING);
+        approval.setApprovalStage(TEAM_REVIEW);
         approval.setPendingKey(clientCode);
         approval.setApplySource("ADVISER_TRANSFER");
         approval.setApplyOperatorCode(operator == null ? null : operator.getUserNo());
@@ -378,6 +382,18 @@ public class ClientAllocationService {
         return result;
     }
 
+    /** 当前员工发起的客户认领/转移申请。 */
+    public List<Map<String, Object>> myApplications(String staffCode) {
+        if (!StringUtils.hasText(staffCode)) return Collections.emptyList();
+        return approvalMapper.selectList(new LambdaQueryWrapper<ClientAllocationApproval>()
+                .eq(ClientAllocationApproval::getApplicantStaffCode, staffCode)
+                .orderByDesc(ClientAllocationApproval::getCreatedAt).last("LIMIT 100")).stream().map(a -> {
+            Map<String,Object> m=new LinkedHashMap<>(); m.put("type","ALLOCATION"); m.put("approvalNo",a.getApprovalNo());
+            m.put("subject","客户认领 / 转移"); m.put("clientCode",a.getClientCode()); m.put("approveStatus",a.getApproveStatus());
+            m.put("approvalStage",a.getApprovalStage()); m.put("opinion",a.getApproveOpinion()); m.put("createdAt",a.getCreatedAt()); return m;
+        }).collect(Collectors.toList());
+    }
+
     /**
      * 分配待审分页，客户与申请顾问均批量查询，避免行级 N+1。
      *
@@ -409,8 +425,14 @@ public class ClientAllocationService {
                             && myDept.equalsIgnoreCase(deptMap.get(a.getApplicantStaffCode())))
                     .collect(Collectors.toList());
         }
-        // 跨团队转分配只向老板展示；运营、超管及部门经理均不得代审。
-        if (!isCrossTeamApprover(operator)) {
+        // 跨团队两级审批：申请人团队负责人看 TEAM_REVIEW；老板/超管看 BOSS_REVIEW。
+        if (isDeptManager(operator)) {
+            all = all.stream().filter(a -> !isCrossTeamTransfer(a, deptMap)
+                    || !BOSS_REVIEW.equals(a.getApprovalStage())).collect(Collectors.toList());
+        } else if (isCrossTeamApprover(operator)) {
+            all = all.stream().filter(a -> !isCrossTeamTransfer(a, deptMap)
+                    || BOSS_REVIEW.equals(a.getApprovalStage())).collect(Collectors.toList());
+        } else {
             all = all.stream().filter(a -> !isCrossTeamTransfer(a, deptMap)).collect(Collectors.toList());
         }
         Set<String> clientCodes = all.stream().map(ClientAllocationApproval::getClientCode)
@@ -438,6 +460,8 @@ public class ClientAllocationService {
             row.put("applySource", approval.getApplySource());
             // 前端按 approveStatus 判断是否展示「审核」按钮，必须回传（待审页均为 PENDING）
             row.put("approveStatus", approval.getApproveStatus());
+            row.put("approvalStage", approval.getApprovalStage());
+            row.put("crossTeam", isCrossTeamTransfer(approval, deptMap));
             row.put("createdAt", approval.getCreatedAt());
             ClientProfile client = clients.get(approval.getClientCode());
             if (client != null) {
@@ -454,9 +478,31 @@ public class ClientAllocationService {
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> approve(String approvalNo, LoanUser user) {
         ClientAllocationApproval approval = requirePending(approvalNo);
-        assertCrossTeamBoss(user, approval);
-        // 团队管理者仅可审批本人团队（申请人部门 == 本人部门）的客户，跨团队需 BOSS 审批
-        assertDeptManagerScope(user, approval.getApplicantStaffCode());
+        boolean crossTeam = isCrossTeamTransfer(approval);
+        String stage = StringUtils.hasText(approval.getApprovalStage())
+                ? approval.getApprovalStage() : TEAM_REVIEW;
+        if (crossTeam && TEAM_REVIEW.equals(stage)) {
+            assertDeptManagerScope(user, approval.getApplicantStaffCode());
+            if (!isDeptManager(user) && !isCrossTeamApprover(user)) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "跨团队申请须先由申请人团队负责人审批");
+            }
+            int moved = approvalMapper.update(null, new LambdaUpdateWrapper<ClientAllocationApproval>()
+                    .eq(ClientAllocationApproval::getApprovalNo, approvalNo)
+                    .eq(ClientAllocationApproval::getApproveStatus, PENDING)
+                    .eq(ClientAllocationApproval::getApprovalStage, TEAM_REVIEW)
+                    .set(ClientAllocationApproval::getApprovalStage, BOSS_REVIEW)
+                    .set(ClientAllocationApproval::getTeamApproverStaffCode, user == null ? null : user.getUserNo())
+                    .set(ClientAllocationApproval::getTeamApprovedAt, LocalDateTime.now()));
+            if (moved != 1) throw new BusinessException(ResultCode.COMMON_ERROR, "该审批单已处理");
+            Map<String, Object> result = auditResult(approvalNo, PENDING, approval.getClientCode());
+            result.put("approvalStage", BOSS_REVIEW);
+            result.put("needBossApproval", true);
+            return result;
+        }
+        if (crossTeam && BOSS_REVIEW.equals(stage) && !isCrossTeamApprover(user)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "跨团队申请终审仅限老板或超级管理员");
+        }
+        if (!crossTeam) assertDeptManagerScope(user, approval.getApplicantStaffCode());
         int changed = approvalMapper.update(null, new LambdaUpdateWrapper<ClientAllocationApproval>()
                 .eq(ClientAllocationApproval::getApprovalNo, approvalNo)
                 .eq(ClientAllocationApproval::getApproveStatus, PENDING)
@@ -495,9 +541,12 @@ public class ClientAllocationService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "驳回意见不能为空");
         }
         ClientAllocationApproval approval = requirePending(approvalNo);
-        assertCrossTeamBoss(user, approval);
-        // 团队管理者仅可驳回本人团队（申请人部门 == 本人部门）的客户，跨团队需 BOSS 审批
-        assertDeptManagerScope(user, approval.getApplicantStaffCode());
+        boolean crossTeam = isCrossTeamTransfer(approval);
+        String stage = StringUtils.hasText(approval.getApprovalStage()) ? approval.getApprovalStage() : TEAM_REVIEW;
+        if (crossTeam && BOSS_REVIEW.equals(stage) && !isCrossTeamApprover(user)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "跨团队申请终审仅限老板或超级管理员");
+        }
+        if (!crossTeam || TEAM_REVIEW.equals(stage)) assertDeptManagerScope(user, approval.getApplicantStaffCode());
         int changed = approvalMapper.update(null, new LambdaUpdateWrapper<ClientAllocationApproval>()
                 .eq(ClientAllocationApproval::getApprovalNo, approvalNo)
                 .eq(ClientAllocationApproval::getApproveStatus, PENDING)

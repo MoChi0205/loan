@@ -9,10 +9,14 @@ import com.loan.product.entity.BankChannel;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankChannelMapper;
 import com.loan.product.mapper.BankProductMapper;
+import com.loan.approval.entity.ProductApproval;
+import com.loan.approval.mapper.ProductApprovalMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import java.time.LocalDateTime;
 
 /**
  * 产品管理写服务（新增 / 编辑 / 删除 / 详情）。
@@ -28,6 +32,8 @@ public class ProductService {
     private final BankProductMapper bankProductMapper;
 
     private final BankChannelMapper bankChannelMapper;
+    private final ProductApprovalMapper productApprovalMapper;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
      * 新增产品。
@@ -51,8 +57,23 @@ public class ProductService {
         }
         BankProduct product = toEntity(req);
         product.setBankChannelCode(resolveChannel(req.getBankName()));
+        product.setStatus("PENDING");
         product.setCreatedBy(operator);
         bankProductMapper.insert(product);
+        ProductApproval approval = new ProductApproval();
+        approval.setApprovalNo(BizIdGenerator.generate("papr"));
+        approval.setBankProductCode(product.getProductCode());
+        approval.setApplyType("CREATE");
+        approval.setApproveStatus("PENDING");
+        approval.setDuplicateFlag(0);
+        approval.setCreatedBy(operator);
+        approval.setUpdatedBy(operator);
+        approval.setCreatedAt(LocalDateTime.now());
+        approval.setUpdatedAt(LocalDateTime.now());
+        approval.setTimeoutAt(LocalDateTime.now().plusHours(48));
+        try { approval.setAfterSnapshotJson(OBJECT_MAPPER.writeValueAsString(req)); }
+        catch (Exception e) { throw new BusinessException(ResultCode.PARAM_ERROR, "产品资料无法生成审批快照"); }
+        productApprovalMapper.insert(approval);
         return product.getProductCode();
     }
 

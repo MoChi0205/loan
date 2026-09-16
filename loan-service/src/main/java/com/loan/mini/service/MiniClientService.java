@@ -270,6 +270,10 @@ public class MiniClientService {
         return clientAllocationService.approve(approvalNo, user);
     }
 
+    public List<Map<String, Object>> myAllocationApplications(String staffCode) {
+        return clientAllocationService.myApplications(staffCode);
+    }
+
     /**
      * 驳回分配审批。
      *

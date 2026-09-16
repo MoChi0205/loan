@@ -48,7 +48,7 @@ INSERT INTO `t_menu` (`id`, `parent_id`, `menu_name`, `path`, `component`, `menu
 (3,  NULL, '客户档案',   '/client',             'views/client/ClientProfile',      'MENU', 'page:client',  3,  'ACTIVE', 'system'),
 (4,  NULL, '初筛任务',   '/screening',          'views/screening/ScreeningCenter', 'MENU', NULL,           4,  'ACTIVE', 'system'),
 (5,  NULL, '服务工单',   '/order',              'views/order/OrderList',           'MENU', NULL,           5,  'ACTIVE', 'system'),
-(6,  NULL, '审批中心',   '/approval',           'views/approval/ApprovalCenter',   'MENU', NULL,           6,  'ACTIVE', 'system'),
+(6,  NULL, '我的审批',   '/approval',           'views/approval/ApprovalCenter',   'MENU', NULL,           6,  'ACTIVE', 'system'),
 (7,  NULL, '产品库',     '/product',            'views/product/ProductList',       'MENU', NULL,           7,  'ACTIVE', 'system'),
 (8,  NULL, '规则库',     '/rule-template',      'views/rule/RuleTemplateList',     'MENU', NULL,           8,  'ACTIVE', 'system'),
 (9,  NULL, '规则集',     '/rule',               'views/rule/RuleList',             'MENU', NULL,           9,  'ACTIVE', 'system'),

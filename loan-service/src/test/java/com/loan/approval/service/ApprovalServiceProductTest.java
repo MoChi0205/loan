@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** 产品审批与合作库联动回归。 */
@@ -68,7 +69,7 @@ class ApprovalServiceProductTest {
     }
 
     @Test
-    @DisplayName("产品终审通过：CAS 更新后同步全量库并激活合作库")
+    @DisplayName("内部产品终审通过：CAS 更新后仅同步全量库")
     void productAudit_activatesPartnerProduct() {
         ProductApproval approval = new ProductApproval();
         approval.setApprovalNo("papr001");
@@ -85,9 +86,6 @@ class ApprovalServiceProductTest {
         service.productAudit("papr001", true, "通过", "boss001");
 
         verify(bankProductMapper).updateById(product);
-        verify(partnerProductService).activateByApproval(
-                org.mockito.ArgumentMatchers.eq("product001"),
-                org.mockito.ArgumentMatchers.any(LocalDateTime.class),
-                org.mockito.ArgumentMatchers.eq("boss001"));
+        verifyNoInteractions(partnerProductService);
     }
 }

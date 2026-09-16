@@ -111,6 +111,12 @@ const routes = [
         meta: { title: '客户档案', permission: 'page:client' },
       },
       {
+        path: 'client-lookup',
+        name: 'ClientLookup',
+        component: () => import('@/views/client/ClientLookup.vue'),
+        meta: { title: '用户查询', permission: 'page:client' },
+      },
+      {
         path: 'ocr',
         name: 'OcrCenter',
         component: () => import('@/views/ocr/OcrCenter.vue'),
@@ -138,7 +144,7 @@ const routes = [
         path: 'approval',
         name: 'ApprovalCenter',
         component: () => import('@/views/approval/ApprovalCenter.vue'),
-        meta: { title: '审核中心' },
+        meta: { title: '我的审批' },
       },
       {
         path: 'sms',

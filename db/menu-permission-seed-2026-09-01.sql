@@ -24,7 +24,7 @@ INSERT INTO `t_menu` (`menu_name`, `path`, `component`, `menu_type`, `sort`, `st
 ('客户档案',    '/client',             'views/client/ClientProfile',      'MENU', 3,  'ACTIVE', 'system'),
 ('初筛任务',    '/screening',          'views/screening/ScreeningCenter', 'MENU', 4,  'ACTIVE', 'system'),
 ('服务工单',    '/order',              'views/order/OrderList',           'MENU', 5,  'ACTIVE', 'system'),
-('审批中心',    '/approval',           'views/approval/ApprovalCenter',   'MENU', 6,  'ACTIVE', 'system'),
+('我的审批',    '/approval',           'views/approval/ApprovalCenter',   'MENU', 6,  'ACTIVE', 'system'),
 ('产品库',      '/product',            'views/product/ProductList',       'MENU', 7,  'ACTIVE', 'system'),
 ('规则库',      '/rule-template',      'views/rule/RuleTemplateList',     'MENU', 8,  'ACTIVE', 'system'),
 ('规则集',      '/rule',               'views/rule/RuleList',             'MENU', 9,  'ACTIVE', 'system'),
