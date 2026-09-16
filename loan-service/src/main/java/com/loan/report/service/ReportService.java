@@ -961,7 +961,7 @@ public class ReportService {
             // 将归属过滤下沉为 EXISTS，避免 10 万客户场景先加载全部 clientCode 再拼超大 IN。
             wrapper.exists("SELECT 1 FROM t_client_profile cp WHERE cp.client_code = t_client_screening.client_profile_code "
                     + "AND cp.owner_staff_code IN ("
-                    + scope.stream().map(x -> "'" + x.replace("'", "''") + "'").collect(Collectors.joining(",")) + "))");
+                    + scope.stream().map(x -> "'" + x.replace("'", "''") + "'").collect(Collectors.joining(",")) + ")");
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(ClientScreening::getStatus, status);
