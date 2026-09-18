@@ -35,6 +35,22 @@ public class TestUsers {
         }
     }
 
+    public static LoanUser customerUser() {
+        try {
+            LoanUser u = LoanUser.class.getDeclaredConstructor().newInstance();
+            set(u, "userId", 2L);
+            set(u, "userNo", "CU_TEST_001");
+            set(u, "phone", "13900000000");
+            set(u, "name", "customer");
+            set(u, "userType", "CUSTOMER");
+            set(u, "roleCode", "CUSTOMER");
+            set(u, "region", "cn");
+            return u;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static void set(Object o, String field, Object val) {
         try {
             Field f = o.getClass().getDeclaredField(field);

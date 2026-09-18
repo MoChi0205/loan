@@ -17,10 +17,10 @@
           <view class="shield-lock-keyhole" />
         </view>
       </view>
-      <text class="guard-eyebrow">SECURE · BANK-GRADE</text>
+      <text class="guard-eyebrow">SECURE · PRIVACY</text>
       <text class="guard-title">完成身份认证</text>
-      <text class="guard-title-accent">开启智能匹配</text>
-      <text class="guard-desc">企业营业执照或个人实名认证，二选一即可获得银行产品匹配建议</text>
+      <text class="guard-title-accent">开启风险分析</text>
+      <text class="guard-desc">企业营业执照或个人实名认证，二选一即可获得资质与经营风险分析</text>
 
       <view class="guard-steps">
         <view class="gstep">
@@ -35,7 +35,7 @@
         <view class="gstep-divider" />
         <view class="gstep">
           <text class="gstep-num">3</text>
-          <text class="gstep-text">发起智能匹配\n查看银行产品建议</text>
+          <text class="gstep-text">发起风险分析\n查看分析报告</text>
         </view>
       </view>
 
@@ -44,7 +44,7 @@
 
       <view class="guard-trust">
         <AppIcon name="lock" size="sm" color="rgba(255,255,255,.78)" />
-        <text class="guard-trust-text">银行级加密 · 信息严格保密 · 仅用于匹配建议</text>
+        <text class="guard-trust-text">加密传输 · 信息严格保密 · 仅用于已授权的风险分析</text>
       </view>
     </view>
 
@@ -53,7 +53,7 @@
       <view class="result-decor" />
       <view class="result-inner">
         <view class="result-badge"><text class="result-label">{{ resultLabel }}</text></view>
-        <view class="result-metrics">
+        <view v-if="isStaff" class="result-metrics">
           <view class="metric">
             <text class="metric-num">{{ result.productCount || 0 }}</text>
             <text class="metric-name">可匹配产品数</text>
@@ -64,10 +64,12 @@
             <text class="metric-name">综合评级</text>
           </view>
         </view>
-        <text class="result-tip">依据您提交的资料，当前可进件情况如上</text>
+        <text v-if="!isStaff" class="result-tip">{{ result.riskSummary }}</text>
+        <text v-if="!isStaff" class="result-tip">{{ result.analysisNotice }}</text>
+        <text v-else class="result-tip">内部匹配结果仅供员工业务作业使用</text>
         <view class="result-actions">
           <AppButton variant="primary" size="md" @click="goDetail">查看报告详情</AppButton>
-          <AppButton variant="secondary" size="md" @click="resetResult">重新匹配</AppButton>
+          <AppButton variant="secondary" size="md" @click="resetResult">{{ isStaff ? '重新匹配' : '重新分析' }}</AppButton>
         </view>
       </view>
     </view>
@@ -187,8 +189,8 @@
         </view>
 
         <view class="type-toggle">
-          <AppClickable class="type-item" :class="{ active: factType ===' enterprise' }" @click="factType =' enterprise'">企业经营</AppClickable>
-          <AppClickable class="type-item" :class="{ active: factType ===' personal' }" @click="factType =' personal'">个人资质</AppClickable>
+          <AppClickable class="type-item" :class="{ active: factType === 'enterprise' }" @click="changeFactType('enterprise')">企业经营</AppClickable>
+          <AppClickable class="type-item" :class="{ active: factType === 'personal' }" @click="changeFactType('personal')">个人资质</AppClickable>
         </view>
 
         <template v-if="factType === 'enterprise'">
@@ -258,6 +260,13 @@
             {{ uploadedMaterialCount > 0 ? `已上传 ${uploadedMaterialCount} 份材料` : '待上传材料' }}
           </AppTag>
         </view>
+        <view class="material-flow-tip">
+          <view class="flow-tip-num">2</view>
+          <view class="flow-tip-copy">
+            <text class="flow-tip-title">按清单逐项准备材料</text>
+            <text class="flow-tip-desc">必传材料完成并通过复核后，系统才会生成{{ isStaff ? '内部匹配报告' : '风险分析报告' }}</text>
+          </view>
+        </view>
         <view class="upload-grid">
           <AppClickable v-for="m in materials" :key="m.key" class="upload-tile" @click="onUpload(m)">
             <view class="upload-ic"><AppIcon :name="m.icon" /></view>
@@ -273,7 +282,7 @@
       <AppCard v-else-if="currentStep === 3" class="step-card">
         <view class="step-head">
           <text class="step-title">材料核验</text>
-          <AppTag :type="materialReviewPending ? 'warning' : 'success'" size="sm">{{ materialReviewPending ? '等待材料复核' : '可执行匹配' }}</AppTag>
+          <AppTag :type="materialReviewPending ? 'warning' : 'success'" size="sm">{{ materialReviewPending ? '等待材料复核' : (isStaff ? '可执行匹配' : '可生成分析') }}</AppTag>
         </view>
         <view v-for="(v, i) in verifyList" :key="i" class="verify-row">
           <view class="verify-ic" :class="v.status"><AppIcon :name="v.status === 'ok' ? 'check' : 'refresh'" /></view>
@@ -283,9 +292,9 @@
           </view>
         </view>
         <AppButton variant="primary" size="lg" block :loading="submitting" :disabled="materialReviewPending" @click="onSubmit">
-          开始匹配 · 生成报告
+          {{ isStaff ? '开始匹配 · 生成报告' : '生成风险分析报告' }}
         </AppButton>
-        <text class="step-tip center">基于核验后的材料生成匹配报告 + 经营诊断</text>
+        <text class="step-tip center">基于核验后的材料生成{{ isStaff ? '内部匹配报告' : '资质与经营风险分析' }}</text>
       </AppCard>
 
       <!-- 底部导航：第 0 步与最后一步的操作已在卡片内，不重复渲染 -->
@@ -335,7 +344,7 @@ const isStaff = computed(() => STAFF_ROLES.indexOf(store.role) >= 0);
 const isAdviser = computed(() => store.role === 'adviser');
 
 /** 步骤定义：客户跳过"目标企业" */
-const steps = ['目标企业', '经营事实', '上传材料', '核验匹配'];
+const steps = ['目标企业', '经营事实', '上传材料', '核验分析'];
 const currentStep = ref(0);
 
 const factType = ref('enterprise');
@@ -510,12 +519,30 @@ function onCityChange(e) {
  * 注意：status / statusText 仅反映「用户本会话是否真实上传过该分类材料」，
  * 不得编造「已核验 / 需补充 / 待核验」等核验结论（核验由后端完成，前端无真实数据源）。
  * 初始均为「待上传材料」，onUpload 成功后才置为「已上传」。 */
-const materials = reactive([
-  { key: 'operation', name: '经营数据', icon: 'trend', status: 'empty', statusText: '待上传材料' },
-  { key: 'annual',    name: '企业年报', icon: 'doc',   status: 'empty', statusText: '待上传材料' },
-  { key: 'attach',    name: '附件',     icon: 'file',  status: 'empty', statusText: '待上传材料' },
-  { key: 'photo',     name: '照片',     icon: 'photo', status: 'empty', statusText: '待上传材料' },
-]);
+const enterpriseMaterials = [
+  { key: 'BUSINESS_LICENSE', name: '营业执照', hint: '最新有效证照', required: true, icon: 'doc' },
+  { key: 'ID_CARD', name: '法人身份证', hint: '有效期内', required: true, icon: 'profile' },
+  { key: 'TAX_RECORD', name: '纳税证明', hint: '近12个月', required: true, icon: 'trend' },
+  { key: 'INVOICE_RECORD', name: '开票记录', hint: '近12个月', required: true, icon: 'file' },
+  { key: 'BANK_STATEMENT', name: '经营流水', hint: '近6–12个月', required: true, icon: 'bank' },
+  { key: 'FINANCIAL_STATEMENT', name: '财务报表', hint: '建议补充', required: false, icon: 'report' },
+];
+const personalMaterials = [
+  { key: 'ID_CARD', name: '身份证', hint: '有效期内', required: true, icon: 'profile' },
+  { key: 'CREDIT_REPORT', name: '征信报告', hint: '近30天', required: true, icon: 'report' },
+  { key: 'BANK_STATEMENT', name: '收入流水', hint: '近6个月', required: true, icon: 'bank' },
+  { key: 'INCOME_PROOF', name: '收入证明', hint: '近3个月', required: true, icon: 'file' },
+  { key: 'ASSET_PROOF', name: '资产证明', hint: '建议补充', required: false, icon: 'home' },
+];
+const materials = reactive((factType.value === 'personal' ? personalMaterials : enterpriseMaterials)
+  .map(m => ({ ...m, status: 'empty', statusText: m.required ? '必传 · 待上传' : '建议上传' })));
+function changeFactType(type) {
+  if (factType.value === type) return;
+  factType.value = type;
+  const next = (type === 'personal' ? personalMaterials : enterpriseMaterials)
+    .map(m => ({ ...m, status: 'empty', statusText: m.required ? '必传 · 待上传' : '建议上传' }));
+  materials.splice(0, materials.length, ...next);
+}
 /** 已真实上传的材料份数（status==='ok'），用于顶部诚实角标统计 */
 const uploadedMaterialCount = computed(
   () => materials.filter(m => m.status === 'ok').length,
@@ -560,7 +587,7 @@ async function onSupplement() {
 const verifyList = computed(() => materials.map((m) => ({
   status: m.status === 'ok' && !m.pendingReview ? 'ok' : 'pending',
   title: `${m.name}${m.pendingReview ? '待我司复核' : m.status === 'ok' ? '已通过上传校验' : '待上传'}`,
-  desc: m.pendingReview ? `复核单 ${m.reviewNo || '已生成'}，通过后结构化事实才参与精准匹配`
+  desc: m.pendingReview ? `复核单 ${m.reviewNo || '已生成'}，通过后结构化事实才参与${isStaff.value ? '内部匹配' : '风险分析'}`
     : m.status === 'ok' ? (m.fileName || '材料已接收') : '尚未上传材料',
 })));
 
@@ -584,12 +611,17 @@ function onStepChange(i) {
 
 /* ===== 结果与提交 ===== */
 const resultClass = computed(() => {
+  if (!isStaff.value) {
+    return result.value && result.value.analysisStatus === 'STABLE' ? 'pass'
+      : result.value && result.value.analysisStatus === 'ATTENTION' ? 'condition' : 'reject';
+  }
   const t = (result.value && result.value.totalResult) || '';
   if (t === 'PASS') return 'pass';
   if (t === 'CONDITION') return 'condition';
   return 'reject';
 });
 const resultLabel = computed(() => {
+  if (!isStaff.value) return (result.value && result.value.analysisLabel) || '风险分析已生成';
   const t = (result.value && result.value.totalResult) || '';
   return { PASS: '可进件', CONDITION: '需补料', REJECT: '暂不匹配', SKIP_SEGMENT_MISMATCH: '暂不匹配' }[t] || (t || '匹配完成');
 });
@@ -638,6 +670,16 @@ function validateFacts() {
 
 async function onSubmit() {
   if (submitting.value) return;
+  const missingRequired = materials.filter(m => m.required && m.status !== 'ok');
+  if (missingRequired.length) {
+    currentStep.value = 2;
+    uni.showToast({ title: `请先上传${missingRequired[0].name}等必传材料`, icon: 'none' });
+    return;
+  }
+  if (materialReviewPending.value) {
+    uni.showToast({ title: `材料正在复核，通过后才能${isStaff.value ? '执行内部匹配' : '生成风险分析'}`, icon: 'none' });
+    return;
+  }
   if (!validateFacts()) {
     currentStep.value = 1;
     return;
@@ -825,6 +867,12 @@ onShow(() => {
   margin: 0 auto var(--space-2); color: var(--text-secondary);
 }
 .upload-name { display: block; font-size: var(--fs-md); font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-1); }
+.material-flow-tip { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3); margin-bottom:var(--space-4); border:2rpx solid rgba(200,169,110,.26); border-radius:var(--radius-md); background:rgba(200,169,110,.08); }
+.flow-tip-num { display:flex; align-items:center; justify-content:center; flex:0 0 52rpx; height:52rpx; border-radius:50%; background:var(--gold); color:var(--navy); font-weight:700; }
+.flow-tip-copy { flex:1; min-width:0; }
+.flow-tip-title,.flow-tip-desc { display:block; }
+.flow-tip-title { color:var(--text-primary); font-size:var(--fs-md); font-weight:600; }
+.flow-tip-desc { margin-top:4rpx; color:var(--text-secondary); font-size:var(--fs-xs); line-height:var(--lh-base); }
 .upload-status {
   display: inline-block; font-size: var(--fs-xs); font-weight: 600;
   padding: 4rpx 16rpx; border-radius: var(--radius-full);

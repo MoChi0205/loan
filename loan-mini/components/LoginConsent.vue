@@ -8,7 +8,7 @@
   </view>
 </template>
 <script setup>
-const props = defineProps({ modelValue: { type: Boolean, default: true } });
+const props = defineProps({ modelValue: { type: Boolean, default: false } });
 const emit = defineEmits(['update:modelValue', 'open']);
 function toggle() { emit('update:modelValue', !props.modelValue); }
 </script>

@@ -42,7 +42,7 @@ const phone = ref('');
 const smsCode = ref('');
 const countdown = ref(0);
 const submitting = ref(false);
-const agreementChecked = ref(true);
+const agreementChecked = ref(false);
 let timer;
 
 /** 发送验证码（60s 倒计时防重复） */
@@ -92,7 +92,7 @@ function ensureAgreement() {
   return false;
 }
 function showAgreement(title) {
-  const content = title === '隐私政策' ? '我们仅在提供登录、身份认证和资金咨询所必需的范围内处理您的信息。' : '使用本服务即表示您接受平台服务规则，匹配结果仅供参考。';
+  const content = title === '隐私政策' ? '我们仅在提供登录、身份认证和资质风险分析所必需的范围内处理您的信息。' : '使用本服务即表示您接受平台服务规则。本服务不推荐具体金融产品，不预测审批结果。';
   uni.showModal({ title, content, showCancel: false, confirmText: '我知道了' });
 }
 

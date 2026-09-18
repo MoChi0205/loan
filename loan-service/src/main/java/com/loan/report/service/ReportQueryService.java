@@ -22,9 +22,7 @@ import java.util.Map;
 /**
  * 报告查询服务（P0-4）：小程序侧按 reportNo + 归属校验读取报告详情。
  *
- * <p>对客返回内容强制脱敏（✅评审决策 08-28）：仅档位 / 三档总结果 / 产品数量 / 用户评级 /
- * 逐条规则说明，不含任何产品名 / 银行名 / 额度 / 利率明细；产品明细仅 Web 管理端可见
- * （见 {@code ReportService.screeningDetail}）。
+ * <p>客户视角仅返回报告元数据，产品、银行、准入规则与匹配统计全部留在员工视角。
  *
  * @author loan-platform
  */
@@ -48,7 +46,7 @@ public class ReportQueryService {
      *
      * @param reportNo   报告编号（业务唯一ID）
      * @param clientCode 客户编码（归属校验；null / 空串跳过校验，供员工全量查看复用）
-     * @return 报告详情（不含产品明细）
+     * @return 客户元数据或员工内部报告详情
      */
     public Map<String, Object> miniDetail(String reportNo, String clientCode) {
         if (!StringUtils.hasText(reportNo)) {
@@ -65,6 +63,12 @@ public class ReportQueryService {
         }
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("reportNo", s.getReportNo());
+        m.put("status", s.getStatus());
+        m.put("createdAt", s.getCreatedAt());
+        // 客户视角只返回报告元数据；任何产品、银行、准入规则和匹配结论均留在员工视角。
+        if (StringUtils.hasText(clientCode)) {
+            return m;
+        }
         m.put("grade", s.getGrade());
         m.put("totalResult", resolveTotalResult(s));
         m.put("productCount", s.getProductCount());
@@ -75,8 +79,6 @@ public class ReportQueryService {
         m.put("rejectCount", s.getRejectCount());
         m.put("adviceJson", s.getAdviceJson());
         m.put("vipFlag", s.getVipFlag());
-        m.put("status", s.getStatus());
-        m.put("createdAt", s.getCreatedAt());
         m.put("ruleLogs", ruleLogs(s.getMatchTraceUuid()));
         return m;
     }

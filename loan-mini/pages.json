@@ -34,7 +34,7 @@
     {
       "path": "pages/match/match",
       "style": {
-        "navigationBarTitleText": "智能匹配"
+        "navigationBarTitleText": "风险分析"
       }
     },
     {

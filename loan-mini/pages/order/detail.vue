@@ -54,7 +54,7 @@
 
       <!-- 合规提示 -->
       <view class="card tip-card">
-        <text class="tip-text">具体产品、额度与利率以顾问沟通确认为准，本页不展示产品明细。</text>
+        <text class="tip-text">本页仅展示服务进度与已确认事项，不提供金融产品推荐或审批结果预测。</text>
       </view>
     </template>
 

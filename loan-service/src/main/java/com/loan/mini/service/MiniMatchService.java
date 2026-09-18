@@ -10,6 +10,7 @@ import com.loan.common.ResultCode;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.mini.dto.MiniMatchResult;
+import com.loan.mini.dto.CustomerRiskAnalysisResult;
 import com.loan.mini.dto.RuleHit;
 import com.loan.report.entity.ClientScreening;
 import com.loan.report.entity.ScreeningProduct;
@@ -42,7 +43,7 @@ import java.util.stream.Collectors;
  * 小程序端匹配与报告：客户提交经营事实 → 引擎匹配 → 生成报告；我的报告列表/详情。
  *
  * <p>P0-4 增强：未认证客户拦截（无企业信用代码且无个人认证记录 → FORBIDDEN）；
- * 匹配结果按评审决策对客脱敏（仅产品数量 + 用户评级 + 规则说明，不含产品明细）。
+ * 客户仅接收独立风险分析结果，产品和准入结果仅保留在员工内部视角。
  *
  * @author loan-platform
  */
@@ -87,11 +88,11 @@ public class MiniMatchService {
      * @param operator       操作人（客户姓名）
      * @param applyCity      申请城市（必填，市一级名称）
      * @param clientSubmitId 客户端幂等键（可选，同键不重复落库）
-     * @return 脱敏匹配结果（不含产品名/银行名/额度/利率明细）
+     * @return 客户风险分析结果或员工内部匹配结果
      */
     @Transactional(rollbackFor = Exception.class)
-    public MiniMatchResult runForMini(String clientCode, Map<String, Object> facts, LoanUser user,
-                                      String applyCity, String clientSubmitId) {
+    public Object runForMini(String clientCode, Map<String, Object> facts, LoanUser user,
+                             String applyCity, String clientSubmitId) {
         requireAuthenticated(clientCode);
         if (facts == null || facts.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "请填写经营事实");
@@ -112,7 +113,10 @@ public class MiniMatchService {
         }
         String operator = user == null ? "客户" : user.getName();
         String reportNo = screeningService.run(clientCode, facts, operator, applyCity, clientSubmitId);
-        Map<String, Object> detail = reportQueryService.miniDetail(reportNo, clientCode);
+        if (user != null && LoanUser.TYPE_CUSTOMER.equals(user.getUserType())) {
+            return buildCustomerRiskAnalysis(reportNo, facts);
+        }
+        Map<String, Object> detail = reportQueryService.miniDetail(reportNo, null);
         MiniMatchResult result = new MiniMatchResult();
         result.setReportNo((String) detail.get("reportNo"));
         result.setGrade((String) detail.get("grade"));
@@ -137,19 +141,8 @@ public class MiniMatchService {
                 .eq(ClientScreening::getClientProfileCode, clientCode)
                 .orderByDesc(ClientScreening::getCreatedAt);
         Page<ClientScreening> result = screeningMapper.selectPage(new Page<>(page, size), wrapper);
-        List<Map<String, Object>> records = result.getRecords().stream().map(s -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("reportNo", s.getReportNo());
-            m.put("grade", s.getGrade());
-            m.put("bankCount", s.getBankCount());
-            m.put("productCount", s.getProductCount());
-            m.put("passCount", s.getPassCount());
-            m.put("conditionCount", s.getConditionCount());
-            m.put("rejectCount", s.getRejectCount());
-            m.put("status", s.getStatus());
-            m.put("createdAt", s.getCreatedAt());
-            return m;
-        }).collect(Collectors.toList());
+        List<Map<String, Object>> records = result.getRecords().stream()
+                .map(this::toCustomerReportRow).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
     }
 
@@ -173,7 +166,21 @@ public class MiniMatchService {
      * @return 报告详情（不含产品明细）
      */
     public Map<String, Object> reportDetail(String reportNo, String clientCode) {
-        return reportQueryService.miniDetail(reportNo, clientCode);
+        Map<String, Object> detail = reportQueryService.miniDetail(reportNo, clientCode);
+        if (!StringUtils.hasText(clientCode)) {
+            return detail;
+        }
+        ClientScreening screening = screeningMapper.selectOne(new LambdaQueryWrapper<ClientScreening>()
+                .eq(ClientScreening::getReportNo, reportNo).last("limit 1"));
+        Map<String, Object> facts = screening == null
+                ? new LinkedHashMap<>() : loadFacts(latestSubmission(screening.getMatchTraceUuid()));
+        CustomerRiskAnalysisResult analysis = buildCustomerRiskAnalysis(reportNo, facts);
+        detail.put("analysisStatus", analysis.getAnalysisStatus());
+        detail.put("analysisLabel", analysis.getAnalysisLabel());
+        detail.put("riskSummary", analysis.getRiskSummary());
+        detail.put("riskFactors", analysis.getRiskFactors());
+        detail.put("analysisNotice", analysis.getAnalysisNotice());
+        return detail;
     }
 
     /* ==================== C3 / C11：报告列表（角色二分 + 四维查询） ==================== */
@@ -199,7 +206,7 @@ public class MiniMatchService {
         }
         wrapper.orderByDesc(ClientScreening::getCreatedAt);
         Page<ClientScreening> result = screeningMapper.selectPage(new Page<>(page, size), wrapper);
-        return PageResult.build(page, size, result.getTotal(), toReportRows(result.getRecords()));
+        return PageResult.build(page, size, result.getTotal(), toCustomerReportRows(result.getRecords()));
     }
 
     /**
@@ -283,7 +290,7 @@ public class MiniMatchService {
                 .collect(Collectors.toList());
         Map<String, String> staffNameMap = loadStaffNames(staffCodes);
         List<Map<String, Object>> rows = result.getRecords().stream().map(s -> {
-            Map<String, Object> m = toReportRow(s);
+            Map<String, Object> m = toInternalReportRow(s);
             ClientProfile p = profileMap.get(s.getClientProfileCode());
             if (p != null) {
                 m.put("clientName", p.getContactName());
@@ -409,11 +416,14 @@ public class MiniMatchService {
         data.put("generatedAt", LocalDateTime.now());
         // materialVersion：无 OCR 回灌时为 v1；有 OCR 回灌时按 _ocrMeta.version 递增（T2）
         data.put("materialVersion", resolveMaterialVersion(facts));
-        data.put("kpi", buildKpis(screening, facts));
-        data.put("suggestions", buildSuggestions(screening, facts));
-        data.put("risks", buildRisks(facts));
+        boolean customerView = StringUtils.hasText(clientCode);
+        data.put("kpi", customerView ? buildCustomerKpis(facts) : buildKpis(screening, facts));
+        data.put("suggestions", customerView ? buildCustomerSuggestions(facts) : buildSuggestions(screening, facts));
+        data.put("risks", customerView ? buildCustomerRisks(facts) : buildRisks(facts));
         data.put("yearData", buildYearData(facts));
-        data.put("dimensions", buildDimensions(screening, facts, customerGroup));
+        data.put("dimensions", customerView
+                ? buildCustomerDimensions(facts, customerGroup)
+                : buildDimensions(screening, facts, customerGroup));
         return data;
     }
 
@@ -507,6 +517,20 @@ public class MiniMatchService {
         return "danger";
     }
 
+    /** 客户视角 KPI：只陈述其提交的数据，不引用产品、银行或准入结论。 */
+    private List<Map<String, Object>> buildCustomerKpis(Map<String, Object> facts) {
+        double tax = num(facts.get("annualTaxAmount"));
+        double invoice = num(facts.get("annualInvoiceAmount"));
+        double years = num(facts.get("foundYears"));
+        List<Map<String, Object>> list = new ArrayList<>();
+        list.add(kpi("年纳税额", wan(tax) + " 万元", amountTone(tax), "用户提交的近一年纳税数据"));
+        list.add(kpi("年开票额", wan(invoice) + " 万元", amountTone(invoice), "用户提交的近一年开票数据"));
+        list.add(kpi("成立年限", ((int) years) + " 年", years >= 3 ? "success" : "warning", "企业经营时长"));
+        list.add(kpi("资料状态", factsComplete(facts) ? "较完整" : "待完善",
+                factsComplete(facts) ? "success" : "warning", "仅反映本次分析所需资料是否齐备"));
+        return list;
+    }
+
     /** 经营建议：条件触发模板文案（规避承诺性表述） */
     private List<Map<String, Object>> buildSuggestions(ClientScreening screening, Map<String, Object> facts) {
         double tax = num(facts.get("annualTaxAmount"));
@@ -540,6 +564,27 @@ public class MiniMatchService {
         return m;
     }
 
+    /** 客户视角建议：仅针对资料质量和经营风险，不包含金融产品导向。 */
+    private List<Map<String, Object>> buildCustomerSuggestions(Map<String, Object> facts) {
+        double tax = num(facts.get("annualTaxAmount"));
+        double invoice = num(facts.get("annualInvoiceAmount"));
+        double years = num(facts.get("foundYears"));
+        List<Map<String, Object>> list = new ArrayList<>();
+        if (years > 0 && years < 2) {
+            list.add(suggestion("经营时长", "info", "成立年限较短，建议补充连续经营佐证材料。"));
+        }
+        if (tax > 0 && tax < 10000) {
+            list.add(suggestion("纳税数据", "warning", "建议核对近 12 个月完税凭证，确认数据完整、连续。"));
+        }
+        if (tax > 0 && invoice > tax * 8) {
+            list.add(suggestion("票据管理", "warning", "建议核对票据与申报口径的一致性。"));
+        }
+        if (list.isEmpty()) {
+            list.add(suggestion("资料核对", "success", "建议按清单核对最新经营材料，确保信息真实、完整。"));
+        }
+        return list;
+    }
+
     /** 风险提示：阈值触发 */
     private List<Map<String, Object>> buildRisks(Map<String, Object> facts) {
         double tax = num(facts.get("annualTaxAmount"));
@@ -566,6 +611,27 @@ public class MiniMatchService {
         m.put("level", level);
         m.put("content", content);
         return m;
+    }
+
+    /** 客户视角风险提示：不使用银行门槛、可进件、匹配或审批概率措辞。 */
+    private List<Map<String, Object>> buildCustomerRisks(Map<String, Object> facts) {
+        double tax = num(facts.get("annualTaxAmount"));
+        double invoice = num(facts.get("annualInvoiceAmount"));
+        double years = num(facts.get("foundYears"));
+        List<Map<String, Object>> list = new ArrayList<>();
+        if (tax > 0 && tax < 10000) {
+            list.add(risk("关注", "年纳税数据规模较低，请核实数据完整性和连续性。"));
+        }
+        if (years > 0 && years < 1) {
+            list.add(risk("关注", "成立不足 1 年，经营稳定性的观察周期较短。"));
+        }
+        if (tax == 0 && invoice == 0) {
+            list.add(risk("提示", "未提交纳税或开票数据，本次分析可用信息有限。"));
+        }
+        if (list.isEmpty()) {
+            list.add(risk("提示", "请确认经营材料为最新版本，过期信息可能影响风险分析准确性。"));
+        }
+        return list;
     }
 
     /** 历年营业数据：无历年数据源，返回当年 1 行（利润无数据源显示 —） */
@@ -610,6 +676,27 @@ public class MiniMatchService {
         return list;
     }
 
+    /** 客户视角维度：完全由客户提交资料计算，不读取产品匹配结果。 */
+    private List<Map<String, Object>> buildCustomerDimensions(Map<String, Object> facts, String customerGroup) {
+        double tax = num(facts.get("annualTaxAmount"));
+        double invoice = num(facts.get("annualInvoiceAmount"));
+        double years = num(facts.get("foundYears"));
+        String rawIndustry = facts.get("industry") == null ? null : String.valueOf(facts.get("industry"));
+        Map<String, Integer> avgMap = industryBenchmarkService.avgByDimension(rawIndustry, customerGroup);
+        boolean fromTable = avgMap != null;
+        List<Map<String, Object>> list = new ArrayList<>();
+        list.add(dimension("纳税数据", levelScore(tax), pick(avgMap, IndustryBenchmarkService.DIM_TAX_INTENSITY, 45),
+                IndustryBenchmarkService.DIM_TAX_INTENSITY, fromTable));
+        list.add(dimension("开票数据", levelScore(invoice), pick(avgMap, IndustryBenchmarkService.DIM_INVOICE_SCALE, 50),
+                IndustryBenchmarkService.DIM_INVOICE_SCALE, fromTable));
+        list.add(dimension("经营时长", years >= 5 ? 100 : years >= 3 ? 80 : years >= 1 ? 60 : years > 0 ? 40 : 20,
+                pick(avgMap, IndustryBenchmarkService.DIM_OPERATE_YEARS, 55),
+                IndustryBenchmarkService.DIM_OPERATE_YEARS, fromTable));
+        list.add(dimension("资料完整度", factsComplete(facts) ? 90 : 45, 60,
+                "MATERIAL_COMPLETENESS", false));
+        return list;
+    }
+
     /** 维度均值取值：表有则取表值，否则落回硬编码常量（零回归） */
     private Integer pick(Map<String, Integer> map, String key, int fallback) {
         if (map == null) {
@@ -640,13 +727,24 @@ public class MiniMatchService {
 
     /* ==================== 私有工具方法 ==================== */
 
-    /** ClientScreening 列表 → 报告行（客户视角字段） */
-    private List<Map<String, Object>> toReportRows(List<ClientScreening> list) {
-        return list.stream().map(this::toReportRow).collect(Collectors.toList());
+    /** ClientScreening 列表 → 客户安全报告行。 */
+    private List<Map<String, Object>> toCustomerReportRows(List<ClientScreening> list) {
+        return list.stream().map(this::toCustomerReportRow).collect(Collectors.toList());
     }
 
-    /** 单条报告 → Map（脱敏，不含产品明细） */
-    private Map<String, Object> toReportRow(ClientScreening s) {
+    /** 客户报告行：不返回银行、产品、规则、匹配数量或通过情况。 */
+    private Map<String, Object> toCustomerReportRow(ClientScreening s) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("reportNo", s.getReportNo());
+        m.put("analysisStatus", "GENERATED");
+        m.put("analysisLabel", "风险分析已生成");
+        m.put("status", s.getStatus());
+        m.put("createdAt", s.getCreatedAt());
+        return m;
+    }
+
+    /** 员工报告行：保留内部匹配统计。 */
+    private Map<String, Object> toInternalReportRow(ClientScreening s) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("reportNo", s.getReportNo());
         m.put("grade", s.getGrade());
@@ -658,6 +756,55 @@ public class MiniMatchService {
         m.put("status", s.getStatus());
         m.put("createdAt", s.getCreatedAt());
         return m;
+    }
+
+    /** 生成与产品匹配结果完全独立的客户风险分析响应。 */
+    private CustomerRiskAnalysisResult buildCustomerRiskAnalysis(String reportNo, Map<String, Object> facts) {
+        boolean complete = factsComplete(facts);
+        List<String> factors = new ArrayList<>();
+        double years = num(facts.get("foundYears"));
+        double debtRatio = num(facts.get("assetLiabilityRatio"));
+        double creditScore = num(facts.get("creditScore"));
+        String operateStatus = facts.get("operateStatus") == null ? "" : String.valueOf(facts.get("operateStatus"));
+        if (years > 0 && years < 1) factors.add("经营稳定性观察周期较短");
+        if (debtRatio > 70) factors.add("资产负债率数据需要重点核对");
+        if (creditScore > 0 && creditScore < 550) factors.add("信用数据存在关注项");
+        if (StringUtils.hasText(operateStatus) && !"存续".equals(operateStatus) && !"在营".equals(operateStatus)) {
+            factors.add("经营状态信息需要进一步核实");
+        }
+        CustomerRiskAnalysisResult result = new CustomerRiskAnalysisResult();
+        result.setReportNo(reportNo);
+        if (!complete) {
+            result.setAnalysisStatus("INCOMPLETE");
+            result.setAnalysisLabel("信息待完善");
+            result.setRiskSummary("本次提交的信息不足，完善资料后可获得更完整的资质与经营风险分析。");
+        } else if (!factors.isEmpty()) {
+            result.setAnalysisStatus("ATTENTION");
+            result.setAnalysisLabel("存在关注项");
+            result.setRiskSummary("已完成资质与经营风险分析，部分信息建议进一步核实或补充。");
+        } else {
+            result.setAnalysisStatus("STABLE");
+            result.setAnalysisLabel("资料结构较完整");
+            result.setRiskSummary("已完成资质与经营风险分析，当前提交资料结构较完整。");
+        }
+        result.setRiskFactors(factors);
+        result.setAnalysisNotice("本结果仅基于用户提交资料进行资质与经营风险分析，不推荐具体金融产品，不构成授信、额度或审批结果预测。");
+        return result;
+    }
+
+    /** 企业或个人核心事实是否具备。 */
+    private boolean factsComplete(Map<String, Object> facts) {
+        if (facts == null || facts.isEmpty()) return false;
+        boolean personal = facts.containsKey("annualIncome") || facts.containsKey("creditScore");
+        if (personal) {
+            return num(facts.get("annualIncome")) > 0 && num(facts.get("creditScore")) > 0
+                    && num(facts.get("workYears")) >= 0
+                    && StringUtils.hasText(String.valueOf(facts.getOrDefault("employType", "")));
+        }
+        return num(facts.get("annualTaxAmount")) > 0 && num(facts.get("annualInvoiceAmount")) > 0
+                && num(facts.get("foundYears")) > 0
+                && StringUtils.hasText(String.valueOf(facts.getOrDefault("industry", "")))
+                && StringUtils.hasText(String.valueOf(facts.getOrDefault("operateStatus", "")));
     }
 
     /** 批量加载报告关联的客户档案 */

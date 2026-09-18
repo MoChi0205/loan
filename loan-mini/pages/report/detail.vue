@@ -7,7 +7,7 @@
       <!-- 档位结果卡 -->
       <view class="result-card" :class="`rc-${resultClass}`">
         <text class="result-label">{{ resultLabel }}</text>
-        <view class="result-metrics">
+        <view v-if="isStaff" class="result-metrics">
           <view class="metric">
             <text class="metric-num">{{ report.productCount || 0 }}</text>
             <text class="metric-name">可匹配产品数</text>
@@ -70,7 +70,7 @@
       <!-- ===== Tab 2：报告信息（含规则命中说明，客户与员工均可见） ===== -->
       <view v-else-if="activeTab === 'info'" class="stack">
         <view class="card">
-          <view class="info-row">
+          <view v-if="isStaff" class="info-row">
             <text class="info-label">报告名称</text>
             <text class="info-value">{{ reportTitle }}</text>
           </view>
@@ -84,7 +84,7 @@
           </view>
         </view>
 
-        <view class="card" v-if="report.ruleLogs && report.ruleLogs.length">
+        <view class="card" v-if="isStaff && report.ruleLogs && report.ruleLogs.length">
           <text class="card-title">规则命中说明</text>
           <view class="rule-item" v-for="(log, i) in report.ruleLogs" :key="i">
             <text class="rule-expr">{{ log.expression }}</text>
@@ -92,9 +92,8 @@
           </view>
         </view>
 
-        <!-- 客户：明确提示产品明细需联系顾问（对客脱敏，评审决策 08-28） -->
         <view v-if="!isStaff" class="card tip-card">
-          <text class="tip-text">对客报告仅展示产品数量与评级，具体产品额度与利率请咨询您的顾问。</text>
+          <text class="tip-text">{{ report.riskSummary || '本报告仅分析资质与经营风险。' }}</text>
         </view>
       </view>
 
@@ -189,10 +188,10 @@
 
       <!-- 合规提示 -->
       <view class="card tip-card">
-        <text class="tip-text">本报告仅供资金参考，不构成任何银行通过承诺；具体产品额度与利率以顾问跟进为准。</text>
+        <text class="tip-text">{{ isStaff ? '内部匹配结果仅供业务作业使用，不构成审批承诺。' : (report.analysisNotice || '本报告仅根据用户提交资料提供资质与经营风险分析，不推荐具体金融产品，不构成授信、额度或审批结果预测。') }}</text>
       </view>
 
-      <AppButton variant="secondary" size="lg" block @click="goMatch">重新匹配</AppButton>
+      <AppButton variant="secondary" size="lg" block @click="goMatch">{{ isStaff ? '重新匹配' : '重新分析' }}</AppButton>
     </template>
 
     <!-- 空态 / 异常（P1-5 Error 态） -->
@@ -368,6 +367,10 @@ function onUploadMaterial() {
 
 /* ===== 展示辅助 ===== */
 const resultClass = computed(() => {
+  if (!isStaff.value) {
+    return report.value && report.value.analysisStatus === 'STABLE' ? 'pass'
+      : report.value && report.value.analysisStatus === 'ATTENTION' ? 'condition' : 'reject';
+  }
   const t = (report.value && report.value.totalResult) || '';
   if (t === 'PASS') return 'pass';
   if (t === 'CONDITION') return 'condition';
@@ -375,6 +378,7 @@ const resultClass = computed(() => {
 });
 
 const resultLabel = computed(() => {
+  if (!isStaff.value) return (report.value && report.value.analysisLabel) || '风险分析已生成';
   const t = (report.value && report.value.totalResult) || '';
   return { PASS: '可进件', CONDITION: '需补料', REJECT: '暂不匹配', SKIP_SEGMENT_MISMATCH: '暂不匹配' }[t] || (t || '匹配完成');
 });

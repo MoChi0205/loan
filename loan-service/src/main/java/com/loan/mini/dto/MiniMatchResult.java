@@ -5,12 +5,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.util.List;
 
-/**
- * 小程序匹配结果（✅评审决策 08-28：对客仅展示「通过的产品数量 + 用户评级」，
- * 禁止返回产品名/银行名/额度/利率明细，规避合规风险）。
- *
- * @author loan-platform
- */
+/** 员工侧内部匹配结果；禁止用于客户响应。 */
 @Data
 public class MiniMatchResult implements Serializable {
 

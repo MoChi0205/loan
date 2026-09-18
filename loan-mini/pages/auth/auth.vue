@@ -3,7 +3,7 @@
     <!-- 页面头 -->
     <view class="page-head">
       <text class="head-title">身份认证</text>
-      <text class="head-sub">企业营业执照 / 个人信息认证，二选一完成即可解锁智能匹配</text>
+      <text class="head-sub">企业营业执照 / 个人信息认证，二选一完成即可解锁风险分析</text>
     </view>
 
     <!-- 客户类型切换：双卡片 -->
@@ -81,7 +81,7 @@
         </view>
       </view>
       <view class="field">
-        <text class="field-label">资质情况（有助于提升匹配精度）</text>
+        <text class="field-label">资质情况（有助于完善风险分析）</text>
         <view class="switch-list">
           <view class="switch-row" v-for="opt in assetOptions" :key="opt.key">
             <text class="switch-label">{{ opt.label }}</text>
@@ -96,7 +96,7 @@
       <view class="checkbox" :class="{ checked: agreed }">
         <text v-if="agreed" class="check-mark">✓</text>
       </view>
-      <text class="compliance-text">我已阅读并同意《用户授权与隐私协议》，授权平台使用上述信息进行资金匹配分析</text>
+      <text class="compliance-text">我已阅读并同意《用户授权与隐私协议》，授权平台使用上述信息进行资质与经营风险分析</text>
     </AppClickable>
 
     <AppButton class="submit-btn" variant="primary" size="lg" block :loading="submitting" @click="onSubmit">

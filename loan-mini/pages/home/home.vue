@@ -129,7 +129,7 @@
         </view>
 
         <view class="m-note">
-          <text class="m-note-t">合规提示：匹配结果仅供参考，不代表资金机构通过承诺</text>
+          <text class="m-note-t">{{ isCustomer ? '合规提示：仅提供资质与经营风险分析，不推荐金融产品或预测审批结果' : '合规提示：内部匹配结果仅供业务作业，不构成审批承诺' }}</text>
         </view>
       </view>
     </view>

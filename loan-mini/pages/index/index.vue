@@ -8,7 +8,7 @@
       <view class="hero-content">
         <view class="hero-glass">
           <text class="hero-title">企业资金服务平台</text>
-          <text class="hero-sub">多银行产品匹配 · 经营数据分析</text>
+          <text class="hero-sub">企业资质分析 · 经营风险诊断</text>
         </view>
       </view>
     </view>
@@ -49,7 +49,7 @@
       <LoginConsent v-model="agreementChecked" @open="showAgreement" />
 
       <!-- 合规声明 -->
-      <text class="foot-note">温馨提示：匹配结果仅供参考，不代表银行审批承诺</text>
+      <text class="foot-note">本服务仅提供资质与经营风险分析，不推荐具体金融产品，不预测审批结果</text>
 
       <!-- H5 预览模式提示（仅 H5 浏览器显示，小程序端不渲染） -->
       <text class="h5-note" v-if="isH5">H5 预览模式：采用模拟登录（后端 wechat.mock），仅供本地联调</text>
@@ -106,12 +106,12 @@ const themeMode = useThemeMode();
 const isH5 = computed(() => isH5Env());
 
 const loggingIn = ref(false);
-const agreementChecked = ref(true);
+const agreementChecked = ref(false);
 
 const flow = [
   { title: '微信一键登录', desc: '微信授权后自动创建客户档案' },
   { title: '身份认证', desc: '选择企业认证或个人认证' },
-  { title: '智能匹配', desc: '完善资料后获取匹配报告' },
+  { title: '风险分析', desc: '完善资料后获取分析报告' },
 ];
 
 /* ---------- 开发模式角色切换 ---------- */
@@ -122,7 +122,7 @@ const showRolePicker = ref(false);
 const devRole = ref('customer');
 
 const devRoles = [
-  { code: 'customer', name: '客户（对客）', desc: '小程序端普通客户，仅看通过银行数+评级' },
+  { code: 'customer', name: '客户（对客）', desc: '小程序端普通客户，仅查看资质与经营风险分析' },
   { code: 'staff', name: '渠道顾问', desc: 'STAFF 角色，可管理引荐客户与服务单' },
   { code: 'admin', name: '运营管理员', desc: 'OPERATOR 角色，可配置渠道与策略' },
   { code: 'boss', name: '超级管理员', desc: 'BOSS 角色，全部权限' },
@@ -253,7 +253,7 @@ function ensureAgreement() {
 function showAgreement(title) {
   const content = title === '隐私政策'
     ? '我们仅在提供登录、身份认证和资金咨询服务所必需的范围内处理您的信息，并依法保护您的个人信息安全。'
-    : '登录及使用本服务即表示您接受平台服务规则。匹配分析仅供参考，不构成任何资金机构审批或放款承诺。';
+    : '登录及使用本服务即表示您接受平台服务规则。本服务仅提供资质与经营风险分析，不推荐具体金融产品，不预测审批结果。';
   uni.showModal({ title, content, showCancel: false, confirmText: '我知道了' });
 }
 

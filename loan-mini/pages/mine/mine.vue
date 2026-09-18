@@ -428,12 +428,12 @@ function onCopyShareLink() {
 }
 
 onShareAppMessage(() => ({
-  title: '企融通 · 企业资金智能匹配',
+  title: '企融通 · 企业资质与经营风险分析',
   path: buildInviteSharePath(inviteCode.value),
 }));
 
 onShareTimeline(() => ({
-  title: '企融通 · 企业资金智能匹配',
+  title: '企融通 · 企业资质与经营风险分析',
   query: inviteCode.value ? `inviteCode=${encodeURIComponent(inviteCode.value)}` : '',
 }));
 

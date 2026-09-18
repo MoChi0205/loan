@@ -8,7 +8,6 @@ import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
-import com.loan.mini.dto.MiniMatchResult;
 import com.loan.mini.service.MiniMatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,8 +41,8 @@ public class MiniMatchController {
     /**
      * 发起匹配（客户提交经营事实 → 引擎匹配 → 生成报告）。
      *
-     * <p>入参 {facts:{...}, applyCity, clientSubmitId?, clientCode?}；申请城市必填，返回对客脱敏结果
-     * （仅报告号/档位/三档总结果/产品数量/评级/规则说明，不含产品明细）。
+     * <p>入参 {facts:{...}, applyCity, clientSubmitId?, clientCode?}；申请城市必填。
+     * 客户只返回资质与经营风险分析；员工保留内部匹配结果。
      *
      * <p><b>归属对象（C2 替客匹配）：</b>
      * <ul>
@@ -54,10 +53,10 @@ public class MiniMatchController {
      *
      * @param body 匹配请求
      * @param user 当前用户
-     * @return 脱敏匹配结果
+     * @return 按登录角色隔离的结果
      */
     @PostMapping("/match/run")
-    public Result<MiniMatchResult> run(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+    public Result<Object> run(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
         requireLogin(user);
         // 渠道禁入（C1）
         if (LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
@@ -145,7 +144,7 @@ public class MiniMatchController {
      * 报告命中的银行产品（C4）。
      *
      * <p>企业员工（渠道除外）可查看某企业的匹配命中产品，用于陪访解读。
-     * 渠道受沙箱隔离直接拒绝；客户不可见产品明细（对客脱敏，仅展示数量）。
+     * 渠道受沙箱隔离直接拒绝；客户不可见任何产品或匹配结果。
      *
      * @param reportNo 报告编号
      * @param user     当前用户
@@ -159,7 +158,7 @@ public class MiniMatchController {
             throw new BusinessException(ResultCode.FORBIDDEN, "渠道合作方不可见客户匹配结果");
         }
         if (LoanUser.TYPE_CUSTOMER.equals(user.getUserType())) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "对客报告仅展示产品数量，明细请咨询您的顾问");
+            throw new BusinessException(ResultCode.FORBIDDEN, "客户侧不提供金融产品或匹配结果");
         }
         return Result.ok(miniMatchService.reportProducts(reportNo));
     }

@@ -4,7 +4,7 @@
     <!-- 列表头：角色二分（C3） -->
     <view class="page-head">
       <text class="head-title">{{ isStaff ? '全部报告' : '我的报告' }}</text>
-      <text class="head-sub">{{ isStaff ? '全量检索 · 用于陪访与穿透' : '历史智能匹配报告 · 数据仅本人可见' }}</text>
+      <text class="head-sub">{{ isStaff ? '全量检索 · 用于内部作业' : '历史风险分析报告 · 数据仅本人可见' }}</text>
     </view>
 
     <!-- 筛选区（C3 角色二分 + C11 四维查询）
@@ -73,9 +73,9 @@
       title="无匹配的报告" desc="当前筛选条件下没有找到报告，试试放宽条件或重置筛选">
       <AppButton variant="secondary" size="md" @click="onReset">重置筛选</AppButton>
     </AppEmpty>
-    <AppEmpty v-else-if="!loading && !reports.length" title="暂无匹配报告"
-      desc="完成智能匹配后，报告将展示在这里">
-      <AppButton variant="primary" size="md" @click="goMatch">去匹配</AppButton>
+    <AppEmpty v-else-if="!loading && !reports.length" :title="isStaff ? '暂无匹配报告' : '暂无风险分析报告'"
+      :desc="isStaff ? '完成内部匹配后，报告将展示在这里' : '完成风险分析后，报告将展示在这里'">
+      <AppButton variant="primary" size="md" @click="goMatch">{{ isStaff ? '去匹配' : '去分析' }}</AppButton>
     </AppEmpty>
 
     <!-- 列表 -->
@@ -85,21 +85,23 @@
         v-for="item in reports" :key="item.reportNo"
         :title="itemTitle(item)"
         tappable
-        :aria-label="`${itemTitle(item)}，评级 ${gradeLabel(item.grade)}`"
+        :aria-label="isStaff ? `${itemTitle(item)}，评级 ${gradeLabel(item.grade)}` : `${itemTitle(item)}，风险分析已生成`"
         @click="goDetail(item)"
       >
         <template #leading>
-          <view class="grade-block" :class="`gb-${gradeClass(item.grade)}`">{{ gradeLabel(item.grade) }}</view>
+          <view v-if="isStaff" class="grade-block" :class="`gb-${gradeClass(item.grade)}`">{{ gradeLabel(item.grade) }}</view>
+          <view v-else class="grade-block gb-high">分析</view>
         </template>
         <template #meta>
           <text v-if="isStaff && item.ownerStaffName" class="meta-text">归属 {{ item.ownerStaffName }}</text>
           <text v-if="item.contactPhone" class="meta-text">{{ item.contactPhone }}</text>
-          <text class="meta-text">可匹配 {{ item.productCount || 0 }} 款</text>
-          <text class="meta-text">银行 {{ item.bankCount || 0 }} 家</text>
+          <text v-if="isStaff" class="meta-text">可匹配 {{ item.productCount || 0 }} 款</text>
+          <text v-if="isStaff" class="meta-text">银行 {{ item.bankCount || 0 }} 家</text>
           <text class="meta-text">{{ formatTime(item.createdAt) }}</text>
         </template>
         <template #trailing>
-          <AppTag :type="tagType(deriveTotal(item))" size="sm">{{ totalLabel(deriveTotal(item)) }}</AppTag>
+          <AppTag v-if="isStaff" :type="tagType(deriveTotal(item))" size="sm">{{ totalLabel(deriveTotal(item)) }}</AppTag>
+          <AppTag v-else type="info" size="sm">已生成</AppTag>
         </template>
       </AppListItem>
 
@@ -123,8 +125,8 @@ import { reportList } from '../api/match';
  *   客户无权跨用户检索他人报告，后端也会忽略这些参数。
  * - 企业员工（C11）：手机号 / 客户姓名 / 公司名称 / 统一社会信用代码 + 归属 + 日期。
  *
- * 列表仅展示客户名称、报告日期、评级、产品数、银行覆盖数等脱敏信息，
- * 命中产品明细在「报告详情」查看（C4）。
+ * 客户列表只展示报告状态与日期；员工列表保留内部评级、产品数和银行覆盖统计。
+ * 命中产品明细仅员工在「报告详情」查看（C4）。
  *
  * <p>组件化改造（D74）：原页面级 onShow 改为 onMounted + active 侦听；
  * onReachBottom / onPullDownRefresh 组件内无法注册，改由容器页转发调用

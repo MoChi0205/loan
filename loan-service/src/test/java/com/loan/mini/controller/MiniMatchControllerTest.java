@@ -23,6 +23,8 @@ import com.loan.context.LoanUser;
 import com.loan.exception.GlobalExceptionHandler;
 
 import com.loan.mini.service.MiniMatchService;
+import com.loan.mini.dto.CustomerRiskAnalysisResult;
+import com.loan.mini.dto.MiniMatchResult;
 
 /**
  * L1 接口契约测试（自动生成，共 4 端点，其中 4 个需登录）。
@@ -95,6 +97,56 @@ class MiniMatchControllerTest {
                     .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("请选择申请城市"));
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("客户执行响应只包含风险分析字段")
+    void customer_match_run_hides_internal_match_fields() throws Exception {
+        CustomerRiskAnalysisResult result = new CustomerRiskAnalysisResult();
+        result.setReportNo("R001");
+        result.setAnalysisStatus("STABLE");
+        result.setAnalysisLabel("资料结构较完整");
+        result.setRiskSummary("已完成资质与经营风险分析");
+        Mockito.when(miniMatchService.runForMini(Mockito.anyString(), Mockito.anyMap(),
+                Mockito.any(LoanUser.class), Mockito.anyString(), Mockito.nullable(String.class)))
+                .thenReturn(result);
+        try {
+            UserContext.setUser(TestUsers.customerUser());
+            mvc.perform(post("/api/mini/match/run")
+                    .content("{\"facts\":{\"annualTaxAmount\":10000},\"applyCity\":\"杭州市\"}")
+                    .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.analysisStatus").value("STABLE"))
+                .andExpect(jsonPath("$.data.productCount").doesNotExist())
+                .andExpect(jsonPath("$.data.totalResult").doesNotExist())
+                .andExpect(jsonPath("$.data.grade").doesNotExist())
+                .andExpect(jsonPath("$.data.ruleLogs").doesNotExist());
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("员工执行响应保留内部匹配字段")
+    void staff_match_run_keeps_internal_match_fields() throws Exception {
+        MiniMatchResult result = new MiniMatchResult();
+        result.setReportNo("R002");
+        result.setTotalResult("PASS");
+        result.setProductCount(2);
+        Mockito.when(miniMatchService.runForMini(Mockito.anyString(), Mockito.anyMap(),
+                Mockito.any(LoanUser.class), Mockito.anyString(), Mockito.nullable(String.class)))
+                .thenReturn(result);
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(post("/api/mini/match/run")
+                    .content("{\"facts\":{\"annualTaxAmount\":10000},\"applyCity\":\"杭州市\",\"clientCode\":\"CU_TEST_001\"}")
+                    .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalResult").value("PASS"))
+                .andExpect(jsonPath("$.data.productCount").value(2));
         } finally {
             UserContext.clear();
         }
