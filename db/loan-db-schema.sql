@@ -51,6 +51,7 @@ CREATE TABLE `t_staff` (
   `wecom_qr_code` varchar(500) DEFAULT NULL COMMENT '个人企微二维码(报告页与企微引导位展示)',
   `phone` varchar(256) DEFAULT NULL COMMENT '手机号(AES加密)',
   `phone_hash` varchar(64) DEFAULT NULL COMMENT '手机号SHA-256哈希(查重)',
+  `password` varchar(128) DEFAULT NULL COMMENT '密码(BCrypt，验证码重置后设置)',
   `status` varchar(16) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态(ACTIVE在职/LEAVE离职停用,离职联动线索客户转移提醒)',
   `leave_time` datetime DEFAULT NULL COMMENT '离职时间',
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人姓名',
@@ -496,6 +497,7 @@ CREATE TABLE `t_client_profile` (
   `contact_name` varchar(64) DEFAULT NULL COMMENT '联系人姓名',
   `phone` varchar(256) NOT NULL COMMENT '手机号(AES加密)',
   `phone_hash` varchar(64) NOT NULL COMMENT '手机号SHA-256哈希(查重与等值查询)',
+  `password` varchar(128) DEFAULT NULL COMMENT '密码(BCrypt，验证码重置后设置)',
   `credit_code` varchar(256) DEFAULT NULL COMMENT '统一社会信用代码(AES加密,企业客群)',
   `credit_code_hash` varchar(64) DEFAULT NULL COMMENT '信用代码SHA-256哈希',
   `owner_staff_code` varchar(64) DEFAULT NULL COMMENT '归属顾问工号(业务编码;为空表示公海未分配)',
@@ -921,7 +923,180 @@ CREATE TABLE `t_service_follow` (
   KEY `idx_order_time` (`order_id`,`created_at`),
   KEY `idx_follower` (`follower_staff_id`),
   KEY `idx_next_follow` (`next_follow_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='服务沟通记录(时间轴倒序沉淀内部可见,客户不可见;参考tse CustomerFollowPo含next_follow_time)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='服务沟通记录(时间轴倒序沉淀内部可见,客户不可见;参考tse CustomerFollowPo含next_follow_time)。【已废弃·2026-09-21】客户级跟进记录统一走 t_client_follow_record（不依赖工单存在），本表保留仅为兼容历史数据，禁止新增引用。';
+
+-- ============================================================
+-- 客户服务运营域（预约 / 员工外出 / 客户跟进 / 统一活动回放 / 客户画像快照）
+-- 迁移脚本：db/migrate-service-operations-p0-2026-09-21.sql
+--           db/migrate-staff-outing-approval-2026-09-21.sql（外勤审核 + 打卡照片）
+--           db/migrate-client-insight-snapshot-2026-09-21.sql（客户画像版本快照）
+-- ============================================================
+
+DROP TABLE IF EXISTS `t_client_appointment`;
+CREATE TABLE `t_client_appointment` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '物理主键，不对外暴露',
+  `appointment_no` varchar(64) NOT NULL COMMENT '预约业务编号',
+  `client_code` varchar(64) NOT NULL COMMENT '客户业务编号',
+  `order_no` varchar(64) DEFAULT NULL COMMENT '关联服务工单号',
+  `host_staff_code` varchar(32) NOT NULL COMMENT '服务顾问工号',
+  `appointment_type` varchar(32) NOT NULL COMMENT 'COMPANY_ON_SITE/HOME_VISIT/VIDEO_MEETING/PHONE_CONSULT',
+  `scheduled_start` datetime NOT NULL COMMENT '预约开始时间',
+  `scheduled_end` datetime NOT NULL COMMENT '预约结束时间',
+  `location_name` varchar(128) DEFAULT NULL COMMENT '客户可见地点名称',
+  `location_detail` varchar(255) DEFAULT NULL COMMENT '客户可见地点详情或会议说明',
+  `status` varchar(16) NOT NULL DEFAULT 'REQUESTED' COMMENT 'REQUESTED/CONFIRMED/ARRIVED/SERVING/COMPLETED/CANCELLED/NO_SHOW/RESCHEDULED',
+  `customer_confirm_status` varchar(16) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/CONFIRMED；员工代建同样保留客户确认状态',
+  `actual_arrived_at` datetime DEFAULT NULL COMMENT '公司现场实际到店时间',
+  `actual_left_at` datetime DEFAULT NULL COMMENT '实际结束或离店时间',
+  `cancel_reason` varchar(500) DEFAULT NULL COMMENT '取消或异常调整原因',
+  `customer_visible_note` varchar(500) DEFAULT NULL COMMENT '客户可见说明及下一步安排',
+  `internal_note` varchar(1000) DEFAULT NULL COMMENT '仅员工可见备注',
+  `created_by_type` varchar(16) NOT NULL COMMENT 'CUSTOMER/STAFF',
+  `created_by_code` varchar(64) NOT NULL COMMENT '创建人业务编号',
+  `source_terminal` varchar(16) NOT NULL COMMENT 'WEB/MINI_APP/H5',
+  `rescheduled_from_no` varchar(64) DEFAULT NULL COMMENT '改期来源预约号；原记录保留为RESCHEDULED',
+  `created_by` varchar(64) DEFAULT NULL,
+  `updated_by` varchar(64) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_appointment_no` (`appointment_no`),
+  KEY `idx_appointment_client_time` (`client_code`,`scheduled_start`),
+  KEY `idx_appointment_staff_status_time` (`host_staff_code`,`status`,`scheduled_start`),
+  KEY `idx_appointment_day_type_status` (`scheduled_start`,`appointment_type`,`status`),
+  KEY `idx_appointment_rescheduled_from` (`rescheduled_from_no`),
+  KEY `idx_appointment_arrived` (`actual_arrived_at`),
+  CONSTRAINT `chk_appointment_type` CHECK (`appointment_type` IN ('COMPANY_ON_SITE','HOME_VISIT','VIDEO_MEETING','PHONE_CONSULT')),
+  CONSTRAINT `chk_appointment_status` CHECK (`status` IN ('REQUESTED','CONFIRMED','ARRIVED','SERVING','COMPLETED','CANCELLED','NO_SHOW','RESCHEDULED')),
+  CONSTRAINT `chk_appointment_creator_type` CHECK (`created_by_type` IN ('CUSTOMER','STAFF')),
+  CONSTRAINT `chk_appointment_terminal` CHECK (`source_terminal` IN ('WEB','MINI_APP','H5')),
+  CONSTRAINT `chk_appointment_time` CHECK (`scheduled_end` > `scheduled_start`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户预约与四类服务履约记录';
+
+DROP TABLE IF EXISTS `t_staff_outing`;
+CREATE TABLE `t_staff_outing` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '物理主键，不对外暴露',
+  `outing_no` varchar(64) NOT NULL COMMENT '外出业务编号',
+  `staff_code` varchar(32) NOT NULL COMMENT '外出员工工号',
+  `client_code` varchar(64) NOT NULL COMMENT '关联客户业务编号',
+  `appointment_no` varchar(64) NOT NULL COMMENT '关联上门预约号',
+  `order_no` varchar(64) DEFAULT NULL COMMENT '关联服务工单号',
+  `outing_type` varchar(32) NOT NULL DEFAULT 'HOME_VISIT' COMMENT '第一版固定HOME_VISIT',
+  `planned_start` datetime NOT NULL,
+  `planned_end` datetime NOT NULL,
+  `submitted_at` datetime DEFAULT NULL COMMENT '提交审核时间(本人提交申请，不接受他人代录)',
+  `actual_departed_at` datetime DEFAULT NULL COMMENT '出发打卡时间',
+  `departed_location_ciphertext` varchar(1024) DEFAULT NULL COMMENT '出发单点定位加密载荷（经纬度/精度/位置文本/采集时间）',
+  `departed_photo_key` varchar(255) DEFAULT NULL COMMENT '出发打卡照片fileKey(必填，现场凭证)',
+  `actual_returned_at` datetime DEFAULT NULL COMMENT '返回打卡时间',
+  `returned_location_ciphertext` varchar(1024) DEFAULT NULL COMMENT '返回单点定位加密载荷（经纬度/精度/位置文本/采集时间）',
+  `returned_photo_key` varchar(255) DEFAULT NULL COMMENT '返回打卡照片fileKey(必填，现场凭证)',
+  `destination` varchar(255) NOT NULL COMMENT '拜访目的地',
+  `purpose` varchar(500) NOT NULL COMMENT '拜访目的',
+  `status` varchar(16) NOT NULL DEFAULT 'PENDING_REVIEW' COMMENT 'PENDING_REVIEW待审核/READY审核通过待出发/REJECTED已驳回/IN_PROGRESS外出中/COMPLETED已完成/CANCELLED已取消/DRAFT草稿',
+  `reviewer_staff_code` varchar(32) DEFAULT NULL COMMENT '审核人工号(禁止自审)',
+  `reviewer_name` varchar(64) DEFAULT NULL COMMENT '审核人姓名(到人留痕)',
+  `reviewed_at` datetime DEFAULT NULL COMMENT '审核时间',
+  `review_remark` varchar(500) DEFAULT NULL COMMENT '审核意见(驳回必填原因)',
+  `internal_note` varchar(1000) DEFAULT NULL,
+  `created_by` varchar(64) DEFAULT NULL,
+  `updated_by` varchar(64) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_outing_no` (`outing_no`),
+  UNIQUE KEY `uk_outing_appointment` (`appointment_no`),
+  KEY `idx_outing_staff_status_time` (`staff_code`,`status`,`planned_start`),
+  KEY `idx_outing_client_time` (`client_code`,`planned_start`),
+  KEY `idx_outing_status_time` (`status`,`planned_start`),
+  CONSTRAINT `chk_outing_type` CHECK (`outing_type` = 'HOME_VISIT'),
+  CONSTRAINT `chk_outing_status` CHECK (`status` IN ('DRAFT','PENDING_REVIEW','REJECTED','READY','IN_PROGRESS','COMPLETED','CANCELLED')),
+  CONSTRAINT `chk_outing_time` CHECK (`planned_end` > `planned_start`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='员工上门拜访外出：本人提交申请→主管审核→出发/返回双打卡(图片+单点定位)，无连续轨迹';
+
+DROP TABLE IF EXISTS `t_client_follow_record`;
+CREATE TABLE `t_client_follow_record` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '物理主键，不对外暴露',
+  `follow_no` varchar(64) NOT NULL COMMENT '跟进业务编号',
+  `client_code` varchar(64) NOT NULL COMMENT '客户业务编号',
+  `order_no` varchar(64) DEFAULT NULL COMMENT '可选关联服务工单',
+  `appointment_no` varchar(64) DEFAULT NULL COMMENT '可选关联预约',
+  `staff_code` varchar(32) NOT NULL COMMENT '跟进员工工号',
+  `channel_type` varchar(24) NOT NULL COMMENT 'PHONE/COMPANY_ON_SITE/HOME_VISIT/VIDEO_MEETING/WECOM/OTHER',
+  `result_code` varchar(32) NOT NULL COMMENT '已联系/待补材料/已预约/已到店/暂缓/无意向等字典编码',
+  `content` text NOT NULL COMMENT '内部跟进内容',
+  `customer_visible_summary` varchar(500) DEFAULT NULL COMMENT '经裁剪的客户可见摘要',
+  `next_action` varchar(500) DEFAULT NULL COMMENT '下一步动作',
+  `next_follow_at` datetime DEFAULT NULL COMMENT '下次跟进时间',
+  `visibility` varchar(16) NOT NULL DEFAULT 'STAFF_ONLY' COMMENT 'STAFF_ONLY/CUSTOMER',
+  `created_by` varchar(64) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_follow_no` (`follow_no`),
+  KEY `idx_follow_client_time` (`client_code`,`created_at`),
+  KEY `idx_follow_staff_next` (`staff_code`,`next_follow_at`),
+  CONSTRAINT `chk_follow_visibility` CHECK (`visibility` IN ('STAFF_ONLY','CUSTOMER')),
+  CONSTRAINT `chk_follow_channel` CHECK (`channel_type` IN ('PHONE','COMPANY_ON_SITE','HOME_VISIT','VIDEO_MEETING','WECOM','OTHER'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户级跟进记录(唯一真源)；不依赖工单存在';
+
+DROP TABLE IF EXISTS `t_client_activity_event`;
+CREATE TABLE `t_client_activity_event` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '物理主键，不对外暴露',
+  `event_no` varchar(64) NOT NULL COMMENT '活动事件业务编号',
+  `client_code` varchar(64) NOT NULL COMMENT '客户业务编号',
+  `staff_code` varchar(32) DEFAULT NULL COMMENT '关联员工工号',
+  `event_type` varchar(32) NOT NULL COMMENT '画像/材料/报告/跟进/预约/到店/外出/工单事件',
+  `source_type` varchar(32) NOT NULL COMMENT '原始业务对象类型',
+  `source_no` varchar(64) NOT NULL COMMENT '原始业务对象编号',
+  `happened_at` datetime NOT NULL COMMENT '业务发生时间',
+  `summary` varchar(500) NOT NULL COMMENT '事件摘要',
+  `visibility` varchar(16) NOT NULL DEFAULT 'STAFF_ONLY' COMMENT 'STAFF_ONLY/CUSTOMER',
+  `actor_type` varchar(16) NOT NULL COMMENT 'CUSTOMER/STAFF/SYSTEM',
+  `actor_code` varchar(64) NOT NULL COMMENT '操作者业务编号',
+  `metadata_json` json DEFAULT NULL COMMENT '裁剪后的扩展数据；禁止写银行准入或内部匹配结果到客户事件',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_activity_event_no` (`event_no`),
+  KEY `idx_activity_client_time` (`client_code`,`happened_at`),
+  KEY `idx_activity_source` (`source_type`,`source_no`),
+  KEY `idx_activity_staff_time` (`staff_code`,`happened_at`),
+  CONSTRAINT `chk_activity_visibility` CHECK (`visibility` IN ('STAFF_ONLY','CUSTOMER')),
+  CONSTRAINT `chk_activity_actor_type` CHECK (`actor_type` IN ('CUSTOMER','STAFF','SYSTEM'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户服务统一活动回放读模型（追加写）';
+
+DROP TABLE IF EXISTS `t_client_insight_snapshot`;
+CREATE TABLE `t_client_insight_snapshot` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '物理主键，不对外暴露',
+  `snapshot_no` varchar(64) NOT NULL COMMENT '画像快照业务编号',
+  `client_code` varchar(64) NOT NULL COMMENT '客户业务编号',
+  `report_no` varchar(64) DEFAULT NULL COMMENT '关联客户报告号，可为空',
+  `snapshot_version` int NOT NULL COMMENT '同一客户递增版本',
+  `dimension_json` json DEFAULT NULL COMMENT '经营规模/现金流/负债/回款/客户集中度/资料完整度等维度',
+  `risk_flags_json` json DEFAULT NULL COMMENT '风险提示（不得写成审批结论）',
+  `advice_json` json DEFAULT NULL COMMENT '经营改善建议（仅员工视角）',
+  `source_summary_json` json DEFAULT NULL COMMENT '来源材料/授权时间/数据期间/可信度/核验状态',
+  `customer_summary` varchar(500) DEFAULT NULL COMMENT '客户端可读的裁剪摘要（非承诺性措辞）',
+  `generated_at` datetime NOT NULL COMMENT '生成时间',
+  `generated_by` varchar(16) NOT NULL DEFAULT 'RULE' COMMENT 'AI/RULE/STAFF',
+  `status` varchar(16) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT/REVIEWED/CURRENT/ARCHIVED',
+  `reviewed_by` varchar(64) DEFAULT NULL COMMENT '复核人姓名（到人留痕）',
+  `reviewed_at` datetime DEFAULT NULL COMMENT '复核时间',
+  `review_remark` varchar(500) DEFAULT NULL COMMENT '复核意见',
+  `current_flag` tinyint GENERATED ALWAYS AS (CASE WHEN `status` = 'CURRENT' THEN 1 ELSE NULL END) STORED COMMENT '唯一当前版本约束用生成列（仅 CURRENT 置 1）',
+  `created_by` varchar(64) DEFAULT NULL,
+  `updated_by` varchar(64) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_insight_snapshot_no` (`snapshot_no`),
+  UNIQUE KEY `uk_insight_client_version` (`client_code`,`snapshot_version`),
+  UNIQUE KEY `uk_insight_client_current` (`client_code`,`current_flag`),
+  KEY `idx_insight_client_status` (`client_code`,`status`),
+  KEY `idx_insight_client_generated` (`client_code`,`generated_at`),
+  KEY `idx_insight_report_no` (`report_no`),
+  CONSTRAINT `chk_insight_status` CHECK (`status` IN ('DRAFT','REVIEWED','CURRENT','ARCHIVED')),
+  CONSTRAINT `chk_insight_generated_by` CHECK (`generated_by` IN ('AI','RULE','STAFF'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='客户画像版本快照（版本链非覆盖，同一客户仅一个 CURRENT）';
 
 DROP TABLE IF EXISTS `t_attachment_download_approval`;
 CREATE TABLE `t_attachment_download_approval` (

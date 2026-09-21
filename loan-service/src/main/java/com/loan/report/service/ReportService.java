@@ -27,6 +27,7 @@ import com.loan.exception.BusinessException;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
 import com.loan.report.entity.ClientScreening;
+import com.loan.report.dto.StaffReportDetail;
 import com.loan.report.mapper.ClientScreeningMapper;
 import com.loan.reward.entity.RewardRecord;
 import com.loan.reward.mapper.RewardRecordMapper;
@@ -40,6 +41,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.DateTimeException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -75,6 +78,7 @@ public class ReportService {
     private final ClientScreeningMapper screeningMapper;
     private final BankProductMapper bankProductMapper;
     private final StaffMapper staffMapper;
+    private final ReportQueryService reportQueryService;
 
     /** 报表全量可见角色（运营/超管/老板/超级管理员）：跨全部数据范围。 */
     private static final Set<String> REPORT_FULL_ROLES =
@@ -988,10 +992,11 @@ public class ReportService {
         }
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
-            // 报告编号模糊；客户姓名 / 企业名 / 手机号（SHA-256 哈希精确）命中则按客户编码追加匹配。
-            // 不再按客户内部编码(客户ID)模糊，统一以「姓名/手机号/企业名」关键字查询。
+            LocalDate[] dateRange = parseReportDateRange(kw);
+            // 报告编号、客户业务ID、客户姓名、企业名、日期模糊；手机号按 SHA-256 哈希精确匹配。
             List<String> nameCodes = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
-                            .like(ClientProfile::getContactName, kw)
+                            .like(ClientProfile::getClientCode, kw)
+                            .or().like(ClientProfile::getContactName, kw)
                             .or().like(ClientProfile::getEnterpriseName, kw))
                     .stream().map(ClientProfile::getClientCode).filter(StringUtils::hasText)
                     .collect(Collectors.toList());
@@ -1011,6 +1016,10 @@ public class ReportService {
                 if (!matchedCodes.isEmpty()) {
                     w.or().in(ClientScreening::getClientProfileCode, matchedCodes);
                 }
+                if (dateRange != null) {
+                    w.or().ge(ClientScreening::getCreatedAt, dateRange[0].atStartOfDay())
+                            .lt(ClientScreening::getCreatedAt, dateRange[1].atStartOfDay());
+                }
             });
         }
         long total = screeningMapper.selectCount(wrapper);
@@ -1021,18 +1030,23 @@ public class ReportService {
 
         List<String> clientCodes = result.getRecords().stream().map(ClientScreening::getClientProfileCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
-        Map<String, String> nameMap = clientCodes.isEmpty() ? java.util.Collections.emptyMap()
+        Map<String, ClientProfile> profileMap = clientCodes.isEmpty() ? java.util.Collections.emptyMap()
                 : clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
                         .in(ClientProfile::getClientCode, clientCodes)).stream()
                         .collect(Collectors.toMap(ClientProfile::getClientCode,
-                                c -> StringUtils.hasText(c.getEnterpriseName()) ? c.getEnterpriseName()
-                                        : c.getContactName()));
+                                java.util.function.Function.identity(), (a, b) -> a));
 
         List<Map<String, Object>> records = result.getRecords().stream().map(s -> {
             Map<String, Object> m = new LinkedHashMap<>();
+            ClientProfile profile = profileMap.get(s.getClientProfileCode());
             m.put("reportNo", s.getReportNo());
             m.put("clientProfileCode", s.getClientProfileCode());
-            m.put("clientName", nameMap.get(s.getClientProfileCode()));
+            m.put("clientName", profile == null ? null : (StringUtils.hasText(profile.getEnterpriseName())
+                    ? profile.getEnterpriseName() : profile.getContactName()));
+            m.put("customerGroup", profile == null ? null : profile.getCustomerGroup());
+            m.put("contactName", profile == null ? null : profile.getContactName());
+            m.put("enterpriseName", profile == null ? null : profile.getEnterpriseName());
+            m.put("contactPhoneMasked", profile == null ? null : com.loan.utils.DesensitizeUtils.phone(profile.getPhone()));
             m.put("grade", s.getGrade());
             m.put("bankCount", s.getBankCount());
             m.put("productCount", s.getProductCount());
@@ -1045,6 +1059,32 @@ public class ReportService {
             return m;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    /** 支持 yyyy-MM-dd、yyyy/MM/dd、yyyyMMdd、yyyy年MM月dd日，以及对应年月格式。 */
+    private LocalDate[] parseReportDateRange(String keyword) {
+        String normalized = keyword.trim().replace("年", "-").replace("月", "-")
+                .replace("日", "").replace('/', '-');
+        try {
+            if (normalized.matches("\\d{8}")) {
+                LocalDate day = LocalDate.parse(normalized, DateTimeFormatter.BASIC_ISO_DATE);
+                return new LocalDate[]{day, day.plusDays(1)};
+            }
+            if (normalized.matches("\\d{4}-\\d{1,2}-\\d{1,2}")) {
+                String[] parts = normalized.split("-");
+                LocalDate day = LocalDate.of(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]),
+                        Integer.parseInt(parts[2]));
+                return new LocalDate[]{day, day.plusDays(1)};
+            }
+            if (normalized.matches("\\d{4}-\\d{1,2}-?")) {
+                String[] parts = normalized.replaceAll("-$", "").split("-");
+                LocalDate month = LocalDate.of(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), 1);
+                return new LocalDate[]{month, month.plusMonths(1)};
+            }
+        } catch (DateTimeException | NumberFormatException ignored) {
+            // 非法日期按普通关键字处理，不影响姓名和报告编号搜索。
+        }
+        return null;
     }
 
     /**
@@ -1072,6 +1112,29 @@ public class ReportService {
         m.put("status", s.getStatus());
         m.put("createdAt", s.getCreatedAt());
         return m;
+    }
+
+    /**
+     * Web 员工报告详情：服务端同时校验员工角色与客户归属范围。
+     *
+     * <p>保留无登录态的旧查询方法仅供现有独立业务复用；Web Controller 必须调用本方法。
+     */
+    public StaffReportDetail staffScreeningDetail(String reportNo, LoanUser user) {
+        Set<String> scope = buildOwnerScope(user);
+        ClientScreening screening = screeningMapper.selectOne(new LambdaQueryWrapper<ClientScreening>()
+                .eq(ClientScreening::getReportNo, reportNo));
+        if (screening == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "报告不存在");
+        }
+        if (scope != null) {
+            ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                    .eq(ClientProfile::getClientCode, screening.getClientProfileCode()).last("limit 1"));
+            if (client == null || !StringUtils.hasText(client.getOwnerStaffCode())
+                    || !scope.contains(client.getOwnerStaffCode())) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "无权查看该客户报告");
+            }
+        }
+        return reportQueryService.staffDetail(reportNo);
     }
 
     /** 汇总金额。 */

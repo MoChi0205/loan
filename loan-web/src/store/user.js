@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { login as loginApi, logout as logoutApi } from '@/api/auth';
+import { logout as logoutApi } from '@/api/auth';
 import { menuTree } from '@/api/org';
 import { KEYS, getStorage, getStorageJSON, setStorage, setStorageJSON, removeStorage } from '@/utils/storage';
 import { defaultPermissionsForRole, hasActionPermission } from '@/utils/access';
@@ -62,14 +62,6 @@ export const useUserStore = defineStore('user', {
     },
   },
   actions: {
-    /**
-     * 登录：调后端登录接口，存 token + 用户信息。
-     */
-    async doLogin(payload) {
-      const res = await loginApi(payload);
-      return this.applyLogin(res);
-    },
-
     /**
      * 应用登录响应（token/user/permissions 落库 + 持久化），员工与渠道登录共用（T11/D21）。
      * @param res 后端返回体（含 data: { token, user, permissions? }）

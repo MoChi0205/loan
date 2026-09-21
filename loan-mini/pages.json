@@ -64,6 +64,13 @@
       }
     },
     {
+      "path": "pages/appointment/appointment",
+      "style": {
+        "navigationBarTitleText": "预约与服务进度",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
       "path": "pages/order/detail",
       "style": {
         "navigationBarTitleText": "服务单详情"

@@ -63,15 +63,15 @@
     <AppDialog v-model:visible="dialogVisible" :title="editing ? '编辑策略' : '新增策略'" width="520px" :loading="saving" @confirm="onSave">
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
         <el-form-item label="渠道" prop="channelCode">
-          <el-select v-model="form.channelCode" placeholder="选择渠道" style="width: 100%" :disabled="editing" placement="top-start">
+          <el-select v-model="form.channelCode" placeholder="选择渠道" style="width: 100%" :disabled="editing">
             <el-option v-for="c in channels" :key="c.channelCode" :label="c.bankName" :value="c.channelCode" />
           </el-select>
         </el-form-item>
         <el-form-item label="产品" prop="bankProductCode">
-          <RemoteProductSelect v-model="form.bankProductCode" :customer-group="form.customerGroup" placement="top-start" />
+          <RemoteProductSelect v-model="form.bankProductCode" :customer-group="form.customerGroup" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
-          <el-select v-model="form.customerGroup" placeholder="选择客群" style="width: 100%" placement="top-start">
+          <el-select v-model="form.customerGroup" placeholder="选择客群" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
           </el-select>
@@ -83,7 +83,7 @@
           <el-input v-model="form.strategyName" placeholder="如 武汉某行企业税贷准入策略" />
         </el-form-item>
         <el-form-item label="执行计划" prop="executionPlanCode">
-          <el-select v-model="form.executionPlanCode" placeholder="选择计划(1:1)" style="width: 100%" placement="top-start">
+          <el-select v-model="form.executionPlanCode" placeholder="选择计划(1:1)" style="width: 100%">
             <el-option v-for="p in plans" :key="p.planCode" :label="`${p.planName}（${p.planCode}）`" :value="p.planCode" />
           </el-select>
         </el-form-item>

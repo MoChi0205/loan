@@ -14,7 +14,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-JVM_ARGS="-Dnacos.server-addr=127.0.0.1:8848 -Dnacos.namespace=dev -Dspring.cloud.nacos.discovery.register-enabled=false -Ddubbo.enabled=false -Dapp.gateway.trust-only=false"
+JVM_ARGS="-Dnacos.server-addr=127.0.0.1:8848 -Dnacos.namespace=dev -Dspring.cloud.nacos.discovery.register-enabled=false -Ddubbo.enabled=false -Dapp.gateway.trust-only=false -Dloan.auth.dev-sms-code-visible=true"
 
 echo ">>> 安装 loan-api（首次需 install 供 loan-service 解析）"
 mvn -pl loan-api -am install -DskipTests -q

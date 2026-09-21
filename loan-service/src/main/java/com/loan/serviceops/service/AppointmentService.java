@@ -48,6 +48,9 @@ public class AppointmentService {
     private static final Set<String> OPEN_STATUSES = java.util.Collections.unmodifiableSet(
             new java.util.HashSet<>(Arrays.asList("REQUESTED", "CONFIRMED", "ARRIVED", "SERVING")));
 
+    /** 客户自助签到的时间窗：允许提前到店的分钟数。 */
+    private static final int CHECK_IN_EARLY_MINUTES = 30;
+
     private final ClientAppointmentMapper appointmentMapper;
     private final StaffMapper staffMapper;
     private final ServiceOrderMapper orderMapper;
@@ -152,6 +155,34 @@ public class AppointmentService {
         requireHost(user, appointment);
         transition(appointment, AppointmentStatus.ARRIVED, user, null,
                 "CUSTOMER_ARRIVED", "客户已到公司现场");
+    }
+
+    /**
+     * 客户自助到店签到（小程序/H5）。
+     *
+     * <p>三重约束：只有预约客户本人、仅公司现场预约、且处于「开始前 30 分钟至预约结束」时间窗内才能签到；
+     * 二维码与定位只作为辅助凭证，不替代这里的服务端校验。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void checkInByCustomer(String appointmentNo, LoanUser user) {
+        ClientAppointment appointment = requireAppointment(appointmentNo);
+        if (user == null || !LoanUser.TYPE_CUSTOMER.equals(user.getUserType())
+                || !user.getUserNo().equals(appointment.getClientCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "只能为本人预约签到");
+        }
+        if (!ServiceMethod.COMPANY_ON_SITE.name().equals(appointment.getAppointmentType())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "仅公司现场到店需要签到");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (appointment.getScheduledStart() != null
+                && now.isBefore(appointment.getScheduledStart().minusMinutes(CHECK_IN_EARLY_MINUTES))) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "距预约开始还有较长时间，请到店后再签到");
+        }
+        if (appointment.getScheduledEnd() != null && now.isAfter(appointment.getScheduledEnd())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "预约时间已过，请联系服务顾问处理");
+        }
+        transition(appointment, AppointmentStatus.ARRIVED, user, null,
+                "CUSTOMER_CHECKED_IN", "客户已签到到店");
     }
 
     @Transactional(rollbackFor = Exception.class)

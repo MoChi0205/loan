@@ -220,9 +220,9 @@ const quickItems = computed(() => (rc.value.quick || []).filter((q) => q.route |
  * 磁贴宽度：按**实际数量**分列（与设计真源原型 gridCols 同规则，见 `utils/grid.js`）。
  *
  * <p>原实现把宽度写死成 4 列的 1/4，导致 6 个磁贴排成 4+2、3 个磁贴右侧空一格。
- * 列间距须与 `.m-grid` 的 `gap` 一致（28rpx，对齐原型 14px）。
+ * 列间距须与 `.m-grid` 的 `gap` 一致（20rpx，适配窄屏小程序）。
  */
-const quickItemWidth = computed(() => gridItemWidth(quickItems.value.length, 28));
+const quickItemWidth = computed(() => gridItemWidth(quickItems.value.length, 20));
 
 function toneBg(tone) {
   return TONE_BG[tone] || TONE_BG.royal;
@@ -391,7 +391,7 @@ function openMsg() { msgOpen.value = true; }
 .sub { margin-top: 18rpx; font-size: 23rpx; color: var(--hero-text-muted); }
 
 /* ===== 内容区 ===== */
-.m-body { padding: 24rpx 24rpx 24rpx; }
+.m-body { padding: 20rpx 24rpx 18rpx; }
 
 .m-stat-row { display: flex; gap: 20rpx; margin-bottom: 24rpx; }
 .m-stat {
@@ -403,25 +403,24 @@ function openMsg() { msgOpen.value = true; }
 .m-stat .l { display: block; margin-top: 8rpx; font-size: 22rpx; color: var(--hero-text-soft); }
 
 /* 与设计真源原型 .m-grid / .m-qk 逐项对齐（px→rpx ×2）：
-   列间距 14px→28rpx、下外边距 20px→40rpx、磁贴高 94px→188rpx、圆角 16px→32rpx、
-   内距 14/6/12px→28/12/24rpx、内 gap 9px→18rpx、浮起阴影同原型（--shadow-tile）。
+   列间距 10px→20rpx、磁贴高 82px→164rpx，减少窄屏横向拥挤与首页留白。
    justify-content:center 让「不满的末行」居中（5 项 = 3+2，第二行 2 项居中而非左对齐）；
    列数仍由 utils/grid.js#gridCols 决定，与原型 gridStyle 同源。 */
-.m-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 28rpx; margin-bottom: 40rpx; }
+.m-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20rpx; margin-bottom: 24rpx; }
 .m-qk {
   /* 宽度由 script 按磁贴数量注入（utils/grid.js），不再写死 4 列的 1/4 */
-  min-height: 188rpx;
+  min-height: 164rpx;
   background: var(--bg-card);
   border: 1rpx solid var(--line);
   border-radius: 32rpx;
-  padding: 28rpx 12rpx 24rpx;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18rpx;
+  padding: 20rpx 10rpx 18rpx;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx;
   box-shadow: var(--shadow-tile);
   box-sizing: border-box;
 }
 .m-qk:active { opacity: 0.9; }
 /* 图标底：80rpx（40px）圆角磁贴，与设计真源原型 .m-qk-ic 一致；图标 42rpx（21px）占 52.5% */
-.qk-ic { width: 80rpx; height: 80rpx; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; }
+.qk-ic { width: 68rpx; height: 68rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 /* 标签：单行省略，防止长文案撑破磁贴（同原型 .m-qk .qt 的 max-width + ellipsis） */
 .qt { font-size: 22rpx; font-weight: 700; color: var(--text-primary); text-align: center; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -429,15 +428,15 @@ function openMsg() { msgOpen.value = true; }
   background: var(--bg-card);
   border: 1rpx solid var(--line);
   border-radius: 24rpx;
-  padding: 28rpx;
-  margin-bottom: 24rpx;
+  padding: 22rpx 24rpx;
+  margin-bottom: 16rpx;
   box-shadow: var(--shadow-sm);
 }
-.m-card-h { display: flex; align-items: center; margin-bottom: 16rpx; min-height: 40rpx; }
+.m-card-h { display: flex; align-items: center; margin-bottom: 10rpx; min-height: 36rpx; }
 .m-card-t { font-size: 30rpx; font-weight: 800; color: var(--text-primary); }
 .m-card-more { margin-left: auto; font-size: 24rpx; font-weight: 700; color: var(--brand-deep); }
 
-.m-row { display: flex; align-items: center; gap: 20rpx; padding: 18rpx 0; border-top: 1rpx solid var(--line); }
+.m-row { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0; border-top: 1rpx solid var(--line); }
 .m-row:first-of-type { border-top: none; }
 .m-ava {
   width: 76rpx; height: 76rpx; border-radius: 22rpx; flex-shrink: 0;
@@ -456,10 +455,10 @@ function openMsg() { msgOpen.value = true; }
 .m-tag.warn { color: var(--warning-text); background: var(--warning-bg); }
 .m-tag.info { color: var(--info-text); background: var(--brand-bg); }
 
-.m-empty { display: flex; align-items: center; gap: 20rpx; padding: 22rpx 0 8rpx; }
+.m-empty { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0 2rpx; }
 .m-empty .ill { width: 76rpx; height: 76rpx; border-radius: 22rpx; background: var(--bg-input); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .m-empty-t { font-size: 24rpx; color: var(--text-secondary); text-align: left; }
 
-.m-note { padding: 8rpx 4rpx 12rpx; }
+.m-note { padding: 4rpx 4rpx 8rpx; }
 .m-note-t { display: block; text-align: center; font-size: 22rpx; color: var(--text-secondary); }
 </style>

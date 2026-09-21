@@ -120,7 +120,7 @@ const routes = [
         path: 'ocr',
         name: 'OcrCenter',
         component: () => import('@/views/ocr/OcrCenter.vue'),
-        meta: { title: '材料识别' },
+        meta: { title: '客户材料' },
       },
       {
         path: 'order',

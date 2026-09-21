@@ -52,28 +52,7 @@
       <text class="foot-note">本服务仅提供资质与经营风险分析，不推荐具体金融产品，不预测审批结果</text>
 
       <!-- H5 预览模式提示（仅 H5 浏览器显示，小程序端不渲染） -->
-      <text class="h5-note" v-if="isH5">H5 预览模式：采用模拟登录（后端 wechat.mock），仅供本地联调</text>
-
-      <!-- 开发模式：角色切换（仅开发环境显示） -->
-      <AppClickable class="dev-panel u-hover" v-if="showDevPanel" @click.stop="toggleDevRoles">
-        <text class="dev-tag">DEV</text>
-        <text class="dev-hint">当前：{{ devRoleLabel }} · 点击切换角色</text>
-      </AppClickable>
-
-      <!-- 角色选择浮层 -->
-      <AppClickable class="dev-overlay" v-if="showRolePicker" @click="showRolePicker = false">
-        <AppClickable class="role-picker" @click.stop>
-          <text class="picker-title">切换身份（开发模式）</text>
-          <AppClickable v-for="r in devRoles" :key="r.code" class="role-item u-hover" :class="{ active: devRole === r.code }" @click="pickRole(r)">
-            <view class="role-dot" />
-            <view class="role-info">
-              <text class="role-name">{{ r.name }}</text>
-              <text class="role-desc">{{ r.desc }}</text>
-            </view>
-            <text class="role-check" v-if="devRole === r.code">✓</text>
-          </AppClickable>
-        </AppClickable>
-      </AppClickable>
+      <text class="h5-note" v-if="isH5">H5 环境请使用手机号验证码登录</text>
     </view>
   </view>
 </template>
@@ -82,7 +61,7 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { wxLogin, isH5Env } from '../../utils/wx';
-import { loginByWx, loginByCrm } from '../../api/auth';
+import { loginByWx } from '../../api/auth';
 import { useUserStore } from '../../store/user';
 import { useThemeMode } from '../../theme';
 import LoginConsent from '../../components/LoginConsent.vue';
@@ -97,12 +76,11 @@ import {
  * - onLoad 读取扫码带参 query.inviteCode 自动填充
  * - 已持有有效 token 直接进入 tabBar 首页
  * - 主按钮：wx.login → 登录（带邀请码）→ 存 token → 跳首页
- * - 开发模式：长按 DEV 标签可切换角色（customer/staff/admin/boss）
  */
 const store = useUserStore();
 const themeMode = useThemeMode();
 
-/** H5 浏览器环境标识（wxLogin 在 H5 返回模拟 code，靠后端 wechat.mock 打通登录） */
+/** H5 浏览器环境标识：H5 只能使用手机号验证码登录。 */
 const isH5 = computed(() => isH5Env());
 
 const loggingIn = ref(false);
@@ -114,76 +92,8 @@ const flow = [
   { title: '风险分析', desc: '完善资料后获取分析报告' },
 ];
 
-/* ---------- 开发模式角色切换 ---------- */
-// 仅非生产构建显示（dev:xxx NODE_ENV=development；build NODE_ENV=production 自动隐藏，防生产泄漏）
-// 仅开发构建显示角色切换，生产构建不可见。
-const showDevPanel = ref(import.meta.env.DEV);
-const showRolePicker = ref(false);
-const devRole = ref('customer');
-
-const devRoles = [
-  { code: 'customer', name: '客户（对客）', desc: '小程序端普通客户，仅查看资质与经营风险分析' },
-  { code: 'staff', name: '渠道顾问', desc: 'STAFF 角色，可管理引荐客户与服务单' },
-  { code: 'admin', name: '运营管理员', desc: 'OPERATOR 角色，可配置渠道与策略' },
-  { code: 'boss', name: '超级管理员', desc: 'BOSS 角色，全部权限' },
-];
-
-// 角色 → CRM 测试账号（与后端 dev 环境预置账号对应）
-const devCrmUsers = {
-  customer: null,              // 客户走微信登录，不适用 CRM 切换
-  staff: 'crm-adv-001',
-  admin: 'crm-op-001',
-  boss: 'crm-boss-001',
-};
-
-const devRoleLabel = computed(() => {
-  const found = devRoles.find(r => r.code === devRole.value);
-  return found ? found.name : '未知';
-});
-
-function toggleDevRoles() {
-  showRolePicker.value = !showRolePicker.value;
-}
-
-function pickRole(r) {
-  devRole.value = r.code;
-  showRolePicker.value = false;
-  const crmUserId = devCrmUsers[r.code];
-  if (!crmUserId) {
-    // 客户：清除登录态回到落地页，走微信登录
-    store.clear();
-    uni.showToast({ title: '已切回客户，请微信登录', icon: 'none' });
-    setTimeout(() => { try { uni.reLaunch({ url: '/pages/index/index' }); } catch (e) { location.reload(); } }, 400);
-    return;
-  }
-  // dev 角色真换 token：按角色调不同 CRM 账号登录
-  uni.showLoading({ title: `切换为${r.name}...` });
-  loginByCrm(crmUserId)
-    .then((data) => {
-      store.setToken(data.token);
-      store.setUser(data.user);
-      try { uni.setStorageSync('loan_dev_role', r.code); } catch (e) { /* ignore */ }
-      uni.hideLoading();
-      uni.showToast({ title: `已切换为：${r.name}`, icon: 'success' });
-      // 重新加载让新 token 生效 + 跳到 tabBar 首页
-      setTimeout(() => {
-        try { uni.reLaunch({ url: '/pages/home/home' }); } catch (e) { location.reload(); }
-      }, 600);
-    })
-    .catch((e) => {
-      uni.hideLoading();
-      uni.showToast({ title: `切换失败：${e.message || '请检查后端'}`, icon: 'none' });
-    });
-}
-/* ---------- 角色切换结束 ---------- */
-
 onLoad(async (query) => {
   captureInvitation(query);
-  // 恢复上次选择的开发角色
-  try {
-    const saved = uni.getStorageSync('loan_dev_role');
-    if (saved) devRole.value = saved;
-  } catch (e) { /* ignore */ }
   // 已登录则直接进入首页
   const ok = await store.init();
   if (ok) {
@@ -219,14 +129,7 @@ async function doLogin() {
       // H5 下 wxLogin 直接返回模拟 code，不会走到该分支。
       uni.showToast({ title: '微信授权失败，请重试', icon: 'none', duration: 2500 });
     } else if (isH5.value) {
-      // H5 预览登录失败（多为后端未开启 wechat.mock 或网络不可达）：
-      // 自动展开角色入口，引导用 CRM 账号进入，避免卡死在落地页。
-      showRolePicker.value = true;
-      uni.showToast({
-        title: 'H5 预览登录失败，请选择角色进入',
-        icon: 'none',
-        duration: 2500,
-      });
+      uni.showToast({ title: 'H5 请使用手机号验证码登录', icon: 'none', duration: 2500 });
     } else {
       uni.showToast({ title: (e && e.message) || '登录失败', icon: 'none', duration: 2500 });
     }

@@ -27,9 +27,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * （到期前复用，提前 200s 刷新）。多实例部署需改为 Redis 共享，避免各实例重复获取
  * 触发微信频次限制。</p>
  *
- * <p>Mock（{@code wechat.mock=true}）：返回占位签名，供本地 / 联调无真实公众号凭证时
- * 打通 H5 链路（此时 {@code wx.config} 调真实微信 API 会失败，仅用于前端联调）。</p>
- *
  * @author loan-platform
  */
 @Slf4j
@@ -66,12 +63,10 @@ public class WxJsSdkService {
         if (!StringUtils.hasText(url)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "签名 url 必填");
         }
-        if (wxProperties.isMock()) {
-            return mockSignature(url);
-        }
         if (!StringUtils.hasText(wxProperties.getOaAppid())
-                || "wx_CHANGE_ME".equals(wxProperties.getOaAppid())) {
-            throw new BusinessException(ResultCode.RULE_CONFIG_ERROR, "未配置 wechat.oaAppid（公众号 appid）");
+                || "wx_CHANGE_ME".equals(wxProperties.getOaAppid())
+                || !StringUtils.hasText(wxProperties.getOaSecret())) {
+            throw new BusinessException(ResultCode.RULE_CONFIG_ERROR, "未配置真实公众号 appid/secret");
         }
         String ticket = getJsapiTicket();
         String nonceStr = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
@@ -171,12 +166,4 @@ public class WxJsSdkService {
         }
     }
 
-    private Map<String, String> mockSignature(String url) {
-        Map<String, String> map = new HashMap<>(4);
-        map.put("appId", StringUtils.hasText(wxProperties.getOaAppid()) ? wxProperties.getOaAppid() : "wx_MOCK");
-        map.put("timestamp", String.valueOf(System.currentTimeMillis() / 1000));
-        map.put("nonceStr", "mocknonce");
-        map.put("signature", sha1("mock" + url));
-        return map;
-    }
 }

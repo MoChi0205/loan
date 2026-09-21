@@ -37,6 +37,15 @@ public class OcrResult implements Serializable {
     /** 是否缺失映射规则 */
     private boolean rulesMissing;
 
+    /** 实际装配的识别提供方（mock / vlm）。 */
+    private String provider;
+
+    /** 是否已配置为可真实调用 AI；仅表示能力已启用，不代表本次一定提取成功。 */
+    private boolean aiRecognitionEnabled;
+
+    /** 本次状态：NOT_ENABLED / NO_FACTS / EXTRACTED。 */
+    private String recognitionStatus;
+
     public Map<String, Object> getFacts() {
         return facts;
     }
@@ -75,5 +84,29 @@ public class OcrResult implements Serializable {
 
     public void setRulesMissing(boolean rulesMissing) {
         this.rulesMissing = rulesMissing;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public boolean isAiRecognitionEnabled() {
+        return aiRecognitionEnabled;
+    }
+
+    public void setAiRecognitionEnabled(boolean aiRecognitionEnabled) {
+        this.aiRecognitionEnabled = aiRecognitionEnabled;
+    }
+
+    public String getRecognitionStatus() {
+        return recognitionStatus;
+    }
+
+    public void setRecognitionStatus(String recognitionStatus) {
+        this.recognitionStatus = recognitionStatus;
     }
 }

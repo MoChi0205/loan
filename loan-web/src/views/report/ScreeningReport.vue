@@ -20,7 +20,7 @@
           <el-option label="小程序提交" value="MINI" />
           <el-option label="Web 录入" value="WEB" />
         </el-select>
-        <el-input v-model="queryS.keyword" placeholder="客户姓名 / 手机号 / 企业名" style="width: 260px" clearable @keyup.enter="searchS" />
+        <el-input v-model="queryS.keyword" placeholder="客户ID / 企业 / 姓名 / 手机 / 日期 / 报告编号" style="width: 360px" clearable @keyup.enter="searchS" />
       </AppSearchBar>
 
       <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -28,7 +28,13 @@
           <AppEmpty title="暂无报告" :desc="isChannel ? '本人录入的客户生成分析报告后会显示在这里' : '在「初筛执行」中为客户生成第一份匹配报告'" />
         </template>
         <el-table-column v-if="!isChannel" label="报告" min-width="210" show-overflow-tooltip><template #default="{ row }">{{ reportDisplayTitle(row) }}</template></el-table-column>
-        <el-table-column prop="clientName" label="客户" min-width="150" show-overflow-tooltip />
+        <el-table-column label="客户" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div class="cell-main">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</div>
+            <div class="cell-sub">{{ row.contactName || '—' }} · {{ row.contactPhoneMasked || '—' }}</div>
+            <div class="cell-sub mono">{{ row.clientProfileCode || '—' }}</div>
+          </template>
+        </el-table-column>
         <el-table-column v-if="isChannel" prop="ownerStaffName" label="归属顾问" width="130"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
         <el-table-column v-if="!isChannel" label="来源" width="110">
           <template #default="{ row }">
@@ -77,8 +83,9 @@
       <AppPagination v-model:page="queryS.page" v-model:size="queryS.size" :total="totalS" @change="loadS" />
     </div>
 
-    <el-drawer v-model="detailVisible" title="合规分析报告详情" size="520px">
-      <template v-if="detail">
+    <el-drawer v-model="detailVisible" :title="isChannel ? '客户分析报告详情' : '员工内部经营咨询报告'" :size="isChannel ? '520px' : 'min(960px, 92vw)'">
+      <StaffAggregatedReport v-if="detail && !isChannel" :detail="detail" />
+      <template v-else-if="detail">
         <!-- 结果横幅 -->
         <div class="report-banner" :class="`rb-${detailGradeClass}`">
           <span class="rb-label">{{ gradeText[detail.grade] || detail.grade }} · {{ detailStarLabel }}</span>
@@ -139,9 +146,10 @@ import { useRoute } from 'vue-router';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
+import StaffAggregatedReport from '@/components/report/StaffAggregatedReport.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { pageScreenings, screeningDetail } from '@/api/report';
+import { pageScreenings, screeningAggregate, screeningDetail } from '@/api/report';
 import { useUserStore } from '@/store/user';
 import { reportDisplayTitle } from '@/utils/display';
 
@@ -186,7 +194,9 @@ const detail = ref(null);
 
 async function openDetail(row) {
   try {
-    const res = await screeningDetail(row.reportNo);
+    const res = isChannel.value
+      ? await screeningDetail(row.reportNo)
+      : await screeningAggregate(row.reportNo);
     detail.value = res.data;
     detailVisible.value = true;
   } catch (e) { /* 拦截器已提示 */ }
@@ -207,7 +217,9 @@ onMounted(async () => {
       } else {
         // 列表未命中时直接用 reportNo 拉详情
         try {
-          const res = await screeningDetail(String(targetNo));
+          const res = isChannel.value
+            ? await screeningDetail(String(targetNo))
+            : await screeningAggregate(String(targetNo));
           if (res.data) {
             detail.value = res.data;
             detailVisible.value = true;

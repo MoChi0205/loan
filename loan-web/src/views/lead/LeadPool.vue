@@ -137,7 +137,7 @@
           <el-input v-model="form.phone" placeholder="手机号" />
         </el-form-item>
         <el-form-item label="客群">
-          <el-select v-model="form.leadType" style="width: 100%" placement="top-start">
+          <el-select v-model="form.leadType" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
           </el-select>
@@ -153,7 +153,7 @@
       <p class="assign-hint">
         {{ assignBatchMode ? `将选中的 ${selectedRows.length} 条线索` : `将「${currentLead?.contactName}」` }}指派给员工（仅顾问/主管可被指派）
       </p>
-      <el-select v-model="targetStaffCode" filterable remote :remote-method="searchAssignableStaff" :loading="staffLoading" placeholder="输入员工姓名搜索" style="width: 100%" placement="top-start" @visible-change="(v) => { if (v) searchAssignableStaff('') }">
+      <el-select v-model="targetStaffCode" filterable remote :remote-method="searchAssignableStaff" :loading="staffLoading" placeholder="输入员工姓名搜索" style="width: 100%" @visible-change="(v) => { if (v) searchAssignableStaff('') }">
         <el-option
           v-for="s in staffOptions"
           :key="s.value"
@@ -173,7 +173,6 @@
         :loading="adviserLoading"
         placeholder="输入顾问姓名搜索"
         style="width: 100%"
-        placement="top-start"
       >
         <el-option v-for="s in adviserOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>

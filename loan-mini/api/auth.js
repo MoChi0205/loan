@@ -10,18 +10,6 @@
 import { requestGet, requestPost } from './request';
 
 /**
- * 开发模式 CRM 登录（用于 H5/开发者工具 dev 角色切换）。
- * - crm-boss-001 → STAFF token（userType=STAFF）
- * - 与 Web 管理端共用 /api/auth/login 接口（context-path=/loan 由 request.js BASE_URL 处理）
- *
- * @param {string} crmUserId
- * @returns {Promise<{token:string, user:Object}>}
- */
-export function loginByCrm(crmUserId) {
-  return requestPost('/api/auth/login', { crmUserId });
-}
-
-/**
  * 微信登录（P0-1 主通道）：uni.login 取得 code 后换 token。
  *
  * @param {string} code wx.login 临时凭证
@@ -41,8 +29,7 @@ export function loginByWx(code, { nickname, avatar, inviteCode } = {}) {
 }
 
 /**
- * 手机号验证码登录（兼容通道）：仅后端开启 mini.auth.phone-compat 时可用，
- * 一般用于管理端手动建档场景，小程序侧默认不暴露。
+ * 手机号验证码登录：H5 正式登录通道。
  *
  * @param {string} phone 手机号
  * @param {string} smsCode 短信验证码
@@ -57,12 +44,12 @@ export function loginByCode(phone, smsCode, inviteCode) {
   });
 }
 
-export function sendLoginCode(phone) {
-  return requestPost('/api/sms/send-code', { phone });
+export function getCaptcha() {
+  return requestGet('/api/auth/captcha', { _: Date.now() });
 }
 
-export function resetPassword(phone, code, password) {
-  return requestPost('/api/auth/reset-password', { phone, code, password });
+export function sendLoginCode(phone, captchaId, captchaCode, scene = 'LOGIN') {
+  return requestPost('/api/sms/send-code', { phone, captchaId, captchaCode, scene });
 }
 
 /**

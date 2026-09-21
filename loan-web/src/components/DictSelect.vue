@@ -60,7 +60,7 @@ const props = defineProps({
   remoteLoading: { type: Boolean, default: false },
   /** 自定义宽度 */
   style: { type: [String, Object], default: undefined },
-  /** 下拉弹出位置（弹窗内建议 top-start，避免下拉被遮挡/吐舌头） */
+  /** 下拉弹出位置；不传时由 Popper 根据视口自动翻转 */
   placement: { type: String, default: undefined },
 });
 

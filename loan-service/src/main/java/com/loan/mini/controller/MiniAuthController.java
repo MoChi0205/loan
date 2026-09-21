@@ -7,8 +7,6 @@ import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.mini.service.MiniAuthService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,15 +29,12 @@ public class MiniAuthController {
     private final AuthService authService;
     private final MiniAuthService miniAuthService;
 
-    @Autowired
-    private Environment environment;
-
     /**
      * 客户登录（Q3 方案 A 主通道：wx.login code 换 openid 签发 token）。
      *
      * <p>请求体：{code, nickname?, avatar?, inviteCode?}。
-     * 兼容开关 {@code mini.auth.phone-compat=true}（Nacos 可覆盖）时，
-     * 传入 {phone, code(短信验证码), inviteCode?} 仍走手机号验证码登录（管理端手动建档场景）。
+     * 传入 {phone, code(短信验证码), inviteCode?} 时走手机号验证码登录，供 H5 使用；
+     * 其他请求必须携带真实 wx.login code。
      *
      * @param body 登录请求
      * @return token + 客户信息
@@ -47,8 +42,7 @@ public class MiniAuthController {
     @PostMapping("/auth/login")
     public Result<LoginResponse> login(@RequestBody Map<String, String> body) {
         String phone = body.get("phone");
-        if (StringUtils.hasText(phone) && phoneCompatEnabled()) {
-            // 兼容开关开启且带手机号：走短信验证码通道（管理端手动建档用）
+        if (StringUtils.hasText(phone)) {
             return Result.ok(authService.customerLogin(phone, body.get("code"), body.get("inviteCode")));
         }
         return Result.ok(miniAuthService.wxLogin(body.get("code"), body.get("nickname"),
@@ -172,12 +166,4 @@ public class MiniAuthController {
         return Result.ok(miniAuthService.wecomQrCode());
     }
 
-    /**
-     * 手机号验证码登录兼容开关（Nacos 可覆盖；默认关闭，仅 wx.login 主通道）。
-     *
-     * @return true 开启
-     */
-    private boolean phoneCompatEnabled() {
-        return Boolean.parseBoolean(environment.getProperty("mini.auth.phone-compat", "false"));
-    }
 }

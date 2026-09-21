@@ -757,21 +757,39 @@ body {
  * ============================================================ */
 .el-select__popper.el-popper,
 .el-select-dropdown.el-popper {
+  box-sizing: border-box;
   border-radius: 8px;
   border: 1px solid var(--loan-border) !important;   /* 显式边框（"吐舌头"无边框修） */
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
   background: var(--loan-card-bg) !important;          /* 显式背景（避免透明散落） */
-  overflow: visible !important;                        /* 防止下拉项被裁剪（"吐舌头"修） */
-  max-height: 280px;
-  overflow-y: auto !important;
+  /* 让 Popper 在视口内翻转，列表本身只在选项较多时滚动。 */
+  max-width: min(420px, calc(100vw - 32px));
+  max-height: min(280px, calc(100vh - 32px));
+  overflow: hidden !important;
+}
+
+.el-select__popper.el-popper .el-select-dropdown__wrap,
+.el-select-dropdown.el-popper .el-select-dropdown__wrap {
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.el-select__popper.el-popper .el-select-dropdown__list,
+.el-select-dropdown.el-popper .el-select-dropdown__list {
+  min-width: 0;
 }
 
 .el-select-dropdown__item {
+  box-sizing: border-box;
   color: var(--loan-text);
   font-size: 13px;
   padding: 0 16px;
   height: 34px;
   line-height: 34px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .el-select-dropdown__item.is-hovering {

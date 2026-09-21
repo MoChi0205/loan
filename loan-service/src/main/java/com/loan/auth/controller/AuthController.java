@@ -1,8 +1,8 @@
 package com.loan.auth.controller;
 
-import com.loan.auth.dto.LoginRequest;
 import com.loan.auth.dto.LoginResponse;
 import com.loan.auth.service.AuthService;
+import com.loan.auth.service.AuthCaptchaService;
 import com.loan.common.Result;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
@@ -19,9 +19,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 认证接口（登录 / 登出 / 当前用户 / 健康检查 / RSA 公钥）。
+ * 认证接口（全角色验证码/密码登录、密码找回、登出、当前用户、RSA 公钥）。
  *
- * <p>阶段一员工走 SSO 模拟登录（crmUserId 映射）；RSA 公钥接口预留供渠道端密码登录。
+ * <p>员工、渠道、客户按账号类型隔离；密码在浏览器使用 RSA 公钥加密后提交。
  *
  * @author loan-platform
  */
@@ -32,6 +32,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final LoginRsaCrypto loginRsaCrypto;
+    private final AuthCaptchaService authCaptchaService;
 
     /**
      * 服务健康检查（不鉴权）。
@@ -56,20 +57,27 @@ public class AuthController {
         return Result.ok(data);
     }
 
-    /**
-     * 登录（阶段一 SSO 模拟：crmUserId 映射员工）。
-     *
-     * @param request 登录请求
-     * @return token + 用户信息
-     */
-    @PostMapping("/login")
-    public Result<LoginResponse> login(@RequestBody LoginRequest request) {
-        return Result.ok(authService.login(request));
+    /** 获取一次性随机 4 位验证码（Base64 PNG，答案只留在服务端）。 */
+    @GetMapping("/captcha")
+    public Result<Map<String, String>> captcha() {
+        return Result.ok(authCaptchaService.create());
     }
 
     @PostMapping("/code-login")
     public Result<LoginResponse> codeLogin(@RequestBody Map<String, String> body) {
-        return Result.ok(authService.loginByPhoneCode(body.get("phone"), body.get("code")));
+        return Result.ok(authService.loginByPhoneCode(body.get("phone"), body.get("code"), body.get("accountType")));
+    }
+
+    @PostMapping("/password-login")
+    public Result<LoginResponse> passwordLogin(@RequestBody Map<String, String> body) {
+        authCaptchaService.verify(body.get("captchaId"), body.get("captchaCode"));
+        return Result.ok(authService.passwordLogin(body.get("phone"), body.get("password"), body.get("accountType")));
+    }
+
+    @PostMapping("/reset-password")
+    public Result<String> resetPassword(@RequestBody Map<String, String> body) {
+        authService.resetPassword(body.get("phone"), body.get("code"), body.get("password"), body.get("accountType"));
+        return Result.ok("ok");
     }
 
     /**
@@ -80,7 +88,8 @@ public class AuthController {
      */
     @PostMapping("/channel-login")
     public Result<LoginResponse> channelLogin(@RequestBody Map<String, String> body) {
-        return Result.ok(authService.channelLogin(body.get("phone"), body.get("password")));
+        authCaptchaService.verify(body.get("captchaId"), body.get("captchaCode"));
+        return Result.ok(authService.passwordLogin(body.get("phone"), body.get("password"), "CHANNEL"));
     }
 
     /**

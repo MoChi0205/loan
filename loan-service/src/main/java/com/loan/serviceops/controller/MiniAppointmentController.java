@@ -65,4 +65,15 @@ public class MiniAppointmentController {
                                      @CurrentUser LoanUser user) {
         return Result.ok(appointmentService.reschedule(appointmentNo, request, user, false));
     }
+
+    /**
+     * 客户自助到店签到（公司现场预约专用）。
+     *
+     * <p>对接 09-21 方案 §5 的 `check-in` 命名；服务端按「开始前 30 分钟至预约结束」校验时间窗。
+     */
+    @PostMapping("/{appointmentNo}/check-in")
+    public Result<Void> checkIn(@PathVariable String appointmentNo, @CurrentUser LoanUser user) {
+        appointmentService.checkInByCustomer(appointmentNo, user);
+        return Result.ok();
+    }
 }

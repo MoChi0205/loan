@@ -26,3 +26,8 @@ export function screeningDetail(reportNo) {
   const prefix = isChannel() ? '/api/channel/report' : '/api/admin/report/screening';
   return request({ url: `${prefix}/${reportNo}`, method: 'get' });
 }
+
+/** 公司员工内部聚合报告；渠道账号不得调用。 */
+export function screeningAggregate(reportNo) {
+  return request({ url: `/api/admin/report/screening/${reportNo}/aggregate`, method: 'get' });
+}

@@ -7,6 +7,7 @@ import com.loan.ocr.entity.OcrRecord;
 import com.loan.ocr.mapper.ExtractFieldDefMapper;
 import com.loan.ocr.mapper.OcrRecordMapper;
 import com.loan.ocr.model.OcrResult;
+import com.loan.ocr.model.MaterialType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -88,8 +89,9 @@ public class OcrService {
      * @return 识别结果（facts / 平均置信度 / OCR 业务键 / 提取字段明细）
      */
     public OcrResult recognize(String fileKey, String bizType, String customerGroup) {
+        String normalizedBizType = MaterialType.normalize(bizType);
         String filePath = resolveFilePath(fileKey);
-        Map<String, Object> raw = extractor.extract(filePath, bizType);
+        Map<String, Object> raw = extractor.extract(filePath, normalizedBizType);
 
         List<ExtractFieldDef> defs = listFieldDefs(customerGroup);
         Map<String, Object> facts = mapToFacts(raw, defs);
@@ -99,7 +101,7 @@ public class OcrService {
         String ocrFileKey = fileKey;
         try {
             OcrRecord record = new OcrRecord();
-            record.setBizScene(mapBizScene(bizType));
+            record.setBizScene(mapBizScene(normalizedBizType));
             // fileKey 是上传时生成的业务编码（att + 32 位随机），作为 OCR 记录的稳定关联键
             record.setBizCode(fileKey);
             record.setFileKey(fileKey);
@@ -120,6 +122,10 @@ public class OcrService {
         result.setOcrFileKey(ocrFileKey);
         result.setExtractedFields(toExtractedFields(facts));
         result.setRulesMissing(rulesMissing);
+        result.setProvider(extractor.providerName());
+        result.setAiRecognitionEnabled(extractor.isAiRecognitionEnabled());
+        result.setRecognitionStatus(!extractor.isAiRecognitionEnabled()
+                ? "NOT_ENABLED" : facts.isEmpty() ? "NO_FACTS" : "EXTRACTED");
         return result;
     }
 

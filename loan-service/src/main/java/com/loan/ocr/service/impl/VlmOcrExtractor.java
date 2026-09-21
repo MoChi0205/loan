@@ -112,6 +112,11 @@ public class VlmOcrExtractor implements OcrExtractor {
         return "vlm";
     }
 
+    @Override
+    public boolean isAiRecognitionEnabled() {
+        return isConfigured();
+    }
+
     /** 配置是否就绪。 */
     private boolean isConfigured() {
         return !isBlank(baseUrl) && !isBlank(apiKey);

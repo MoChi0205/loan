@@ -153,6 +153,7 @@
       v-model:visible="dialogVisible"
       :title="editing ? '编辑产品' : '新增产品'"
       :loading="saving"
+      modal-class="loan-app-dialog product-edit-dialog"
       @confirm="onSave"
     >
       <el-form ref="formRef" :model="dialogForm" :rules="formRules" label-width="110px" label-position="right">
@@ -166,10 +167,10 @@
           <el-input v-model="dialogForm.bankName" placeholder="如 武汉某银行" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
-          <DictSelect v-model="dialogForm.customerGroup" type="customerGroup" placeholder="请选择客群" placement="top-start" />
+          <DictSelect v-model="dialogForm.customerGroup" type="customerGroup" placeholder="请选择客群" />
         </el-form-item>
         <el-form-item label="来源" prop="source">
-          <DictSelect v-model="dialogForm.source" type="productSource" placeholder="请选择来源" placement="top-start" />
+          <DictSelect v-model="dialogForm.source" type="productSource" placeholder="请选择来源" />
         </el-form-item>
         <el-form-item label="额度区间(元)">
           <el-input-number v-model="dialogForm.amountMin" :precision="2" :controls="false" placeholder="下限" style="width: 130px" />
@@ -196,7 +197,7 @@
     <AppDialog v-model:visible="partnerDialog.visible" title="录入合作库" width="520px" :loading="partnerDialog.saving" @confirm="onPartnerSave">
       <el-form ref="partnerFormRef" :model="partnerDialog.form" :rules="partnerRules" label-width="110px" label-position="right">
         <el-form-item label="银行产品" prop="bankProductCode">
-          <RemoteProductSelect v-model="partnerDialog.form.bankProductCode" scope="all" placeholder="输入产品名称搜索" placement="top-start" />
+          <RemoteProductSelect v-model="partnerDialog.form.bankProductCode" scope="all" placeholder="输入产品名称搜索" />
         </el-form-item>
         <el-form-item label="合作到期日" prop="cooperateUntil">
           <el-date-picker
@@ -208,7 +209,7 @@
           />
         </el-form-item>
         <el-form-item label="初始状态" prop="status">
-          <el-select v-model="partnerDialog.form.status" style="width: 100%" placement="top-start">
+          <el-select v-model="partnerDialog.form.status" style="width: 100%">
             <el-option v-for="(v, k) in partnerStatusMap" :key="k" :label="v" :value="k" />
           </el-select>
         </el-form-item>
@@ -698,5 +699,7 @@ onMounted(() => {
 .city-tag { margin: 0; }
 .city-empty { color: var(--loan-text-muted); font-size: 13px; }
 .city-add { display: flex; gap: 8px; }
+:global(.product-edit-dialog .el-dialog) { margin-bottom: 5vh; }
+:global(.product-edit-dialog .el-dialog__body) { max-height: calc(80vh - 132px); overflow-y: auto; padding-bottom: 12px; }
 .city-tip { font-size: 12px; color: var(--loan-text-muted); line-height: 1.6; }
 </style>

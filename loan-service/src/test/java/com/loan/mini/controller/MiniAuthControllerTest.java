@@ -24,7 +24,6 @@ import com.loan.exception.GlobalExceptionHandler;
 
 import com.loan.auth.service.AuthService;
 import com.loan.mini.service.MiniAuthService;
-import org.springframework.core.env.Environment;
 
 /**
  * L1 接口契约测试（自动生成，共 4 端点，其中 2 个需登录）。
@@ -35,14 +34,12 @@ import org.springframework.core.env.Environment;
 class MiniAuthControllerTest {
 
     private MockMvc mvc;
-    private Environment environment;
     private AuthService authService;
     private MiniAuthService miniAuthService;
 
     @BeforeEach
     void setUp() {
         // 1) 每个依赖创建深桩 mock（返回安全默认值，避免 NPE）
-        environment = Mockito.mock(Environment.class, new SafeDefaultAnswer());
         authService = Mockito.mock(AuthService.class, new SafeDefaultAnswer());
         miniAuthService = Mockito.mock(MiniAuthService.class, new SafeDefaultAnswer());
         // 2) 构造控制器（优先构造函数，否则无参 + 字段注入兜底）
@@ -71,7 +68,6 @@ class MiniAuthControllerTest {
             throw new RuntimeException(e);
         }
         // 3) 字段注入兜底（@Resource/@Autowired 字段）
-        ReflectionTestUtils.setField(controller, "environment", environment);
         ReflectionTestUtils.setField(controller, "authService", authService);
         ReflectionTestUtils.setField(controller, "miniAuthService", miniAuthService);
         // 4) standalone MockMvc：注册全局异常处理器 + 自定义 @CurrentUser 解析器（镜像生产切面）

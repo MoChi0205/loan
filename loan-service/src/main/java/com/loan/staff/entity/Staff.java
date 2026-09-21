@@ -50,6 +50,10 @@ public class Staff implements Serializable {
     /** 手机号 SHA-256 哈希 */
     private String phoneHash;
 
+    /** 密码（BCrypt；首次可通过短信重置进行设置） */
+    @TableField(select = false)
+    private String password;
+
     /** 状态（ACTIVE/LEAVE） */
     private String status;
 

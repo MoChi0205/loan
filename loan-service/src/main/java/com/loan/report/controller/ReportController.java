@@ -5,7 +5,11 @@ import com.loan.common.Result;
 import com.loan.common.util.PageParams;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
+import com.loan.report.dto.StaffReportDetail;
 import com.loan.report.service.ReportService;
+import com.loan.report.service.ReportAnalyticsCacheService;
+import com.loan.report.dto.StaffAggregatedReport;
+import com.loan.report.service.StaffReportAggregationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,13 +31,15 @@ import java.util.Map;
 public class ReportController {
 
     private final ReportService reportService;
+    private final ReportAnalyticsCacheService reportAnalyticsCacheService;
+    private final StaffReportAggregationService staffReportAggregationService;
 
     /**
      * 经营总览。
      */
     @GetMapping("/overview")
     public Result<Map<String, Object>> overview(@CurrentUser LoanUser user) {
-        return Result.ok(reportService.overview(user));
+        return Result.ok(reportAnalyticsCacheService.overview(user));
     }
 
     /** 客户运营、公海效率、分配回收与跟进 SLA（角色数据范围由服务端强制校验）。 */
@@ -42,7 +48,7 @@ public class ReportController {
             @RequestParam(required = false) String scope,
             @RequestParam(defaultValue = "30") int days,
             @CurrentUser LoanUser user) {
-        return Result.ok(reportService.operations(scope, days, user));
+        return Result.ok(reportAnalyticsCacheService.operations(scope, days, user));
     }
 
     /**
@@ -53,7 +59,7 @@ public class ReportController {
     @GetMapping("/order-trend")
     public Result<List<Map<String, Object>>> orderTrend(@RequestParam(defaultValue = "12") int months,
                                                        @CurrentUser LoanUser user) {
-        return Result.ok(reportService.orderTrend(months, user));
+        return Result.ok(reportAnalyticsCacheService.orderTrend(months, user));
     }
 
     /**
@@ -64,7 +70,7 @@ public class ReportController {
     @GetMapping("/reward-trend")
     public Result<List<Map<String, Object>>> rewardTrend(@RequestParam(defaultValue = "12") int months,
                                                          @CurrentUser LoanUser user) {
-        return Result.ok(reportService.rewardTrend(months, user));
+        return Result.ok(reportAnalyticsCacheService.rewardTrend(months, user));
     }
 
     /**
@@ -88,7 +94,15 @@ public class ReportController {
      * 初筛报告详情。
      */
     @GetMapping("/screening/{reportNo}")
-    public Result<Map<String, Object>> screeningDetail(@PathVariable String reportNo) {
-        return Result.ok(reportService.screeningDetail(reportNo));
+    public Result<StaffReportDetail> screeningDetail(@PathVariable String reportNo,
+                                                     @CurrentUser LoanUser user) {
+        return Result.ok(reportService.staffScreeningDetail(reportNo, user));
+    }
+
+    /** 按报告编号聚合员工内部经营分析、画像、材料状态和既有匹配结果。 */
+    @GetMapping("/screening/{reportNo}/aggregate")
+    public Result<StaffAggregatedReport> screeningAggregate(@PathVariable String reportNo,
+                                                             @CurrentUser LoanUser user) {
+        return Result.ok(staffReportAggregationService.aggregate(reportNo, user));
     }
 }

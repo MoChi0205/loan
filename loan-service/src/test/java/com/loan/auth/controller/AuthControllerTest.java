@@ -24,10 +24,11 @@ import com.loan.context.LoanUser;
 import com.loan.exception.GlobalExceptionHandler;
 
 import com.loan.auth.service.AuthService;
+import com.loan.auth.service.AuthCaptchaService;
 import com.loan.infrastructure.security.LoginRsaCrypto;
 
 /**
- * L1 接口契约测试（自动生成，共 6 端点，其中 2 个需登录）。
+ * L1 接口契约测试（共 7 条契约，其中 2 个需登录，1 个验证旧入口已关闭）。
  * 离线 standalone MockMvc：不启动 Spring 上下文（规避 Nacos 远程配置拉取），
  * 手工构造 Controller + 深桩 mock 依赖 + 自定义 @CurrentUser 解析器。
  * 断言：GET 返回 Result 信封(code 存在)；写操作/含必填参数的 GET 不出现 5xx。
@@ -37,12 +38,14 @@ class AuthControllerTest {
     private MockMvc mvc;
     private AuthService authService;
     private LoginRsaCrypto loginRsaCrypto;
+    private AuthCaptchaService authCaptchaService;
 
     @BeforeEach
     void setUp() {
         // 1) 每个依赖创建深桩 mock（返回安全默认值，避免 NPE）
         authService = Mockito.mock(AuthService.class, new SafeDefaultAnswer());
         loginRsaCrypto = Mockito.mock(LoginRsaCrypto.class, new SafeDefaultAnswer());
+        authCaptchaService = Mockito.mock(AuthCaptchaService.class, new SafeDefaultAnswer());
         // 2) 构造控制器（优先构造函数，否则无参 + 字段注入兜底）
         AuthController controller;
         try {
@@ -71,6 +74,7 @@ class AuthControllerTest {
         // 3) 字段注入兜底（@Resource/@Autowired 字段）
         ReflectionTestUtils.setField(controller, "authService", authService);
         ReflectionTestUtils.setField(controller, "loginRsaCrypto", loginRsaCrypto);
+        ReflectionTestUtils.setField(controller, "authCaptchaService", authCaptchaService);
         // 4) standalone MockMvc：注册全局异常处理器 + 自定义 @CurrentUser 解析器（镜像生产切面）
         mvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -93,10 +97,38 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/auth/login")
-    void post_api_auth_login() throws Exception {
+    @DisplayName("POST /api/auth/login 已关闭")
+    void post_api_auth_login_removed() throws Exception {
         mvc.perform(post("/api/auth/login").content("{}").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/code-login")
+    void post_api_auth_code_login() throws Exception {
+        mvc.perform(post("/api/auth/code-login").content("{}").contentType(MediaType.APPLICATION_JSON))
             .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
+    }
+
+    @Test
+    @DisplayName("GET /api/auth/captcha")
+    void get_api_auth_captcha() throws Exception {
+        mvc.perform(get("/api/auth/captcha"))
+            .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").exists());
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/password-login")
+    void post_api_auth_password_login() throws Exception {
+        mvc.perform(post("/api/auth/password-login").content("{}").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(result -> { if (result.getResponse().getStatus() >= 500) throw new AssertionError("password login 5xx"); });
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/reset-password")
+    void post_api_auth_reset_password() throws Exception {
+        mvc.perform(post("/api/auth/reset-password").content("{}").contentType(MediaType.APPLICATION_JSON))
+            .andExpect(result -> { if (result.getResponse().getStatus() >= 500) throw new AssertionError("reset password 5xx"); });
     }
 
     @Test

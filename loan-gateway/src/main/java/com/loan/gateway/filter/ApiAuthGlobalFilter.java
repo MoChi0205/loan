@@ -48,7 +48,10 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final List<String> WHITE_LIST = Arrays.asList(
             "/loan/api/auth/health",
             "/loan/api/auth/public-key",
-            "/loan/api/auth/login",
+            "/loan/api/auth/captcha",
+            "/loan/api/auth/code-login",
+            "/loan/api/auth/password-login",
+            "/loan/api/auth/reset-password",
             "/loan/api/auth/channel-login",
             "/loan/api/mini/auth/login",
             "/loan/api/sms/send-code",

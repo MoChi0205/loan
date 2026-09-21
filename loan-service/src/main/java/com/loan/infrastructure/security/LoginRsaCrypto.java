@@ -19,7 +19,7 @@ import java.util.Base64;
  * 登录 RSA 加解密（对齐 tse LoginRsaCrypto）。
  *
  * <p>登录页拉取公钥加密密码后提交，服务端用私钥解密，避免密码明文出现在请求体。
- * 阶段一员工走 SSO 模拟登录（无密码），RSA 预留供渠道端/本地密码登录场景使用。
+ * RSA 用于渠道账号密码登录。
  * 密钥对启动时随机生成（后续接入 Nacos 固定密钥对可扩展）。
  *
  * @author loan-platform

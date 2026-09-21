@@ -1,7 +1,6 @@
 package com.loan.auth.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.loan.auth.dto.LoginRequest;
 import com.loan.auth.dto.LoginResponse;
 import com.loan.channel.entity.ChannelUser;
 import com.loan.channel.mapper.ChannelUserMapper;
@@ -34,14 +33,10 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * 认证服务：登录（SSO 模拟）/ 登出 / 会话（Redis）。
+ * 认证服务：全角色验证码登录 / 密码登录 / 验证码重置密码 / 登出 / 会话（Redis）。
  *
- * <p>阶段一设计：
- * <ul>
- *   <li>员工登录走 SSO 模拟：前端传 crmUserId，后端映射 t_staff → 构建 LoanUser → 签发 JWT + Redis 存完整 User。</li>
- *   <li>正式环境此接口由「CRM SSO 回调」替代（SSO 返回员工身份 → loan 按 crmUserId 映射）。</li>
- *   <li>JWT 轻量（userId/userType/userNo/roleCode），完整用户存 Redis（可踢下线：删 key）。</li>
- * </ul>
+ * <p>JWT 保持轻量，完整用户存 Redis；密码统一通过 RSA 传输、BCrypt 存储，
+ * 短信验证码按登录和重置密码场景隔离。
  *
  * @author loan-platform
  */
@@ -83,6 +78,10 @@ public class AuthService {
         if (!smsService.verifyCode(phone, code)) {
             throw new BusinessException(ResultCode.CAPTCHA_ERROR, "验证码错误或已过期");
         }
+        return customerLoginAfterSmsVerified(phone, inviteCode);
+    }
+
+    private LoginResponse customerLoginAfterSmsVerified(String phone, String inviteCode) {
         // 1. 按 phone_hash 查客户档案，不存在则创建
         String phoneHash = sha256(phone);
         com.loan.client.entity.ClientProfile client = clientProfileMapper.selectOne(
@@ -161,45 +160,13 @@ public class AuthService {
         return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 
-    /**
-     * 登录（阶段一 SSO 模拟：按 crmUserId 映射员工）。
-     *
-     * @param request 登录请求
-     * @return 登录响应（token + 用户）
-     */
-    public LoginResponse login(LoginRequest request) {
-        String crmUserId = request == null ? null : request.getCrmUserId();
-        if (!StringUtils.hasText(crmUserId)) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "缺少 crmUserId（SSO 身份）");
-        }
-
-        // 1. 按 crmUserId 映射员工（SSO 已验身份，loan 侧只做映射）
-        Staff staff = staffMapper.selectOne(
-                new LambdaQueryWrapper<Staff>().eq(Staff::getCrmUserId, crmUserId));
-        if (staff == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "员工不存在或未绑定 CRM 身份");
-        }
-        if (!"ACTIVE".equalsIgnoreCase(staff.getStatus())) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "员工已离职，账号停用");
-        }
-
-        // 2. 构建 LoanUser
-        LoanUser user = buildStaffUser(staff);
-
-        // 3. 签发 JWT + Redis 会话
-        String token = jwtService.generateToken(user.getUserId(), user.getUserType(),
-                user.getUserNo(), user.getRoleCode());
-        saveSession(user.getUserId(), user);
-
-        LoginResponse response = new LoginResponse();
-        response.setToken(token);
-        response.setExpireMillis(86400000L);
-        response.setUser(user);
-        return response;
-    }
-
     /** 手机验证码登录：员工或渠道账号按手机号登录。 */
     public LoginResponse loginByPhoneCode(String phone, String code) {
+        return loginByPhoneCode(phone, code, null);
+    }
+
+    /** 手机验证码登录：可指定 STAFF/CHANNEL/CUSTOMER，未指定时兼容员工优先。 */
+    public LoginResponse loginByPhoneCode(String phone, String code, String accountType) {
         if (!StringUtils.hasText(phone) || !StringUtils.hasText(code)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "手机号与验证码必填");
         }
@@ -207,20 +174,160 @@ public class AuthService {
             throw new BusinessException(ResultCode.CAPTCHA_ERROR, "验证码错误或已过期");
         }
         String hash = sha256(phone);
-        Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getPhoneHash, hash).last("limit 1"));
+        Staff staff = "CHANNEL".equalsIgnoreCase(accountType) || "CUSTOMER".equalsIgnoreCase(accountType) ? null
+                : staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getPhoneHash, hash).last("limit 1"));
         if (staff != null) {
             if (!"ACTIVE".equalsIgnoreCase(staff.getStatus())) throw new BusinessException(ResultCode.FORBIDDEN, "员工账号已停用");
             LoanUser user = buildStaffUser(staff);
             return issue(user);
         }
-        ChannelUser channel = channelUserMapper.selectOne(new LambdaQueryWrapper<ChannelUser>().eq(ChannelUser::getPhoneHash, hash).last("limit 1"));
+        ChannelUser channel = "STAFF".equalsIgnoreCase(accountType) || "CUSTOMER".equalsIgnoreCase(accountType) ? null
+                : channelUserMapper.selectOne(new LambdaQueryWrapper<ChannelUser>().eq(ChannelUser::getPhoneHash, hash).last("limit 1"));
         if (channel != null) {
             if (!"ACTIVE".equalsIgnoreCase(channel.getStatus())) throw new BusinessException(ResultCode.FORBIDDEN, "渠道账号已停用");
             LoanUser user = new LoanUser(); user.setUserId(channel.getId()); user.setUserNo(hash); user.setPhone(phone);
             user.setName(channel.getName()); user.setUserType(LoanUser.TYPE_CHANNEL); user.setBankChannelId(channel.getBankChannelId());
             return issue(user);
         }
-        throw new BusinessException(ResultCode.DATA_NOT_FOUND, "手机号未绑定员工或渠道账号");
+        if ("CUSTOMER".equalsIgnoreCase(accountType)) {
+            return customerLoginAfterSmsVerified(phone, null);
+        }
+        throw new BusinessException(ResultCode.DATA_NOT_FOUND, "手机号未绑定对应账号");
+    }
+
+    /** 全角色密码登录，accountType 必须为 STAFF / CHANNEL / CUSTOMER。 */
+    public LoginResponse passwordLogin(String phone, String rsaEncryptedPassword, String accountType) {
+        if (!StringUtils.hasText(phone) || !StringUtils.hasText(rsaEncryptedPassword)
+                || !StringUtils.hasText(accountType)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "手机号、密码与账号类型必填");
+        }
+        String plainPassword = decryptPassword(rsaEncryptedPassword);
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        String hash = sha256(phone);
+        if ("STAFF".equalsIgnoreCase(accountType)) {
+            Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                    .select(Staff::getId, Staff::getStaffCode, Staff::getStaffName,
+                            Staff::getDeptCode, Staff::getRoleCode, Staff::getPhone,
+                            Staff::getStatus, Staff::getPassword)
+                    .eq(Staff::getPhoneHash, hash).last("limit 1"));
+            requireActiveStaff(staff);
+            requirePassword(encoder, plainPassword, staff.getPassword());
+            return issue(buildStaffUser(staff));
+        }
+        if ("CHANNEL".equalsIgnoreCase(accountType)) {
+            ChannelUser channel = channelUserMapper.selectOne(new LambdaQueryWrapper<ChannelUser>()
+                    .eq(ChannelUser::getPhoneHash, hash).last("limit 1"));
+            requireActiveChannel(channel);
+            requirePassword(encoder, plainPassword, channel.getPassword());
+            channelUserMapper.update(null, new LambdaUpdateWrapper<ChannelUser>()
+                    .eq(ChannelUser::getId, channel.getId())
+                    .set(ChannelUser::getLastLoginTime, LocalDateTime.now()));
+            return issue(buildChannelUser(channel, phone));
+        }
+        if ("CUSTOMER".equalsIgnoreCase(accountType)) {
+            com.loan.client.entity.ClientProfile client = clientProfileMapper.selectOne(
+                    new LambdaQueryWrapper<com.loan.client.entity.ClientProfile>()
+                            .select(com.loan.client.entity.ClientProfile::getId,
+                                    com.loan.client.entity.ClientProfile::getClientCode,
+                                    com.loan.client.entity.ClientProfile::getContactName,
+                                    com.loan.client.entity.ClientProfile::getStatus,
+                                    com.loan.client.entity.ClientProfile::getExtJson,
+                                    com.loan.client.entity.ClientProfile::getInvitedFlag,
+                                    com.loan.client.entity.ClientProfile::getPassword)
+                            .eq(com.loan.client.entity.ClientProfile::getPhoneHash, hash).last("limit 1"));
+            if (client == null || !"ACTIVE".equalsIgnoreCase(client.getStatus())) {
+                throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
+            }
+            requirePassword(encoder, plainPassword, client.getPassword());
+            return issue(buildCustomerUser(client, phone));
+        }
+        throw new BusinessException(ResultCode.PARAM_ERROR, "不支持的账号类型");
+    }
+
+    /** 验证短信后为任一角色设置新密码；不会自动登录。 */
+    public void resetPassword(String phone, String code, String rsaEncryptedPassword, String accountType) {
+        if (!StringUtils.hasText(phone) || !StringUtils.hasText(code) || !StringUtils.hasText(accountType)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "手机号、验证码与账号类型必填");
+        }
+        String plainPassword = decryptPassword(rsaEncryptedPassword);
+        if (plainPassword.length() < 8 || plainPassword.length() > 64
+                || !plainPassword.matches(".*[A-Za-z].*") || !plainPassword.matches(".*\\d.*")) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "密码须为8-64位且同时包含字母和数字");
+        }
+        if (!smsService.verifyCode(phone, code, "RESET_PASSWORD")) {
+            throw new BusinessException(ResultCode.CAPTCHA_ERROR, "验证码错误或已过期");
+        }
+        String encoded = new BCryptPasswordEncoder().encode(plainPassword);
+        String hash = sha256(phone);
+        int changed;
+        if ("STAFF".equalsIgnoreCase(accountType)) {
+            changed = staffMapper.update(null, new LambdaUpdateWrapper<Staff>()
+                    .eq(Staff::getPhoneHash, hash).eq(Staff::getStatus, "ACTIVE")
+                    .set(Staff::getPassword, encoded).set(Staff::getUpdatedAt, LocalDateTime.now()));
+        } else if ("CHANNEL".equalsIgnoreCase(accountType)) {
+            changed = channelUserMapper.update(null, new LambdaUpdateWrapper<ChannelUser>()
+                    .eq(ChannelUser::getPhoneHash, hash).eq(ChannelUser::getStatus, "ACTIVE")
+                    .set(ChannelUser::getPassword, encoded).set(ChannelUser::getUpdatedAt, LocalDateTime.now()));
+        } else if ("CUSTOMER".equalsIgnoreCase(accountType)) {
+            changed = clientProfileMapper.update(null,
+                    new LambdaUpdateWrapper<com.loan.client.entity.ClientProfile>()
+                            .eq(com.loan.client.entity.ClientProfile::getPhoneHash, hash)
+                            .eq(com.loan.client.entity.ClientProfile::getStatus, "ACTIVE")
+                            .set(com.loan.client.entity.ClientProfile::getPassword, encoded)
+                            .set(com.loan.client.entity.ClientProfile::getUpdatedAt, LocalDateTime.now()));
+        } else {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "不支持的账号类型");
+        }
+        if (changed != 1) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "手机号未绑定对应账号或账号已停用");
+        }
+    }
+
+    private String decryptPassword(String encryptedPassword) {
+        String password = loginRsaCrypto.decryptBase64(encryptedPassword);
+        if (!StringUtils.hasText(password)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "密码解密失败");
+        }
+        return password;
+    }
+
+    private void requirePassword(BCryptPasswordEncoder encoder, String plain, String encoded) {
+        if (!StringUtils.hasText(encoded)) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "尚未设置密码，请使用验证码找回密码进行设置");
+        }
+        if (!encoder.matches(plain, encoded)) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
+        }
+    }
+
+    private void requireActiveStaff(Staff staff) {
+        if (staff == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
+        if (!"ACTIVE".equalsIgnoreCase(staff.getStatus())) throw new BusinessException(ResultCode.FORBIDDEN, "员工账号已停用");
+    }
+
+    private void requireActiveChannel(ChannelUser channel) {
+        if (channel == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
+        if (!"ACTIVE".equalsIgnoreCase(channel.getStatus())) throw new BusinessException(ResultCode.FORBIDDEN, "渠道账号已停用");
+    }
+
+    private LoanUser buildChannelUser(ChannelUser channel, String phone) {
+        LoanUser user = new LoanUser();
+        user.setUserId(channel.getId()); user.setUserNo(channel.getPhoneHash()); user.setPhone(phone);
+        user.setName(channel.getName()); user.setUserType(LoanUser.TYPE_CHANNEL);
+        user.setBankChannelId(channel.getBankChannelId());
+        if (channel.getBankChannelId() != null) {
+            BankChannel bank = bankChannelMapper.selectById(channel.getBankChannelId());
+            if (bank != null) user.setBankChannelCode(bank.getChannelCode());
+        }
+        return user;
+    }
+
+    private LoanUser buildCustomerUser(com.loan.client.entity.ClientProfile client, String phone) {
+        LoanUser user = new LoanUser();
+        user.setUserId(client.getId()); user.setUserNo(client.getClientCode()); user.setPhone(phone);
+        user.setName(client.getContactName()); user.setUserType(LoanUser.TYPE_CUSTOMER);
+        user.setRegion(client.getExtJson()); user.setInvitedFlag(Integer.valueOf(1).equals(client.getInvitedFlag()));
+        return user;
     }
 
     private LoginResponse issue(LoanUser user) {
@@ -312,13 +419,9 @@ public class AuthService {
         if (!StringUtils.hasText(phone) || !StringUtils.hasText(rsaEncryptedPassword)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "手机号与密码必填");
         }
-        // 阶段一联调模拟旁路（与员工 SSO 模拟"密码暂不校验"一致，Login.vue 同语义）：
-        // 密码字段等于约定模拟串 loan-sim-pwd 时，跳过 RSA 解密与 BCrypt 校验（账号仍须存在且 ACTIVE）。
-        // ⚠️ 上线前必须移除该旁路，恢复纯 RSA 解密 + BCrypt 校验（T11/D21 渠道 Web 沙箱验收用）。
-        boolean sim = "loan-sim-pwd".equals(rsaEncryptedPassword);
-        // 1. RSA 解密密码（模拟旁路跳过：明文无法作为 RSA 密文解密）
-        String plainPassword = sim ? rsaEncryptedPassword : loginRsaCrypto.decryptBase64(rsaEncryptedPassword);
-        if (!sim && plainPassword == null) {
+        // 1. RSA 解密密码；禁止任何固定口令或明文旁路。
+        String plainPassword = loginRsaCrypto.decryptBase64(rsaEncryptedPassword);
+        if (plainPassword == null) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "密码解密失败");
         }
         // 2. 按 phone_hash 查账号
@@ -330,14 +433,14 @@ public class AuthService {
         if (!"ACTIVE".equalsIgnoreCase(channelUser.getStatus())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "渠道账号已停用");
         }
-        // 3. BCrypt 校验密码（模拟旁路跳过）
+        // 3. BCrypt 校验密码
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        if (!sim && !encoder.matches(plainPassword, channelUser.getPassword())) {
+        if (!encoder.matches(plainPassword, channelUser.getPassword())) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
         }
         // 4. 更新最后登录时间（精确更新仅 last_login_time；禁止 updateById 全字段写回——
         //    库中 phone 为 AES 密文且随加密密钥版本长度可变，全字段写回会 Data too long（D28 实测），
-        //    且模拟旁路阶段不应触碰密码/手机号等敏感字段）
+        //    且不应触碰密码/手机号等敏感字段）
         channelUserMapper.update(null, new LambdaUpdateWrapper<ChannelUser>()
                 .eq(ChannelUser::getId, channelUser.getId())
                 .set(ChannelUser::getLastLoginTime, LocalDateTime.now()));

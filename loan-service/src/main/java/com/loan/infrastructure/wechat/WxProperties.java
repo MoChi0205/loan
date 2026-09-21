@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
  * <pre>
  * wechat.appid=wx_xxx           小程序 appid
  * wechat.secret=xxx             appsecret
- * wechat.mock=true              true 走 Mock code2session（本地/联调免真实凭证）
  * </pre>
  *
  * <p>P2-1 微信支付预留商户号/APIv3 密钥字段，本阶段不读取。
@@ -28,9 +27,6 @@ public class WxProperties {
 
     /** 小程序 appsecret */
     private String secret = "";
-
-    /** Mock 开关：true 时 jscode2session 不调微信，按 code 哈希伪造 openid */
-    private boolean mock = true;
 
     /** 商户号（P2-1 微信支付预留） */
     private String payMchId;

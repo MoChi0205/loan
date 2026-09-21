@@ -9,6 +9,7 @@ import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.mini.service.MiniMaterialService;
+import com.loan.ocr.model.MaterialType;
 import com.loan.infrastructure.oss.OssStorageService;
 import com.loan.infrastructure.oss.OssObjectOpenResult;
 import lombok.RequiredArgsConstructor;
@@ -80,6 +81,7 @@ public class MiniUploadController {
             throw new BusinessException(ResultCode.PARAM_ERROR, "上传文件为空");
         }
         String scopedClientCode = clientAllocationService.requireOperationClientCode(user, clientCode);
+        String normalizedBizType = MaterialType.normalize(bizType);
         try {
             String fileKey = "att" + UUID.randomUUID().toString().replace("-", "").substring(0, 32);
             String original = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
@@ -97,7 +99,7 @@ public class MiniUploadController {
                 att.setFileKey(fileKey);
                 att.setFileName(original);
                 att.setFileSize(file.getSize());
-                att.setAttachmentType(bizType == null ? "OTHER" : bizType);
+                att.setAttachmentType(normalizedBizType);
                 att.setClientProfileCode(scopedClientCode);
                 att.setReportNo(reportNo);
                 att.setUploadTime(LocalDateTime.now());
@@ -117,11 +119,14 @@ public class MiniUploadController {
             if (StringUtils.hasText(scopedClientCode)) {
                 try {
                     Map<String, Object> ocr = materialService.ingest(
-                            fileKey, bizType, scopedClientCode, reportNo, user);
+                            fileKey, normalizedBizType, scopedClientCode, reportNo, user);
                     data.put("ocrApplied", ocr.get("ocrApplied"));
                     data.put("extractedFields", ocr.get("extractedFields"));
                     data.put("mergedCount", ocr.get("mergedCount"));
                     data.put("ocrFileKey", ocr.get("ocrFileKey"));
+                    data.put("recognitionProvider", ocr.get("recognitionProvider"));
+                    data.put("aiRecognitionEnabled", ocr.get("aiRecognitionEnabled"));
+                    data.put("recognitionStatus", ocr.get("recognitionStatus"));
                     // 审批门控：识别结果进入待复核时回传标识，前端据此提示「待我司审批，暂不可见」
                     data.put("pendingReview", ocr.get("pendingReview"));
                     data.put("reviewNo", ocr.get("reviewNo"));
@@ -131,6 +136,9 @@ public class MiniUploadController {
                     data.put("extractedFields", new java.util.ArrayList<Map<String, Object>>());
                     data.put("mergedCount", 0);
                     data.put("ocrFileKey", null);
+                    data.put("recognitionProvider", "unavailable");
+                    data.put("aiRecognitionEnabled", false);
+                    data.put("recognitionStatus", "FAILED");
                 }
             }
             return Result.ok(data);

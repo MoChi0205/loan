@@ -154,19 +154,19 @@
           <el-input v-model="ruleForm.fieldName" placeholder="如 失信标记" />
         </el-form-item>
         <el-form-item label="运算符" prop="operator">
-          <DictSelect v-model="ruleForm.operator" type="ruleOperator" placeholder="请选择运算符" placement="top-start" />
+          <DictSelect v-model="ruleForm.operator" type="ruleOperator" placeholder="请选择运算符" />
         </el-form-item>
         <el-form-item label="值类型" prop="valueType">
-          <DictSelect v-model="ruleForm.valueType" type="ruleValueType" placeholder="请选择值类型" placement="top-start" />
+          <DictSelect v-model="ruleForm.valueType" type="ruleValueType" placeholder="请选择值类型" />
         </el-form-item>
         <el-form-item label="规则值" prop="valueText">
           <el-input v-model="ruleForm.valueText" type="textarea" :rows="2" placeholder="如 true / 100000 / [A,B]" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
-          <DictSelect v-model="ruleForm.customerGroup" type="customerGroup" placeholder="请选择客群" placement="top-start" />
+          <DictSelect v-model="ruleForm.customerGroup" type="customerGroup" placeholder="请选择客群" />
         </el-form-item>
         <el-form-item label="状态" prop="status">
-          <DictSelect v-model="ruleForm.status" type="ruleStatus" placement="top-start" />
+          <DictSelect v-model="ruleForm.status" type="ruleStatus" />
         </el-form-item>
         <el-form-item label="规则说明" prop="description">
           <el-input v-model="ruleForm.description" type="textarea" :rows="2" placeholder="规则的业务含义说明" />

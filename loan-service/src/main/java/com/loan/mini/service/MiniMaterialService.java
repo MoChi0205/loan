@@ -64,6 +64,9 @@ public class MiniMaterialService {
         result.put("extractedFields", new ArrayList<Map<String, Object>>());
         result.put("mergedCount", 0);
         result.put("ocrFileKey", null);
+        result.put("recognitionProvider", "disabled");
+        result.put("aiRecognitionEnabled", false);
+        result.put("recognitionStatus", "NOT_ENABLED");
 
         if (!ocrEnabled) {
             return result;
@@ -74,6 +77,9 @@ public class MiniMaterialService {
 
         OcrResult ocr = ocrService.recognize(fileKey, bizType, customerGroup);
         result.put("ocrFileKey", ocr.getOcrFileKey());
+        result.put("recognitionProvider", ocr.getProvider());
+        result.put("aiRecognitionEnabled", ocr.isAiRecognitionEnabled());
+        result.put("recognitionStatus", ocr.getRecognitionStatus());
         result.put("extractedFields", ocr.getExtractedFields() == null
                 ? new ArrayList<Map<String, Object>>() : ocr.getExtractedFields());
 

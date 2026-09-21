@@ -26,7 +26,7 @@ export function productDisplayLabel(product) {
 /** 报告标题：面向业务人员仅显示客户与生成日期，业务编码只留作内部定位。 */
 export function reportDisplayTitle(report) {
   if (!report) return '报告';
-  const client = report.clientName || report.enterpriseName || report.entName || report.contactName || '客户待补充';
+  const client = report.enterpriseName || report.entName || report.clientName || report.contactName || '客户待补充';
   const parts = String(report.createdAt || report.generatedAt || '').slice(0, 10).split('-');
   const date = parts.length === 3 ? `${parts[0]}年${parts[1]}月${parts[2]}日` : '日期待补充';
   return `【${client}】【${date}】`;

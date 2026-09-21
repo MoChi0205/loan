@@ -9,6 +9,8 @@ import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
+import com.loan.infrastructure.oss.OssObjectOpenResult;
+import com.loan.infrastructure.oss.OssStorageService;
 import com.loan.infrastructure.security.AesUtils;
 import com.loan.serviceops.dto.LocationCheckInRequest;
 import com.loan.serviceops.dto.OutingCreateRequest;
@@ -17,6 +19,8 @@ import com.loan.serviceops.entity.ClientAppointment;
 import com.loan.serviceops.entity.StaffOuting;
 import com.loan.serviceops.mapper.StaffOutingMapper;
 import com.loan.serviceops.model.AppointmentStatus;
+import com.loan.serviceops.model.OutingStateMachine;
+import com.loan.serviceops.model.OutingStatus;
 import com.loan.serviceops.model.ServiceMethod;
 import com.loan.serviceops.security.ServiceOperationAccessPolicy;
 import com.loan.staff.entity.Staff;
@@ -30,16 +34,36 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** 上门拜访外出记录：无审批，必须出发/返回双打卡。 */
+/**
+ * 员工上门外出：<b>本人提交申请 → 主管审核 → 出发/返回双打卡（现场照片 + 单点定位）</b>。
+ *
+ * <p>三条硬约束（2026-09-21 与用户确认）：
+ * <ol>
+ *   <li><b>不接受他人代录</b>：只有预约的主服务顾问本人能创建，管理角色也不行；</li>
+ *   <li><b>必须审核通过才能打卡</b>：待审核状态下 depart 条件更新不会命中；</li>
+ *   <li><b>打卡必须同时有照片与定位</b>：缺任一项直接拒绝，避免无凭证打卡。</li>
+ * </ol>
+ *
+ * <p>照片只存 fileKey（{@code att}+32 位随机），实际文件在 OSS；预览走受控接口，
+ * 不把存储路径暴露给前端。
+ */
 @Service
 @RequiredArgsConstructor
 public class OutingService {
+
+    /** 打卡照片允许的扩展名（与上传接口一致，仅图片）。 */
+    private static final String[] PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp"};
+
+    /** 照片 fileKey 格式：att + 32 位十六进制（沿用项目业务 ID 约定）。 */
+    private static final String PHOTO_KEY_PATTERN = "att[0-9a-fA-F]{32}";
 
     private final StaffOutingMapper outingMapper;
     private final StaffMapper staffMapper;
@@ -47,7 +71,15 @@ public class OutingService {
     private final ServiceOperationScopeService scopeService;
     private final ClientActivityService activityService;
     private final ObjectMapper objectMapper;
+    private final OssStorageService ossStorageService;
 
+    /**
+     * 提交外出申请（本人）。
+     *
+     * @param request 申请内容（预约号 / 目的地 / 拜访目的）
+     * @param user    当前用户，必须是该预约的主服务顾问本人
+     * @return 外出业务编号
+     */
     @Transactional(rollbackFor = Exception.class)
     public String create(OutingCreateRequest request, LoanUser user) {
         scopeService.requireStaffListAccess(user);
@@ -58,12 +90,9 @@ public class OutingService {
         if (!ServiceMethod.HOME_VISIT.name().equals(appointment.getAppointmentType())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "只有上门拜访预约可以创建外出记录");
         }
-        if (!ServiceOperationAccessPolicy.canOperateAppointment(
-                user, appointment.getClientCode(), appointment.getHostStaffCode())) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "仅主服务顾问可以创建本人外出记录");
-        }
+        requireApplicant(user, appointment);
         if (!AppointmentStatus.CONFIRMED.name().equals(appointment.getStatus())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "预约确认后才能创建外出记录");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "预约确认后才能提交外出申请");
         }
         if (!StringUtils.hasText(request.getDestination()) || !StringUtils.hasText(request.getPurpose())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "目的地和拜访目的必填");
@@ -74,6 +103,7 @@ public class OutingService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该预约已存在外出记录");
         }
 
+        LocalDateTime now = LocalDateTime.now();
         StaffOuting outing = new StaffOuting();
         outing.setOutingNo(BizIdGenerator.generate("outing"));
         outing.setStaffCode(appointment.getHostStaffCode());
@@ -83,31 +113,133 @@ public class OutingService {
         outing.setOutingType(ServiceMethod.HOME_VISIT.name());
         outing.setPlannedStart(appointment.getScheduledStart());
         outing.setPlannedEnd(appointment.getScheduledEnd());
+        outing.setSubmittedAt(now);
         outing.setDestination(request.getDestination().trim());
         outing.setPurpose(request.getPurpose().trim());
-        outing.setStatus("READY");
+        outing.setStatus(OutingStatus.PENDING_REVIEW.name());
         outing.setInternalNote(trimToNull(request.getInternalNote()));
         outing.setCreatedBy(operatorName(user));
         outing.setUpdatedBy(operatorName(user));
-        outing.setCreatedAt(LocalDateTime.now());
-        outing.setUpdatedAt(LocalDateTime.now());
+        outing.setCreatedAt(now);
+        outing.setUpdatedAt(now);
         outingMapper.insert(outing);
         activityService.append(outing.getClientCode(), outing.getStaffCode(),
-                "OUTING_READY", "OUTING", outing.getOutingNo(), "上门服务已准备",
+                "OUTING_SUBMITTED", "OUTING", outing.getOutingNo(), "提交上门服务外出申请，待主管审核",
                 ClientActivityService.VISIBILITY_STAFF_ONLY,
                 LoanUser.TYPE_STAFF, user.getUserNo(), null);
         return outing.getOutingNo();
     }
 
+    /**
+     * 审核通过：待审核 → 待出发。
+     *
+     * @param outingNo 外出业务编号
+     * @param remark   审核意见（可空）
+     * @param user     审核人（不可自审；部门经理限本部门）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void approve(String outingNo, String remark, LoanUser user) {
+        StaffOuting outing = requireOuting(outingNo);
+        requireReviewer(user, outing);
+        requirePendingReview(outing);
+        String reviewer = operatorName(user);
+        int changed = outingMapper.approve(outingNo, user.getUserNo(), reviewer,
+                trimToNull(remark), LocalDateTime.now());
+        if (changed != 1) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "该申请已被处理，请刷新后重试");
+        }
+        activityService.append(outing.getClientCode(), outing.getStaffCode(),
+                "OUTING_APPROVED", "OUTING", outing.getOutingNo(), "外出申请已通过审核",
+                ClientActivityService.VISIBILITY_STAFF_ONLY,
+                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+    }
+
+    /**
+     * 审核驳回：待审核 → 已驳回（可修改后重提）。
+     *
+     * @param outingNo 外出业务编号
+     * @param remark   驳回原因（必填）
+     * @param user     审核人
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void reject(String outingNo, String remark, LoanUser user) {
+        if (!StringUtils.hasText(remark)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "驳回原因必填");
+        }
+        StaffOuting outing = requireOuting(outingNo);
+        requireReviewer(user, outing);
+        requirePendingReview(outing);
+        String reviewer = operatorName(user);
+        int changed = outingMapper.reject(outingNo, user.getUserNo(), reviewer,
+                remark.trim(), LocalDateTime.now());
+        if (changed != 1) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "该申请已被处理，请刷新后重试");
+        }
+        activityService.append(outing.getClientCode(), outing.getStaffCode(),
+                "OUTING_REJECTED", "OUTING", outing.getOutingNo(),
+                "外出申请被驳回：" + remark.trim(),
+                ClientActivityService.VISIBILITY_STAFF_ONLY,
+                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+    }
+
+    /**
+     * 驳回后修改并重新提交：已驳回 → 待审核。
+     *
+     * @param outingNo 外出业务编号
+     * @param request  可选的修改内容（目的地 / 拜访目的 / 备注，为空则沿用原值）
+     * @param user     申请人本人
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void resubmit(String outingNo, OutingCreateRequest request, LoanUser user) {
+        StaffOuting outing = requireOuting(outingNo);
+        if (!ServiceOperationAccessPolicy.canResubmitOuting(user, outing.getStaffCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "只有申请人本人可以重新提交");
+        }
+        if (statusOf(outing) != OutingStatus.REJECTED) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "只有被驳回的申请可以重新提交");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (request != null && (StringUtils.hasText(request.getDestination())
+                || StringUtils.hasText(request.getPurpose())
+                || StringUtils.hasText(request.getInternalNote()))) {
+            StaffOuting patch = new StaffOuting();
+            patch.setId(outing.getId());
+            if (StringUtils.hasText(request.getDestination())) {
+                patch.setDestination(request.getDestination().trim());
+            }
+            if (StringUtils.hasText(request.getPurpose())) {
+                patch.setPurpose(request.getPurpose().trim());
+            }
+            if (StringUtils.hasText(request.getInternalNote())) {
+                patch.setInternalNote(request.getInternalNote().trim());
+            }
+            patch.setUpdatedBy(operatorName(user));
+            patch.setUpdatedAt(now);
+            outingMapper.updateById(patch);
+        }
+        int changed = outingMapper.resubmit(outingNo, now, operatorName(user));
+        if (changed != 1) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "该申请状态已变化，请刷新后重试");
+        }
+        activityService.append(outing.getClientCode(), outing.getStaffCode(),
+                "OUTING_SUBMITTED", "OUTING", outing.getOutingNo(), "重新提交上门服务外出申请，待主管审核",
+                ClientActivityService.VISIBILITY_STAFF_ONLY,
+                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+    }
+
+    /**
+     * 出发打卡：待出发 → 外出中。必须带定位与现场照片。
+     */
     @Transactional(rollbackFor = Exception.class)
     public void depart(String outingNo, LocationCheckInRequest request, LoanUser user) {
         StaffOuting outing = requireOuting(outingNo);
         requireOwner(user, outing);
         LocalDateTime now = LocalDateTime.now();
         String ciphertext = encryptLocation(request, now);
-        int changed = outingMapper.depart(outingNo, now, ciphertext, operatorName(user));
+        String photoKey = requireStoredPhoto(request);
+        int changed = outingMapper.depart(outingNo, now, ciphertext, photoKey, operatorName(user));
         if (changed != 1) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "当前状态不能出发打卡，请刷新后重试");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "当前状态不能出发打卡（需审核通过），请刷新后重试");
         }
         // HOME_VISIT 从 CONFIRMED 直接进入 SERVING，不产生 ARRIVED。
         appointmentService.startService(outing.getAppointmentNo(), user);
@@ -117,13 +249,17 @@ public class OutingService {
                 LoanUser.TYPE_STAFF, user.getUserNo(), null);
     }
 
+    /**
+     * 返回打卡：外出中 → 已完成。必须带定位与现场照片。
+     */
     @Transactional(rollbackFor = Exception.class)
     public void returnFromOuting(String outingNo, LocationCheckInRequest request, LoanUser user) {
         StaffOuting outing = requireOuting(outingNo);
         requireOwner(user, outing);
         LocalDateTime now = LocalDateTime.now();
         String ciphertext = encryptLocation(request, now);
-        int changed = outingMapper.returnFromOuting(outingNo, now, ciphertext, operatorName(user));
+        String photoKey = requireStoredPhoto(request);
+        int changed = outingMapper.returnFromOuting(outingNo, now, ciphertext, photoKey, operatorName(user));
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "请先完成出发打卡，或刷新当前状态");
         }
@@ -134,6 +270,58 @@ public class OutingService {
                 LoanUser.TYPE_STAFF, user.getUserNo(), null);
     }
 
+    /**
+     * 校验当前用户可上传该外出的打卡照片（申请人本人），返回外出记录。
+     *
+     * @param outingNo 外出业务编号
+     * @param user     当前用户
+     * @return 外出记录
+     */
+    public StaffOuting requireCheckInUploader(String outingNo, LoanUser user) {
+        StaffOuting outing = requireOuting(outingNo);
+        requireOwner(user, outing);
+        return outing;
+    }
+
+    /**
+     * 受控读取打卡照片（申请人本人，或对该外出有审核权的角色）。
+     *
+     * @param outingNo 外出业务编号
+     * @param phase    {@code DEPART} 出发 / {@code RETURN} 返回
+     * @param user     当前用户
+     * @return 可流式回传的对象
+     */
+    public OssObjectOpenResult openCheckInPhoto(String outingNo, String phase, LoanUser user) {
+        StaffOuting outing = requireOuting(outingNo);
+        Staff applicant = scopeService.findStaff(outing.getStaffCode());
+        String deptCode = applicant == null ? null : applicant.getDeptCode();
+        boolean self = ServiceOperationAccessPolicy.canCheckOuting(user, outing.getStaffCode());
+        boolean reviewer = ServiceOperationAccessPolicy.canReviewOuting(user, outing.getStaffCode(), deptCode);
+        if (!self && !reviewer) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "无权查看该外出的打卡照片");
+        }
+        boolean returnPhase = "RETURN".equalsIgnoreCase(phase);
+        String fileKey = returnPhase ? outing.getReturnedPhotoKey() : outing.getDepartedPhotoKey();
+        if (!StringUtils.hasText(fileKey)) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "该阶段尚未打卡，没有照片");
+        }
+        String objectKey = resolvePhotoObjectKey(fileKey);
+        if (objectKey == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "打卡照片不存在");
+        }
+        return ossStorageService.openObject(objectKey);
+    }
+
+    /**
+     * 当日外出名单（含待审核）。
+     *
+     * @param date   业务日期（默认今天）
+     * @param status 状态过滤（可选，取值来自 {@link OutingStatus}）
+     * @param user   当前用户
+     * @param page   页码
+     * @param size   每页条数
+     * @return 分页结果
+     */
     public PageResult<StaffOutingDTO> day(LocalDate date, String status, LoanUser user, int page, int size) {
         LocalDate day = date == null ? LocalDate.now() : date;
         LambdaQueryWrapper<StaffOuting> wrapper = new LambdaQueryWrapper<StaffOuting>()
@@ -142,7 +330,8 @@ public class OutingService {
                 .orderByAsc(StaffOuting::getPlannedStart);
         if (StringUtils.hasText(status)) {
             String value = status.trim().toUpperCase();
-            if (!java.util.Arrays.asList("DRAFT", "READY", "IN_PROGRESS", "COMPLETED", "CANCELLED").contains(value)) {
+            Set<String> allowed = Arrays.stream(OutingStatus.values()).map(Enum::name).collect(Collectors.toSet());
+            if (!allowed.contains(value)) {
                 throw new BusinessException(ResultCode.PARAM_ERROR, "外出状态不合法");
             }
             wrapper.eq(StaffOuting::getStatus, value);
@@ -165,6 +354,7 @@ public class OutingService {
             dto.setOrderNo(item.getOrderNo());
             dto.setPlannedStart(item.getPlannedStart());
             dto.setPlannedEnd(item.getPlannedEnd());
+            dto.setSubmittedAt(item.getSubmittedAt());
             dto.setActualDepartedAt(item.getActualDepartedAt());
             dto.setActualReturnedAt(item.getActualReturnedAt());
             dto.setDestination(item.getDestination());
@@ -172,6 +362,12 @@ public class OutingService {
             dto.setStatus(item.getStatus());
             dto.setDepartureCheckInCompleted(item.getActualDepartedAt() != null);
             dto.setReturnCheckInCompleted(item.getActualReturnedAt() != null);
+            dto.setReviewerStaffCode(item.getReviewerStaffCode());
+            dto.setReviewerName(item.getReviewerName());
+            dto.setReviewedAt(item.getReviewedAt());
+            dto.setReviewRemark(item.getReviewRemark());
+            dto.setDepartedPhotoKey(item.getDepartedPhotoKey());
+            dto.setReturnedPhotoKey(item.getReturnedPhotoKey());
             return dto;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
@@ -186,10 +382,78 @@ public class OutingService {
         return outing;
     }
 
+    /** 不允许他人代录：必须是预约的主服务顾问本人。 */
+    private void requireApplicant(LoanUser user, ClientAppointment appointment) {
+        boolean self = user != null
+                && LoanUser.TYPE_STAFF.equalsIgnoreCase(user.getUserType())
+                && StringUtils.hasText(user.getUserNo())
+                && user.getUserNo().equals(appointment.getHostStaffCode());
+        if (!self) {
+            throw new BusinessException(ResultCode.FORBIDDEN,
+                    "外出申请只能由预约的主服务顾问本人提交，不接受他人代录");
+        }
+    }
+
     private void requireOwner(LoanUser user, StaffOuting outing) {
         if (!ServiceOperationAccessPolicy.canCheckOuting(user, outing.getStaffCode())) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "仅外出员工本人可以打卡");
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅外出员工本人可以操作");
         }
+    }
+
+    private void requireReviewer(LoanUser user, StaffOuting outing) {
+        Staff applicant = scopeService.findStaff(outing.getStaffCode());
+        String deptCode = applicant == null ? null : applicant.getDeptCode();
+        if (!ServiceOperationAccessPolicy.canReviewOuting(user, outing.getStaffCode(), deptCode)) {
+            throw new BusinessException(ResultCode.FORBIDDEN,
+                    "无审核权限：不能审核本人提交的申请，部门经理仅可审核本部门");
+        }
+    }
+
+    private void requirePendingReview(StaffOuting outing) {
+        if (!OutingStateMachine.canReview(statusOf(outing))) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "当前状态不可审核，请刷新后重试");
+        }
+    }
+
+    private OutingStatus statusOf(StaffOuting outing) {
+        try {
+            return OutingStatus.valueOf(outing.getStatus());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "外出状态异常：" + outing.getStatus());
+        }
+    }
+
+    private Map<String, Staff> staffByCodes(Set<String> codes) {
+        if (codes == null || codes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return staffMapper.selectList(new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, codes)).stream()
+                .collect(Collectors.toMap(Staff::getStaffCode, item -> item, (a, b) -> a));
+    }
+
+    /** 校验并返回已被 OSS 落盘的打卡照片 fileKey（照片 + 定位缺一不可）。 */
+    private String requireStoredPhoto(LocationCheckInRequest request) {
+        if (request == null || !StringUtils.hasText(request.getPhotoFileKey())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "打卡必须上传现场照片");
+        }
+        String fileKey = request.getPhotoFileKey().trim();
+        if (!fileKey.matches(PHOTO_KEY_PATTERN)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "打卡照片标识不合法");
+        }
+        if (resolvePhotoObjectKey(fileKey) == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "打卡照片不存在或上传未完成，请重新上传");
+        }
+        return fileKey;
+    }
+
+    /** 按扩展名定位 OSS 对象；找不到返回 null。 */
+    private String resolvePhotoObjectKey(String fileKey) {
+        for (String ext : PHOTO_EXTS) {
+            if (ossStorageService.objectExists(fileKey + ext)) {
+                return fileKey + ext;
+            }
+        }
+        return null;
     }
 
     private String encryptLocation(LocationCheckInRequest request, LocalDateTime now) {
@@ -208,7 +472,7 @@ public class OutingService {
         if (Math.abs(Duration.between(collectedAt, now).toMinutes()) > 10) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "定位信息已过期，请重新获取当前位置");
         }
-        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("latitude", request.getLatitude());
         payload.put("longitude", request.getLongitude());
         payload.put("accuracyMeters", request.getAccuracyMeters());
@@ -223,14 +487,6 @@ public class OutingService {
         } catch (JsonProcessingException e) {
             throw new BusinessException(ResultCode.INTERNAL_ERROR, "定位信息处理失败");
         }
-    }
-
-    private Map<String, Staff> staffByCodes(Set<String> codes) {
-        if (codes == null || codes.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return staffMapper.selectList(new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, codes)).stream()
-                .collect(Collectors.toMap(Staff::getStaffCode, item -> item, (a, b) -> a));
     }
 
     private String operatorName(LoanUser user) {

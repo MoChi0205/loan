@@ -17,8 +17,8 @@ const UPLOAD_URL = `${BASE_URL}/api/mini/upload`;
  * 上传一份材料。
  *
  * 响应（uploadImage 已解包 Result.data）含 fileKey/fileName/fileSize/url，
- * 以及 OCR 回灌相关字段：ocrApplied(boolean) / pendingReview(boolean) / reviewNo(string) /
- * extractedFields(数组) / mergedCount(int) / ocrFileKey(string，业务键)。
+ * 以及识别相关字段：recognitionProvider / aiRecognitionEnabled / recognitionStatus
+ * （NOT_ENABLED / NO_FACTS / EXTRACTED / FAILED）、pendingReview / reviewNo / extractedFields。
  *
  * <p>业务规则（材料复核门控）：当大模型（VLM）识别到事实时，后端<b>不会立即回灌</b>客户数据，
  * 而是创建「材料复核」待审单（pendingReview=true, reviewNo 返回），事实进入待审态；
@@ -27,8 +27,7 @@ const UPLOAD_URL = `${BASE_URL}/api/mini/upload`;
  *
  * @param {string} filePath 本地临时文件路径（uni.chooseImage / chooseMessageFile 返回）
  * @param {Object} [opts]
- * @param {string} [opts.bizType] 资料类型：
- *        ID_CARD / BUSINESS_LICENSE / FINANCIAL_STATEMENT / CONTRACT / DUE_DILIGENCE / OTHER
+ * @param {string} [opts.bizType] 统一材料类别编码（由服务端白名单再次校验）
  * @param {string} [opts.clientCode] 目标客户编码；后端按登录身份和实时归属再次校验
  * @param {string} [opts.reportNo] 关联报告编号（诊断材料回灌用，T2）
  * @returns {Promise<{fileKey:string, fileName:string, fileSize:number, url:string,

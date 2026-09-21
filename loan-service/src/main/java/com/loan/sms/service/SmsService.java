@@ -50,12 +50,17 @@ public class SmsService {
      *
      * @param phone 手机号
      */
-    public void sendVerifyCode(String phone) {
+    public String sendVerifyCode(String phone) {
+        return sendVerifyCode(phone, "LOGIN");
+    }
+
+    public String sendVerifyCode(String phone, String scene) {
         if (!StringUtils.hasText(phone)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "手机号必填");
         }
         // 60s 重发间隔校验
-        String intervalKey = INTERVAL_KEY_PREFIX + phone;
+        String normalizedScene = "RESET_PASSWORD".equalsIgnoreCase(scene) ? "RESET_PASSWORD" : "LOGIN";
+        String intervalKey = INTERVAL_KEY_PREFIX + normalizedScene + ":" + phone;
         String last = stringRedisTemplate.opsForValue().get(intervalKey);
         if (last != null) {
             throw new BusinessException(ResultCode.TOO_FREQUENT, "验证码 60 秒内只能发送一次");
@@ -83,8 +88,8 @@ public class SmsService {
         SmsRecord record = new SmsRecord();
         record.setPhone(phone);
         record.setPhoneHash(sha256(phone));
-        record.setSmsType("LOGIN_VERIFY");
-        record.setTemplateCode(template.getTemplateCode());
+        record.setSmsType(normalizedScene);
+        record.setTemplateId(template.getId());
         record.setContent(content);
         record.setChannelCode("MOCK");
         record.setStatus("SUCCESS");
@@ -94,10 +99,11 @@ public class SmsService {
         smsRecordMapper.insert(record);
 
         // Redis：验证码 5 分钟有效 + 60s 间隔 + 日上限
-        stringRedisTemplate.opsForValue().set(CODE_KEY_PREFIX + phone, code, Duration.ofMinutes(5));
+        stringRedisTemplate.opsForValue().set(CODE_KEY_PREFIX + normalizedScene + ":" + phone, code, Duration.ofMinutes(5));
         stringRedisTemplate.opsForValue().set(intervalKey, "1", Duration.ofSeconds(60));
         stringRedisTemplate.opsForValue().set(dailyKey, String.valueOf(dailyCount + 1), Duration.ofDays(1));
         log.info("验证码已发送（模拟通道） phone={} code={}", phone, code);
+        return code;
     }
 
     /**
@@ -108,10 +114,16 @@ public class SmsService {
      * @return true 校验通过
      */
     public boolean verifyCode(String phone, String code) {
+        return verifyCode(phone, code, "LOGIN");
+    }
+
+    public boolean verifyCode(String phone, String code, String scene) {
         if (!StringUtils.hasText(phone) || !StringUtils.hasText(code)) {
             return false;
         }
-        String saved = stringRedisTemplate.opsForValue().get(CODE_KEY_PREFIX + phone);
+        String normalizedScene = "RESET_PASSWORD".equalsIgnoreCase(scene) ? "RESET_PASSWORD" : "LOGIN";
+        String key = CODE_KEY_PREFIX + normalizedScene + ":" + phone;
+        String saved = stringRedisTemplate.opsForValue().get(key);
         if (saved == null) {
             throw new BusinessException(ResultCode.CAPTCHA_ERROR, "验证码已过期，请重新获取");
         }
@@ -119,7 +131,7 @@ public class SmsService {
             throw new BusinessException(ResultCode.CAPTCHA_ERROR, "验证码错误");
         }
         // 一次性：删除
-        stringRedisTemplate.delete(CODE_KEY_PREFIX + phone);
+        stringRedisTemplate.delete(key);
         return true;
     }
 

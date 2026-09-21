@@ -2,7 +2,7 @@
   <view class="phone-login-page theme-root" :class="{ 'u-shell': store.isTablet }" :data-theme="themeMode">
     <view class="head">
       <text class="head-title">手机号验证码登录</text>
-      <text class="head-sub">与微信一键登录分离；用于 H5 / 本地联调</text>
+      <text class="head-sub">微信一键登录为主，手机号验证码仅作为备用登录方式</text>
     </view>
 
     <view class="card">
@@ -13,7 +13,15 @@
       <view class="field">
         <AppIcon name="shield" size="sm" />
         <input v-model="smsCode" type="number" maxlength="6" placeholder="请输入验证码" />
-        <button class="code-btn" @click="sendCode" :disabled="countdown > 0">{{ countdown ? `${countdown}s` : '获取验证码' }}</button>
+        <button class="code-btn" @click="sendCode('LOGIN')" :disabled="countdown > 0">{{ countdown ? `${countdown}s` : '获取验证码' }}</button>
+      </view>
+      <view class="field">
+        <AppIcon name="shield" size="sm" />
+        <input v-model="captchaCode" type="number" maxlength="4" placeholder="图片验证码" />
+        <button class="captcha-btn" @click="refreshCaptcha">
+          <image v-if="captcha.imageBase64" class="captcha-image" :src="captchaSrc" mode="aspectFit" />
+          <text v-else class="captcha-text">刷新</text>
+        </button>
       </view>
       <AppButton class="submit" variant="primary" size="lg" block :loading="submitting" :disabled="!agreementChecked" @click="onSubmit">手机号登录</AppButton>
       <LoginConsent v-model="agreementChecked" @open="showAgreement" />
@@ -22,8 +30,8 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue';
-import { loginByCode, sendLoginCode } from '../../api/auth';
+import { reactive, ref, computed, onMounted, onUnmounted } from 'vue';
+import { loginByCode, sendLoginCode, getCaptcha } from '../../api/auth';
 import { useUserStore } from '../../store/user';
 import { useThemeMode } from '../../theme';
 import LoginConsent from '../../components/LoginConsent.vue';
@@ -40,26 +48,33 @@ const themeMode = useThemeMode();
 
 const phone = ref('');
 const smsCode = ref('');
+const captchaCode = ref('');
 const countdown = ref(0);
 const submitting = ref(false);
 const agreementChecked = ref(false);
-let timer;
+const captcha = reactive({ captchaId: '', imageBase64: '' });
+/** 验证码图片由服务端渲染为 Base64 PNG，答案不下发到客户端。 */
+const captchaSrc = computed(() => (captcha.imageBase64 ? `data:image/png;base64,${captcha.imageBase64}` : ''));
+const timers = [];
+
+async function refreshCaptcha() { Object.assign(captcha, await getCaptcha()); captchaCode.value=''; }
+function startCountdown(target) { target.value=60; const timer=setInterval(()=>{target.value-=1;if(target.value<=0)clearInterval(timer);},1000);timers.push(timer); }
 
 /** 发送验证码（60s 倒计时防重复） */
-async function sendCode() {
+async function sendCode(scene = 'LOGIN') {
   if (!ensureAgreement()) return;
-  if (!/^1\d{10}$/.test(phone.value)) {
+  if (scene !== 'LOGIN' || !/^1\d{10}$/.test(phone.value)) {
     uni.showToast({ title: '请输入正确手机号', icon: 'none' });
     return;
   }
+  const answer = captchaCode.value;
+  if(!answer){ uni.showToast({title:'请输入随机验证码',icon:'none'}); return; }
   try {
-    await sendLoginCode(phone.value);
-    countdown.value = 60;
-    timer = setInterval(() => {
-      countdown.value -= 1;
-      if (countdown.value <= 0) clearInterval(timer);
-    }, 1000);
-    uni.showToast({ title: '验证码已发送', icon: 'none' });
+    const response=await sendLoginCode(phone.value,captcha.captchaId,answer,'LOGIN');
+    if(response?.devCode) smsCode.value=response.devCode;
+    startCountdown(countdown);
+    await refreshCaptcha();
+    uni.showToast({ title: response?.devCode?`测试码已填入 ${response.devCode}`:'验证码已发送', icon: 'none' });
   } catch (e) {
     uni.showToast({ title: e.message || '发送失败', icon: 'none' });
   }
@@ -68,8 +83,8 @@ async function sendCode() {
 /** 提交登录 */
 async function onSubmit() {
   if (!ensureAgreement()) return;
-  if (!phone.value || !smsCode.value) {
-    uni.showToast({ title: '请输入手机号和验证码', icon: 'none' });
+  if (!phone.value || !smsCode.value || !captchaCode.value) {
+    uni.showToast({ title: '请完整填写登录信息', icon: 'none' });
     return;
   }
   submitting.value = true;
@@ -81,6 +96,7 @@ async function onSubmit() {
     uni.reLaunch({ url: '/pages/home/home' });
   } catch (e) {
     uni.showToast({ title: e.message || '验证码登录失败', icon: 'none' });
+    refreshCaptcha();
   } finally {
     submitting.value = false;
   }
@@ -96,7 +112,8 @@ function showAgreement(title) {
   uni.showModal({ title, content, showCancel: false, confirmText: '我知道了' });
 }
 
-onUnmounted(() => { if (timer) clearInterval(timer); });
+onMounted(refreshCaptcha);
+onUnmounted(() => { timers.forEach(clearInterval); });
 </script>
 
 <style scoped>
@@ -117,6 +134,9 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
   padding: 32rpx;
   box-shadow: var(--shadow-md);
 }
+.captcha-btn{min-width:170rpx;display:flex;align-items:center;justify-content:center;height:72rpx;padding:0;background:var(--bg-input)}
+.captcha-image{width:170rpx;height:72rpx;border-radius:var(--radius-sm)}
+.captcha-text{font-size:24rpx;color:var(--text-secondary)}
 .field {
   display: flex;
   align-items: center;

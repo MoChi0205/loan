@@ -23,7 +23,7 @@ public class ClientScreening implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 报告编号（业务唯一ID：report + 32 位随机） */
+    /** 报告编号（业务唯一ID：生成时间 + 序号；不包含客户名称） */
     private String reportNo;
 
     /** 客户编码（业务唯一ID） */

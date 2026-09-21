@@ -39,11 +39,39 @@ class ServiceOperationStateMachineTest {
     }
 
     @Test
-    void outingRequiresDepartureBeforeReturn() {
-        assertTrue(OutingStateMachine.canTransition(OutingStatus.DRAFT, OutingStatus.READY));
+    void outingRequiresApprovalBeforeDepartureAndReturnAfterDeparture() {
+        // 申请 → 审核
+        assertTrue(OutingStateMachine.canTransition(OutingStatus.DRAFT, OutingStatus.PENDING_REVIEW));
+        assertTrue(OutingStateMachine.canTransition(OutingStatus.PENDING_REVIEW, OutingStatus.READY));
+        assertTrue(OutingStateMachine.canTransition(OutingStatus.PENDING_REVIEW, OutingStatus.REJECTED));
+        // 驳回后可修改重提
+        assertTrue(OutingStateMachine.canTransition(OutingStatus.REJECTED, OutingStatus.PENDING_REVIEW));
+        // 未审核通过（待审 / 已驳回）不得打卡
+        assertFalse(OutingStateMachine.canTransition(OutingStatus.PENDING_REVIEW, OutingStatus.IN_PROGRESS));
+        assertFalse(OutingStateMachine.canTransition(OutingStatus.REJECTED, OutingStatus.IN_PROGRESS));
+        // 必须先出发再返回
         assertTrue(OutingStateMachine.canTransition(OutingStatus.READY, OutingStatus.IN_PROGRESS));
         assertFalse(OutingStateMachine.canTransition(OutingStatus.READY, OutingStatus.COMPLETED));
         assertTrue(OutingStateMachine.canTransition(OutingStatus.IN_PROGRESS, OutingStatus.COMPLETED));
+        // 终态不可再流转
+        assertFalse(OutingStateMachine.canTransition(OutingStatus.COMPLETED, OutingStatus.IN_PROGRESS));
+        assertFalse(OutingStateMachine.canTransition(OutingStatus.CANCELLED, OutingStatus.READY));
+    }
+
+    @Test
+    void outingReviewAndCheckInGuards() {
+        assertTrue(OutingStateMachine.canReview(OutingStatus.PENDING_REVIEW));
+        assertFalse(OutingStateMachine.canReview(OutingStatus.REJECTED));
+        assertFalse(OutingStateMachine.canReview(OutingStatus.READY));
+        assertFalse(OutingStateMachine.canReview(OutingStatus.IN_PROGRESS));
+        assertFalse(OutingStateMachine.canReview(OutingStatus.COMPLETED));
+        assertTrue(OutingStateMachine.canDepart(OutingStatus.READY));
+        assertFalse(OutingStateMachine.canDepart(OutingStatus.PENDING_REVIEW));
+        assertTrue(OutingStateMachine.canReturn(OutingStatus.IN_PROGRESS));
+        assertFalse(OutingStateMachine.canReturn(OutingStatus.READY));
+        assertTrue(OutingStatus.COMPLETED.isTerminal());
+        assertTrue(OutingStatus.CANCELLED.isTerminal());
+        assertFalse(OutingStatus.REJECTED.isTerminal());
     }
 
     @Test

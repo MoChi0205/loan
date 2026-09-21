@@ -78,7 +78,7 @@
             <text class="info-label">生成时间</text>
             <text class="info-value">{{ formatTime(report.createdAt) }}</text>
           </view>
-          <view class="info-row">
+          <view v-if="isStaff" class="info-row">
             <text class="info-label">银行覆盖</text>
             <text class="info-value">{{ report.bankCount || 0 }} 家</text>
           </view>
@@ -187,6 +187,11 @@
       </view>
 
       <!-- 合规提示 -->
+      <view class="card source-notice-card">
+        <text class="card-title">数据来源与查询说明</text>
+        <text class="source-notice-text">本报告仅使用客户主动填写及授权上传材料；未调用外部个人信息查询接口。</text>
+      </view>
+
       <view class="card tip-card">
         <text class="tip-text">{{ isStaff ? '内部匹配结果仅供业务作业使用，不构成审批承诺。' : (report.analysisNotice || '本报告仅根据用户提交资料提供资质与经营风险分析，不推荐具体金融产品，不构成授信、额度或审批结果预测。') }}</text>
       </view>
@@ -547,6 +552,17 @@ function goBack() { uni.navigateBack(); }
 .tip-text {
   font-size: var(--fs-sm);
   color: var(--warning-text);
+  line-height: var(--lh-base);
+}
+.source-notice-card {
+  border: 1rpx solid var(--line);
+  box-shadow: none;
+}
+.source-notice-text {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
   line-height: var(--lh-base);
 }
 

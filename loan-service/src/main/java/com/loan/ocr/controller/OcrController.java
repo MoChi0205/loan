@@ -6,6 +6,7 @@ import com.loan.exception.BusinessException;
 import com.loan.ocr.entity.ExtractFieldDef;
 import com.loan.ocr.entity.OcrRecord;
 import com.loan.ocr.model.OcrResult;
+import com.loan.ocr.model.MaterialType;
 import com.loan.ocr.service.OcrService;
 import com.loan.attachment.entity.ServiceAttachment;
 import com.loan.attachment.mapper.ServiceAttachmentMapper;
@@ -96,6 +97,7 @@ public class OcrController {
             throw new BusinessException(ResultCode.PARAM_ERROR, "上传文件为空");
         }
         String scopedClientCode = clientAllocationService.requireOperationClientCode(user, clientCode);
+        String normalizedBizType = MaterialType.normalize(bizType);
         String fileKey;
         String original;
         try {
@@ -115,12 +117,11 @@ public class OcrController {
             log.warn("OCR 文件落盘失败: {}", e.getMessage());
             throw new BusinessException(ResultCode.INTERNAL_ERROR, "文件保存失败");
         }
-        OcrResult result = ocrService.recognize(fileKey,
-                StringUtils.hasText(bizType) ? bizType : "OTHER", customerGroup);
+        OcrResult result = ocrService.recognize(fileKey, normalizedBizType, customerGroup);
         ServiceAttachment attachment = new ServiceAttachment();
         attachment.setClientProfileCode(scopedClientCode);
         attachment.setReportNo(reportNo);
-        attachment.setAttachmentType(StringUtils.hasText(bizType) ? bizType : "OTHER");
+        attachment.setAttachmentType(normalizedBizType);
         attachment.setFileKey(fileKey);
         attachment.setFileName(original);
         attachment.setFileSize(file.getSize());

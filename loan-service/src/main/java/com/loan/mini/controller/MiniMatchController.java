@@ -9,6 +9,8 @@ import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.mini.service.MiniMatchService;
+import com.loan.report.dto.CustomerReportDetail;
+import com.loan.report.dto.StaffReportDetail;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -192,15 +194,21 @@ public class MiniMatchController {
      * @return 报告详情
      */
     @GetMapping("/report/{reportNo}")
-    public Result<Map<String, Object>> reportDetail(@PathVariable String reportNo, @CurrentUser LoanUser user) {
+    public Result<Object> reportDetail(@PathVariable String reportNo, @CurrentUser LoanUser user) {
         requireLogin(user);
         // 渠道：沙箱隔离，不可见客户匹配报告
         if (LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "渠道合作方不可见客户匹配结果");
         }
-        // 客户：校验归属；企业员工：全量可看（传 null 跳过归属校验）
-        String clientCode = LoanUser.TYPE_CUSTOMER.equals(user.getUserType()) ? user.getUserNo() : null;
-        return Result.ok(miniMatchService.reportDetail(reportNo, clientCode));
+        if (LoanUser.TYPE_CUSTOMER.equals(user.getUserType())) {
+            CustomerReportDetail detail = miniMatchService.customerReportDetail(reportNo, user.getUserNo());
+            return Result.ok(detail);
+        }
+        if (LoanUser.TYPE_STAFF.equals(user.getUserType())) {
+            StaffReportDetail detail = miniMatchService.staffReportDetail(reportNo);
+            return Result.ok(detail);
+        }
+        throw new BusinessException(ResultCode.FORBIDDEN, "当前账号无权查看报告");
     }
 
     /**

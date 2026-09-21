@@ -45,10 +45,10 @@ export function gridCols(count) {
  * 磁贴宽度（flex 换行布局下按列数等分并扣除列间距）。
  *
  * @param {number} count 磁贴数量
- * @param {number} [gapRpx=28] 列间距，须与容器 `gap` 一致（默认 28rpx，对齐设计真源原型 14px）
+ * @param {number} [gapRpx=20] 列间距，须与容器 `gap` 一致（默认 20rpx）
  * @returns {string} 可直接用于 `:style="{ width }"` 的宽度值
  */
-export function gridItemWidth(count, gapRpx = 28) {
+export function gridItemWidth(count, gapRpx = 20) {
   const cols = gridCols(count);
   return `calc((100% - ${(cols - 1) * gapRpx}rpx) / ${cols})`;
 }

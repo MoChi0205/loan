@@ -1,7 +1,6 @@
 package com.loan.audit.controller;
 
 import com.loan.api.dto.PageResult;
-import com.loan.audit.entity.MatchTrace;
 import com.loan.audit.service.AuditService;
 import com.loan.common.Result;
 import com.loan.common.util.PageParams;
@@ -56,8 +55,9 @@ public class AuditController {
      * @return 审计记录分页
      */
     @GetMapping("/page")
-    public Result<PageResult<MatchTrace>> page(
+    public Result<PageResult<Map<String, Object>>> page(
             @RequestParam(required = false) String traceUuid,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String customerGroup,
             @RequestParam(required = false) String totalResult,
             @RequestParam(required = false) Integer mismatchFlag,
@@ -65,7 +65,7 @@ public class AuditController {
             @RequestParam(required = false) String endTime,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(auditService.page(traceUuid, customerGroup, totalResult, mismatchFlag,
+        return Result.ok(auditService.page(traceUuid, keyword, customerGroup, totalResult, mismatchFlag,
                 startTime, endTime, PageParams.page(page), PageParams.size(size)));
     }
 }

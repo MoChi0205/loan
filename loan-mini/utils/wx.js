@@ -2,26 +2,16 @@
  * 微信能力封装（uni 内置 API Promise 化，不引入 npm 依赖）。
  *
  * - isH5Env()：判断当前是否为 H5（浏览器）宿主环境
- * - wxLogin()：uni.login 取 wx code（P0-1 主通道凭证），H5 环境降级为 mock code
+ * - wxLogin()：仅在微信小程序中调用 uni.login 获取真实 code
  * - uploadImage()：uni.uploadFile 封装（P0-3 认证材料上传预留）
  */
 import { getToken } from '../api/request';
 
 /**
- * H5 开发预览环境使用的固定 mock code。
- *
- * 后端开启 `wechat.mock=true` 时会跳过真实 jscode2session，
- * 直接按 code 哈希生成稳定的 mock openid，因此任意非空 code 均可完成登录链路。
- *
- * @type {string}
- */
-export const H5_MOCK_CODE = 'h5_dev_mock_code';
-
-/**
  * 判断当前运行环境是否为 H5（浏览器）。
  *
  * 说明：H5 宿主没有微信 JS-SDK，`uni.login({ provider: 'weixin' })` 会直接 fail/reject，
- * 因此登录链路必须降级。这里优先使用 uni-app 条件编译常量（编译期裁剪，零运行时开销），
+ * 因此 H5 必须使用手机号验证码登录。这里优先使用 uni-app 条件编译常量（编译期裁剪，零运行时开销），
  * 条件编译不可用时再回退到运行时宿主探测。
  *
  * @returns {boolean} true 表示当前是 H5/浏览器环境
@@ -56,13 +46,15 @@ export function isH5Env() {
  * 获取 wx.login 临时凭证（code）。
  *
  * - 微信小程序：调用 uni.login 换取真实 code
- * - H5 浏览器预览：直接返回 {@link H5_MOCK_CODE}，配合后端 mock 开关打通登录链路
+ * - H5 浏览器：拒绝生成伪造 code，调用方应引导至手机号验证码登录
  *
  * @returns {Promise<string>} wx code
  */
 export function wxLogin() {
   if (isH5Env()) {
-    return Promise.resolve(H5_MOCK_CODE);
+    const err = new Error('H5 请使用手机号验证码登录');
+    err.stage = 'unsupportedHost';
+    return Promise.reject(err);
   }
   return new Promise((resolve, reject) => {
     uni.login({

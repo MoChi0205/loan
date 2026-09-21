@@ -107,9 +107,10 @@
             <el-table-column label="客户" min-width="150"><template #default="{ row }"><button class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || row.clientCode }}</button></template></el-table-column>
             <el-table-column label="计划时间" min-width="190"><template #default="{ row }">{{ formatDateTime(row.plannedStart) }}<div class="cell-sub">至 {{ timeOnly(row.plannedEnd) }}</div></template></el-table-column>
             <el-table-column label="目的地/目的" min-width="190"><template #default="{ row }"><div>{{ row.destination }}</div><div class="cell-sub">{{ row.purpose }}</div></template></el-table-column>
-            <el-table-column label="打卡" min-width="170"><template #default="{ row }"><div>出发：{{ row.actualDepartedAt ? formatDateTime(row.actualDepartedAt) : '未打卡' }}</div><div class="cell-sub">返回：{{ row.actualReturnedAt ? formatDateTime(row.actualReturnedAt) : '未打卡' }}</div></template></el-table-column>
+            <el-table-column label="打卡" min-width="210"><template #default="{ row }"><div>出发：{{ row.actualDepartedAt ? formatDateTime(row.actualDepartedAt) : '未打卡' }}<button v-if="row.departedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'DEPART', '出发打卡照片')">照片</button></div><div class="cell-sub">返回：{{ row.actualReturnedAt ? formatDateTime(row.actualReturnedAt) : '未打卡' }}<button v-if="row.returnedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'RETURN', '返回打卡照片')">照片</button></div></template></el-table-column>
+            <el-table-column label="审核" min-width="170"><template #default="{ row }"><div>{{ row.reviewerName || (row.status === 'PENDING_REVIEW' ? '待审核' : '—') }}</div><div class="cell-sub" :title="row.reviewRemark || ''">{{ row.reviewedAt ? formatDateTime(row.reviewedAt) : '' }}<span v-if="row.reviewRemark"> · {{ row.reviewRemark }}</span></div></template></el-table-column>
             <el-table-column label="状态" width="110"><template #default="{ row }"><el-tag :type="outingTag(row.status)" size="small">{{ outingStatusText[row.status] || row.status }}</el-tag></template></el-table-column>
-            <el-table-column label="操作" width="130" fixed="right"><template #default="{ row }"><el-button v-if="isOwnOuting(row) && row.status === 'READY'" link type="primary" @click="checkIn(row, 'depart')">出发打卡</el-button><el-button v-if="isOwnOuting(row) && row.status === 'IN_PROGRESS'" link type="success" @click="checkIn(row, 'return')">返回打卡</el-button><span v-if="!isOwnOuting(row)" class="cell-sub">仅可查看</span></template></el-table-column>
+            <el-table-column label="操作" width="170" fixed="right"><template #default="{ row }"><template v-if="isOwnOuting(row)"><el-button v-if="row.status === 'READY'" link type="primary" @click="checkIn(row, 'depart')">出发打卡</el-button><el-button v-if="row.status === 'IN_PROGRESS'" link type="success" @click="checkIn(row, 'return')">返回打卡</el-button><el-button v-if="row.status === 'REJECTED'" link type="warning" @click="openResubmit(row)">重新提交</el-button><span v-if="row.status === 'PENDING_REVIEW'" class="cell-sub">待主管审核</span></template><template v-else-if="canReviewOuting(row)"><el-button v-if="row.status === 'PENDING_REVIEW'" link type="success" @click="onApprove(row)">通过</el-button><el-button v-if="row.status === 'PENDING_REVIEW'" link type="danger" @click="openReject(row)">驳回</el-button><span v-if="row.status !== 'PENDING_REVIEW'" class="cell-sub">仅可查看</span></template><span v-else class="cell-sub">仅可查看</span></template></el-table-column>
           </el-table>
           <AppPagination v-model:page="outingQuery.page" v-model:size="outingQuery.size" :total="outingTotal" @change="loadOutings" />
         </el-tab-pane>
@@ -127,6 +128,56 @@
             </aside>
             <section class="timeline-panel">
               <div class="panel-head replay-head"><div><h3>{{ selectedClientName }}</h3><span v-if="selectedClient">{{ selectedClient.clientCode }}</span></div><el-button v-if="canAddFollow" type="primary" @click="openFollow">新增跟进</el-button></div>
+
+              <div v-if="selectedClient" v-loading="insightLoading" class="insight-panel">
+                <div class="insight-head">
+                  <div>
+                    <h4>客户画像</h4>
+                    <span v-if="insight">第 {{ insight.snapshotVersion }} 版 · {{ generatedByText[insight.generatedBy] || insight.generatedBy }} · {{ formatDateTime(insight.generatedAt) }}</span>
+                    <span v-else>尚未生成画像快照</span>
+                  </div>
+                  <div class="insight-actions">
+                    <el-tag v-if="insight" :type="insightStatusTag[insight.status]" size="small">{{ insightStatusText[insight.status] || insight.status }}</el-tag>
+                    <el-button v-if="canGenerateInsight" link type="primary" @click="onGenerateInsight">生成新版本</el-button>
+                    <template v-if="canReviewInsight">
+                      <el-button link type="success" @click="onReviewInsight('APPROVE')">复核通过</el-button>
+                      <el-button link type="danger" @click="onReviewInsight('REJECT')">驳回</el-button>
+                    </template>
+                  </div>
+                </div>
+                <template v-if="insight">
+                  <div class="insight-grid">
+                    <div class="insight-block">
+                      <strong>维度摘要</strong>
+                      <ul v-if="dimensionPairs(insight.dimension).length"><li v-for="item in dimensionPairs(insight.dimension)" :key="item.key">{{ item.key }}：{{ item.value }}</li></ul>
+                      <p v-else class="cell-sub">暂无维度数据</p>
+                    </div>
+                    <div class="insight-block">
+                      <strong>风险提示</strong>
+                      <ul v-if="insight.riskFlags?.length" class="insight-risk"><li v-for="(item, idx) in insight.riskFlags" :key="idx">{{ item }}</li></ul>
+                      <p v-else class="cell-sub">暂无风险提示</p>
+                    </div>
+                    <div class="insight-block">
+                      <strong>经营建议</strong>
+                      <ul v-if="insight.advice?.length"><li v-for="(item, idx) in insight.advice" :key="idx">{{ item }}</li></ul>
+                      <p v-else class="cell-sub">暂无建议</p>
+                    </div>
+                    <div class="insight-block">
+                      <strong>来源与核验</strong>
+                      <p class="cell-sub">{{ insight.sourceSummary?.dataSourceNotice || '暂无来源说明' }}</p>
+                      <p class="cell-sub">材料版本：{{ insight.sourceSummary?.materialVersion || '—' }} · 数据期间：{{ insight.sourceSummary?.dataPeriod || '—' }}</p>
+                      <p class="cell-sub">核验状态：{{ insight.sourceSummary?.materialReview?.verified ? '资料已核验' : '资料待核验' }}（待核验 {{ insight.sourceSummary?.materialReview?.pending || 0 }} · 需补充 {{ insight.sourceSummary?.materialReview?.rejected || 0 }}）</p>
+                      <p v-if="insight.reviewRemark" class="cell-sub">复核意见：{{ insight.reviewRemark }}（{{ insight.reviewedBy || '—' }}）</p>
+                    </div>
+                  </div>
+                  <div v-if="insightHistory.length" class="insight-versions">
+                    <strong>版本链</strong>
+                    <span v-for="item in insightHistory" :key="item.snapshotNo" class="version-chip" :class="{ active: item.current }">第 {{ item.snapshotVersion }} 版 · {{ insightStatusText[item.status] || item.status }}</span>
+                  </div>
+                </template>
+                <p v-else class="cell-sub">尚未生成画像快照；生成后由主管复核生效，客户端只看到脱敏摘要。</p>
+              </div>
+
               <el-timeline v-if="timeline.length" v-loading="timelineLoading">
                 <el-timeline-item v-for="item in timeline" :key="item.eventNo" :timestamp="formatDateTime(item.happenedAt)" placement="top">
                   <div class="timeline-card"><strong>{{ eventText[item.eventType] || item.eventType }}</strong><p>{{ item.summary || '—' }}</p><span>{{ actorText[item.actorType] || item.actorType }} · {{ item.visibility === 'CUSTOMER' ? '客户可见' : '仅员工可见' }}</span></div>
@@ -162,13 +213,43 @@
       </el-form>
     </AppDialog>
 
-    <AppDialog v-model:visible="checkInVisible" :title="checkInMode === 'depart' ? '出发打卡' : '返回打卡'" width="520px" :loading="saving" @confirm="submitCheckIn">
-      <el-alert title="只保存本次打卡的单点位置，不采集连续轨迹。" type="info" :closable="false" show-icon />
+    <AppDialog v-model:visible="checkInVisible" :title="checkInMode === 'depart' ? '出发打卡' : '返回打卡'" width="540px" :loading="saving" @confirm="submitCheckIn">
+      <el-alert title="打卡必须同时提交现场照片与单点定位；只保存本次位置，不采集连续轨迹。" type="info" :closable="false" show-icon />
       <div class="checkin-box"><el-button :loading="locating" @click="locate">获取当前位置</el-button><span>{{ checkInForm.locationText || '尚未获取定位' }}</span><small v-if="checkInForm.accuracyMeters">定位精度约 {{ Math.round(checkInForm.accuracyMeters) }} 米</small></div>
+      <el-form label-width="90px" class="dialog-form">
+        <el-form-item label="现场照片" required>
+          <el-upload :auto-upload="false" :limit="1" accept="image/*" :file-list="checkInPhotoFiles" :on-change="onPickCheckInPhoto" :on-remove="resetCheckInPhotos">
+            <el-button :loading="photoUploading">选择照片</el-button>
+          </el-upload>
+          <span class="cell-sub">{{ checkInForm.photoFileKey ? '照片已上传，可提交打卡' : '支持 jpg / jpeg / png / webp，不超过 10MB' }}</span>
+        </el-form-item>
+      </el-form>
     </AppDialog>
 
-    <AppDialog v-model:visible="outingCreateVisible" title="创建上门外出记录" width="540px" :loading="saving" @confirm="submitOuting">
-      <el-alert title="外出无需审批；服务员工需在出发和返回时分别完成一次单点位置打卡。" type="info" :closable="false" show-icon />
+    <AppDialog v-model:visible="rejectVisible" title="驳回外出申请" width="520px" :loading="saving" @confirm="submitReject">
+      <el-alert title="驳回后申请人可修改并重新提交，原因会记录在审核留痕与客户活动回放中。" type="warning" :closable="false" show-icon />
+      <el-form label-width="90px" class="dialog-form">
+        <el-form-item label="申请人"><span>{{ rejectTarget?.staffName || rejectTarget?.staffCode }}</span></el-form-item>
+        <el-form-item label="驳回原因" required><el-input v-model="rejectReason" type="textarea" :rows="3" placeholder="必填：说明需要补充或修正的内容" /></el-form-item>
+      </el-form>
+    </AppDialog>
+
+    <AppDialog v-model:visible="resubmitVisible" title="重新提交外出申请" width="540px" :loading="saving" @confirm="submitResubmit">
+      <el-alert :title="`上次驳回原因：${resubmitTarget?.reviewRemark || '—'}`" type="warning" :closable="false" show-icon />
+      <el-form label-width="90px" class="dialog-form">
+        <el-form-item label="目的地" required><el-input v-model="resubmitForm.destination" /></el-form-item>
+        <el-form-item label="拜访目的" required><el-input v-model="resubmitForm.purpose" /></el-form-item>
+        <el-form-item label="内部备注"><el-input v-model="resubmitForm.internalNote" type="textarea" :rows="2" /></el-form-item>
+      </el-form>
+    </AppDialog>
+
+    <AppDialog v-model:visible="photoVisible" :title="photoTitle" width="640px">
+      <img v-if="photoUrl" :src="photoUrl" alt="打卡照片" class="checkin-photo" />
+      <template #footer><el-button @click="photoVisible = false">关闭</el-button></template>
+    </AppDialog>
+
+    <AppDialog v-model:visible="outingCreateVisible" title="提交上门外出申请" width="540px" :loading="saving" @confirm="submitOuting">
+      <el-alert title="只能由预约的主服务顾问本人提交，不接受他人代录；提交后需主管审核通过，才能出发与返回打卡。" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="dialog-form">
         <el-form-item label="客户"><span>{{ outingCreateTarget?.customerName || outingCreateTarget?.clientCode }}</span></el-form-item>
         <el-form-item label="目的地" required><el-input v-model="outingCreateForm.destination" placeholder="上门服务地点" /></el-form-item>
@@ -205,6 +286,8 @@ import {
   arriveAppointment, startAppointment, completeAppointment, noShowAppointment,
   cancelAppointment, rescheduleAppointment, pageOutings, departOuting, returnOuting,
   createOuting, createFollowRecord, getClientActivityTimeline,
+  approveOuting, rejectOuting, resubmitOuting, uploadOutingPhoto, fetchOutingPhoto,
+  getClientInsight, getClientInsightHistory, generateClientInsight, reviewClientInsight,
 } from '@/api/serviceOperations';
 import { useUserStore } from '@/store/user';
 import { formatDateTime } from '@/utils/format';
@@ -226,15 +309,15 @@ const saving = ref(false);
 
 const methodText = Object.freeze({ COMPANY_ON_SITE: '到公司现场', HOME_VISIT: '上门拜访', VIDEO_MEETING: '视频会议', PHONE_CONSULT: '电话咨询' });
 const appointmentStatusText = Object.freeze({ REQUESTED: '待确认', CONFIRMED: '已确认', ARRIVED: '已到店', SERVING: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', NO_SHOW: '未到场', RESCHEDULED: '已改期' });
-const outingStatusText = Object.freeze({ DRAFT: '草稿', READY: '待出发', IN_PROGRESS: '外出中', COMPLETED: '已返回', CANCELLED: '已取消' });
+const outingStatusText = Object.freeze({ DRAFT: '草稿', PENDING_REVIEW: '待审核', REJECTED: '已驳回', READY: '待出发', IN_PROGRESS: '外出中', COMPLETED: '已返回', CANCELLED: '已取消' });
 const followChannelText = Object.freeze({ PHONE: '电话咨询', COMPANY_ON_SITE: '到公司现场', HOME_VISIT: '上门拜访', VIDEO_MEETING: '视频会议', WECOM: '企业微信', OTHER: '其他' });
-const eventText = Object.freeze({ APPOINTMENT_CREATED: '创建预约', CUSTOMER_CONFIRMED: '客户确认', APPOINTMENT_CONFIRMED: '预约确认', CUSTOMER_ARRIVED: '客户到店', SERVICE_STARTED: '开始服务', SERVICE_COMPLETED: '服务完成', APPOINTMENT_CANCELLED: '取消预约', APPOINTMENT_NO_SHOW: '客户未到场', APPOINTMENT_RESCHEDULED: '预约改期', OUTING_READY: '外出准备', OUTING_DEPARTED: '出发打卡', OUTING_RETURNED: '返回打卡', FOLLOW_RECORDED: '客户跟进' });
+const eventText = Object.freeze({ APPOINTMENT_CREATED: '创建预约', CUSTOMER_CONFIRMED: '客户确认', APPOINTMENT_CONFIRMED: '预约确认', CUSTOMER_ARRIVED: '客户到店', SERVICE_STARTED: '开始服务', SERVICE_COMPLETED: '服务完成', APPOINTMENT_CANCELLED: '取消预约', APPOINTMENT_NO_SHOW: '客户未到场', APPOINTMENT_RESCHEDULED: '预约改期', OUTING_SUBMITTED: '提交外出申请', OUTING_APPROVED: '外出审核通过', OUTING_REJECTED: '外出申请驳回', OUTING_DEPARTED: '出发打卡', OUTING_RETURNED: '返回打卡', FOLLOW_RECORDED: '客户跟进' });
 const actorText = Object.freeze({ STAFF: '员工', CUSTOMER: '客户', SYSTEM: '系统' });
 function recordsOf(page) { return Array.isArray(page?.records) ? page.records : []; }
 function totalOf(page) { return Number(page?.total || 0); }
 function timeOnly(value) { const text = formatDateTime(value); return text === '-' ? text : text.slice(11, 16); }
 function appointmentTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', NO_SHOW: 'danger', SERVING: 'warning', ARRIVED: 'warning' })[status] || ''; }
-function outingTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', IN_PROGRESS: 'warning' })[status] || ''; }
+function outingTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', IN_PROGRESS: 'warning', PENDING_REVIEW: 'warning', REJECTED: 'danger' })[status] || ''; }
 
 const workbench = ref({});
 const workbenchLoading = ref(false);
@@ -343,12 +426,58 @@ async function submitChange() {
   } finally { saving.value = false; }
 }
 
+const userRole = computed(() => userStore.roleCode || '');
+const reviewerRoles = ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'];
+/** 前端只做按钮可见性判断，最终以服务端策略为准（禁止自审 + 部门经理限本部门）。 */
+function canReviewOuting(row) {
+  if (!userNo.value || row.staffCode === userNo.value) return false;
+  if (reviewerRoles.includes(userRole.value)) return true;
+  if (userRole.value === 'DEPT_MANAGER') return !!row.deptCode && row.deptCode === userStore.user?.deptCode;
+  return false;
+}
+
 const checkInVisible = ref(false);
 const checkInMode = ref('depart');
 const checkInTarget = ref(null);
 const locating = ref(false);
-const checkInForm = reactive({ latitude: null, longitude: null, accuracyMeters: null, locationText: '', collectedAt: '' });
-function checkIn(row, mode) { checkInTarget.value = row; checkInMode.value = mode; Object.assign(checkInForm, { latitude: null, longitude: null, accuracyMeters: null, locationText: '', collectedAt: '' }); checkInVisible.value = true; locate(); }
+const photoUploading = ref(false);
+const checkInPhotoFiles = ref([]);
+const checkInForm = reactive({ latitude: null, longitude: null, accuracyMeters: null, locationText: '', collectedAt: '', photoFileKey: '' });
+function checkIn(row, mode) {
+  checkInTarget.value = row;
+  checkInMode.value = mode;
+  Object.assign(checkInForm, { latitude: null, longitude: null, accuracyMeters: null, locationText: '', collectedAt: '', photoFileKey: '' });
+  resetCheckInPhotos();
+  checkInVisible.value = true;
+  locate();
+}
+/** 选照片即上传：先拿 fileKey，避免提交打卡时才发现照片没传成功。 */
+async function onPickCheckInPhoto(uploadFile) {
+  const raw = uploadFile?.raw;
+  if (!raw) return;
+  if (!raw.type || !raw.type.startsWith('image/')) return ElMessage.warning('只能上传图片文件');
+  if (raw.size > 10 * 1024 * 1024) return ElMessage.warning('打卡照片不能超过 10MB');
+  photoUploading.value = true;
+  try {
+    const res = await uploadOutingPhoto(checkInTarget.value.outingNo, raw);
+    const fileKey = res?.data?.fileKey || '';
+    if (!fileKey) {
+      resetCheckInPhotos();
+      return ElMessage.warning('照片上传未返回标识，请重新选择');
+    }
+    checkInForm.photoFileKey = fileKey;
+    checkInPhotoFiles.value = [{ name: raw.name, uid: uploadFile.uid || Date.now(), url: URL.createObjectURL(raw) }];
+  } catch (e) {
+    resetCheckInPhotos();
+  } finally {
+    photoUploading.value = false;
+  }
+}
+function resetCheckInPhotos() {
+  (checkInPhotoFiles.value || []).forEach((item) => { if (item.url) URL.revokeObjectURL(item.url); });
+  checkInPhotoFiles.value = [];
+  checkInForm.photoFileKey = '';
+}
 function locate() {
   if (!navigator.geolocation) return ElMessage.error('当前浏览器不支持定位');
   locating.value = true;
@@ -356,9 +485,61 @@ function locate() {
 }
 async function submitCheckIn() {
   if (checkInForm.latitude == null) return ElMessage.warning('请先获取当前位置');
+  if (!checkInForm.photoFileKey) return ElMessage.warning('请先上传现场照片');
   saving.value = true;
   try { const fn = checkInMode.value === 'depart' ? departOuting : returnOuting; await fn(checkInTarget.value.outingNo, { ...checkInForm }); checkInVisible.value = false; ElMessage.success(`${checkInMode.value === 'depart' ? '出发' : '返回'}打卡成功`); await Promise.all([loadOutings(), loadWorkbench()]); }
   finally { saving.value = false; }
+}
+
+const rejectVisible = ref(false);
+const rejectTarget = ref(null);
+const rejectReason = ref('');
+function openReject(row) { rejectTarget.value = row; rejectReason.value = ''; rejectVisible.value = true; }
+async function submitReject() {
+  if (!rejectReason.value.trim()) return ElMessage.warning('驳回原因必填');
+  saving.value = true;
+  try {
+    await rejectOuting(rejectTarget.value.outingNo, rejectReason.value.trim());
+    rejectVisible.value = false;
+    ElMessage.success('已驳回，申请人可修改后重新提交');
+    await Promise.all([loadOutings(), loadWorkbench()]);
+  } finally { saving.value = false; }
+}
+async function onApprove(row) {
+  await ElMessageBox.confirm(`确认通过「${row.staffName || row.staffCode}」的外出申请？通过后其可完成出发与返回打卡。`, '审核确认');
+  await approveOuting(row.outingNo, '');
+  ElMessage.success('已通过审核');
+  await Promise.all([loadOutings(), loadWorkbench()]);
+}
+
+const resubmitVisible = ref(false);
+const resubmitTarget = ref(null);
+const resubmitForm = reactive({ destination: '', purpose: '', internalNote: '' });
+function openResubmit(row) { resubmitTarget.value = row; Object.assign(resubmitForm, { destination: row.destination || '', purpose: row.purpose || '', internalNote: '' }); resubmitVisible.value = true; }
+async function submitResubmit() {
+  if (!resubmitForm.destination.trim() || !resubmitForm.purpose.trim()) return ElMessage.warning('目的地和拜访目的必填');
+  saving.value = true;
+  try {
+    await resubmitOuting(resubmitTarget.value.outingNo, { ...resubmitForm });
+    resubmitVisible.value = false;
+    ElMessage.success('已重新提交，等待主管审核');
+    await Promise.all([loadOutings(), loadWorkbench()]);
+  } finally { saving.value = false; }
+}
+
+const photoVisible = ref(false);
+const photoUrl = ref('');
+const photoTitle = ref('打卡照片');
+async function viewPhoto(row, phase, title) {
+  photoTitle.value = title || '打卡照片';
+  try {
+    const blob = await fetchOutingPhoto(row.outingNo, phase);
+    if (photoUrl.value) URL.revokeObjectURL(photoUrl.value);
+    photoUrl.value = URL.createObjectURL(blob);
+    photoVisible.value = true;
+  } catch (e) {
+    ElMessage.error('打卡照片获取失败或已失效');
+  }
 }
 
 const outingCreateVisible = ref(false);
@@ -375,7 +556,7 @@ async function submitOuting() {
   try {
     await createOuting({ appointmentNo: outingCreateTarget.value.appointmentNo, ...outingCreateForm });
     outingCreateVisible.value = false;
-    ElMessage.success('外出记录已创建，员工可在外出名单完成双打卡');
+    ElMessage.success('外出申请已提交，待主管审核通过后可打卡');
     await Promise.all([loadAppointments(), loadWorkbench()]);
   } finally { saving.value = false; }
 }
@@ -388,13 +569,69 @@ const selectedClient = ref(null);
 const selectedClientName = computed(() => selectedClient.value ? (selectedClient.value.enterpriseName || selectedClient.value.contactName || selectedClient.value.clientCode) : '客户活动回放');
 const canAddFollow = computed(() => selectedClient.value?.ownerStaffCode === userNo.value);
 async function searchClients() { clientLoading.value = true; clientSearched.value = true; try { const page = (await pageClients({ keyword: clientKeyword.value, page: 1, size: 20, scope: userStore.roleCode === 'ADVISER' ? 'MY' : 'ALL' })).data || {}; clientOptions.value = recordsOf(page); } finally { clientLoading.value = false; } }
-function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ query: { ...route.query, tab: 'replay', clientCode: row.clientCode } }); loadTimeline(); }
+function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ query: { ...route.query, tab: 'replay', clientCode: row.clientCode } }); loadInsight(); loadTimeline(); }
 function openClientReplay(clientCode) { activeTab.value = 'replay'; clientKeyword.value = clientCode; searchClients().then(() => { const row = clientOptions.value.find((item) => item.clientCode === clientCode) || { clientCode }; selectClient(row); }); }
 const timeline = ref([]);
 const timelineTotal = ref(0);
 const timelineLoading = ref(false);
 const timelineQuery = reactive({ page: 1, size: 20 });
 async function loadTimeline() { if (!selectedClient.value?.clientCode) return; timelineLoading.value = true; try { const page = (await getClientActivityTimeline(selectedClient.value.clientCode, timelineQuery)).data || {}; timeline.value = recordsOf(page); timelineTotal.value = totalOf(page); } finally { timelineLoading.value = false; } }
+
+const insight = ref(null);
+const insightLoading = ref(false);
+const insightHistory = ref([]);
+const canGenerateInsight = computed(() => !!selectedClient.value && selectedClient.value.ownerStaffCode === userNo.value);
+const canReviewInsight = computed(() => {
+  if (!selectedClient.value || !insight.value || insight.value.current) return false;
+  if (['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode)) return true;
+  return userStore.roleCode === 'DEPT_MANAGER';
+});
+const insightStatusText = { DRAFT: '待复核', REVIEWED: '已复核', CURRENT: '当前生效', ARCHIVED: '已归档' };
+const insightStatusTag = { DRAFT: 'warning', REVIEWED: 'info', CURRENT: 'success', ARCHIVED: 'info' };
+const generatedByText = { AI: 'AI 生成', RULE: '规则聚合', STAFF: '员工复核' };
+
+async function loadInsight() {
+  if (!selectedClient.value?.clientCode) return;
+  insightLoading.value = true;
+  try {
+    const code = selectedClient.value.clientCode;
+    const current = (await getClientInsight(code)).data || null;
+    const page = (await getClientInsightHistory(code, { page: 1, size: 10 })).data || {};
+    insight.value = current;
+    insightHistory.value = recordsOf(page);
+  } finally { insightLoading.value = false; }
+}
+
+/** 维度对象按「键：值」展开，未知结构不渲染，避免页面出现 [object Object]。 */
+function dimensionPairs(source) {
+  if (!source || typeof source !== 'object') return [];
+  return Object.entries(source)
+    .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
+    .map(([key, value]) => ({ key: dimensionLabels[key] || key, value: String(value) }));
+}
+const dimensionLabels = {
+  reportAvailable: '经营分析报告', customerGroup: '客群', source: '客户来源',
+  appointmentTotal: '预约总数', arrivedCount: '实际到店', noShowCount: '未到场',
+  outingTotal: '外出服务', outingCompleted: '已完成外出', followTotal: '跟进记录', pendingFollows: '待回访',
+};
+
+async function onGenerateInsight() {
+  saving.value = true;
+  try { await generateClientInsight(selectedClient.value.clientCode); ElMessage.success('画像快照已生成，待复核'); await Promise.all([loadInsight(), loadTimeline()]); }
+  finally { saving.value = false; }
+}
+async function onReviewInsight(decision) {
+  let remark = '';
+  if (decision === 'REJECT') {
+    const result = await ElMessageBox.prompt('请填写驳回原因', '驳回画像快照', { inputPlaceholder: '驳回原因必填', inputValidator: (v) => (v && v.trim() ? true : '驳回原因必填') });
+    remark = result.value;
+  } else {
+    await ElMessageBox.confirm('通过后该版本立即成为当前生效画像，原版本自动归档。', '复核通过', { type: 'warning' });
+  }
+  saving.value = true;
+  try { await reviewClientInsight(selectedClient.value.clientCode, insight.value.snapshotNo, { decision, remark }); ElMessage.success(decision === 'APPROVE' ? '画像已生效' : '画像已驳回归档'); await Promise.all([loadInsight(), loadTimeline()]); }
+  finally { saving.value = false; }
+}
 
 const followVisible = ref(false);
 const followCustomerVisible = ref(false);
@@ -447,12 +684,32 @@ onMounted(async () => {
 .client-results { max-height: 460px; margin-top: 10px; overflow-y: auto; }
 .client-option { display: block; padding: 12px; border-radius: var(--loan-radius-sm); }
 .replay-head { min-height: 42px; }
+.insight-panel { padding: 14px 16px; margin-bottom: 16px; border: 1px solid var(--loan-border); border-radius: var(--loan-radius); background: var(--loan-surface); }
+.insight-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.insight-head h4 { margin: 0 0 4px; font-size: 15px; font-weight: 500; color: var(--loan-text); }
+.insight-head span { font-size: 12px; color: var(--loan-text-muted); }
+.insight-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+.insight-block { padding: 12px; border: 1px solid var(--loan-border); border-radius: var(--loan-radius-sm); }
+.insight-block strong, .insight-versions strong { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--loan-text); }
+.insight-block ul { margin: 0; padding-left: 16px; }
+.insight-block li { margin-bottom: 4px; font-size: 13px; line-height: 1.6; color: var(--loan-text-secondary); }
+.insight-risk li { color: var(--loan-warning-text); }
+.insight-block p { margin: 0 0 4px; }
+.insight-versions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; font-size: 12px; color: var(--loan-text-muted); }
+.insight-versions strong { margin-bottom: 0; }
+.version-chip { padding: 2px 8px; border: 1px solid var(--loan-border); border-radius: 999px; }
+.version-chip.active { border-color: var(--loan-primary); color: var(--loan-primary); }
 .timeline-card { padding: 12px 14px; border: 1px solid var(--loan-border); border-radius: var(--loan-radius-sm); background: var(--loan-surface); }
 .timeline-card p { margin: 7px 0; color: var(--loan-text-secondary); }
 .timeline-card span { color: var(--loan-text-muted); font-size: 12px; }
 .dialog-form { margin-top: 18px; }
 .checkin-box { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; margin-top: 18px; padding: 16px; border: 1px solid var(--loan-border); border-radius: var(--loan-radius); }
 .checkin-box small { grid-column: 2; color: var(--loan-text-muted); }
+/* 打卡照片预览：限制最大高度避免大图撑爆弹窗 */
+.checkin-photo { display: block; width: 100%; max-height: 60vh; object-fit: contain; border-radius: var(--loan-radius); }
+/* 表格内的「照片」按钮紧跟在打卡时间后面，留一点间距 */
+.cell-sub .text-link, td .text-link { margin-left: 6px; }
 @media (max-width: 1100px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } .replay-layout { grid-template-columns: 240px minmax(0, 1fr); } }
 @media (max-width: 760px) { .service-header { align-items: flex-start; } .header-actions { width: 100%; } .metric-grid, .list-grid, .replay-layout { grid-template-columns: 1fr; } .client-picker { padding-right: 0; padding-bottom: 14px; border-right: 0; border-bottom: 1px solid var(--loan-border); } }
 </style>

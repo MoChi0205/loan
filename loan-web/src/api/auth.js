@@ -10,17 +10,12 @@ export function getPublicKey() {
   });
 }
 
-export function login(data) {
-  return request({
-    url: '/api/auth/login',
-    method: 'post',
-    data,
-  });
+export function getCaptcha() {
+  return request({ url: '/api/auth/captcha', method: 'get', params: { _: Date.now() } });
 }
 
 /**
- * 渠道账号登录（阶段一联调：密码传约定模拟串 loan-sim-pwd，后端旁路 BCrypt，T11/D21）。
- * 正式接入 RSA 加密后改为：password = JSEncrypt 加密 Base64。
+ * 渠道账号登录。password 必须使用登录公钥进行 RSA PKCS#1 加密。
  */
 export function channelLogin(data) {
   return request({
@@ -29,12 +24,19 @@ export function channelLogin(data) {
     data,
   });
 }
-export function sendLoginCode(phone) {
-  return request({ url: '/api/sms/send-code', method: 'post', data: { phone } });
+export function passwordLogin(data) {
+  return request({ url: '/api/auth/password-login', method: 'post', data });
+}
+export function sendLoginCode(phone, captchaId, captchaCode, scene = 'LOGIN') {
+  return request({ url: '/api/sms/send-code', method: 'post', data: { phone, captchaId, captchaCode, scene } });
 }
 
 export function codeLogin(data) {
   return request({ url: '/api/auth/code-login', method: 'post', data });
+}
+
+export function resetPassword(data) {
+  return request({ url: '/api/auth/reset-password', method: 'post', data });
 }
 
 export function logout() {

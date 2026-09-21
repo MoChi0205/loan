@@ -9,8 +9,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -19,9 +17,6 @@ import java.util.Map;
  *
  * <p>接口：{@code GET https://api.weixin.qq.com/sns/jscode2session?appid=&secret=&js_code=&grant_type=authorization_code}
  * 返回 {@code openid/session_key/unionid} 或 {@code errcode/errmsg}。
- *
- * <p>Mock 开关（{@code wechat.mock=true}）：不调微信，按 code 哈希生成稳定 openid（前缀 mock_），
- * 供本地/联调无真实凭证时打通登录链路。
  *
  * @author loan-platform
  */
@@ -49,12 +44,10 @@ public class WxCode2SessionService {
         if (!StringUtils.hasText(code)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "wx.login code 必填");
         }
-        if (wxProperties.isMock()) {
-            return mockOpenid(code);
-        }
         if (!StringUtils.hasText(wxProperties.getAppid())
-                || "wx_CHANGE_ME".equals(wxProperties.getAppid())) {
-            throw new BusinessException(ResultCode.RULE_CONFIG_ERROR, "未配置 wechat.appid");
+                || "wx_CHANGE_ME".equals(wxProperties.getAppid())
+                || !StringUtils.hasText(wxProperties.getSecret())) {
+            throw new BusinessException(ResultCode.RULE_CONFIG_ERROR, "未配置真实微信 appid/secret");
         }
         Map<String, String> vars = new LinkedHashMap<>();
         vars.put("appid", wxProperties.getAppid());
@@ -79,23 +72,4 @@ public class WxCode2SessionService {
         }
     }
 
-    /**
-     * Mock 模式：按 code 哈希伪造稳定 openid（mock_ + 32 位），同 code 命中同 openid。
-     *
-     * @param code 临时凭证
-     * @return Mock openid
-     */
-    private String mockOpenid(String code) {
-        try {
-            byte[] d = MessageDigest.getInstance("SHA-256")
-                    .digest(code.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder("mock_");
-            for (byte b : d) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.substring(0, 40);
-        } catch (Exception e) {
-            throw new IllegalStateException("Mock openid 生成失败", e);
-        }
-    }
 }

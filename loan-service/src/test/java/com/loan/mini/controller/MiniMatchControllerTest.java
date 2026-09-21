@@ -25,6 +25,8 @@ import com.loan.exception.GlobalExceptionHandler;
 import com.loan.mini.service.MiniMatchService;
 import com.loan.mini.dto.CustomerRiskAnalysisResult;
 import com.loan.mini.dto.MiniMatchResult;
+import com.loan.report.dto.CustomerReportDetail;
+import com.loan.report.dto.StaffReportDetail;
 
 /**
  * L1 接口契约测试（自动生成，共 4 端点，其中 4 个需登录）。
@@ -179,10 +181,61 @@ class MiniMatchControllerTest {
     @Test
     @DisplayName("GET /api/mini/report/test [auth]")
     void get_api_mini_report_test() throws Exception {
+        StaffReportDetail detail = new StaffReportDetail();
+        detail.setReportNo("test");
+        Mockito.when(miniMatchService.staffReportDetail("test")).thenReturn(detail);
         try {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(get("/api/mini/report/test"))
                 .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").exists());
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("客户报告详情使用独立 DTO 且不包含内部字段")
+    void customer_report_detail_hides_internal_fields() throws Exception {
+        CustomerReportDetail detail = new CustomerReportDetail();
+        detail.setReportNo("R-CUSTOMER");
+        detail.setAnalysisStatus("ATTENTION");
+        detail.setRiskSummary("建议补充经营流水");
+        detail.setDataSourceNotice("本报告仅使用客户主动填写及授权上传材料；未调用外部个人信息查询接口。");
+        Mockito.when(miniMatchService.customerReportDetail("R-CUSTOMER", "CU_TEST_001")).thenReturn(detail);
+        try {
+            UserContext.setUser(TestUsers.customerUser());
+            mvc.perform(get("/api/mini/report/R-CUSTOMER"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.analysisStatus").value("ATTENTION"))
+                .andExpect(jsonPath("$.data.dataSourceNotice").exists())
+                .andExpect(jsonPath("$.data.bankCount").doesNotExist())
+                .andExpect(jsonPath("$.data.productCount").doesNotExist())
+                .andExpect(jsonPath("$.data.grade").doesNotExist())
+                .andExpect(jsonPath("$.data.totalResult").doesNotExist())
+                .andExpect(jsonPath("$.data.ruleLogs").doesNotExist());
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("员工报告详情使用独立 DTO 并保留内部字段")
+    void staff_report_detail_keeps_internal_fields() throws Exception {
+        StaffReportDetail detail = new StaffReportDetail();
+        detail.setReportNo("R-STAFF");
+        detail.setGrade("HIGH");
+        detail.setTotalResult("PASS");
+        detail.setBankCount(2);
+        detail.setProductCount(3);
+        Mockito.when(miniMatchService.staffReportDetail("R-STAFF")).thenReturn(detail);
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(get("/api/mini/report/R-STAFF"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.grade").value("HIGH"))
+                .andExpect(jsonPath("$.data.totalResult").value("PASS"))
+                .andExpect(jsonPath("$.data.bankCount").value(2))
+                .andExpect(jsonPath("$.data.productCount").value(3));
         } finally {
             UserContext.clear();
         }

@@ -59,6 +59,16 @@ class ApiPermissionSyncServiceTest {
         assertTrue(manager.contains("approval:unifiedAudit"));
     }
 
+    /** 员工报告聚合接口沿用报告详情的数据范围校验，顾问和主管均需具备入口权限。 */
+    @Test
+    void staffRolesIncludeScreeningAggregateApi() {
+        Map<String, List<String>> defaults = service().defaultRoleApis(keys(
+                "report:screeningDetail", "report:screeningAggregate"));
+
+        assertTrue(defaults.get("ADVISER").contains("report:screeningAggregate"));
+        assertTrue(defaults.get("DEPT_MANAGER").contains("report:screeningAggregate"));
+    }
+
     private ApiPermissionSyncService service() {
         return new ApiPermissionSyncService(
                 mock(RequestMappingHandlerMapping.class),

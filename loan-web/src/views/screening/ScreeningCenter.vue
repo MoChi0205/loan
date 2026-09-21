@@ -33,11 +33,14 @@
           </el-form-item>
 
           <el-divider content-position="left">经营事实（{{ selectedClient?.customerGroup === 'PERSONAL' ? '个人：年龄 / 收入 / 信用分 / 房产' : '企业：纳税 / 开票 / 成立年限 / 行业' }}）</el-divider>
-          <el-alert type="info" :closable="false" show-icon class="material-guide">
-            <template #title>精准初筛建议先上传客户材料</template>
-            已复核的 OCR 数据会作为客户事实参与匹配；手填数据仅补充缺失项。
-            <el-button link type="primary" @click="goMaterial">前往材料识别</el-button>
-          </el-alert>
+          <div class="material-guide">
+            <div class="guide-index">1</div>
+            <div class="guide-copy">
+              <strong>先完善材料，匹配结果更准确</strong>
+              <span>系统优先采用已复核材料数据，当前表单只需补充材料中没有的信息。</span>
+            </div>
+            <el-button type="primary" plain size="small" @click="goMaterial">查看材料清单</el-button>
+          </div>
 
           <!-- 企业字段：两列网格 -->
           <template v-if="!selectedClient || selectedClient.customerGroup === 'ENTERPRISE'">
@@ -153,7 +156,7 @@
           <el-option label="Web 录入" value="WEB" />
           <el-option label="邀请提交" value="INVITE" />
         </el-select>
-        <el-input v-model="queryR.keyword" placeholder="客户姓名 / 手机号 / 企业名" clearable style="width: 240px" @keyup.enter="searchR" />
+        <el-input v-model="queryR.keyword" placeholder="企业/客户姓名 / 日期 / 报告编号" clearable style="width: 300px" @keyup.enter="searchR" />
       </AppSearchBar>
 
       <el-table :data="dataR" v-loading="loadingR" stripe row-key="reportNo" style="height: calc(100vh - 320px); min-height: 360px">
@@ -379,6 +382,12 @@ onMounted(() => {
 .btn-row {
   margin-top: 4px;
 }
+.material-guide { display:flex; align-items:center; gap:12px; margin:-4px 0 18px; padding:12px 14px; border:1px solid color-mix(in srgb,var(--loan-primary) 20%,var(--loan-border)); border-radius:10px; background:color-mix(in srgb,var(--loan-primary) 5%,var(--loan-card-bg)); }
+.guide-index { display:grid; place-items:center; flex:0 0 28px; height:28px; border-radius:50%; color:#fff; background:var(--loan-primary); font-weight:700; }
+.guide-copy { flex:1; min-width:0; }
+.guide-copy strong,.guide-copy span { display:block; }
+.guide-copy strong { font-size:13px; color:var(--loan-text); }
+.guide-copy span { margin-top:3px; font-size:12px; line-height:1.5; color:var(--loan-text-secondary,var(--loan-text-muted)); }
 
 /* 结果占位 */
 .result-placeholder {

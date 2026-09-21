@@ -43,6 +43,10 @@ public class ClientProfile implements Serializable {
     /** 手机号 SHA-256 哈希（查重与等值查询） */
     private String phoneHash;
 
+    /** 密码（BCrypt；首次可通过短信重置进行设置） */
+    @TableField(select = false)
+    private String password;
+
     /** 企业名称（企业客群） */
     private String enterpriseName;
 

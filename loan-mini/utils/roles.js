@@ -94,7 +94,7 @@ export const ROLES = {
     label: '客户', tag: '客户', ut: '个人用户', color: '#3AA37E',
     homeSub: '完善资料后发起匹配，结果与经营诊断会同步保存在报告中',
     reportTitle: '我的报告',
-    reportPrompt: '同时查看匹配与诊断结果',
+    reportPrompt: '查看经营分析与风险提示',
     reportDesc: '按生成时间查看历史结果',
     tabs: [tab('home', '首页'), tab('match', '风险分析'), tab('report', '我的报告'), tab('order', '服务单'), tab('mine', '我的')],
     entry: null,

@@ -14,6 +14,9 @@ import com.loan.mini.dto.CustomerRiskAnalysisResult;
 import com.loan.mini.dto.RuleHit;
 import com.loan.report.entity.ClientScreening;
 import com.loan.report.entity.ScreeningProduct;
+import com.loan.report.dto.CustomerReportDetail;
+import com.loan.report.dto.ReportRuleLog;
+import com.loan.report.dto.StaffReportDetail;
 import com.loan.report.mapper.ClientScreeningMapper;
 import com.loan.report.mapper.ScreeningProductMapper;
 import com.loan.report.service.IndustryBenchmarkService;
@@ -116,15 +119,14 @@ public class MiniMatchService {
         if (user != null && LoanUser.TYPE_CUSTOMER.equals(user.getUserType())) {
             return buildCustomerRiskAnalysis(reportNo, facts);
         }
-        Map<String, Object> detail = reportQueryService.miniDetail(reportNo, null);
+        StaffReportDetail detail = reportQueryService.staffDetail(reportNo);
         MiniMatchResult result = new MiniMatchResult();
-        result.setReportNo((String) detail.get("reportNo"));
-        result.setGrade((String) detail.get("grade"));
-        result.setTotalResult((String) detail.get("totalResult"));
-        result.setProductCount(detail.get("productCount") == null ? 0
-                : ((Number) detail.get("productCount")).intValue());
-        result.setRating((String) detail.get("rating"));
-        result.setRuleLogs(toRuleHits(detail.get("ruleLogs")));
+        result.setReportNo(detail.getReportNo());
+        result.setGrade(detail.getGrade());
+        result.setTotalResult(detail.getTotalResult());
+        result.setProductCount(detail.getProductCount() == null ? 0 : detail.getProductCount());
+        result.setRating(detail.getRating());
+        result.setRuleLogs(toRuleHits(detail.getRuleLogs()));
         return result;
     }
 
@@ -165,22 +167,24 @@ public class MiniMatchService {
      * @param clientCode 客户编码
      * @return 报告详情（不含产品明细）
      */
-    public Map<String, Object> reportDetail(String reportNo, String clientCode) {
-        Map<String, Object> detail = reportQueryService.miniDetail(reportNo, clientCode);
-        if (!StringUtils.hasText(clientCode)) {
-            return detail;
-        }
+    public CustomerReportDetail customerReportDetail(String reportNo, String clientCode) {
+        CustomerReportDetail detail = reportQueryService.customerDetail(reportNo, clientCode);
         ClientScreening screening = screeningMapper.selectOne(new LambdaQueryWrapper<ClientScreening>()
                 .eq(ClientScreening::getReportNo, reportNo).last("limit 1"));
         Map<String, Object> facts = screening == null
                 ? new LinkedHashMap<>() : loadFacts(latestSubmission(screening.getMatchTraceUuid()));
         CustomerRiskAnalysisResult analysis = buildCustomerRiskAnalysis(reportNo, facts);
-        detail.put("analysisStatus", analysis.getAnalysisStatus());
-        detail.put("analysisLabel", analysis.getAnalysisLabel());
-        detail.put("riskSummary", analysis.getRiskSummary());
-        detail.put("riskFactors", analysis.getRiskFactors());
-        detail.put("analysisNotice", analysis.getAnalysisNotice());
+        detail.setAnalysisStatus(analysis.getAnalysisStatus());
+        detail.setAnalysisLabel(analysis.getAnalysisLabel());
+        detail.setRiskSummary(analysis.getRiskSummary());
+        detail.setRiskFactors(analysis.getRiskFactors());
+        detail.setAnalysisNotice(analysis.getAnalysisNotice());
         return detail;
+    }
+
+    /** 员工内部报告详情；调用方必须先确认当前登录身份为 STAFF。 */
+    public StaffReportDetail staffReportDetail(String reportNo) {
+        return reportQueryService.staffDetail(reportNo);
     }
 
     /* ==================== C3 / C11：报告列表（角色二分 + 四维查询） ==================== */
@@ -921,19 +925,15 @@ public class MiniMatchService {
      * @param ruleLogs ReportQueryService 返回的规则日志列表
      * @return RuleHit 列表
      */
-    @SuppressWarnings("unchecked")
-    private List<RuleHit> toRuleHits(Object ruleLogs) {
+    private List<RuleHit> toRuleHits(List<ReportRuleLog> ruleLogs) {
         List<RuleHit> hits = new ArrayList<>();
-        if (ruleLogs instanceof List) {
-            for (Object o : (List<Object>) ruleLogs) {
-                if (o instanceof Map) {
-                    Map<String, Object> row = (Map<String, Object>) o;
-                    RuleHit hit = new RuleHit();
-                    hit.setRuleCode((String) row.get("ruleCode"));
-                    hit.setExpression((String) row.get("expression"));
-                    hit.setResult((String) row.get("result"));
-                    hits.add(hit);
-                }
+        if (ruleLogs != null) {
+            for (ReportRuleLog row : ruleLogs) {
+                RuleHit hit = new RuleHit();
+                hit.setRuleCode(row.getRuleCode());
+                hit.setExpression(row.getExpression());
+                hit.setResult(row.getResult());
+                hits.add(hit);
             }
         }
         return hits;

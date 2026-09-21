@@ -83,7 +83,6 @@
             :loading="clientLoading"
             placeholder="搜索客户（姓名 / 手机号 / 企业名）"
             style="width: 100%"
-            placement="top-start"
           >
             <el-option v-for="c in clientOptions" :key="c.clientCode" :label="clientLabel(c)" :value="c.clientCode" />
           </el-select>
@@ -100,10 +99,10 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="关联产品">
-          <RemoteProductSelect v-model="createForm.bankProductCode" scope="cooperate" :customer-group="createForm.customerGroup" placeholder="可选，输入产品名称搜索（仅合作中且未到期）" placement="top-start" />
+          <RemoteProductSelect v-model="createForm.bankProductCode" scope="cooperate" :customer-group="createForm.customerGroup" placeholder="可选，输入产品名称搜索（仅合作中且未到期）" />
         </el-form-item>
         <el-form-item label="来源">
-          <el-select v-model="createForm.source" style="width: 100%" placement="top-start">
+          <el-select v-model="createForm.source" style="width: 100%">
             <el-option label="手工建单" value="MANUAL" />
             <el-option label="线下补录" value="OFFLINE_SUPPLEMENT" />
           </el-select>

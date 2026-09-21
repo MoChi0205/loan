@@ -8,7 +8,6 @@ import com.loan.audit.mapper.MatchTraceMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.ResultCode;
-import com.loan.common.util.BizIdGenerator;
 import com.loan.engine.aggregate.GradeAggregator;
 import com.loan.engine.dto.MatchResultVO;
 import com.loan.engine.dto.ModuleMatchVO;
@@ -40,11 +39,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 初筛执行服务：选客户 + 经营事实 → 规则引擎匹配 → 落审计 + 生成初筛报告。
@@ -56,6 +57,8 @@ import java.util.UUID;
 public class ScreeningService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final DateTimeFormatter REPORT_NO_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
+    private static final AtomicInteger REPORT_NO_SEQUENCE = new AtomicInteger();
 
     private final ClientProfileMapper clientProfileMapper;
     private final PlanLoaderService planLoaderService;
@@ -139,7 +142,8 @@ public class ScreeningService {
 
         // 生成初筛报告
         ClientScreening screening = new ClientScreening();
-        screening.setReportNo(BizIdGenerator.generate("report"));
+        LocalDateTime generatedAt = LocalDateTime.now();
+        screening.setReportNo(buildReportNo(generatedAt));
         screening.setClientProfileCode(client.getClientCode());
         screening.setMatchTraceUuid(context.getTraceUuid());
         ReportTemplate template = reportTemplateMapper.selectOne(new LambdaQueryWrapper<ReportTemplate>()
@@ -155,7 +159,7 @@ public class ScreeningService {
         screening.setAdviceJson(buildAdvice(vo));
         screening.setVipFlag(client.getInvitedFlag() == null ? 0 : client.getInvitedFlag());
         screening.setStatus("GENERATED");
-        screening.setCreatedAt(LocalDateTime.now());
+        screening.setCreatedAt(generatedAt);
         screeningMapper.insert(screening);
 
         // C4：落报告命中产品明细（员工陪访可见；客户侧永不展示产品名）
@@ -166,6 +170,12 @@ public class ScreeningService {
             submissionService.markMatched(submission.getSubmissionNo(), context.getTraceUuid());
         }
         return screening.getReportNo();
+    }
+
+    /** 报告业务编号：仅使用生成时间与同毫秒序号，不包含企业或客户名称。 */
+    static String buildReportNo(LocalDateTime generatedAt) {
+        int sequence = Math.floorMod(REPORT_NO_SEQUENCE.getAndIncrement(), 1000);
+        return String.format("report_%s_%03d", REPORT_NO_TIME.format(generatedAt), sequence);
     }
 
     /** 已复核材料事实优先，页面手填字段只补充材料未识别出的空项。 */

@@ -61,7 +61,7 @@
           <el-form-item prop="username">
             <el-input
               v-model="form.username"
-              :placeholder="mode === 'staff' ? 'CRM 员工 ID（如 crm-boss-001）' : '渠道账号手机号'"
+              placeholder="手机号"
               autocomplete="username"
             >
               <template #prefix>
@@ -74,7 +74,7 @@
             <el-input
               v-model="form.password"
               type="password"
-              :placeholder="mode === 'staff' ? '密码（阶段一 SSO 模拟暂不校验）' : '密码（阶段一模拟，任意填写）'"
+              placeholder="请输入密码"
               show-password
               autocomplete="current-password"
             >
@@ -84,6 +84,16 @@
             </el-input>
           </el-form-item>
           <el-form-item v-else prop="code"><el-input v-model="form.code" placeholder="短信验证码"><template #append><el-button :disabled="codeCountdown > 0" @click="sendCode">{{ codeCountdown ? `${codeCountdown}s` : '获取验证码' }}</el-button></template></el-input></el-form-item>
+          <el-form-item>
+            <el-input v-model="form.captchaCode" placeholder="请输入图片中的 4 位验证码" maxlength="4">
+              <template #append>
+                <button type="button" class="captcha-image-btn" title="点击刷新验证码" @click="refreshCaptcha">
+                  <img v-if="captcha.imageBase64" class="captcha-image" :src="captchaSrc(captcha)" alt="登录验证码" />
+                  <span v-else class="captcha-placeholder">点击刷新</span>
+                </button>
+              </template>
+            </el-input>
+          </el-form-item>
           <div class="login-type-tabs" role="tablist" aria-label="账号登录方式">
             <button type="button" role="tab" :class="{ active: loginType === 'password' }" @click="loginType='password'">密码登录</button>
             <button type="button" role="tab" :class="{ active: loginType === 'code' }" @click="loginType='code'">验证码登录</button>
@@ -95,31 +105,39 @@
           </el-button>
         </el-form>
 
-        <div class="login-demo">
-          <span class="demo-label">演示账号：</span>
-          <button
-            v-for="(d, i) in demoAccounts"
-            :key="i"
-            class="demo-chip"
-            type="button"
-            @click="fillDemo(d)"
-          >
-            {{ d.username }}
-            <span class="demo-role">（{{ d.role }}）</span>
-          </button>
-        </div>
+        <el-dialog v-model="resetVisible" title="验证码找回密码" width="420px" append-to-body>
+          <el-form label-position="top">
+            <el-form-item label="登录手机号"><el-input v-model="resetForm.phone" maxlength="11" /></el-form-item>
+            <el-form-item label="随机验证码">
+              <el-input v-model="resetForm.captchaCode" maxlength="4">
+                <template #append>
+                  <button type="button" class="captcha-image-btn" title="点击刷新验证码" @click="refreshResetCaptcha">
+                    <img v-if="resetCaptcha.imageBase64" class="captcha-image" :src="captchaSrc(resetCaptcha)" alt="验证码" />
+                    <span v-else class="captcha-placeholder">点击刷新</span>
+                  </button>
+                </template>
+              </el-input>
+            </el-form-item>
+            <el-form-item label="短信验证码"><el-input v-model="resetForm.code"><template #append><el-button :disabled="resetCountdown > 0" @click="sendResetCode">{{ resetCountdown ? `${resetCountdown}s` : '获取验证码' }}</el-button></template></el-input></el-form-item>
+            <el-form-item label="新密码"><el-input v-model="resetForm.password" type="password" show-password placeholder="8-64位，同时包含字母和数字" /></el-form-item>
+            <el-form-item label="确认新密码"><el-input v-model="resetForm.confirmPassword" type="password" show-password /></el-form-item>
+          </el-form>
+          <template #footer><el-button @click="resetVisible=false">取消</el-button><el-button type="primary" :loading="resetting" @click="submitReset">设置新密码</el-button></template>
+        </el-dialog>
+
       </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue';
+import { reactive, ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { sceneries } from '@/assets/login-bg';
 import { useUserStore } from '@/store/user';
-import { channelLogin as channelLoginApi, codeLogin, sendLoginCode } from '@/api/auth';
+import { codeLogin, sendLoginCode, passwordLogin, resetPassword, getCaptcha, getPublicKey } from '@/api/auth';
+import JSEncrypt from 'jsencrypt';
 import { KEYS, getStorage, setStorage, removeStorage } from '@/utils/storage';
 import { getTheme } from '@/theme';
 import AppIcon from '@/components/AppIcon.vue';
@@ -130,28 +148,24 @@ const formRef = ref();
 const loading = ref(false);
 const remember = ref(false);
 
-/** 登录模式：staff 员工 SSO 模拟 / channel 渠道账号（T11/D21 渠道沙箱） */
+/** 员工与渠道都支持密码登录、短信验证码登录和验证码找回密码；默认走账号密码 + 4 位图片验证码。 */
 const mode = ref('staff');
 const loginType = ref('password');
 const codeCountdown = ref(0);
+const captcha = reactive({ captchaId: '', imageBase64: '' });
+const resetCaptcha = reactive({ captchaId: '', imageBase64: '' });
+const resetVisible = ref(false);
+const resetCountdown = ref(0);
+const resetting = ref(false);
+const resetForm = reactive({ phone: '', code: '', password: '', confirmPassword: '', captchaCode: '' });
 
-/** 登录表单（阶段一演示；正式接入 RSA + SSO 走 /api/auth/login） */
-const form = reactive({ username: '', password: '', code: '' });
+/** 登录表单 */
+const form = reactive({ username: '', password: '', code: '', captchaCode: '' });
 
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
-  // SSO/模拟阶段：密码不校验（placeholder 已说明"暂不校验"），避免 required 语义矛盾
-  password: [{ required: false, message: '', trigger: 'blur' }],
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 };
-
-const demoAccounts = [
-  { username: 'crm-boss-001', password: '123456', role: '张老板' },
-  { username: 'crm-adv-001', password: '123456', role: '李顾问' },
-  { username: 'crm-dept-001', password: '123456', role: '王经理 · 团队经理' },
-  { username: 'crm-op-001', password: '123456', role: '赵运营 · 运营人员' },
-  { username: 'crm-sup-001', password: '123456', role: '孙超管 · 超级管理员' },
-  { username: '13911112222', password: 'loan-sim-pwd', role: '渠道-陈', channel: true },
-];
 
 /**
  * 主题感登录配图配置：
@@ -178,25 +192,32 @@ const brandStyle = computed(() => {
   return {};
 });
 
-function fillDemo(d) {
-  mode.value = d.channel ? 'channel' : 'staff';
-  form.username = d.username;
-  form.password = d.password;
-  ElMessage.info(`已填充演示账号：${d.username}`);
+watch([mode, loginType], () => { form.code=''; form.password=''; form.captchaCode=''; if (loginType.value === 'password') refreshCaptcha(); });
+
+async function encryptPassword(password) {
+  const res = await getPublicKey();
+  const publicKey = res?.data?.publicKey;
+  if (!publicKey) throw new Error('登录公钥不可用');
+  const encryptor = new JSEncrypt();
+  encryptor.setPublicKey(publicKey);
+  const encrypted = encryptor.encrypt(password);
+  if (!encrypted) throw new Error('密码加密失败');
+  return encrypted;
 }
 
 async function onLogin() {
   await formRef.value.validate();
   loading.value = true;
   try {
-    if (loginType.value === 'code') { const res = await codeLogin({ phone: form.username, code: form.code }); userStore.applyLogin(res); }
-    else if (mode.value === 'channel') {
-      // 渠道登录：阶段一模拟（固定传约定模拟串，后端旁路 RSA+BCrypt，T11/D21；正式接入改为 RSA 加密密码）
-      const res = await channelLoginApi({ phone: form.username, password: 'loan-sim-pwd' });
+    const accountType = mode.value === 'staff' ? 'STAFF' : 'CHANNEL';
+    if (loginType.value === 'code') {
+      const res = await codeLogin({ phone: form.username, code: form.code, accountType });
       userStore.applyLogin(res);
     } else {
-      // 员工登录：SSO 模拟（username 为 CRM 员工 ID），后端签发 JWT + Redis 会话
-      await userStore.doLogin({ crmUserId: form.username });
+      if (!form.captchaCode) return ElMessage.warning('请输入随机验证码');
+      const encryptedPassword = await encryptPassword(form.password);
+      const res = await passwordLogin({ phone: form.username, password: encryptedPassword, accountType, captchaId: captcha.captchaId, captchaCode: form.captchaCode });
+      userStore.applyLogin(res);
     }
     if (remember.value) {
       setStorage(KEYS.REMEMBER_USERNAME, form.username);
@@ -211,10 +232,18 @@ async function onLogin() {
     loading.value = false;
   }
 }
-async function sendCode() { if (!/^1\d{10}$/.test(form.username)) return ElMessage.warning('请输入正确手机号'); await sendLoginCode(form.username); codeCountdown.value = 60; const t=setInterval(()=>{codeCountdown.value--;if(codeCountdown.value<=0)clearInterval(t)},1000); ElMessage.success('验证码已发送'); }
-function forgotPassword() { loginType.value='code'; ElMessage.info('请使用手机号验证码登录'); }
+async function refreshCaptcha() { const res=await getCaptcha(); Object.assign(captcha,res.data||res); form.captchaCode=''; }
+async function refreshResetCaptcha() { const res=await getCaptcha(); Object.assign(resetCaptcha,res.data||res); resetForm.captchaCode=''; }
+/** 验证码图片是服务端渲染的 Base64 PNG，答案不下发到前端。 */
+function captchaSrc(item) { return item.imageBase64 ? `data:image/png;base64,${item.imageBase64}` : ''; }
+function startCountdown(target) { target.value=60; const t=setInterval(()=>{ target.value--; if(target.value<=0) clearInterval(t); },1000); }
+async function sendCode() { if (!/^1\d{10}$/.test(form.username)) return ElMessage.warning('请输入正确手机号'); if(!form.captchaCode)return ElMessage.warning('请输入随机验证码'); const res=await sendLoginCode(form.username,captcha.captchaId,form.captchaCode,'LOGIN'); const devCode=res?.data?.devCode; if(devCode)form.code=devCode; startCountdown(codeCountdown); form.captchaCode=''; await refreshCaptcha(); ElMessage.success(devCode?`测试验证码已自动填入：${devCode}`:'验证码已发送'); }
+function forgotPassword() { resetForm.phone=form.username; resetVisible.value=true; refreshResetCaptcha(); }
+async function sendResetCode() { if(!/^1\d{10}$/.test(resetForm.phone))return ElMessage.warning('请输入正确手机号'); if(!resetForm.captchaCode)return ElMessage.warning('请输入随机验证码'); const res=await sendLoginCode(resetForm.phone,resetCaptcha.captchaId,resetForm.captchaCode,'RESET_PASSWORD'); const devCode=res?.data?.devCode; if(devCode)resetForm.code=devCode; startCountdown(resetCountdown); resetForm.captchaCode=''; await refreshResetCaptcha(); ElMessage.success(devCode?`测试验证码已自动填入：${devCode}`:'验证码已发送'); }
+async function submitReset() { if(!resetForm.code)return ElMessage.warning('请输入短信验证码'); if(!/^(?=.*[A-Za-z])(?=.*\d).{8,64}$/.test(resetForm.password))return ElMessage.warning('密码须为8-64位且包含字母和数字'); if(resetForm.password!==resetForm.confirmPassword)return ElMessage.warning('两次密码不一致'); resetting.value=true; try{ const password=await encryptPassword(resetForm.password); await resetPassword({phone:resetForm.phone,code:resetForm.code,password,accountType:mode.value==='staff'?'STAFF':'CHANNEL'}); resetVisible.value=false; form.username=resetForm.phone; loginType.value='password'; ElMessage.success('密码设置成功，请使用新密码登录'); }finally{resetting.value=false;} }
 
 onMounted(() => {
+  refreshCaptcha();
   const saved = getStorage(KEYS.REMEMBER_USERNAME);
   if (saved) {
     form.username = saved;
@@ -599,5 +628,28 @@ onMounted(() => {
   .login-card .login-type-tabs button:active {
     transform: none;
   }
+}
+
+/* 随机 4 位验证码：服务端渲染的 Base64 PNG，点击图片即刷新。 */
+.captcha-image-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 116px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--loan-radius-sm);
+  background: var(--loan-surface);
+  cursor: pointer;
+}
+.captcha-image {
+  width: 116px;
+  height: 34px;
+  border-radius: var(--loan-radius-sm);
+}
+.captcha-placeholder {
+  font-size: 12px;
+  color: var(--loan-text-muted);
 }
 </style>

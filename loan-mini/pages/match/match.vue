@@ -274,7 +274,7 @@
             <text class="upload-status" :class="m.status">{{ m.statusText }}</text>
           </AppClickable>
         </view>
-        <text class="step-tip">支持 PDF / Excel / 图片，单文件 ≤ 20MB；系统将自动核验企业编码与一致性</text>
+        <text class="step-tip">支持 PDF / Excel / 图片，单文件 ≤ 20MB；材料按类别保存，识别结果经我司复核后参与分析</text>
         <AppButton variant="secondary" size="md" @click="onSupplement">上传补充材料</AppButton>
       </AppCard>
 
@@ -561,9 +561,14 @@ async function onUpload(m) {
     m.fileKey = data.fileKey;
     m.fileName = data.fileName;
     m.pendingReview = data.pendingReview === true;
+    m.recognitionStatus = data.recognitionStatus;
+    m.aiRecognitionEnabled = data.aiRecognitionEnabled === true;
     m.reviewNo = data.reviewNo;
     m.statusText = m.pendingReview ? '待我司复核' : '已上传';
-    uni.showToast({ title: m.pendingReview ? '已提交材料复核' : '上传成功', icon: 'success' });
+    const uploadMessage = m.pendingReview
+      ? 'AI识别完成，待我司复核'
+      : m.aiRecognitionEnabled ? '材料已上传，本次未提取到数据' : '材料已上传，AI识别未启用';
+    uni.showToast({ title: uploadMessage, icon: 'none' });
   } catch (e) {
     if (e && /cancel/i.test(e.message || '')) return;
     m.status = 'fail';
@@ -586,7 +591,7 @@ async function onSupplement() {
 /* ===== 步骤 3：核验 & 匹配 ===== */
 const verifyList = computed(() => materials.map((m) => ({
   status: m.status === 'ok' && !m.pendingReview ? 'ok' : 'pending',
-  title: `${m.name}${m.pendingReview ? '待我司复核' : m.status === 'ok' ? '已通过上传校验' : '待上传'}`,
+  title: `${m.name}${m.pendingReview ? '待我司复核' : m.status === 'ok' ? '已完成分类上传' : '待上传'}`,
   desc: m.pendingReview ? `复核单 ${m.reviewNo || '已生成'}，通过后结构化事实才参与${isStaff.value ? '内部匹配' : '风险分析'}`
     : m.status === 'ok' ? (m.fileName || '材料已接收') : '尚未上传材料',
 })));
@@ -900,10 +905,12 @@ onShow(() => {
 
 /* ===== 底部导航 ===== */
 .footer-nav {
-  display: flex; gap: var(--space-3); margin-top: var(--space-4);
-  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  display: flex; gap: var(--space-3); margin: var(--space-3) 0 var(--space-2);
+  padding: var(--space-2) 0 0;
+  border-top: 2rpx solid var(--line);
 }
 .footer-nav view, .footer-nav button { flex: 1; min-width: 0; }
+.footer-nav button:last-child { flex: 1.35; }
 
 /* ===== 未认证引导（UI v2：品牌渐变 Hero + 大插画 + 3 步骤 + 信任背书） ===== */
 .guard-hero {

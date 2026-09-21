@@ -267,7 +267,7 @@ const BASE_MENU_GROUPS = [
       { path: '/client', title: '客户档案', icon: 'client' },
       { path: '/client-lookup', title: '用户查询', icon: 'search' },
       { path: '/client?scope=TEAM_SEA', title: '团队公海', icon: 'sea', roles: ['DEPT_MANAGER'] },
-      { path: '/ocr', title: '材料识别', icon: 'ocr' },
+      { path: '/ocr', title: '客户材料', icon: 'ocr' },
     ],
   },
   {
@@ -276,10 +276,10 @@ const BASE_MENU_GROUPS = [
     icon: 'strategy',
     items: [
       { path: '/screening', title: '初筛任务', icon: 'screening' },
-      { path: '/rule-template', title: '规则库', icon: 'ruleTemplate' },
-      { path: '/plan-edit', title: '执行计划', icon: 'plan' },
-      { path: '/strategy-template', title: '策略方案', icon: 'strategy' },
-      { path: '/rule', title: '规则集', icon: 'rule' },
+      { path: '/rule-template', title: '规则库', icon: 'ruleTemplate', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/plan-edit', title: '执行计划', icon: 'plan', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/strategy-template', title: '策略方案', icon: 'strategy', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/rule', title: '规则集', icon: 'rule', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
     ],
   },
   {

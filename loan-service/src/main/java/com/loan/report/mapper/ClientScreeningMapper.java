@@ -35,6 +35,8 @@ public interface ClientScreeningMapper extends BaseMapper<ClientScreening> {
             " AND (cs.report_no LIKE CONCAT('%', #{keyword}, '%')",
             "      OR cp.contact_name LIKE CONCAT('%', #{keyword}, '%')",
             "      OR cp.enterprise_name LIKE CONCAT('%', #{keyword}, '%')",
+            "      OR DATE_FORMAT(cs.created_at, '%Y-%m-%d') LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(#{keyword}, '年', '-'), '月', '-'), '日', ''), '%')",
+            "      OR DATE_FORMAT(cs.created_at, '%Y%m%d') LIKE CONCAT('%', REPLACE(REPLACE(REPLACE(REPLACE(#{keyword}, '-', ''), '/', ''), '年', ''), '月', ''), '%')",
             "      <if test='phoneHash != null and phoneHash != \"\"'> OR cp.phone_hash = #{phoneHash}</if>)",
             "</if>",
             "ORDER BY cs.created_at",

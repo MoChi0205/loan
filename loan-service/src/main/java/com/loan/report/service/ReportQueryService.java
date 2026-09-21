@@ -8,6 +8,9 @@ import com.loan.audit.mapper.MatchTraceMapper;
 import com.loan.common.ResultCode;
 import com.loan.engine.enums.Grade;
 import com.loan.exception.BusinessException;
+import com.loan.report.dto.CustomerReportDetail;
+import com.loan.report.dto.ReportRuleLog;
+import com.loan.report.dto.StaffReportDetail;
 import com.loan.report.entity.ClientScreening;
 import com.loan.report.mapper.ClientScreeningMapper;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 报告查询服务（P0-4）：小程序侧按 reportNo + 归属校验读取报告详情。
@@ -34,53 +35,56 @@ public class ReportQueryService {
     private final MatchTraceMapper matchTraceMapper;
     private final MatchRuleLogMapper matchRuleLogMapper;
 
-    /**
-     * 小程序侧报告详情（按 reportNo 读取，返回脱敏内容）。
-     *
-     * <p><b>归属校验语义（C3 角色二分）：</b>
-     * <ul>
-     *   <li>客户 CUSTOMER：必传 clientCode，且必须等于报告归属（clientProfileCode），否则 FORBIDDEN；</li>
-     *   <li>企业员工 STAFF：传 null / 空串表示「全量可看」，跳过归属校验（同 allReports）；</li>
-     *   <li>渠道 CHANNEL：由 Controller 层沙箱隔离直接拒绝，本方法不感知。</li>
-     * </ul>
-     *
-     * @param reportNo   报告编号（业务唯一ID）
-     * @param clientCode 客户编码（归属校验；null / 空串跳过校验，供员工全量查看复用）
-     * @return 客户元数据或员工内部报告详情
-     */
-    public Map<String, Object> miniDetail(String reportNo, String clientCode) {
+    /** 客户报告详情：客户编码必填并执行报告归属校验。 */
+    public CustomerReportDetail customerDetail(String reportNo, String clientCode) {
+        if (!StringUtils.hasText(clientCode)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "客户身份无效");
+        }
+        ClientScreening s = requireReport(reportNo);
+        if (!clientCode.equals(s.getClientProfileCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "无权查看该报告");
+        }
+        CustomerReportDetail detail = new CustomerReportDetail();
+        detail.setReportNo(s.getReportNo());
+        detail.setStatus(s.getStatus());
+        detail.setCreatedAt(s.getCreatedAt());
+        detail.setDataSourceNotice("本报告仅使用客户主动填写及授权上传材料；未调用外部个人信息查询接口。");
+        return detail;
+    }
+
+    /** 公司员工内部报告详情；调用方必须先完成 STAFF 身份和数据范围校验。 */
+    public StaffReportDetail staffDetail(String reportNo) {
+        ClientScreening s = requireReport(reportNo);
+        StaffReportDetail detail = new StaffReportDetail();
+        detail.setReportNo(s.getReportNo());
+        detail.setClientProfileCode(s.getClientProfileCode());
+        detail.setTemplateCode(s.getTemplateCode());
+        detail.setStatus(s.getStatus());
+        detail.setCreatedAt(s.getCreatedAt());
+        detail.setGrade(s.getGrade());
+        detail.setTotalResult(resolveTotalResult(s));
+        detail.setProductCount(s.getProductCount());
+        detail.setRating(rating(s.getGrade()));
+        detail.setBankCount(s.getBankCount());
+        detail.setPassCount(s.getPassCount());
+        detail.setConditionCount(s.getConditionCount());
+        detail.setRejectCount(s.getRejectCount());
+        detail.setAdviceJson(s.getAdviceJson());
+        detail.setVipFlag(s.getVipFlag());
+        detail.setRuleLogs(ruleLogs(s.getMatchTraceUuid()));
+        return detail;
+    }
+
+    private ClientScreening requireReport(String reportNo) {
         if (!StringUtils.hasText(reportNo)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "报告编号必填");
         }
-        ClientScreening s = screeningMapper.selectOne(new LambdaQueryWrapper<ClientScreening>()
+        ClientScreening screening = screeningMapper.selectOne(new LambdaQueryWrapper<ClientScreening>()
                 .eq(ClientScreening::getReportNo, reportNo));
-        if (s == null) {
+        if (screening == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "报告不存在");
         }
-        // 归属校验：仅客户视角（clientCode 非空）执行；员工全量视角（null/空）跳过
-        if (StringUtils.hasText(clientCode) && !clientCode.equals(s.getClientProfileCode())) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "无权查看该报告");
-        }
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("reportNo", s.getReportNo());
-        m.put("status", s.getStatus());
-        m.put("createdAt", s.getCreatedAt());
-        // 客户视角只返回报告元数据；任何产品、银行、准入规则和匹配结论均留在员工视角。
-        if (StringUtils.hasText(clientCode)) {
-            return m;
-        }
-        m.put("grade", s.getGrade());
-        m.put("totalResult", resolveTotalResult(s));
-        m.put("productCount", s.getProductCount());
-        m.put("rating", rating(s.getGrade()));
-        m.put("bankCount", s.getBankCount());
-        m.put("passCount", s.getPassCount());
-        m.put("conditionCount", s.getConditionCount());
-        m.put("rejectCount", s.getRejectCount());
-        m.put("adviceJson", s.getAdviceJson());
-        m.put("vipFlag", s.getVipFlag());
-        m.put("ruleLogs", ruleLogs(s.getMatchTraceUuid()));
-        return m;
+        return screening;
     }
 
     /**
@@ -126,8 +130,8 @@ public class ReportQueryService {
      * @param traceUuid 审计链路 UUID
      * @return 规则日志列表
      */
-    private List<Map<String, Object>> ruleLogs(String traceUuid) {
-        List<Map<String, Object>> logs = new ArrayList<>();
+    private List<ReportRuleLog> ruleLogs(String traceUuid) {
+        List<ReportRuleLog> logs = new ArrayList<>();
         if (!StringUtils.hasText(traceUuid)) {
             return logs;
         }
@@ -140,10 +144,10 @@ public class ReportQueryService {
                 .eq(MatchRuleLog::getTraceId, trace.getId())
                 .orderByAsc(MatchRuleLog::getId));
         for (MatchRuleLog row : rows) {
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("ruleCode", row.getRuleCode());
-            item.put("expression", row.getExpression());
-            item.put("result", row.getStepResult());
+            ReportRuleLog item = new ReportRuleLog();
+            item.setRuleCode(row.getRuleCode());
+            item.setExpression(row.getExpression());
+            item.setResult(row.getStepResult());
             logs.add(item);
         }
         return logs;

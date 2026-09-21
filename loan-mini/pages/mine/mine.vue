@@ -115,6 +115,20 @@
         <text class="menu-arrow">›</text>
       </AppClickable>
 
+      <!-- 客户自助预约与服务进度（09-21 方案 §4.2）：仅客户可见，员工/渠道不走客户端链路 -->
+      <AppClickable v-if="isCustomerRole" class="card menu-card u-hover" @click="goAppointment">
+        <view class="menu-left">
+          <view class="menu-icon-wrap">
+            <AppIcon name="cal" size="lg" />
+          </view>
+          <view class="menu-body">
+            <text class="menu-title">预约与服务进度</text>
+            <text class="menu-desc">发起预约 · 改期取消 · 到店签到</text>
+          </view>
+        </view>
+        <text class="menu-arrow">›</text>
+      </AppClickable>
+
       <!-- 我的产品（C9）：仅渠道管理自有产品；员工管理能力位于 Web 管理端。 -->
       <AppClickable v-if="isChannelRole" class="card menu-card" @click="goProduct">
         <view class="menu-left">
@@ -443,6 +457,9 @@ function onGoAuth() {
 }
 
 function goOrder() { uni.reLaunch({ url: '/pages/order/list' }); }
+
+/** 客户自助预约入口：非 tab 页，用 navigateTo 保留返回栈。 */
+function goAppointment() { uni.navigateTo({ url: '/pages/appointment/appointment' }); }
 
 /** C9：跳转我的产品（仅渠道可见） */
 function goProduct() {  uni.reLaunch({ url: '/pages/lead-entry/lead-entry?seg=product' });

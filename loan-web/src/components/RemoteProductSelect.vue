@@ -30,7 +30,7 @@ const props = defineProps({
   customerGroup: { type: String, default: '' },
   status: { type: String, default: '' },
   placeholder: { type: String, default: '输入产品名称搜索' },
-  /** 下拉弹出位置（弹窗内建议 top-start，避免下拉被遮挡/吐舌头） */
+  /** 下拉弹出位置；不传时由 Popper 根据视口自动翻转 */
   placement: { type: String, default: undefined },
 });
 defineEmits(['update:modelValue']);

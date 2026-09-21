@@ -23,10 +23,10 @@ mkdir -p "$LOG_DIR"
 # 可通过 LOAN_JAVA_HOME 显式覆盖，但不接受 JDK 17 等非 Java 8 版本。
 source "$BASE_DIR/scripts/lib/java8.sh"
 JAVA_HOME="$(loan_detect_java8)" || exit 1
-# 路径可用环境变量覆盖以适配不同机器（LOAN_MVN / LOAN_NODE / LOAN_NPM），默认保留原路径。
-MVN="${LOAN_MVN:-/Users/duantiangang/Documents/apache-maven-3.8.8/bin/mvn}"
-NODE="${LOAN_NODE:-/Users/duantiangang/.workbuddy/binaries/node/versions/22.22.2/bin/node}"
-NPM="${LOAN_NPM:-/Users/duantiangang/.workbuddy/binaries/node/versions/22.22.2/bin/npm}"
+# 路径可用环境变量覆盖；默认使用当前开发机 PATH，避免绑定其他用户目录。
+MVN="${LOAN_MVN:-$(command -v mvn)}"
+NODE="${LOAN_NODE:-$(command -v node)}"
+NPM="${LOAN_NPM:-$(command -v npm)}"
 GATEWAY_RUN_JAR="/tmp/loan-gateway-dev.jar"
 GATEWAY_RUN_LOG="/tmp/loan-gateway-dev.log"
 BACKEND_RUN_JAR="/tmp/loan-service-dev.jar"
@@ -95,16 +95,20 @@ start_backend() {
     return 1
   }
   cp "$BASE_DIR/loan-service/target/loan-service-1.0.0.jar" "$BACKEND_RUN_JAR"
+  # Downloads 目录复制出的 JAR 在部分 macOS 版本会继承 provenance 扩展属性，
+  # 导致 LaunchAgent 嵌套类加载偶发失败；临时运行副本无需保留该属性。
+  xattr -d com.apple.provenance "$BACKEND_RUN_JAR" >/dev/null 2>&1 || true
   # launchctl submit 不支持 WorkingDirectory：由 shell 先切换到固定运行目录，再 exec Java。
   # Java 仅携带约定的 5 个 -D 参数；Log4j2 通过环境变量使用绝对日志目录。
   launch_job "$LABEL_PREFIX.backend" "$BACKEND_RUN_LOG" \
     /usr/bin/env "JAVA_HOME=$JAVA_HOME" "LOAN_LOG_DIR=$BACKEND_LOG_DIR" /bin/bash -lc \
     "cd '$RUNTIME_DIR' && exec '$JAVA_HOME/bin/java' \
-      -Dnacos.server-addr=124.221.150.239:9848 \
-      -Dnacos.namespace=prd \
+      -Dnacos.server-addr=127.0.0.1:8848 \
+      -Dnacos.namespace=dev \
       -Dspring.cloud.nacos.discovery.register-enabled=false \
       -Ddubbo.enabled=false \
       -Dapp.gateway.trust-only=false \
+      -Dloan.auth.dev-sms-code-visible=true \
       -jar '$BACKEND_RUN_JAR'"
   echo "[backend] 启动中 (工作目录: $RUNTIME_DIR; 日志目录: $BACKEND_LOG_DIR)"
 }
@@ -122,10 +126,10 @@ start_gateway() {
     /usr/bin/env "JAVA_HOME=$JAVA_HOME" "$JAVA_HOME/bin/java" \
     -jar "$GATEWAY_RUN_JAR" \
     --server.port=8088 \
-    --spring.redis.host=124.221.116.28 \
-    --spring.redis.port=9379 \
-    --spring.redis.password="${LOAN_REDIS_PASSWORD:-CHANGE_ME_REDIS}" \
-    --jwt.secret="${LOAN_JWT_SECRET:-CHANGE_ME_JWT_SECRET}"
+    --spring.redis.host=127.0.0.1 \
+    --spring.redis.port=6379 \
+    --spring.redis.password="${LOAN_REDIS_PASSWORD:-}" \
+    --jwt.secret="${LOAN_JWT_SECRET:-loan-platform-jwt-secret-key-2026}"
   echo "[gateway] 启动中 (日志: $GATEWAY_RUN_LOG)"
 }
 

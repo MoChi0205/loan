@@ -39,7 +39,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final List<String> WHITE_LIST = Arrays.asList(
             "/api/auth/health",
             "/api/auth/public-key",
-            "/api/auth/login",
+            "/api/auth/captcha",
+            "/api/auth/code-login",
+            "/api/auth/password-login",
+            "/api/auth/reset-password",
+            "/api/sms/send-code",
             "/api/dict/all",
             "/api/mini/auth/login"
     );

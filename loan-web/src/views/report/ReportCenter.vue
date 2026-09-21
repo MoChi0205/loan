@@ -144,7 +144,7 @@
           <el-option label="小程序提交" value="MINI" />
           <el-option label="Web 录入" value="WEB" />
         </el-select>
-        <el-input v-model="queryS.keyword" placeholder="客户姓名 / 手机号 / 企业名" style="width: 260px" clearable @keyup.enter="searchS" />
+        <el-input v-model="queryS.keyword" placeholder="企业/客户姓名 / 日期 / 报告编号" style="width: 300px" clearable @keyup.enter="searchS" />
       </AppSearchBar>
 
       <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -206,24 +206,8 @@
     </div>
 
     <!-- 报告详情抽屉 -->
-    <el-drawer v-model="detailVisible" title="初筛报告详情" size="480px">
-      <template v-if="detail">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="报告名称">{{ reportDisplayTitle(detail) }}</el-descriptions-item>
-          <el-descriptions-item label="来源">
-            <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="客户">{{ detail.clientName || detail.enterpriseName || detail.contactName || '—' }}<template v-if="detail.phone"><br><span class="cell-sub">{{ desensitizePhone(detail.phone) }}</span></template></el-descriptions-item>
-          <el-descriptions-item label="档位">{{ gradeText[detail.grade] || detail.grade }}</el-descriptions-item>
-          <el-descriptions-item label="可进件银行">{{ detail.bankCount }}</el-descriptions-item>
-          <el-descriptions-item label="命中产品">{{ detail.productCount }}</el-descriptions-item>
-          <el-descriptions-item label="通过 / 有条件 / 拒绝">{{ detail.passCount }} / {{ detail.conditionCount }} / {{ detail.rejectCount }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ detail.status === 'VIEWED' ? '已查看' : '已生成' }}</el-descriptions-item>
-          <el-descriptions-item label="建议清单">
-            <pre class="advice">{{ prettyJson(detail.adviceJson) }}</pre>
-          </el-descriptions-item>
-        </el-descriptions>
-      </template>
+    <el-drawer v-model="detailVisible" title="员工内部经营咨询报告" size="min(960px, 92vw)">
+      <StaffAggregatedReport v-if="detail" :detail="detail" />
     </el-drawer>
   </div>
 </template>
@@ -236,10 +220,11 @@ import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppEChart from '@/components/AppEChart.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import StaffAggregatedReport from '@/components/report/StaffAggregatedReport.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { reportDisplayTitle } from '@/utils/display';
-import { reportOverview, reportOperations, orderTrend, rewardTrend, pageScreenings, screeningDetail } from '@/api/report';
+import { reportOverview, reportOperations, orderTrend, rewardTrend, pageScreenings, screeningAggregate } from '@/api/report';
 import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
@@ -265,6 +250,17 @@ const sourceTag = (s) => ({ MINI: 'loan-tag-info', CHANNEL: 'loan-tag-success', 
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+/** 元转万元：纯字符串移位，保留全部有效小数，不做四舍五入。 */
+function fmtWan(v) {
+  const raw = String(v ?? 0).trim();
+  if (!/^-?\d+(\.\d+)?$/.test(raw)) return '0';
+  const negative = raw.startsWith('-');
+  const [integer, decimal = ''] = raw.replace('-', '').split('.');
+  const padded = integer.padStart(5, '0');
+  const head = padded.slice(0, -4).replace(/^0+(?=\d)/, '') || '0';
+  const tail = (padded.slice(-4) + decimal).replace(/0+$/, '');
+  return `${negative ? '-' : ''}${Number(head).toLocaleString('zh-CN')}${tail ? `.${tail}` : ''}`;
+}
 function prettyJson(s) {
   if (!s) return '—';
   try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s; }
@@ -280,9 +276,9 @@ const statCards = computed(() => [
   { label: '线索数', value: overview.value.leadCount ?? '-', icon: 'lead', tone: 'cyan' },
   { label: '工单数', value: overview.value.orderCount ?? '-', icon: 'order', tone: 'violet' },
   { label: '成交单数', value: overview.value.dealOrderCount ?? '-', icon: 'success', tone: 'green' },
-  { label: '成交金额', value: '¥' + fmtAmount(overview.value.dealAmountSum), icon: 'trend', tone: 'orange' },
+  { label: '成交金额', value: fmtWan(overview.value.dealAmountSum) + '万', icon: 'trend', tone: 'orange' },
   { label: '奖励单数', value: overview.value.rewardCount ?? '-', icon: 'reward', tone: 'red' },
-  { label: '奖励金额', value: '¥' + fmtAmount(overview.value.rewardAmountSum), icon: 'reward', tone: 'orange' },
+  { label: '奖励金额', value: fmtWan(overview.value.rewardAmountSum) + '万', icon: 'reward', tone: 'orange' },
   { label: '初筛报告', value: overview.value.screeningCount ?? '-', icon: 'reportDoc', tone: 'blue' },
 ]);
 
@@ -526,7 +522,7 @@ const detail = ref(null);
 
 async function openDetail(row) {
   try {
-    const res = await screeningDetail(row.reportNo);
+    const res = await screeningAggregate(row.reportNo);
     detail.value = res.data;
     detailVisible.value = true;
   } catch (e) { /* 拦截器已提示 */ }

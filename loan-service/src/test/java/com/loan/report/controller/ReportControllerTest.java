@@ -23,6 +23,10 @@ import com.loan.context.LoanUser;
 import com.loan.exception.GlobalExceptionHandler;
 
 import com.loan.report.service.ReportService;
+import com.loan.report.service.StaffReportAggregationService;
+import com.loan.report.service.ReportAnalyticsCacheService;
+import com.loan.report.dto.StaffAggregatedReport;
+import com.loan.report.dto.StaffReportDetail;
 
 /**
  * L1 接口契约测试（自动生成，共 5 端点，其中 0 个需登录）。
@@ -34,11 +38,15 @@ class ReportControllerTest {
 
     private MockMvc mvc;
     private ReportService reportService;
+    private StaffReportAggregationService staffReportAggregationService;
+    private ReportAnalyticsCacheService reportAnalyticsCacheService;
 
     @BeforeEach
     void setUp() {
         // 1) 每个依赖创建深桩 mock（返回安全默认值，避免 NPE）
         reportService = Mockito.mock(ReportService.class, new SafeDefaultAnswer());
+        staffReportAggregationService = Mockito.mock(StaffReportAggregationService.class, new SafeDefaultAnswer());
+        reportAnalyticsCacheService = Mockito.mock(ReportAnalyticsCacheService.class, new SafeDefaultAnswer());
         // 2) 构造控制器（优先构造函数，否则无参 + 字段注入兜底）
         ReportController controller;
         try {
@@ -66,6 +74,8 @@ class ReportControllerTest {
         }
         // 3) 字段注入兜底（@Resource/@Autowired 字段）
         ReflectionTestUtils.setField(controller, "reportService", reportService);
+        ReflectionTestUtils.setField(controller, "reportAnalyticsCacheService", reportAnalyticsCacheService);
+        ReflectionTestUtils.setField(controller, "staffReportAggregationService", staffReportAggregationService);
         // 4) standalone MockMvc：注册全局异常处理器 + 自定义 @CurrentUser 解析器（镜像生产切面）
         mvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -113,5 +123,43 @@ class ReportControllerTest {
     void get_api_admin_report_screening_test() throws Exception {
         mvc.perform(get("/api/admin/report/screening/test"))
             .andExpect(status().is2xxSuccessful()).andExpect(jsonPath("$.code").exists());
+    }
+
+    @Test
+    @DisplayName("Web 报告详情将当前员工交给服务端执行范围校验")
+    void screening_detail_passes_current_staff_to_scope_check() throws Exception {
+        StaffReportDetail detail = new StaffReportDetail();
+        detail.setReportNo("R-WEB");
+        detail.setProductCount(2);
+        LoanUser staff = TestUsers.staffUser();
+        Mockito.when(reportService.staffScreeningDetail("R-WEB", staff)).thenReturn(detail);
+        try {
+            UserContext.setUser(staff);
+            mvc.perform(get("/api/admin/report/screening/R-WEB"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.reportNo").value("R-WEB"))
+                .andExpect(jsonPath("$.data.productCount").value(2));
+            Mockito.verify(reportService).staffScreeningDetail("R-WEB", staff);
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("Web 聚合报告将当前员工交给聚合服务执行范围校验")
+    void screening_aggregate_passes_current_staff_to_scope_check() throws Exception {
+        StaffAggregatedReport detail = new StaffAggregatedReport();
+        detail.setReportNo("R-AGG");
+        LoanUser staff = TestUsers.staffUser();
+        Mockito.when(staffReportAggregationService.aggregate("R-AGG", staff)).thenReturn(detail);
+        try {
+            UserContext.setUser(staff);
+            mvc.perform(get("/api/admin/report/screening/R-AGG/aggregate"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.reportNo").value("R-AGG"));
+            Mockito.verify(staffReportAggregationService).aggregate("R-AGG", staff);
+        } finally {
+            UserContext.clear();
+        }
     }
 }
