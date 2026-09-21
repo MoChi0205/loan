@@ -129,6 +129,12 @@ const routes = [
         meta: { title: '服务工单' },
       },
       {
+        path: 'service-operations',
+        name: 'ServiceOperations',
+        component: () => import('@/views/service/ServiceOperations.vue'),
+        meta: { title: '客户服务' },
+      },
+      {
         path: 'reward',
         name: 'RewardList',
         component: () => import('@/views/reward/RewardList.vue'),

@@ -287,6 +287,7 @@ const BASE_MENU_GROUPS = [
     short: '服务',
     icon: 'order',
     items: [
+      { path: '/service-operations', title: '客户服务', icon: 'client' },
       { path: '/order', title: '服务工单', icon: 'order' },
       { path: '/approval', title: '我的审批', icon: 'approval' },
     ],

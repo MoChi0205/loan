@@ -53,6 +53,9 @@ public class ApiPermissionSyncService implements ApplicationRunner {
         GROUP_MAP.put("notification", "客户经营");
         GROUP_MAP.put("audit", "客户经营");
         GROUP_MAP.put("dashboard", "客户经营");
+        GROUP_MAP.put("appointment", "客户经营");
+        GROUP_MAP.put("outing", "客户经营");
+        GROUP_MAP.put("workbench", "客户经营");
         GROUP_MAP.put("product", "产品与规则");
         GROUP_MAP.put("rule", "产品与规则");
         GROUP_MAP.put("approval", "运营支撑");
@@ -73,6 +76,14 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim", "lead:applyView", "lead:quota",
             "client:pageLite", "client:detail", "client:update", "client:release", "client:follow", "client:history",
             "client:unassignedPage", "client:claim", "client:batchClaim", "client:lookup",
+            "client:createFollow", "client:activityTimeline",
+            "appointment:pageDay", "appointment:create", "appointment:confirm",
+            "appointment:arrive", "appointment:start", "appointment:complete",
+            "appointment:markNoShow",
+            "appointment:cancel", "appointment:reschedule",
+            "appointment:cancelException", "appointment:rescheduleException",
+            "outing:pageDay", "outing:create", "outing:depart", "outing:returnFromOuting",
+            "workbench:dailyLists",
             "attachment:page",
             "screening:run",
             "notification:mine", "notification:unreadCount", "notification:markAsRead",
