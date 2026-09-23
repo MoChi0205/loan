@@ -31,7 +31,7 @@
               <router-link
                 :to="item.path"
                 class="menu-item workbench-item"
-                :class="{ active: isActive(item.path) }"
+                :class="{ active: isActive(item.path) || menuOwnsRoute(item.path) }"
               >
                 <span class="menu-icon"><AppIcon :name="item.icon" :size="18" /></span>
                 <span v-if="!collapsed" class="menu-text">{{ item.title }}</span>
@@ -68,7 +68,7 @@
                 >
                   <template v-for="item in g.items" :key="item.path || item.title">
                     <!-- 分区标题（非点击项） -->
-                    <div v-if="item.isSection" class="menu-section-header">
+                    <div v-if="item.isSection" class="menu-section-header" role="heading" aria-level="2">
                       <span v-if="item.icon" class="menu-section-icon"><AppIcon :name="item.icon" :size="14" /></span>
                       <span class="menu-section-label">{{ item.title }}</span>
                     </div>
@@ -77,7 +77,7 @@
                       v-else
                       :to="item.path"
                       class="menu-item"
-                      :class="{ active: isActive(item.path), 'menu-item--indented': item.indent }"
+                      :class="{ active: isActive(item.path) || menuOwnsRoute(item.path), 'menu-item--indented': item.indent }"
                       :title="item.title"
                     >
                       <span class="menu-icon"><AppIcon :name="item.icon" :size="18" /></span>
@@ -99,7 +99,7 @@
                   <router-link
                     :to="item.path"
                     class="menu-item"
-                    :class="{ active: isActive(item.path) }"
+                    :class="{ active: isActive(item.path) || menuOwnsRoute(item.path) }"
                   >
                     <span class="menu-icon"><AppIcon :name="item.icon" :size="18" /></span>
                   </router-link>
@@ -259,71 +259,98 @@ const BASE_MENU_GROUPS = [
     ],
   },
   {
-    title: '客户经营',
+    title: '客户中心',
     short: '客户',
     icon: 'client',
     items: [
-      { path: '/lead', title: '线索管理', icon: 'lead' },
-      { path: '/client', title: '客户档案', icon: 'client' },
-      { path: '/client-lookup', title: '用户查询', icon: 'search' },
-      { path: '/client?scope=TEAM_SEA', title: '团队公海', icon: 'sea', roles: ['DEPT_MANAGER'] },
+      { title: '线索管理', icon: 'lead', isSection: true },
+      { path: '/lead/my', title: '我的线索', icon: 'lead', indent: true },
+      { path: '/lead/pool', title: '线索公海', icon: 'sea', indent: true, roles: ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
+      { title: '客户档案', icon: 'client', isSection: true },
+      { path: '/client/my', title: '我的客户', icon: 'client', indent: true, roles: ['CHANNEL', 'ADVISER', 'DEPT_MANAGER'] },
+      { path: '/client/team', title: '团队客户', icon: 'client', indent: true, roles: ['DEPT_MANAGER'] },
+      { path: '/client/company', title: '全司客户', icon: 'client', indent: true, roles: ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/client/company-sea', title: '客户公海', icon: 'sea', indent: true, roles: ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/client/team-sea', title: '团队公海', icon: 'sea', indent: true, roles: ['DEPT_MANAGER'] },
+      { path: '/client-lookup', title: '客户检索', icon: 'search' },
       { path: '/ocr', title: '客户材料', icon: 'ocr' },
     ],
   },
   {
-    title: '匹配与规则',
+    title: '智能匹配',
     short: '规则',
     icon: 'strategy',
     items: [
-      { path: '/screening', title: '初筛任务', icon: 'screening' },
-      { path: '/rule-template', title: '规则库', icon: 'ruleTemplate', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/plan-edit', title: '执行计划', icon: 'plan', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/strategy-template', title: '策略方案', icon: 'strategy', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/rule', title: '规则集', icon: 'rule', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/screening', title: '匹配任务', icon: 'screening' },
+      { path: '/report/screening', title: '诊断报告', icon: 'reportDoc' },
     ],
   },
   {
-    title: '服务与审核',
+    title: '服务交付',
     short: '服务',
     icon: 'order',
     items: [
-      { path: '/service-operations', title: '客户服务', icon: 'client' },
+      { title: '服务台', icon: 'client', isSection: true },
+      { path: '/service-operations/daily', title: '今日服务台', icon: 'workbench', indent: true },
+      { path: '/service-operations/appointments', title: '客户预约', icon: 'client', indent: true },
+      { path: '/service-operations/outings', title: '员工外出', icon: 'lead', indent: true },
+      { path: '/service-operations/replay', title: '客户回放', icon: 'clock', indent: true },
       { path: '/order', title: '服务工单', icon: 'order' },
-      { path: '/approval', title: '我的审批', icon: 'approval' },
     ],
   },
   {
-    title: '运营与激励',
+    title: '审批中心',
+    short: '审批',
+    icon: 'approval',
+    items: [
+      { path: '/approval/mine', title: '我的申请', icon: 'approval' },
+      { path: '/approval/product', title: '产品审核', icon: 'product', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/download', title: '附件下载审核', icon: 'download' },
+      { path: '/approval/allocation', title: '客户分配审核', icon: 'client', roles: ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/channel-lead', title: '渠道线索审核', icon: 'channel', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/sms-template', title: '短信模板审核', icon: 'sms', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/report-template', title: '报告模板审核', icon: 'reportDoc', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+    ],
+  },
+  {
+    title: '营销激励',
     short: '运营',
     icon: 'reward',
     items: [
-      { path: '/sms', title: '短信服务', icon: 'sms' },
-      { path: '/reward', title: '奖励发放', icon: 'reward' },
-      { path: '/reward-rule', title: '奖励规则', icon: 'reward' },
-      { path: '/audit', title: '审计日志', icon: 'audit' },
+      { title: '短信服务', icon: 'sms', isSection: true },
+      { path: '/sms/templates', title: '短信模板', icon: 'sms', indent: true },
+      { path: '/sms/records', title: '发送记录', icon: 'clock', indent: true },
+      { title: '奖励管理', icon: 'reward', isSection: true },
+      { path: '/reward/records', title: '奖励发放', icon: 'reward', indent: true },
+      { path: '/reward/rules', title: '奖励规则', icon: 'rule', indent: true },
     ],
   },
   {
-    title: '数据与报表',
+    title: '经营分析',
     short: '报表',
     icon: 'report',
     items: [
       { path: '/report/center', title: '经营概览', icon: 'report', roleTitles: { OPERATOR: '实时看板', DEPT_MANAGER: '实时看板', ADVISER: '实时看板' } },
       { path: '/report/trend', title: '趋势分析', icon: 'trend' },
-      { path: '/report/screening', title: '初筛报告', icon: 'reportDoc' },
       { path: '/report-template', title: '报告模板', icon: 'reportDoc' },
     ],
   },
   {
-    title: '产品与渠道',
+    title: '产品与规则',
     short: '产品',
     icon: 'product',
     items: [
-      { path: '/product', title: '产品库', icon: 'product' },
-      { path: '/channel-config', title: '渠道档案', icon: 'channel' },
-      { path: '/channel-strategy', title: '渠道准入', icon: 'strategy' },
-      { path: '/channel-user-list', title: '渠道名单', icon: 'ban' },
-      { path: '/blacklist', title: '风控名单', icon: 'ban' },
+      { title: '产品库', icon: 'product', isSection: true },
+      { path: '/product/all', title: '全量产品库', icon: 'product', indent: true },
+      { path: '/product/cooperate', title: '合作产品库', icon: 'channel', indent: true, roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { title: '渠道管理', icon: 'channel', isSection: true },
+      { path: '/channel-config', title: '渠道档案', icon: 'channel', indent: true },
+      { path: '/channel-strategy', title: '准入策略', icon: 'strategy', indent: true },
+      { path: '/channel-user-list', title: '渠道名单', icon: 'client', indent: true },
+      { path: '/rule-template', title: '规则模板', icon: 'ruleTemplate', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/rule', title: '规则实例', icon: 'rule', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/plan-edit', title: '执行计划', icon: 'plan', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/strategy-template', title: '策略方案', icon: 'strategy', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
     ],
   },
   {
@@ -331,7 +358,12 @@ const BASE_MENU_GROUPS = [
     short: '系统',
     icon: 'config',
     items: [
-      { path: '/org', title: '组织权限', icon: 'org' },
+      { title: '组织权限', icon: 'org', isSection: true },
+      { path: '/org/staff', title: '员工管理', icon: 'client', indent: true },
+      { path: '/org/roles', title: '角色权限', icon: 'org', indent: true },
+      { path: '/org/api-permissions', title: '接口权限', icon: 'rule', indent: true },
+      { path: '/audit', title: '审计日志', icon: 'audit' },
+      { path: '/blacklist', title: '风控名单', icon: 'ban' },
       { path: '/config-wizard', title: '系统配置', icon: 'config' },
       { path: '/debug', title: '调试中心', icon: 'debug' },
     ],
@@ -361,9 +393,9 @@ const menuGroups = computed(() => {
         ...group,
         items: group.items.map((item) => ({
           ...item,
-          title: item.roleTitles?.[userStore.roleCode] || (item.path === '/lead' ? '我的线索'
-            : item.path === '/client' ? '我的客户'
-              : item.path === '/product' ? '我的产品'
+          title: item.roleTitles?.[userStore.roleCode] || (item.path === '/lead/my' ? '我的线索'
+            : item.path === '/client/my' ? '我的客户'
+              : item.path === '/product/all' ? '我的产品'
                 : item.path === '/report/screening' ? '客户分析报告' : item.title),
         })),
       }))
@@ -438,9 +470,17 @@ function isActive(path) {
   return route.path === path || route.path.startsWith(path + '/');
 }
 
+/** 合并菜单的页内 Tab 仍高亮所属主菜单。 */
+function menuOwnsRoute(menuPath) {
+  const owners = {
+    '/channel-config-wizard': '/channel-config',
+  };
+  return owners[route.path] === String(menuPath || '').split('?')[0];
+}
+
 /** 分组激活态：当前路由命中该分组任一菜单项 */
 function isGroupActive(g) {
-  return g.items.some((item) => isActive(item.path));
+  return g.items.some((item) => isActive(item.path) || menuOwnsRoute(item.path));
 }
 
 /** 用户菜单命令 */
@@ -466,11 +506,30 @@ const refreshKey = ref(0);
 const groupExpanded = ref({});
 
 function isGroupExpanded(title) {
-  return groupExpanded.value[title] !== false;
+  if (Object.prototype.hasOwnProperty.call(groupExpanded.value, title)) {
+    return groupExpanded.value[title] === true;
+  }
+  return activeGroupTitle() === title;
 }
 
 function toggleGroup(title) {
-  groupExpanded.value[title] = !isGroupExpanded(title);
+  const nextExpanded = !isGroupExpanded(title);
+  // 侧栏采用手风琴：同一时刻只展开一个业务域，避免菜单过长且层级混淆。
+  Object.keys(groupExpanded.value).forEach((key) => { groupExpanded.value[key] = false; });
+  groupExpanded.value[title] = nextExpanded;
+  setStorageJSON(KEYS.LAYOUT_GROUP, groupExpanded.value);
+}
+
+function activeGroupTitle() {
+  return menuGroups.value.find((group) => group.title && isGroupActive(group))?.title || '';
+}
+
+function ensureActiveGroupExpanded() {
+  const title = activeGroupTitle();
+  if (!title) return;
+  menuGroups.value.forEach((group) => {
+    if (group.title) groupExpanded.value[group.title] = group.title === title;
+  });
   setStorageJSON(KEYS.LAYOUT_GROUP, groupExpanded.value);
 }
 
@@ -486,6 +545,7 @@ function loadTabs() {
   // 加载分组折叠状态
   const obj = getStorageJSON(KEYS.LAYOUT_GROUP, null);
   if (obj && typeof obj === 'object') groupExpanded.value = obj;
+  ensureActiveGroupExpanded();
 }
 function saveTabs() {
   setStorageJSON(KEYS.LAYOUT_TABS, openTabs.value);
@@ -557,6 +617,7 @@ watch(
   () => route.fullPath,
   (path) => {
     ensureTab(path);
+    ensureActiveGroupExpanded();
   },
 );
 
@@ -581,6 +642,7 @@ watch(() => userStore.roleCode, () => loadRoleMenu());
 watch(menus, () => {
   openTabs.value = openTabs.value.map((t) => ({ ...t, title: findTitle(t.path) }));
   saveTabs();
+  ensureActiveGroupExpanded();
 }, { deep: true });
 </script>
 
@@ -594,7 +656,7 @@ watch(menus, () => {
 
 /* 侧栏（深蓝金融暗色 / 浅色商务 双主题） */
 .sider {
-  width: 210px;                              /* 收窄 220→210，给主内容更多空间 */
+  width: 232px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -627,11 +689,11 @@ watch(menus, () => {
 
 /* 品牌区 */
 .brand {
-  height: 60px;
+  height: 66px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 14px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--loan-border);
   overflow: hidden;
   flex-shrink: 0;
@@ -643,8 +705,8 @@ watch(menus, () => {
 }
 
 .brand-mark {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--loan-radius-sm);
   background: var(--loan-gradient);
   color: var(--loan-paper);
@@ -657,7 +719,7 @@ watch(menus, () => {
 
 .brand-name {
   color: var(--loan-text);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   white-space: nowrap;
   letter-spacing: 0.3px;
@@ -674,7 +736,7 @@ watch(menus, () => {
 /* 菜单滚动区 */
 .menu {
   flex: 1;
-  padding: 6px 0 12px;
+  padding: 10px 0 14px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -694,7 +756,7 @@ watch(menus, () => {
 
 /* 分组主菜单（可折叠） */
 .menu-group {
-  margin-top: 8px;             /* T14: 分组间距加大，与子项层级区分 */
+  margin-top: 5px;
 }
 .menu-group:first-of-type { margin-top: 4px; }
 
@@ -718,14 +780,14 @@ watch(menus, () => {
   display: flex;
   align-items: center;
   gap: 11px;                   /* 与 .menu-item 的 gap 一致 */
-  padding: 10px 12px 10px 14px;/* 与 .menu-item 的 padding 一致 */
+  padding: 9px 12px 9px 14px;
   white-space: nowrap;
   overflow: visible;           /* T14: 不再裁剪激活竖条（原 overflow:hidden 裁掉 ::before） */
   cursor: pointer;
   user-select: none;
   border-radius: 8px;
   margin: 2px 10px;
-  min-height: 44px;            /* 触摸目标 44px(WCAG 2.5.8) */
+  min-height: 42px;
   color: var(--loan-sider-text);
   font-size: 13.5px;
   font-weight: 600;            /* T14: 分组标题加粗，与子项(400)拉开层级 */
@@ -739,12 +801,10 @@ watch(menus, () => {
 }
 /* 分组标题激活态（当前页在该分组内）：与 .menu-item.active 一致的渐变 + 左侧竖条 */
 .menu-group-title.active {
-  background: linear-gradient(90deg,
-    color-mix(in srgb, var(--loan-primary) 24%, transparent) 0%,
-    color-mix(in srgb, var(--loan-primary) 10%, transparent) 100%);
+  background: color-mix(in srgb, var(--loan-primary) 9%, transparent);
   color: color-mix(in srgb, var(--loan-primary) 62%, var(--loan-black));   /* T15: 浅色主题深蓝字(AA≥4.5:1)，原 #3b82f6 仅 2.8:1 */
   font-weight: 600;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--loan-primary) 30%, transparent);
+  box-shadow: none;
 }
 /* 深色主题:白字(现状,达标) */
 :root[data-theme="dark"] .menu-group-title.active {
@@ -829,57 +889,53 @@ watch(menus, () => {
 .menu-group-items {
   display: flex;
   flex-direction: column;
-  gap: 2px;                   /* 子项间 2px gap */
-  padding: 2px 0;
+  gap: 1px;
+  margin: 0 12px 5px 26px;
+  padding: 4px 0 5px 10px;
+  border-left: 1px solid color-mix(in srgb, var(--loan-border-strong) 70%, transparent);
 }
 
 /* 分区标题（企业贷 / 个贷 / 渠道与通用） */
 .menu-section-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px 4px;
-  font-size: 11.5px;
+  margin: 14px 8px 4px;
+  padding: 0 8px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--loan-primary) 34%, var(--loan-border));
+  color: var(--loan-primary);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--loan-text-muted);
+  letter-spacing: 0.8px;
   cursor: default;
   user-select: none;
 }
 .menu-section-icon {
   display: inline-flex;
   align-items: center;
-  color: var(--loan-primary);
-  opacity: 0.7;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--loan-primary);
+  opacity: 1;
 }
 .menu-section-label {
-  position: relative;
-  padding-bottom: 2px;
-}
-/* 分区标题下划线装饰 */
-.menu-section-label::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 1.5px;
-  background: linear-gradient(90deg, var(--loan-primary) 0%, transparent 80%);
-  border-radius: 1px;
-  opacity: 0.3;
+  color: inherit;
 }
 
 /* 分组内的子菜单项:缩进 + 小图标,清晰区分层级(子项 vs 分组标题) */
 .menu-group-items .menu-item {
-  padding: 10px 12px 10px 32px;  /* 左 padding 32px(子菜单缩进) */
-  margin: 1px 10px 1px 4px;       /* 左边距缩小到 4px 让缩进明显 */
-  font-size: 13px;
-  font-weight: 400;               /* 字体稍轻,区分分组标题 600 */
+  padding: 7px 10px 7px 16px;
+  margin: 1px 0;
+  min-height: 36px;
+  font-size: 12.5px;
+  font-weight: 400;
+  border-radius: 6px;
 }
 /* 二级缩进项（分区下的子项）：更深的缩进 */
 .menu-group-items .menu-item--indented {
-  padding-left: 42px;
+  padding-left: 28px;
 }
 .menu-group-items .menu-icon {
   width: 16px;
@@ -887,21 +943,11 @@ watch(menus, () => {
 }
 /* 子菜单左侧连接线(树形视觉,不影响激活态 ::before) */
 .menu-group-items .menu-item::after {
-  content: "";
-  position: absolute;
-  left: 18px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 6px;
-  height: 1px;
-  background: var(--loan-border, rgba(255,255,255,.12));
-  pointer-events: none;
+  display: none;
 }
 /* 激活态:连接线改为主色 + 加宽 */
 .menu-group-items .menu-item.active::after {
-  background: var(--loan-primary);
-  width: 8px;
-  box-shadow: 0 0 4px var(--loan-primary);
+  display: none;
 }
 /* 侧栏整体折叠（64px）时：分组图标堆叠 */
 .menu-group-collapsed {
@@ -932,7 +978,8 @@ watch(menus, () => {
 }
 /* 工作台：顶部分组，加点底部分隔留白 */
 .menu-item.workbench-item {
-  margin: 6px 10px 6px;
+  margin: 2px 10px 10px;
+  background: color-mix(in srgb, var(--loan-primary) 4%, transparent);
 }
 
 .menu-icon {
@@ -965,7 +1012,7 @@ watch(menus, () => {
     color-mix(in srgb, var(--loan-primary) 10%, transparent) 100%);
   color: color-mix(in srgb, var(--loan-primary) 62%, var(--loan-black));   /* T15: 浅色主题深蓝字(AA≥4.5:1)，原 #3b82f6 仅 2.8:1 */
   font-weight: 600;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--loan-primary) 30%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--loan-primary) 20%, transparent);
 }
 /* 深色主题:白字(现状,达标) */
 :root[data-theme="dark"] .menu-item.active {
@@ -1038,15 +1085,15 @@ watch(menus, () => {
 .tabs-bar {
   display: flex;
   align-items: center;
-  background: var(--loan-sider-bg);
+  background: color-mix(in srgb, var(--loan-bg) 88%, var(--loan-card-bg));
   border-bottom: 1px solid var(--loan-border);
-  padding: 5px 8px;
+  padding: 7px 16px 0;
   min-width: 0;
 }
 .route-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex: 1;
   min-width: 0;
   overflow-x: auto;
@@ -1057,9 +1104,9 @@ watch(menus, () => {
 .route-tab {
   appearance: none;
   border: 1px solid var(--loan-border);
-  border-radius: 6px 6px 0 0;
-  height: 32px;
-  padding: 0 12px;
+  border-radius: 8px 8px 0 0;
+  height: 34px;
+  padding: 0 13px;
   font-size: 12px;
   background: var(--loan-card-bg);
   color: var(--loan-text-secondary);
@@ -1080,12 +1127,14 @@ watch(menus, () => {
   outline-offset: -2px;
 }
 .route-tab.is-active {
-  background: var(--loan-primary);
-  color: var(--loan-paper);
-  border-color: var(--loan-primary);
+  background: var(--loan-card-bg);
+  color: var(--loan-primary);
+  border-color: color-mix(in srgb, var(--loan-primary) 45%, var(--loan-border));
+  border-bottom-color: var(--loan-card-bg);
+  box-shadow: inset 0 2px 0 var(--loan-primary);
 }
 .route-tab.is-active .tab-close {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--loan-primary);
 }
 .tab-label__text {
   max-width: 130px;
@@ -1138,13 +1187,13 @@ watch(menus, () => {
 }
 
 .topbar {
-  height: 60px;
+  height: 66px;
   background: var(--loan-card-bg);
   border-bottom: 1px solid var(--loan-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 26px;
   flex-shrink: 0;
 }
 
@@ -1233,7 +1282,7 @@ watch(menus, () => {
   display: flex;          /* 让 .loan-page 作为 flex 子项可以占满 */
   flex-direction: column;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 20px 28px 28px;
 }
 
 /* 移动端：侧栏收起为窄条，避免挤压内容 */

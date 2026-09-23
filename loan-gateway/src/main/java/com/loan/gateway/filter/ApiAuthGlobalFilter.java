@@ -54,6 +54,7 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
             "/loan/api/auth/reset-password",
             "/loan/api/auth/channel-login",
             "/loan/api/mini/auth/login",
+            "/loan/api/mini/auth/phone-login",
             "/loan/api/sms/send-code",
             "/loan/api/dict/all",
             "/loan/api/debug"
@@ -86,11 +87,9 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         }
         exchange.getResponse().getHeaders().set(TRACE_HEADER, traceId);
         final String finalTraceId = traceId;
-        // 下游业务服务也会回写该头；提交响应前再次 set，确保客户端只收到一个稳定值。
-        exchange.getResponse().beforeCommit(() -> {
-            exchange.getResponse().getHeaders().set(TRACE_HEADER, finalTraceId);
-            return Mono.empty();
-        });
+        // 只在响应尚未提交时写入一次。beforeCommit 中再次 set 可能遇到
+        // ReadOnlyHttpHeaders，导致合法请求在响应提交阶段抛 UnsupportedOperationException。
+        // 下游服务如需回写同名链路头，应复用该值而不是在网关提交阶段重复修改。
         ServerWebExchange tracedExchange = exchange.mutate()
                 .request(exchange.getRequest().mutate().header(TRACE_HEADER, finalTraceId).build())
                 .build();
@@ -135,7 +134,11 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
                             httpMethod,
                             userId, userNo, userType);
                 })
-                .switchIfEmpty(reject(tracedExchange, HttpStatus.FORBIDDEN, 2001, "接口权限规则不可用，请联系管理员"));
+                // reject() 会写响应并记录拒绝日志，必须延迟到规则流确实为空时执行。
+                // 直接把 reject(...) 作为 switchIfEmpty 参数会在组装 Reactor 链时立即调用，
+                // 导致每个合法请求先打印一次 403，再实际返回 200 的假权限失败日志。
+                .switchIfEmpty(Mono.defer(() -> reject(tracedExchange, HttpStatus.FORBIDDEN, 2001,
+                        "接口权限规则不可用，请联系管理员")));
     }
 
     private String normalizeTraceId(String value) {
@@ -353,6 +356,14 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
                 exchange.getRequest().getMethodValue(), exchange.getRequest().getURI().getPath(),
                 status.value(), code, message);
         ServerHttpResponse response = exchange.getResponse();
+        // 规则加载流可能在下游响应已提交后才完成（例如 Redis/内部接口超时竞态）。
+        // 此时不能再修改状态码或响应头，否则 Spring 会将 HttpHeaders 包装成只读对象，
+        // 并抛出 ReadOnlyHttpHeaders.set / UnsupportedOperationException，覆盖真实错误。
+        if (response.isCommitted()) {
+            log.warn("网关拒绝响应已提交，跳过二次写响应 traceId={} path={}", traceId,
+                    exchange.getRequest().getURI().getPath());
+            return Mono.empty();
+        }
         response.setStatusCode(status);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
         Map<String, Object> body = new LinkedHashMap<>();

@@ -1251,7 +1251,7 @@ CREATE TABLE `t_sms_record` (
   `phone` varchar(256) NOT NULL COMMENT '手机号(AES加密,发送时解密)',
   `phone_hash` varchar(64) DEFAULT NULL COMMENT '手机号SHA-256哈希(按手机号查询)',
   `sms_type` varchar(32) NOT NULL COMMENT '短信类型',
-  `template_id` bigint NOT NULL COMMENT '模板ID',
+  `template_code` varchar(64) DEFAULT NULL COMMENT '模板编码',
   `params_snapshot` json DEFAULT NULL COMMENT '变量快照',
   `content` varchar(1000) DEFAULT NULL COMMENT '发送内容快照',
   `channel_code` varchar(32) DEFAULT NULL COMMENT '发送通道(腾讯云,预留多通道)',
@@ -1262,6 +1262,7 @@ CREATE TABLE `t_sms_record` (
   `created_by` varchar(64) DEFAULT NULL COMMENT '创建人姓名',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
+  KEY `idx_template_code` (`template_code`),
   KEY `idx_phone_hash_time` (`phone_hash`,`created_at`),
   KEY `idx_type_status` (`sms_type`,`status`),
   KEY `idx_send_time` (`send_time`)

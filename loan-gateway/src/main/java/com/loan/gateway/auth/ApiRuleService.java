@@ -39,11 +39,11 @@ public class ApiRuleService {
     private final WebClient webClient;
 
     /** 内部接口令牌（与服务端配置一致） */
-    @Value("${internal.api.token:loan-internal-token}")
+    @Value("${internal.api.token}")
     private String internalToken;
 
     /** 服务端地址（兜底拉取规则用） */
-    @Value("${loan.service.base-url:http://127.0.0.1:8080/loan}")
+    @Value("${loan.service.base-url}")
     private String serviceBaseUrl;
 
     /** 本地缓存版本号 */
@@ -83,8 +83,17 @@ public class ApiRuleService {
                     });
                 })
                 .onErrorResume(e -> {
-                    log.warn("[Gateway] 读取鉴权规则失败，使用缓存或放行决策：{}", e.getMessage());
-                    return cachedRules != null ? Mono.just(cachedRules) : Mono.empty();
+                    // Redis 不可用时不能直接返回空规则：这会把所有业务请求误判为
+                    // “接口权限规则不可用”。优先从 loan-service 内部接口拉取最新规则，
+                    // 只有 Redis 与内部接口都不可用时才退回进程内缓存。
+                    log.warn("[Gateway] 读取 Redis 鉴权规则失败，改走 loan-service 兜底：{}", e.getMessage());
+                    return fetchFromService()
+                            .map(rules -> {
+                                cachedRules = rules;
+                                cachedVersion = "service-fallback";
+                                return rules;
+                            })
+                            .switchIfEmpty(cachedRules != null ? Mono.just(cachedRules) : Mono.empty());
                 });
     }
 
@@ -106,7 +115,11 @@ public class ApiRuleService {
                         return Mono.empty();
                     }
                 })
-                .switchIfEmpty(fetchFromService());
+                .switchIfEmpty(fetchFromService())
+                .onErrorResume(e -> {
+                    log.warn("[Gateway] 读取 Redis 全量鉴权规则失败，改走 loan-service 兜底：{}", e.getMessage());
+                    return fetchFromService();
+                });
     }
 
     /**

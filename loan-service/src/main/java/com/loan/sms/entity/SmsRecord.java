@@ -32,8 +32,8 @@ public class SmsRecord implements Serializable {
     /** 短信类型 */
     private String smsType;
 
-    /** 模板主键 ID */
-    private Long templateId;
+    /** 模板编码（与短信模板的业务编码绑定，不使用自增主键） */
+    private String templateCode;
 
     /** 变量快照 */
     private String paramsSnapshot;

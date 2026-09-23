@@ -1,8 +1,9 @@
 <template>
   <div class="workbench">
-    <div class="loan-page-header">
+    <div class="loan-page-header workbench-hero">
       <div>
-        <h2 class="loan-page-title">我的工作台</h2>
+        <span class="hero-kicker">TODAY · 业务总览</span>
+        <h2 class="loan-page-title">{{ welcomeText }}</h2>
         <p class="loan-page-subtitle">{{ workbenchSubtitle }}</p>
       </div>
       <div class="header-meta">
@@ -14,6 +15,34 @@
         </el-tooltip>
       </div>
     </div>
+
+    <!-- 今日服务：直接读取服务台聚合接口，统计口径与服务台列表完全一致。 -->
+    <section v-if="!isChannel && visibleServiceStats.length" class="service-overview loan-card">
+      <div class="section-head">
+        <div>
+          <h3 class="panel-title panel-title--plain">今日服务待办</h3>
+          <p>预约、来访、外出和跟进按当前角色数据范围实时统计</p>
+        </div>
+        <router-link to="/service-operations/daily" class="panel-link">进入今日服务台 →</router-link>
+      </div>
+      <div class="service-stat-grid" v-loading="serviceLoading">
+        <router-link
+          v-for="item in visibleServiceStats"
+          :key="item.key"
+          :to="{ path: item.path, query: item.query }"
+          class="service-stat"
+          :class="`service-stat--${item.tone}`"
+        >
+          <span class="service-stat__icon"><AppIcon :name="item.icon" :size="19" /></span>
+          <span class="service-stat__body">
+            <strong class="mono">{{ item.value }}</strong>
+            <span>{{ item.label }}</span>
+            <small>{{ item.hint }}</small>
+          </span>
+          <AppIcon name="arrowRight" :size="14" class="service-stat__arrow" />
+        </router-link>
+      </div>
+    </section>
 
     <!-- 指标卡（含趋势） -->
     <div v-if="!isChannel" class="metric-grid">
@@ -55,7 +84,7 @@
       <h3 class="panel-title">
         合作库到期预警
         <span v-if="expiring.length" class="panel-tip">{{ expiring.length }} 个产品即将到期</span>
-        <router-link to="/product" class="panel-link">前往合作库 →</router-link>
+        <router-link to="/product/cooperate" class="panel-link">前往合作库 →</router-link>
       </h3>
       <div v-if="expiring.length" class="expire-list">
         <div v-for="p in expiring" :key="p.bankProductCode" class="expire-item" :title="p.productName || '未命名产品'">
@@ -151,6 +180,7 @@ import { pageAudit } from '@/api/audit';
 import { dashboardTodo, configStatus } from '@/api/dashboard';
 import { reportOverview } from '@/api/report';
 import { pagePartnerProducts } from '@/api/partnerProduct';
+import { getDailyServiceLists, pageAppointments } from '@/api/serviceOperations';
 import { formatDateTime } from '@/utils/format';
 import { useUserStore } from '@/store/user';
 
@@ -158,7 +188,7 @@ const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 const roleCode = computed(() => userStore.roleCode || '');
 const allowedPaths = ref(new Set(['/workbench']));
-const canViewProduct = computed(() => allowedPaths.value.has('/product'));
+const canViewProduct = computed(() => allowedPaths.value.has('/product/all') || allowedPaths.value.has('/product'));
 const canViewAudit = computed(() => allowedPaths.value.has('/audit'));
 const canManagePartner = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value));
 const workbenchSubtitle = computed(() => ({
@@ -170,11 +200,15 @@ const workbenchSubtitle = computed(() => ({
   SUPER: '查看全司业务运行、审批与系统治理事项',
   CHANNEL: '管理本人录入的线索、客户、产品与分析报告',
 }[roleCode.value] || '客户、工单与审批的统一业务工作台'));
+const welcomeText = computed(() => `${userStore.displayName || '你好'}，今天从这里开始`);
 
 const nowText = ref('');
 const status = ref({});
 const todo = ref({});
 const overview = ref({});
+const dailyService = ref({});
+const appointmentTotal = ref(0);
+const serviceLoading = ref(false);
 let timer = null;
 function refreshNow() {
   const d = new Date();
@@ -207,7 +241,54 @@ async function loadStats() {
   } catch (e) {
     // 拦截器已提示
   }
+  if (allowedPaths.value.has('/service-operations/daily') || allowedPaths.value.has('/service-operations')) {
+    await loadDailyService();
+  }
 }
+
+function pageTotal(page) {
+  return Number(page?.total || 0);
+}
+
+function todayParam() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** 今日服务统计与服务台使用同一聚合接口，避免首页和列表出现不同口径。 */
+async function loadDailyService() {
+  serviceLoading.value = true;
+  try {
+    const [daily, appointments] = await Promise.all([
+      getDailyServiceLists({ page: 1, size: 1 }),
+      pageAppointments({ date: todayParam(), page: 1, size: 1 }),
+    ]);
+    dailyService.value = daily.data || {};
+    appointmentTotal.value = pageTotal(appointments.data);
+  } catch (e) {
+    dailyService.value = {};
+    appointmentTotal.value = 0;
+  } finally {
+    serviceLoading.value = false;
+  }
+}
+
+const serviceStats = computed(() => {
+  const d = dailyService.value || {};
+  const date = todayParam();
+  return [
+    { key: 'appointment', label: '今日预约', value: appointmentTotal.value, hint: '点击查看客户、时间与地点', icon: 'clock', tone: 'primary', path: '/service-operations/appointments', query: { date } },
+    { key: 'visit', label: '客户到访我司', value: pageTotal(d.companyVisits), hint: '点击查看来访客户与安排', icon: 'client', tone: 'success', path: '/service-operations/appointments', query: { date, serviceMethod: 'COMPANY_ON_SITE' } },
+    { key: 'outing', label: '员工上门外出', value: pageTotal(d.staffOutings), hint: '点击查看员工、客户与打卡', icon: 'lead', tone: 'warning', path: '/service-operations/outings', query: { date } },
+    { key: 'follow', label: '今日待回访', value: pageTotal(d.pendingFollows), hint: '点击查看客户与回访时间', icon: 'clock', tone: 'info', path: '/service-operations/daily', query: { date, focus: 'pendingFollows' } },
+    { key: 'order', label: '活跃工单', value: pageTotal(d.activeOrders), hint: '点击查看客户与工单进度', icon: 'order', tone: 'accent', path: '/service-operations/daily', query: { date, focus: 'activeOrders' } },
+  ];
+});
+const visibleServiceStats = computed(() => serviceStats.value.filter((item) => {
+  const path = item.path.split('?')[0];
+  return allowedPaths.value.has(path) || (path.startsWith('/service-operations/') && allowedPaths.value.has('/service-operations'));
+}));
 
 /** 指标卡（真实数据：配置完成度 + 经营总览） */
 const metrics = computed(() => {
@@ -268,23 +349,23 @@ function metric(label, value, foot, icon, color) {
 const todos = computed(() => {
   const t = todo.value || {};
   const mine = [
-    { name: '我的认领申请', count: t.myAllocationApply ?? 0, desc: '待处理的客户认领/转移', path: '/approval?tab=mine' },
-    { name: '我的下载申请', count: t.myDownloadApply ?? 0, desc: '待处理的资料下载申请', path: '/approval?tab=mine' },
+    { name: '我的认领申请', count: t.myAllocationApply ?? 0, desc: '待处理的客户认领/转移', path: '/approval/mine' },
+    { name: '我的下载申请', count: t.myDownloadApply ?? 0, desc: '待处理的资料下载申请', path: '/approval/mine' },
     { name: '我的工单', count: t.myOrderCount ?? 0, desc: '服务中的客户工单', path: '/order' },
-    { name: '我的线索', count: t.myLeadCount ?? 0, desc: '当前归属我的线索', path: '/lead' },
+    { name: '我的线索', count: t.myLeadCount ?? 0, desc: '当前归属我的线索', path: '/lead/my' },
   ];
   if (roleCode.value === 'ADVISER') return mine;
-  const allocation = { name: roleCode.value === 'DEPT_MANAGER' ? '团队认领待审批' : '客户认领待审批', count: t.pendingAllocationApproval ?? 0, desc: roleCode.value === 'DEPT_MANAGER' ? '本团队客户归属流转' : '客户归属流转审核', path: '/approval?tab=allocation' };
+  const allocation = { name: roleCode.value === 'DEPT_MANAGER' ? '团队认领待审批' : '客户认领待审批', count: t.pendingAllocationApproval ?? 0, desc: roleCode.value === 'DEPT_MANAGER' ? '本团队客户归属流转' : '客户归属流转审核', path: '/approval/allocation' };
   if (roleCode.value === 'DEPT_MANAGER') return [allocation, ...mine];
   if (roleCode.value === 'OPERATOR') return [
-    { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval?tab=download' }, allocation,
-    { name: '奖励待处理', count: t.pendingReward ?? 0, desc: '成交奖励审核与发放', path: '/reward' }, ...mine.slice(2),
+    { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval/download' }, allocation,
+    { name: '奖励待处理', count: t.pendingReward ?? 0, desc: '成交奖励审核与发放', path: '/reward/records' }, ...mine.slice(2),
   ];
   return [
-    { name: '产品待审批', count: t.pendingProductApproval ?? 0, desc: '新增产品发布审核', path: '/approval?tab=product' },
-    { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval?tab=download' },
+    { name: '产品待审批', count: t.pendingProductApproval ?? 0, desc: '新增产品发布审核', path: '/approval/product' },
+    { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval/download' },
     allocation,
-    { name: '奖励待处理', count: t.pendingReward ?? 0, desc: '成交奖励审核与发放', path: '/reward' },
+    { name: '奖励待处理', count: t.pendingReward ?? 0, desc: '成交奖励审核与发放', path: '/reward/records' },
   ];
 });
 const visibleTodos = computed(() => todos.value.filter((item) => allowedPaths.value.has(item.path.split('?')[0])));
@@ -295,7 +376,7 @@ function fmtAmount(v) {
 
 const quick = [
   {
-    path: '/product',
+    path: '/product/all',
     name: '产品库',
     desc: '全量库 / 合作库双层管理',
     icon: 'product',
@@ -331,9 +412,9 @@ async function loadMenuAccess() {
 }
 
 const channelQuick = [
-  { path: '/lead', name: '我的线索', desc: '录入并查看本人提交的客户线索', icon: 'lead' },
-  { path: '/client', name: '我的客户', desc: '查看本人线索形成的客户档案与归属', icon: 'client' },
-  { path: '/product', name: '我的产品', desc: '录入产品并跟踪平台审核进度', icon: 'product' },
+  { path: '/lead/my', name: '我的线索', desc: '录入并查看本人提交的客户线索', icon: 'lead' },
+  { path: '/client/my', name: '我的客户', desc: '查看本人线索形成的客户档案与归属', icon: 'client' },
+  { path: '/product/all', name: '我的产品', desc: '录入产品并跟踪平台审核进度', icon: 'product' },
   { path: '/report/screening', name: '客户分析报告', desc: '查看本人客户的分析结果', icon: 'reportDoc' },
 ];
 
@@ -418,6 +499,107 @@ const chain = ['认证', '资料提取', '规则引擎匹配', '档位聚合', '
 </script>
 
 <style scoped>
+.workbench {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+.workbench-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border: 1px solid color-mix(in srgb, var(--loan-primary) 18%, var(--loan-border));
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 88% 20%, color-mix(in srgb, var(--loan-accent) 18%, transparent) 0, transparent 32%),
+    linear-gradient(135deg, color-mix(in srgb, var(--loan-primary) 10%, var(--loan-card-bg)) 0%, var(--loan-card-bg) 72%);
+}
+.workbench-hero::after {
+  content: '';
+  position: absolute;
+  right: 54px;
+  bottom: -44px;
+  width: 150px;
+  height: 150px;
+  border: 24px solid color-mix(in srgb, var(--loan-primary) 6%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.hero-kicker {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--loan-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+.service-overview {
+  margin-bottom: 20px;
+  padding: 18px 20px 20px;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+.section-head p {
+  margin: 4px 0 0;
+  color: var(--loan-text-muted);
+  font-size: 12px;
+}
+.panel-title--plain {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 16px;
+}
+.service-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.service-stat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 14px 12px;
+  color: var(--loan-text);
+  background: var(--loan-surface);
+  border: 1px solid var(--loan-border);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: transform var(--loan-transition), border-color var(--loan-transition), box-shadow var(--loan-transition);
+}
+.service-stat:hover {
+  transform: translateY(-2px);
+  border-color: var(--stat-color, var(--loan-primary));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--stat-color, var(--loan-primary)) 10%, transparent);
+}
+.service-stat--primary { --stat-color: var(--loan-primary); }
+.service-stat--success { --stat-color: var(--loan-success); }
+.service-stat--warning { --stat-color: var(--loan-warning); }
+.service-stat--info { --stat-color: var(--loan-info); }
+.service-stat--accent { --stat-color: var(--loan-accent); }
+.service-stat__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  height: 38px;
+  color: var(--stat-color);
+  background: color-mix(in srgb, var(--stat-color) 11%, transparent);
+  border-radius: 10px;
+}
+.service-stat__body { min-width: 0; }
+.service-stat__body strong { display: block; color: var(--loan-text); font-size: 21px; line-height: 1; }
+.service-stat__body span { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.service-stat__body small { display: block; margin-top: 2px; color: var(--loan-text-muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.service-stat__arrow { margin-left: auto; color: var(--loan-text-muted); opacity: 0; transition: opacity var(--loan-transition), transform var(--loan-transition); }
+.service-stat:hover .service-stat__arrow { opacity: 1; transform: translateX(2px); }
 /* 页头右侧时间 */
 .header-meta {
   display: flex;
@@ -503,12 +685,15 @@ const chain = ['认证', '资料提取', '规则引擎匹配', '档位聚合', '
 }
 
 @media (max-width: 1100px) {
+  .service-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 560px) {
+  .workbench-hero { padding: 18px; }
+  .service-stat-grid { grid-template-columns: 1fr; }
   .metric-grid {
     grid-template-columns: minmax(0, 1fr);
   }

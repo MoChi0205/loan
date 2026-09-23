@@ -2,8 +2,8 @@
   <div class="service-operations">
     <div class="loan-page-header service-header">
       <div>
-        <h2 class="loan-page-title">客户服务</h2>
-        <p class="loan-page-subtitle">来访、预约、外出与客户跟进统一协同</p>
+        <h2 class="loan-page-title">{{ servicePageTitle }}</h2>
+        <p class="loan-page-subtitle">{{ servicePageSubtitle }}</p>
       </div>
       <div class="header-actions">
         <el-date-picker v-model="selectedDate" type="date" value-format="YYYY-MM-DD" :clearable="false" aria-label="业务日期" />
@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <div class="metric-grid" v-loading="workbenchLoading">
+    <div v-if="activeTab === 'daily'" class="metric-grid" v-loading="workbenchLoading">
       <button v-for="item in metrics" :key="item.key" class="metric-card loan-card" type="button" @click="goMetric(item)">
         <span class="metric-label">{{ item.label }}</span>
         <strong class="metric-value">{{ item.value }}</strong>
@@ -21,10 +21,9 @@
     </div>
 
     <div class="loan-card main-card">
-      <el-tabs v-model="activeTab" @tab-change="onTabChange">
-        <el-tab-pane label="今日服务台" name="daily">
+        <div v-if="activeTab === 'daily'">
           <div class="list-grid" v-loading="workbenchLoading">
-            <section class="list-panel">
+            <section class="list-panel" :class="{ 'list-panel--focused': focus === 'companyVisits' }">
               <div class="panel-head"><h3>今日来访</h3><span>{{ totalOf(workbench.companyVisits) }} 人</span></div>
               <button v-for="row in recordsOf(workbench.companyVisits)" :key="row.appointmentNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || row.clientCode }}</strong><small>{{ timeOnly(row.scheduledStart) }} · {{ row.hostStaffName || row.hostStaffCode }}</small></span>
@@ -32,7 +31,7 @@
               </button>
               <el-empty v-if="!recordsOf(workbench.companyVisits).length" description="当日暂无到公司服务" :image-size="52" />
             </section>
-            <section class="list-panel">
+            <section class="list-panel" :class="{ 'list-panel--focused': focus === 'staffOutings' }">
               <div class="panel-head"><h3>外出服务</h3><span>{{ totalOf(workbench.staffOutings) }} 人</span></div>
               <button v-for="row in recordsOf(workbench.staffOutings)" :key="row.outingNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.staffName || row.staffCode }}</strong><small>{{ timeOnly(row.plannedStart) }} · {{ row.customerName || row.clientCode }}</small></span>
@@ -40,7 +39,7 @@
               </button>
               <el-empty v-if="!recordsOf(workbench.staffOutings).length" description="当日暂无上门外出" :image-size="52" />
             </section>
-            <section class="list-panel">
+            <section class="list-panel" :class="{ 'list-panel--focused': focus === 'pendingFollows' }">
               <div class="panel-head"><h3>待回访</h3><span>{{ totalOf(workbench.pendingFollows) }} 项</span></div>
               <button v-for="row in recordsOf(workbench.pendingFollows)" :key="row.followNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || row.clientCode }}</strong><small>{{ formatDateTime(row.nextFollowAt) }}</small></span>
@@ -48,7 +47,7 @@
               </button>
               <el-empty v-if="!recordsOf(workbench.pendingFollows).length" description="当日暂无待回访" :image-size="52" />
             </section>
-            <section class="list-panel">
+            <section class="list-panel" :class="{ 'list-panel--focused': focus === 'activeOrders' }">
               <div class="panel-head"><h3>活跃工单</h3><span>{{ totalOf(workbench.activeOrders) }} 单</span></div>
               <button v-for="row in recordsOf(workbench.activeOrders)" :key="row.orderNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || row.clientCode }}</strong><small>{{ row.orderNo }} · {{ formatDateTime(row.updatedAt) }}</small></span>
@@ -57,9 +56,9 @@
               <el-empty v-if="!recordsOf(workbench.activeOrders).length" description="暂无活跃工单" :image-size="52" />
             </section>
           </div>
-        </el-tab-pane>
+        </div>
 
-        <el-tab-pane label="预约来访" name="appointments">
+        <div v-else-if="activeTab === 'appointments'">
           <div class="filter-row">
             <el-select v-model="appointmentQuery.serviceMethod" clearable placeholder="全部服务方式" @change="loadAppointments">
               <el-option v-for="(label, code) in methodText" :key="code" :label="label" :value="code" />
@@ -79,7 +78,7 @@
               <template #default="{ row }">
                 <div class="action-row">
                   <el-button v-if="canConfirm(row)" link type="primary" @click="runAppointmentAction('confirm', row)">确认预约</el-button>
-                  <el-button v-if="canArrive(row)" link type="primary" @click="runAppointmentAction('arrive', row)">到店</el-button>
+                  <el-button v-if="canArrive(row)" link type="primary" @click="runAppointmentAction('arrive', row)">登记到访</el-button>
                   <el-button v-if="canStart(row)" link type="primary" @click="runAppointmentAction('start', row)">开始</el-button>
                   <el-button v-if="canComplete(row)" link type="success" @click="runAppointmentAction('complete', row)">完成</el-button>
                   <el-button v-if="canNoShow(row)" link type="warning" @click="runAppointmentAction('noShow', row)">爽约</el-button>
@@ -94,9 +93,9 @@
             </el-table-column>
           </el-table>
           <AppPagination v-model:page="appointmentQuery.page" v-model:size="appointmentQuery.size" :total="appointmentTotal" @change="loadAppointments" />
-        </el-tab-pane>
+        </div>
 
-        <el-tab-pane label="员工外出" name="outings">
+        <div v-else-if="activeTab === 'outings'">
           <div class="filter-row">
             <el-select v-model="outingQuery.status" clearable placeholder="全部状态" @change="loadOutings">
               <el-option v-for="(label, code) in outingStatusText" :key="code" :label="label" :value="code" />
@@ -113,9 +112,9 @@
             <el-table-column label="操作" width="170" fixed="right"><template #default="{ row }"><template v-if="isOwnOuting(row)"><el-button v-if="row.status === 'READY'" link type="primary" @click="checkIn(row, 'depart')">出发打卡</el-button><el-button v-if="row.status === 'IN_PROGRESS'" link type="success" @click="checkIn(row, 'return')">返回打卡</el-button><el-button v-if="row.status === 'REJECTED'" link type="warning" @click="openResubmit(row)">重新提交</el-button><span v-if="row.status === 'PENDING_REVIEW'" class="cell-sub">待主管审核</span></template><template v-else-if="canReviewOuting(row)"><el-button v-if="row.status === 'PENDING_REVIEW'" link type="success" @click="onApprove(row)">通过</el-button><el-button v-if="row.status === 'PENDING_REVIEW'" link type="danger" @click="openReject(row)">驳回</el-button><span v-if="row.status !== 'PENDING_REVIEW'" class="cell-sub">仅可查看</span></template><span v-else class="cell-sub">仅可查看</span></template></el-table-column>
           </el-table>
           <AppPagination v-model:page="outingQuery.page" v-model:size="outingQuery.size" :total="outingTotal" @change="loadOutings" />
-        </el-tab-pane>
+        </div>
 
-        <el-tab-pane label="客户回放" name="replay">
+        <div v-else>
           <div class="replay-layout">
             <aside class="client-picker">
               <el-input v-model="clientKeyword" clearable placeholder="姓名、企业名或手机号" @keyup.enter="searchClients"><template #append><el-button :loading="clientLoading" @click="searchClients">查询</el-button></template></el-input>
@@ -187,8 +186,7 @@
               <AppPagination v-if="timelineTotal" v-model:page="timelineQuery.page" v-model:size="timelineQuery.size" :total="timelineTotal" @change="loadTimeline" />
             </section>
           </div>
-        </el-tab-pane>
-      </el-tabs>
+        </div>
     </div>
 
     <AppDialog v-model:visible="createVisible" title="创建客户预约" width="680px" :loading="saving" @confirm="submitAppointment">
@@ -304,13 +302,21 @@ const today = () => {
 };
 const selectedDate = ref(today());
 const activeTab = ref('daily');
+const focus = ref('');
 const refreshing = ref(false);
 const saving = ref(false);
 
-const methodText = Object.freeze({ COMPANY_ON_SITE: '到公司现场', HOME_VISIT: '上门拜访', VIDEO_MEETING: '视频会议', PHONE_CONSULT: '电话咨询' });
+const methodText = Object.freeze({ COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', PHONE_CONSULT: '电话咨询' });
 const appointmentStatusText = Object.freeze({ REQUESTED: '待确认', CONFIRMED: '已确认', ARRIVED: '已到店', SERVING: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', NO_SHOW: '未到场', RESCHEDULED: '已改期' });
 const outingStatusText = Object.freeze({ DRAFT: '草稿', PENDING_REVIEW: '待审核', REJECTED: '已驳回', READY: '待出发', IN_PROGRESS: '外出中', COMPLETED: '已返回', CANCELLED: '已取消' });
-const followChannelText = Object.freeze({ PHONE: '电话咨询', COMPANY_ON_SITE: '到公司现场', HOME_VISIT: '上门拜访', VIDEO_MEETING: '视频会议', WECOM: '企业微信', OTHER: '其他' });
+const followChannelText = Object.freeze({ PHONE: '电话咨询', COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', WECOM: '企业微信', OTHER: '其他' });
+const servicePageTitle = computed(() => ({ daily: '今日服务台', appointments: '客户预约', outings: '员工外出', replay: '客户回放' }[activeTab.value] || '服务台'));
+const servicePageSubtitle = computed(() => ({
+  daily: '今日客户到访、员工上门、待回访与活跃工单',
+  appointments: '客户到访我司、员工上门拜访客户、视频会议与电话咨询预约',
+  outings: '员工上门拜访客户的计划、单点位置打卡与结果记录',
+  replay: '按客户查看画像、预约、外出、工单和跟进时间线',
+}[activeTab.value] || '服务过程协同'));
 const eventText = Object.freeze({ APPOINTMENT_CREATED: '创建预约', CUSTOMER_CONFIRMED: '客户确认', APPOINTMENT_CONFIRMED: '预约确认', CUSTOMER_ARRIVED: '客户到店', SERVICE_STARTED: '开始服务', SERVICE_COMPLETED: '服务完成', APPOINTMENT_CANCELLED: '取消预约', APPOINTMENT_NO_SHOW: '客户未到场', APPOINTMENT_RESCHEDULED: '预约改期', OUTING_SUBMITTED: '提交外出申请', OUTING_APPROVED: '外出审核通过', OUTING_REJECTED: '外出申请驳回', OUTING_DEPARTED: '出发打卡', OUTING_RETURNED: '返回打卡', FOLLOW_RECORDED: '客户跟进' });
 const actorText = Object.freeze({ STAFF: '员工', CUSTOMER: '客户', SYSTEM: '系统' });
 function recordsOf(page) { return Array.isArray(page?.records) ? page.records : []; }
@@ -322,8 +328,8 @@ function outingTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', 
 const workbench = ref({});
 const workbenchLoading = ref(false);
 const metrics = computed(() => [
-  { key: 'visits', label: '今日来访', value: totalOf(workbench.value.companyVisits), hint: '仅到公司现场', tab: 'appointments', method: 'COMPANY_ON_SITE' },
-  { key: 'outings', label: '外出服务', value: totalOf(workbench.value.staffOutings), hint: '上门拜访名单', tab: 'outings' },
+  { key: 'visits', label: '今日来访', value: totalOf(workbench.value.companyVisits), hint: '客户到访我司', tab: 'appointments', method: 'COMPANY_ON_SITE' },
+  { key: 'outings', label: '外出服务', value: totalOf(workbench.value.staffOutings), hint: '员工上门拜访客户', tab: 'outings' },
   { key: 'follows', label: '待回访', value: totalOf(workbench.value.pendingFollows), hint: '按计划跟进客户', tab: 'daily' },
   { key: 'orders', label: '活跃工单', value: totalOf(workbench.value.activeOrders), hint: '进行中的服务工单', tab: 'daily' },
 ]);
@@ -332,7 +338,7 @@ async function loadWorkbench() {
   try { workbench.value = (await getDailyServiceLists({ date: selectedDate.value, page: 1, size: 20 })).data || {}; }
   finally { workbenchLoading.value = false; }
 }
-function goMetric(item) { activeTab.value = item.tab; if (item.method) appointmentQuery.serviceMethod = item.method; onTabChange(item.tab); }
+function goMetric(item) { router.push({ path: `/service-operations/${item.tab}`, query: item.method ? { serviceMethod: item.method } : {} }); }
 
 const appointments = ref([]);
 const appointmentTotal = ref(0);
@@ -403,8 +409,7 @@ async function submitAppointment() {
     await createAppointment(data);
     createVisible.value = false;
     ElMessage.success('预约已创建，等待客户确认');
-    activeTab.value = 'appointments';
-    await Promise.all([loadAppointments(), loadWorkbench()]);
+    await router.push('/service-operations/appointments');
   } finally { saving.value = false; }
 }
 
@@ -569,8 +574,12 @@ const selectedClient = ref(null);
 const selectedClientName = computed(() => selectedClient.value ? (selectedClient.value.enterpriseName || selectedClient.value.contactName || selectedClient.value.clientCode) : '客户活动回放');
 const canAddFollow = computed(() => selectedClient.value?.ownerStaffCode === userNo.value);
 async function searchClients() { clientLoading.value = true; clientSearched.value = true; try { const page = (await pageClients({ keyword: clientKeyword.value, page: 1, size: 20, scope: userStore.roleCode === 'ADVISER' ? 'MY' : 'ALL' })).data || {}; clientOptions.value = recordsOf(page); } finally { clientLoading.value = false; } }
-function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ query: { ...route.query, tab: 'replay', clientCode: row.clientCode } }); loadInsight(); loadTimeline(); }
-function openClientReplay(clientCode) { activeTab.value = 'replay'; clientKeyword.value = clientCode; searchClients().then(() => { const row = clientOptions.value.find((item) => item.clientCode === clientCode) || { clientCode }; selectClient(row); }); }
+function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ path: '/service-operations/replay', query: { clientCode: row.clientCode } }); loadInsight(); loadTimeline(); }
+function openClientReplay(clientCode) {
+  if (activeTab.value !== 'replay') return router.push({ path: '/service-operations/replay', query: { clientCode } });
+  clientKeyword.value = clientCode;
+  return searchClients().then(() => { const row = clientOptions.value.find((item) => item.clientCode === clientCode) || { clientCode }; selectClient(row); });
+}
 const timeline = ref([]);
 const timelineTotal = ref(0);
 const timelineLoading = ref(false);
@@ -646,8 +655,11 @@ async function submitFollow() {
 }
 
 onMounted(async () => {
-  const tab = String(route.query.tab || 'daily');
+  const tab = String(route.meta.serviceView || route.query.tab || 'daily');
   if (['daily', 'appointments', 'outings', 'replay'].includes(tab)) activeTab.value = tab;
+  if (route.query.date) selectedDate.value = String(route.query.date);
+  if (route.query.focus) focus.value = String(route.query.focus);
+  if (route.query.serviceMethod) appointmentQuery.serviceMethod = String(route.query.serviceMethod);
   await loadWorkbench();
   if (activeTab.value !== 'daily') onTabChange(activeTab.value);
   if (route.query.clientCode) openClientReplay(String(route.query.clientCode));
@@ -667,6 +679,7 @@ onMounted(async () => {
 .main-card { padding: 8px 18px 18px; min-width: 0; }
 .list-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .list-panel { min-height: 230px; padding: 16px; border: 1px solid var(--loan-border); border-radius: var(--loan-radius); background: var(--loan-surface); }
+.list-panel--focused { border-color: var(--loan-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--loan-primary) 12%, transparent); }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .panel-head h3 { margin: 0; color: var(--loan-text); font-size: 15px; }
 .panel-head > span, .panel-head > div > span { color: var(--loan-text-muted); font-size: 12px; }

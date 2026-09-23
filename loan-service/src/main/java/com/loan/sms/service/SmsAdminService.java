@@ -182,8 +182,7 @@ public class SmsAdminService {
             m.put("id", r.getId());
             m.put("phone", com.loan.infrastructure.security.AesUtils.decrypt(r.getPhone()));
             m.put("smsType", r.getSmsType());
-            SmsTemplate template = r.getTemplateId() == null ? null : smsTemplateMapper.selectById(r.getTemplateId());
-            m.put("templateCode", template == null ? null : template.getTemplateCode());
+            m.put("templateCode", r.getTemplateCode());
             m.put("content", r.getContent());
             m.put("channelCode", r.getChannelCode());
             m.put("status", r.getStatus());
@@ -218,7 +217,7 @@ public class SmsAdminService {
         record.setPhone(phone);
         record.setPhoneHash(sha256(phone));
         record.setSmsType(template.getSmsType());
-        record.setTemplateId(template.getId());
+        record.setTemplateCode(template.getTemplateCode());
         record.setContent(StringUtils.hasText(content) ? content : template.getContent());
         record.setChannelCode("MOCK");
         record.setStatus("SUCCESS");

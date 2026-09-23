@@ -89,7 +89,7 @@ public class SmsService {
         record.setPhone(phone);
         record.setPhoneHash(sha256(phone));
         record.setSmsType(normalizedScene);
-        record.setTemplateId(template.getId());
+        record.setTemplateCode(template.getTemplateCode());
         record.setContent(content);
         record.setChannelCode("MOCK");
         record.setStatus("SUCCESS");
