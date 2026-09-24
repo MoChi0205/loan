@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# loan 四端服务管理脚本：后端(8080) / 网关(8088) / Web(5173) / 小程序 H5(5174)
+# loan 四端服务管理脚本：后端(9080) / 网关(9088) / Web(9173) / 小程序 H5(9174)
 #
 # 用法:
 #   bash scripts/service.sh start   [all|backend|gateway|web|mini]
@@ -32,6 +32,7 @@ GATEWAY_RUN_LOG="/tmp/loan-gateway-dev.log"
 BACKEND_RUN_JAR="/tmp/loan-service-dev.jar"
 BACKEND_RUN_LOG="/tmp/loan-service-dev.log"
 RUNTIME_DIR="/tmp/loan-runtime"
+BACKEND_APP_DIR="${RUNTIME_DIR}/backend-app"
 BACKEND_LOG_DIR="${RUNTIME_DIR}/logs"
 WEB_RUN_LOG="/tmp/loan-web-dev.log"
 WATCHDOG_RUN_LOG="/tmp/loan-watchdog-dev.log"
@@ -88,7 +89,12 @@ port_up() {
 }
 
 start_backend() {
-  if port_up 8080; then echo "[backend] 已在运行 (8080)"; return; fi
+  : "${NACOS_SERVER_ADDR:?必须显式设置 NACOS_SERVER_ADDR；本机禁止启动本地 Nacos/MySQL/Redis/Docker}"
+  : "${NACOS_NAMESPACE:?必须显式设置 NACOS_NAMESPACE；配置必须从该 namespace 获取}"
+  if port_up 9080; then echo "[backend] 已在运行 (9080)"; return; fi
+  # /tmp 可能被系统或开发工具周期清理；每次启动都重建运行与日志目录，
+  # 避免 LaunchAgent 启动时因 WorkingDirectory 不存在直接退出。
+  mkdir -p "$RUNTIME_DIR" "$BACKEND_LOG_DIR" "$BACKEND_APP_DIR"
   echo "[backend] 构建可运行包..."
   (cd "$BASE_DIR" && JAVA_HOME="$JAVA_HOME" "$MVN" -q -pl loan-service -am package -DskipTests) || {
     echo "[backend] 构建失败，请检查 Maven 输出"
@@ -98,23 +104,35 @@ start_backend() {
   # Downloads 目录复制出的 JAR 在部分 macOS 版本会继承 provenance 扩展属性，
   # 导致 LaunchAgent 嵌套类加载偶发失败；临时运行副本无需保留该属性。
   xattr -d com.apple.provenance "$BACKEND_RUN_JAR" >/dev/null 2>&1 || true
+  # Spring Boot fat JAR 在当前 macOS + JDK8 环境中通过 LaunchedURLClassLoader
+  # 冷启动实测约 10 分钟。解压到 /tmp 后使用普通 classpath，业务包与依赖内容不变，
+  # 只绕开嵌套 JAR 的逐类查找；运行配置仍全部来自显式选择的远端 Nacos。
+  find "$BACKEND_APP_DIR" -mindepth 1 -delete
+  unzip -q "$BACKEND_RUN_JAR" -d "$BACKEND_APP_DIR" || {
+    echo "[backend] 解压运行包失败"
+    return 1
+  }
   # launchctl submit 不支持 WorkingDirectory：由 shell 先切换到固定运行目录，再 exec Java。
   # Java 仅携带约定的 5 个 -D 参数；Log4j2 通过环境变量使用绝对日志目录。
   launch_job "$LABEL_PREFIX.backend" "$BACKEND_RUN_LOG" \
     /usr/bin/env "JAVA_HOME=$JAVA_HOME" "LOAN_LOG_DIR=$BACKEND_LOG_DIR" /bin/bash -lc \
     "cd '$RUNTIME_DIR' && exec '$JAVA_HOME/bin/java' \
-      -Dnacos.server-addr=127.0.0.1:8848 \
-      -Dnacos.namespace=dev \
+      -Dnacos.server-addr="$NACOS_SERVER_ADDR" \
+      -Dnacos.namespace="$NACOS_NAMESPACE" \
+      -Dserver.port=9080 \
       -Dspring.cloud.nacos.discovery.register-enabled=false \
       -Ddubbo.enabled=false \
       -Dapp.gateway.trust-only=false \
       -Dloan.auth.dev-sms-code-visible=true \
-      -jar '$BACKEND_RUN_JAR'"
+      -cp '$BACKEND_APP_DIR:$BACKEND_APP_DIR/BOOT-INF/classes:$BACKEND_APP_DIR/BOOT-INF/lib/*' \
+      com.loan.LoanApplication"
   echo "[backend] 启动中 (工作目录: $RUNTIME_DIR; 日志目录: $BACKEND_LOG_DIR)"
 }
 
 start_gateway() {
-  if port_up 8088; then echo "[gateway] 已在运行 (8088)"; return; fi
+  : "${NACOS_SERVER_ADDR:?必须显式设置 NACOS_SERVER_ADDR；本机禁止启动本地 Nacos/MySQL/Redis/Docker}"
+  : "${NACOS_NAMESPACE:?必须显式设置 NACOS_NAMESPACE；配置必须从该 namespace 获取}"
+  if port_up 9088; then echo "[gateway] 已在运行 (9088)"; return; fi
   echo "[gateway] 构建可运行包..."
   (cd "$BASE_DIR" && JAVA_HOME="$JAVA_HOME" "$MVN" -q -pl loan-gateway -am package -DskipTests) || {
     echo "[gateway] 构建失败，请检查 Maven 输出"
@@ -124,26 +142,30 @@ start_gateway() {
   cp "$BASE_DIR/loan-gateway/target/loan-gateway-1.0.0.jar" "$GATEWAY_RUN_JAR"
   launch_job "$LABEL_PREFIX.gateway" "$GATEWAY_RUN_LOG" \
     /usr/bin/env "JAVA_HOME=$JAVA_HOME" "$JAVA_HOME/bin/java" \
+    -Dnacos.server-addr="$NACOS_SERVER_ADDR" \
+    -Dnacos.namespace="$NACOS_NAMESPACE" \
+    -Dspring.cloud.nacos.discovery.register-enabled=false \
+    -Dspring.cloud.nacos.config.enabled=false \
+    -Dspring.cloud.nacos.discovery.enabled=false \
+    -Ddubbo.enabled=false \
+    -Dapp.gateway.trust-only=false \
     -jar "$GATEWAY_RUN_JAR" \
-    --server.port=8088 \
-    --spring.redis.host=127.0.0.1 \
-    --spring.redis.port=6379 \
-    --spring.redis.password="${LOAN_REDIS_PASSWORD:-}" \
-    --jwt.secret="${LOAN_JWT_SECRET:-loan-platform-jwt-secret-key-2026}"
+    --server.port=9088 \
+    --spring.cloud.nacos.discovery.enabled=false
   echo "[gateway] 启动中 (日志: $GATEWAY_RUN_LOG)"
 }
 
 start_web() {
-  if port_up 5173; then echo "[web] 已在运行 (5173)"; return; fi
+  if port_up 9173; then echo "[web] 已在运行 (9173)"; return; fi
   launch_job "$LABEL_PREFIX.web" "$WEB_RUN_LOG" /bin/bash -lc \
-    "cd '$BASE_DIR/loan-web' && '$NPM' run dev -- --port 5173 --strictPort"
+    "cd '$BASE_DIR/loan-web' && '$NPM' run dev -- --port 9173 --strictPort"
   echo "[web] 启动中 (日志: $WEB_RUN_LOG)"
 }
 
 start_mini() {
-  if port_up 5174; then echo "[mini] 已在运行 (5174)"; return; fi
+  if port_up 9174; then echo "[mini] 已在运行 (9174)"; return; fi
   launch_job "$LABEL_PREFIX.mini" "$LOG_DIR/mini.log" /bin/bash -lc \
-    "cd '$BASE_DIR/loan-mini' && '$NPM' run dev:h5 -- --port 5174 --strictPort"
+    "cd '$BASE_DIR/loan-mini' && '$NPM' run dev:h5 -- --port 9174 --strictPort"
   echo "[mini] 启动中 (日志: logs/mini.log)"
 }
 
@@ -156,14 +178,27 @@ stop_port() { # $1=port
   fi
 }
 
-stop_backend()  { remove_job "$LABEL_PREFIX.backend"; stop_port 8080; echo "[backend] 已停止"; }
-stop_gateway()  { remove_job "$LABEL_PREFIX.gateway"; stop_port 8088; echo "[gateway] 已停止"; }
-stop_web()      { remove_job "$LABEL_PREFIX.web"; stop_port 5173; echo "[web] 已停止"; }
-stop_mini()     { remove_job "$LABEL_PREFIX.mini"; stop_port 5174; echo "[mini] 已停止"; }
+wait_port_down() { # $1=port，避免 restart 在旧进程关闭途中误判为仍在运行
+  local attempts=20
+  while [ "$attempts" -gt 0 ]; do
+    if ! nc -z -w 1 127.0.0.1 "$1" 2>/dev/null; then
+      return 0
+    fi
+    attempts=$((attempts - 1))
+    sleep 1
+  done
+  echo "[service] 端口 $1 在 20 秒内未释放"
+  return 1
+}
+
+stop_backend()  { remove_job "$LABEL_PREFIX.backend"; stop_port 9080; wait_port_down 9080; echo "[backend] 已停止"; }
+stop_gateway()  { remove_job "$LABEL_PREFIX.gateway"; stop_port 9088; wait_port_down 9088; echo "[gateway] 已停止"; }
+stop_web()      { remove_job "$LABEL_PREFIX.web"; stop_port 9173; wait_port_down 9173; echo "[web] 已停止"; }
+stop_mini()     { remove_job "$LABEL_PREFIX.mini"; stop_port 9174; wait_port_down 9174; echo "[mini] 已停止"; }
 
 status() {
   loan_print_java8_summary "$JAVA_HOME"
-  for item in "8080 backend" "8088 gateway" "5173 web" "5174 mini"; do
+  for item in "9080 backend" "9088 gateway" "9173 web" "9174 mini"; do
     set -- $item
     if port_up "$1"; then echo "[$2] 运行中 ($1)"; else echo "[$2] 已停止 ($1)"; fi
   done
@@ -177,7 +212,7 @@ start_watchdog() {
   fi
   launch_job "$LABEL_PREFIX.watchdog" "$WATCHDOG_RUN_LOG" /bin/bash -lc "
     while true; do
-      for entry in '8080 backend' '8088 gateway' '5173 web' '5174 mini'; do
+      for entry in '9080 backend' '9088 gateway' '9173 web' '9174 mini'; do
         set -- \$entry
         if ! curl -s -o /dev/null -m 2 'http://localhost:'\$1'/' 2>/dev/null && ! nc -z -w 2 127.0.0.1 \$1 2>/dev/null; then
           echo \"[\$(date '+%H:%M:%S')] 检测到 \$2(port \$1) 停止，自动拉起\"
@@ -227,7 +262,7 @@ case "$CMD" in
     esac
     ;;
   restart)
-    bash "$0" stop "$TARGET"; sleep 2; bash "$0" start "$TARGET"
+    bash "$0" stop "$TARGET" && bash "$0" start "$TARGET"
     ;;
   status) status ;;
   *) echo "用法: bash scripts/service.sh {start|stop|restart|status|watchdog} [all|backend|gateway|web|mini]"; exit 1 ;;

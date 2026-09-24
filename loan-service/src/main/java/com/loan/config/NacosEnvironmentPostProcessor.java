@@ -49,16 +49,14 @@ public class NacosEnvironmentPostProcessor implements EnvironmentPostProcessor, 
         jvmProps.put("nacos.config.server-addr", serverAddr);
         jvmProps.put("nacos.config.namespace", namespace);
         jvmProps.put("nacos.server.grpc.port.offset", "100");
-        String trustOnlyOverride = System.getProperty("app.gateway.trust-only");
-        if (trustOnlyOverride != null && !trustOnlyOverride.trim().isEmpty()) {
-            jvmProps.put("app.gateway.trust-only", trustOnlyOverride.trim());
-        }
-        // 开发模式（本地 IDEA 连 prd）经 -Ddubbo.enabled=false 关闭 Dubbo，避免向生产注册服务；
-        // 以最高优先级注入，覆盖 Nacos 配置里的 dubbo.enabled=true
-        String dubboEnabled = System.getProperty("dubbo.enabled");
-        if (dubboEnabled != null && !dubboEnabled.trim().isEmpty()) {
-            jvmProps.put("dubbo.enabled", dubboEnabled.trim());
-        }
+        // 仅允许启动脚本需要的有限 JVM 参数覆盖远端同名值。Nacos 远端配置被放在
+        // JVM_SOURCE 之后，若不显式透传，server.port 等标准 -D 参数会反而被远端覆盖。
+        copyJvmOverride(jvmProps, "server.port");
+        copyJvmOverride(jvmProps, "app.gateway.trust-only");
+        copyJvmOverride(jvmProps, "dubbo.enabled");
+        copyJvmOverride(jvmProps, "spring.cloud.nacos.discovery.register-enabled");
+        copyJvmOverride(jvmProps, "spring.cloud.nacos.discovery.enabled");
+        copyJvmOverride(jvmProps, "loan.auth.dev-sms-code-visible");
         environment.getPropertySources().addFirst(new MapPropertySource(JVM_SOURCE, jvmProps));
 
         // 2) 直接 HTTP 拉取 Nacos prd 配置，作为 PropertiesPropertySource 加入 environment
@@ -78,9 +76,16 @@ public class NacosEnvironmentPostProcessor implements EnvironmentPostProcessor, 
         String value = System.getProperty(key);
         if (value == null || value.trim().isEmpty()) {
             throw new IllegalStateException(
-                    "缺少 VM 参数 -D" + key + "；示例: -Dnacos.server-addr=127.0.0.1:8848 -Dnacos.namespace=dev");
+                    "缺少 VM 参数 -D" + key + "；必须显式指定 Nacos，禁止回退本地基础设施");
         }
         return value.trim();
+    }
+
+    private static void copyJvmOverride(Map<String, Object> target, String key) {
+        String value = System.getProperty(key);
+        if (value != null && !value.trim().isEmpty()) {
+            target.put(key, value.trim());
+        }
     }
 
     /**
