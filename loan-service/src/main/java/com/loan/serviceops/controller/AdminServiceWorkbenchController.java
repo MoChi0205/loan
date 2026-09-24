@@ -28,8 +28,9 @@ public class AdminServiceWorkbenchController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "false") boolean refresh,
             @CurrentUser LoanUser user) {
         return Result.ok(workbenchService.daily(date, user,
-                PageParams.page(page), PageParams.size(size)));
+                PageParams.page(page), PageParams.size(size), refresh));
     }
 }
