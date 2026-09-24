@@ -19,6 +19,7 @@ public class StaffOutingDTO implements Serializable {
     private String staffCode;
     private String staffName;
     private String deptCode;
+    private String deptName;
     private String clientCode;
     private String customerName;
     private String appointmentNo;

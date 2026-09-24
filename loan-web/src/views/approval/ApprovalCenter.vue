@@ -2,31 +2,38 @@
   <div class="approval-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">我的审批</h2>
+        <h2 class="loan-page-title">审批中心</h2>
         <p class="loan-page-subtitle">查看本人提交的审批工单；有审核权限时可处理对应待办</p>
       </div>
     </div>
-
-    <el-tabs v-model="activeTab">
-      <el-tab-pane label="我的申请" name="mine" />
-      <el-tab-pane v-if="canAuditChannelContent" label="产品审核" name="product" />
-      <el-tab-pane label="附件下载审核" name="download" />
-      <el-tab-pane v-if="canAuditAllocation" label="客户分配审核" name="allocation" />
-      <el-tab-pane v-if="canAuditChannelContent" label="渠道线索审核" name="channelLead" />
-      <el-tab-pane v-if="canAuditChannelContent" label="短信模板审核" name="smsTemplate" />
-      <el-tab-pane v-if="canAuditChannelContent" label="报告模板审核" name="reportTemplate" />
-    </el-tabs>
 
     <div v-show="activeTab === 'mine'" class="loan-card">
       <el-table :data="mineRows" v-loading="mineLoading" stripe row-key="approvalNo">
         <template #empty><AppEmpty title="暂无审批申请" desc="认领转移、产品新增或附件下载申请会显示在这里" /></template>
         <el-table-column label="审批类型" width="130"><template #default="{ row }">{{ typeText[row.type] || row.type }}</template></el-table-column>
-        <el-table-column label="申请事项" min-width="220"><template #default="{ row }">{{ row.subject || row.clientCode || '审批申请' }}</template></el-table-column>
+        <el-table-column label="申请事项" min-width="220"><template #default="{ row }">{{ row.subject || row.clientName || row.enterpriseName || '审批申请' }}</template></el-table-column>
         <el-table-column label="状态" width="110"><template #default="{ row }"><span class="loan-tag" :class="statusTag(row.approveStatus)">{{ statusText[row.approveStatus] || row.approveStatus }}</span></template></el-table-column>
         <el-table-column label="审批进度" width="150"><template #default="{ row }">{{ row.approvalStage === 'BOSS_REVIEW' ? '等待老板/超管终审' : (row.approveStatus === 'PENDING' ? '审批中' : '已完成') }}</template></el-table-column>
         <el-table-column label="审批意见" min-width="180"><template #default="{ row }">{{ row.opinion || '—' }}</template></el-table-column>
         <el-table-column label="提交时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
       </el-table>
+    </div>
+
+    <div v-show="activeTab === 'outing'" class="loan-card">
+      <el-table :data="outingRows" v-loading="outingLoading" stripe row-key="outingNo">
+        <template #empty><AppEmpty title="暂无待审批外出" desc="当前权限范围内没有待处理的外出申请" /></template>
+        <el-table-column label="申请人" width="140"><template #default="{ row }">{{ row.staffName || '姓名待补充' }}</template></el-table-column>
+        <el-table-column label="部门" width="150"><template #default="{ row }">{{ row.deptName || '未分部门' }}</template></el-table-column>
+        <el-table-column label="客户" min-width="170"><template #default="{ row }">{{ row.customerName || '未关联客户' }}</template></el-table-column>
+        <el-table-column label="外出时间" width="300"><template #default="{ row }">{{ formatDateTime(row.plannedStart) }} 至 {{ formatDateTime(row.plannedEnd) }}</template></el-table-column>
+        <el-table-column prop="destination" label="目的地" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="purpose" label="事由" min-width="180" show-overflow-tooltip />
+        <el-table-column label="操作" width="140" fixed="right"><template #default="{ row }">
+          <el-button link type="success" @click="onApproveOuting(row)">通过</el-button>
+          <el-button link type="danger" @click="openOutingReject(row)">驳回</el-button>
+        </template></el-table-column>
+      </el-table>
+      <AppPagination v-model:page="outingQuery.page" v-model:size="outingQuery.size" :total="outingTotal" @change="loadOutings" />
     </div>
 
     <div v-for="kind in ['smsTemplate','reportTemplate']" :key="kind" v-show="activeTab === kind" class="loan-card">
@@ -146,8 +153,7 @@
         <el-table-column label="客户与资料" min-width="260">
           <template #default="{ row }">
             <div v-for="item in (row.attachmentDetails || [])" :key="item.id" class="attachment-detail">
-              <strong>{{ item.clientName || '客户信息缺失' }}</strong> · {{ item.fileName || `附件 ${item.id}` }}
-              <span v-if="item.reportNo" class="muted"> · 报告 {{ item.reportNo }}</span>
+              <strong>{{ item.clientName || '客户信息缺失' }}</strong> · {{ item.fileName || '未命名附件' }}
             </div>
             <span v-if="!row.attachmentDetails?.length">{{ attachmentCount(row.attachmentIds) }} 份资料（历史数据未绑定明细）</span>
           </template>
@@ -237,6 +243,12 @@
       </el-form>
     </AppDialog>
 
+    <AppDialog v-model:visible="outingRejectVisible" title="驳回外出申请" width="480px" :loading="auditing" @confirm="submitOutingReject">
+      <el-form label-width="80px"><el-form-item label="驳回原因" required>
+        <el-input v-model="outingRejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="请填写明确的驳回原因" />
+      </el-form-item></el-form>
+    </AppDialog>
+
     <!-- 下载申请弹窗 -->
     <AppDialog v-model:visible="applyVisible" title="发起无水印下载申请" width="640px" modal-class="loan-app-dialog download-apply-dialog" :loading="applying" @confirm="onApply">
       <el-form ref="applyFormRef" :model="applyForm" :rules="applyRules" label-width="110px" label-position="right">
@@ -284,18 +296,21 @@ import {
   myApprovalApplications,
 } from '@/api/approval';
 import { pageAttachments } from '@/api/attachment';
+import { pagePendingOutings, approveOuting, rejectOuting } from '@/api/serviceOperations';
 
 const userStore = useUserStore();
 const route = useRoute();
 /** D39/C24：DM 可审本团队分配，跨团队由后端拒绝并上收 BOSS。 */
 const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.ALLOCATION_AUDIT));
-const canAuditChannelContent = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
+const canAuditChannelContent = computed(() => userStore.hasPerm(ACTION_PERMISSION.CONTENT_AUDIT));
 
-const requestedTab = String(route.query.tab || 'mine');
-const activeTab = ref(['mine', 'download', 'allocation', 'product'].includes(requestedTab) ? requestedTab : 'mine');
-const loadedTabs = reactive({ mine: false, product: false, download: false, allocation: false, channelLead: false, smsTemplate: false, reportTemplate: false });
+const approvalView = String(route.path.split('/').pop() || 'mine');
+const approvalViewMap = Object.freeze({ 'channel-lead': 'channelLead', 'sms-template': 'smsTemplate', 'report-template': 'reportTemplate' });
+const requestedTab = approvalViewMap[approvalView] || String(approvalView || route.query.tab || 'mine');
+const activeTab = ref(['mine', 'download', 'allocation', 'outing', 'product', 'channelLead', 'smsTemplate', 'reportTemplate'].includes(requestedTab) ? requestedTab : 'mine');
+const loadedTabs = reactive({ mine: false, product: false, download: false, allocation: false, outing: false, channelLead: false, smsTemplate: false, reportTemplate: false });
 const mineRows = ref([]); const mineLoading = ref(false);
-const typeText = { PRODUCT: '产品审批', DOWNLOAD: '附件下载', ALLOCATION: '客户认领/转移' };
+const typeText = { PRODUCT: '产品审批', DOWNLOAD: '附件下载', ALLOCATION: '客户认领/转移', OUTING: '外出申请', MATERIAL_REVIEW: '材料复核', SMS_TEMPLATE: '短信模板', REPORT_TEMPLATE: '报告模板' };
 async function loadMine() { mineLoading.value = true; try { const res = await myApprovalApplications(); mineRows.value = res.data || []; } finally { mineLoading.value = false; } }
 const contentRows = reactive({ smsTemplate: [], reportTemplate: [] });
 const contentLoading = reactive({ smsTemplate: false, reportTemplate: false });
@@ -324,6 +339,34 @@ const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: que
 
 const { loading: loadingCL, error: errorCL, data: dataCL, total: totalCL, query: queryCL, load: loadCL, onSearch: searchCL, onReset: resetCL } =
   useTable(pageChannelLeadApprovals, { keyword: '' });
+
+const outingRows = ref([]); const outingTotal = ref(0); const outingLoading = ref(false);
+const outingQuery = reactive({ page: 1, size: 20 });
+async function loadOutings() {
+  outingLoading.value = true;
+  try {
+    const res = await pagePendingOutings(outingQuery);
+    outingRows.value = res.data?.records || [];
+    outingTotal.value = Number(res.data?.total || 0);
+  } finally { outingLoading.value = false; }
+}
+async function onApproveOuting(row) {
+  await approveOuting(row.outingNo, '审批通过');
+  ElMessage.success('外出申请已通过');
+  await loadOutings();
+}
+const outingRejectVisible = ref(false); const outingRejectTarget = ref(null); const outingRejectReason = ref('');
+function openOutingReject(row) { outingRejectTarget.value = row; outingRejectReason.value = ''; outingRejectVisible.value = true; }
+async function submitOutingReject() {
+  if (!outingRejectReason.value.trim()) return ElMessage.warning('驳回原因必填');
+  auditing.value = true;
+  try {
+    await rejectOuting(outingRejectTarget.value.outingNo, outingRejectReason.value.trim());
+    outingRejectVisible.value = false;
+    ElMessage.success('外出申请已驳回');
+    await loadOutings();
+  } finally { auditing.value = false; }
+}
 
 function productActions(row) {
   const actions = [];
@@ -448,7 +491,7 @@ const {
 } = useRemoteOptions(pageAttachments, {
   debounce: 400,
   // 业务编码仅作为提交值，用户侧只展示可理解的资料、客户信息。
-  normalize: (a) => ({ value: a.id, label: `${a.clientName || '客户未绑定'} · ${a.fileName || '未命名资料'} · ${a.attachmentType || '其他资料'}${a.reportNo ? ` · 报告 ${a.reportNo}` : ''}` }),
+  normalize: (a) => ({ value: a.id, label: `${a.clientName || '客户未绑定'} · ${a.fileName || '未命名资料'} · ${a.attachmentTypeName || a.attachmentType || '其他资料'}` }),
 });
 function onAttachmentVisible(visible) {
   if (visible && !attachmentOptions.value.length && !attachmentLoading.value) searchAttachments('');
@@ -523,6 +566,7 @@ watch(activeTab, async (tab) => {
     else if (tab === 'product') await loadP();
     else if (tab === 'download') await loadD();
     else if (tab === 'allocation') await loadA();
+    else if (tab === 'outing') await loadOutings();
     else if (tab === 'channelLead') await loadCL();
     else await loadContent(tab);
   } catch {

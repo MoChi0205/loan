@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loan.api.dto.PageResult;
+import com.loan.client.entity.ClientProfile;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.context.LoanUser;
@@ -334,6 +335,14 @@ public class OutingService {
         Page<StaffOuting> result = outingMapper.selectPage(new Page<>(page, size), wrapper);
         Map<String, Staff> staff = staffByCodes(result.getRecords().stream()
                 .map(StaffOuting::getStaffCode).collect(Collectors.toSet()));
+        Map<String, String> departmentNames = scopeService.departmentNames(staff.values().stream()
+                .map(Staff::getDeptCode)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet()));
+        Map<String, ClientProfile> clients = scopeService.clientsByCodes(result.getRecords().stream()
+                .map(StaffOuting::getClientCode)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet()));
         List<StaffOutingDTO> records = result.getRecords().stream().map(item -> {
             StaffOutingDTO dto = new StaffOutingDTO();
             dto.setOutingNo(item.getOutingNo());
@@ -342,8 +351,14 @@ public class OutingService {
             if (member != null) {
                 dto.setStaffName(member.getStaffName());
                 dto.setDeptCode(member.getDeptCode());
+                dto.setDeptName(departmentNames.get(member.getDeptCode()));
             }
             dto.setClientCode(item.getClientCode());
+            ClientProfile client = clients.get(item.getClientCode());
+            if (client != null) {
+                dto.setCustomerName(StringUtils.hasText(client.getEnterpriseName())
+                        ? client.getEnterpriseName() : client.getContactName());
+            }
             dto.setAppointmentNo(item.getAppointmentNo());
             dto.setOrderNo(item.getOrderNo());
             dto.setPlannedStart(item.getPlannedStart());
@@ -366,6 +381,78 @@ public class OutingService {
             return dto;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    /**
+     * 外出待审批列表：不受“当天”限制，按当前角色数据范围返回全部待审核申请。
+     * 部门经理仅本部门，运营/老板/超管为公司范围；服务端审批时仍会再次校验并禁止自审。
+     */
+    public PageResult<StaffOutingDTO> pending(LoanUser user, int page, int size) {
+        LambdaQueryWrapper<StaffOuting> wrapper = new LambdaQueryWrapper<StaffOuting>()
+                .eq(StaffOuting::getStatus, OutingStatus.PENDING_REVIEW.name())
+                .ne(StaffOuting::getStaffCode, user == null ? null : user.getUserNo())
+                .orderByAsc(StaffOuting::getSubmittedAt)
+                .orderByAsc(StaffOuting::getPlannedStart);
+        scopeService.applyOutingListScope(wrapper, user);
+        Page<StaffOuting> result = outingMapper.selectPage(new Page<>(page, size), wrapper);
+        return toPageResult(result, page, size);
+    }
+
+    /** 当前员工本人提交的外出申请，用于“我的申请”聚合。 */
+    public List<StaffOuting> myApplications(String staffCode, int limit) {
+        if (!StringUtils.hasText(staffCode)) {
+            return java.util.Collections.emptyList();
+        }
+        return outingMapper.selectList(new LambdaQueryWrapper<StaffOuting>()
+                .eq(StaffOuting::getStaffCode, staffCode)
+                .orderByDesc(StaffOuting::getCreatedAt)
+                .last("LIMIT " + Math.max(1, Math.min(limit, 100))));
+    }
+
+    private PageResult<StaffOutingDTO> toPageResult(Page<StaffOuting> result, int page, int size) {
+        Map<String, Staff> staff = staffByCodes(result.getRecords().stream()
+                .map(StaffOuting::getStaffCode).collect(Collectors.toSet()));
+        Map<String, String> departmentNames = scopeService.departmentNames(staff.values().stream()
+                .map(Staff::getDeptCode).filter(StringUtils::hasText).collect(Collectors.toSet()));
+        Map<String, ClientProfile> clients = scopeService.clientsByCodes(result.getRecords().stream()
+                .map(StaffOuting::getClientCode).filter(StringUtils::hasText).collect(Collectors.toSet()));
+        List<StaffOutingDTO> records = result.getRecords().stream()
+                .map(item -> toDto(item, staff, departmentNames, clients)).collect(Collectors.toList());
+        return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    private StaffOutingDTO toDto(StaffOuting item, Map<String, Staff> staff,
+                                 Map<String, String> departmentNames,
+                                 Map<String, ClientProfile> clients) {
+        StaffOutingDTO dto = new StaffOutingDTO();
+        dto.setOutingNo(item.getOutingNo());
+        Staff member = staff.get(item.getStaffCode());
+        if (member != null) {
+            dto.setStaffName(member.getStaffName());
+            dto.setDeptName(departmentNames.get(member.getDeptCode()));
+        }
+        ClientProfile client = clients.get(item.getClientCode());
+        if (client != null) {
+            dto.setCustomerName(StringUtils.hasText(client.getEnterpriseName())
+                    ? client.getEnterpriseName() : client.getContactName());
+        }
+        dto.setPlannedStart(item.getPlannedStart());
+        dto.setPlannedEnd(item.getPlannedEnd());
+        dto.setSubmittedAt(item.getSubmittedAt());
+        dto.setActualDepartedAt(item.getActualDepartedAt());
+        dto.setActualReturnedAt(item.getActualReturnedAt());
+        dto.setDestination(item.getDestination());
+        dto.setPurpose(item.getPurpose());
+        dto.setStatus(item.getStatus());
+        dto.setDepartureCheckInCompleted(item.getActualDepartedAt() != null);
+        dto.setReturnCheckInCompleted(item.getActualReturnedAt() != null);
+        dto.setReviewerName(item.getReviewerName());
+        dto.setReviewedAt(item.getReviewedAt());
+        dto.setReviewRemark(item.getReviewRemark());
+        dto.setDepartedPhotoKey(item.getDepartedPhotoKey());
+        dto.setReturnedPhotoKey(item.getReturnedPhotoKey());
+        dto.setOutingType(item.getOutingType());
+        return dto;
     }
 
     private StaffOuting requireOuting(String outingNo) {

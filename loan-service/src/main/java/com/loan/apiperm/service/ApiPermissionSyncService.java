@@ -124,7 +124,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "approval:unifiedPending", "approval:unifiedCounts", "approval:unifiedAudit",
             // 员工外出审核（2026-09-21）：主管才可审核本人部门的外出申请，
             // 顾问侧只给提交/打卡/上传照片；老板/运营/超管属全量角色自动放行。
-            "outing:approve", "outing:reject",
+            "outing:pending", "outing:approve", "outing:reject",
             // 客户画像复核：主管及以上可复核本部门/全公司客户的画像快照（禁止自复核）。
             "client:reviewInsight",
             "reward:page", "reward:audit", "reward:voidReward",

@@ -73,6 +73,15 @@ public class AdminOutingController {
                 PageParams.page(page), PageParams.size(size)));
     }
 
+    /** 外出待审批：经理按部门，运营/老板/超管按公司范围。 */
+    @GetMapping("/pending")
+    public Result<PageResult<StaffOutingDTO>> pending(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @CurrentUser LoanUser user) {
+        return Result.ok(outingService.pending(user, PageParams.page(page), PageParams.size(size)));
+    }
+
     /** 提交外出申请（本人）。 */
     @PostMapping
     @OpLog(bizType = "员工外出", action = "CREATE")

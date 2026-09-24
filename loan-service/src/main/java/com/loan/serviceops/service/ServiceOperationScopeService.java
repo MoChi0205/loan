@@ -6,6 +6,8 @@ import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.ResultCode;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
+import com.loan.org.entity.Department;
+import com.loan.org.mapper.DepartmentMapper;
 import com.loan.serviceops.security.ServiceListScope;
 import com.loan.serviceops.security.ServiceOperationAccessPolicy;
 import com.loan.staff.entity.Staff;
@@ -21,6 +23,7 @@ public class ServiceOperationScopeService {
 
     private final ClientProfileMapper clientProfileMapper;
     private final StaffMapper staffMapper;
+    private final DepartmentMapper departmentMapper;
 
     public ClientProfile requireClient(String clientCode) {
         if (!StringUtils.hasText(clientCode)) {
@@ -66,6 +69,17 @@ public class ServiceOperationScopeService {
                         .in(ClientProfile::getClientCode, clientCodes)).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         ClientProfile::getClientCode, item -> item, (a, b) -> a));
+    }
+
+    /** 业务 DTO 只向页面返回部门名称，部门编码仅保留作内部关联。 */
+    public java.util.Map<String, String> departmentNames(java.util.Collection<String> deptCodes) {
+        if (deptCodes == null || deptCodes.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        return departmentMapper.selectList(new LambdaQueryWrapper<Department>()
+                        .in(Department::getDeptCode, deptCodes)).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        Department::getDeptCode, Department::getDeptName, (a, b) -> a));
     }
 
     public void requireStaffListAccess(LoanUser user) {

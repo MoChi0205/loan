@@ -48,6 +48,9 @@ export function rescheduleAppointment(no, data, exceptionFlow = false) {
 export function pageOutings(params) {
   return request({ url: '/api/admin/outing/day', method: 'get', params });
 }
+export function pagePendingOutings(params) {
+  return request({ url: '/api/admin/outing/pending', method: 'get', params });
+}
 export function createOuting(data) {
   return request({ url: '/api/admin/outing', method: 'post', data });
 }

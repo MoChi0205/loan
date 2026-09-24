@@ -32,6 +32,8 @@ import com.loan.partner.service.PartnerProductService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
+import com.loan.serviceops.entity.StaffOuting;
+import com.loan.serviceops.service.OutingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -94,6 +96,8 @@ public class ApprovalService {
     public static final String TYPE_MATERIAL_REVIEW = "MATERIAL_REVIEW";
     public static final String TYPE_SMS_TEMPLATE = "SMS_TEMPLATE";
     public static final String TYPE_REPORT_TEMPLATE = "REPORT_TEMPLATE";
+    /** 审批类型：员工外出申请。 */
+    public static final String TYPE_OUTING = "OUTING";
     /** 统一审批「全部类型」入参值。 */
     public static final String TYPE_ALL = "ALL";
 
@@ -124,6 +128,7 @@ public class ApprovalService {
     private final ReportTemplateMapper reportTemplateMapper;
     private final NotificationService notificationService;
     private final ServiceAttachmentMapper serviceAttachmentMapper;
+    private final OutingService outingService;
 
     /**
      * 已开放的审批类型白名单（配置 {@code loan.mini.approval.types}，逗号分隔）。
@@ -554,8 +559,60 @@ public class ApprovalService {
             m.put("subject",a.getPurpose()); m.put("approveStatus",a.getApproveStatus()); m.put("opinion",a.getApproveOpinion()); m.put("createdAt",a.getCreatedAt()); rows.add(m);
         });
         miniClientService.myAllocationApplications(user.getUserNo()).forEach(a -> rows.add(a));
+
+        // 外出申请：申请人就是 t_staff_outing.staff_code，状态统一映射为审批中心三态。
+        outingService.myApplications(user.getUserNo(), 100).forEach(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("type", TYPE_OUTING);
+            m.put("approvalNo", a.getOutingNo());
+            m.put("subject", (StringUtils.hasText(a.getDestination()) ? a.getDestination() : "员工外出")
+                    + (StringUtils.hasText(a.getPurpose()) ? " · " + a.getPurpose() : ""));
+            m.put("approveStatus", outingApprovalStatus(a.getStatus()));
+            m.put("opinion", a.getReviewRemark());
+            m.put("createdAt", a.getCreatedAt());
+            rows.add(m);
+        });
+
+        // 短信/报告模板：applicantStaffCode 的历史数据可能写工号或姓名，两者均兼容。
+        contentApprovalMapper.selectList(new LambdaQueryWrapper<ContentApproval>()
+                .and(w -> w.eq(ContentApproval::getApplicantStaffCode, user.getUserNo())
+                        .or().eq(ContentApproval::getApplicantStaffCode, user.getName()))
+                .orderByDesc(ContentApproval::getCreatedAt).last("LIMIT 100")).forEach(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("type", a.getApprovalType());
+            m.put("approvalNo", a.getApprovalNo());
+            m.put("subject", TYPE_SMS_TEMPLATE.equals(a.getApprovalType())
+                    ? "短信模板发布申请" : "报告模板发布申请");
+            m.put("approveStatus", a.getStatus());
+            m.put("opinion", a.getOpinion());
+            m.put("createdAt", a.getCreatedAt());
+            rows.add(m);
+        });
+
+        // 材料复核目前以创建人姓名留痕；仅聚合当前员工本人创建的数据。
+        materialReviewMapper.selectList(new LambdaQueryWrapper<MaterialReview>()
+                .and(w -> w.eq(MaterialReview::getCreatedBy, user.getUserNo())
+                        .or().eq(MaterialReview::getCreatedBy, user.getName()))
+                .orderByDesc(MaterialReview::getCreatedAt).last("LIMIT 100")).forEach(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("type", TYPE_MATERIAL_REVIEW);
+            m.put("approvalNo", a.getReviewNo());
+            String customerName = businessNameService.clientNames(Collections.singleton(a.getClientProfileCode()))
+                    .get(a.getClientProfileCode());
+            m.put("subject", StringUtils.hasText(customerName) ? customerName + " · 材料复核" : "客户材料复核");
+            m.put("approveStatus", "PENDING_REVIEW".equals(a.getReviewStatus()) ? "PENDING" : a.getReviewStatus());
+            m.put("opinion", a.getReviewOpinion());
+            m.put("createdAt", a.getCreatedAt());
+            rows.add(m);
+        });
         rows.sort(new CreatedAtDescComparator());
         return rows.size() > 100 ? rows.subList(0, 100) : rows;
+    }
+
+    private String outingApprovalStatus(String status) {
+        if ("PENDING_REVIEW".equals(status) || "DRAFT".equals(status)) return "PENDING";
+        if ("REJECTED".equals(status) || "CANCELLED".equals(status)) return "REJECTED";
+        return "APPROVED";
     }
 
     /**

@@ -1,6 +1,8 @@
 package com.loan.serviceops.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.loan.client.entity.ClientProfile;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.infrastructure.oss.OssStorageService;
@@ -19,6 +21,9 @@ import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -156,6 +161,30 @@ class OutingServiceSecurityTest {
         assertEquals(null, saved.getValue().getClientCode());
         assertEquals(null, saved.getValue().getAppointmentNo());
         verify(appointmentService, never()).requireAppointment(anyString());
+    }
+
+    @Test
+    void dayReturnsCustomerStaffAndDepartmentNamesInsteadOfBusinessIds() {
+        StaffOuting outing = outing("outing01", "staff01", "PENDING_REVIEW");
+        outing.setClientCode("client01");
+        outing.setPlannedStart(LocalDate.now().atTime(10, 0));
+        Page<StaffOuting> page = new Page<>(1, 20);
+        page.setRecords(Collections.singletonList(outing));
+        page.setTotal(1);
+        when(outingMapper.selectPage(any(), any())).thenReturn(page);
+        when(staffMapper.selectList(any())).thenReturn(Collections.singletonList(staffEntity("staff01", "D1")));
+        when(scopeService.departmentNames(any())).thenReturn(Collections.singletonMap("D1", "咨询部"));
+        ClientProfile client = new ClientProfile();
+        client.setClientCode("client01");
+        client.setEnterpriseName("测试企业");
+        when(scopeService.clientsByCodes(any())).thenReturn(Collections.singletonMap("client01", client));
+
+        com.loan.api.dto.PageResult<com.loan.serviceops.dto.StaffOutingDTO> result =
+                service.day(LocalDate.now(), null, staff("staff01", "ADVISER"), 1, 20);
+
+        assertEquals("测试企业", result.getRecords().get(0).getCustomerName());
+        assertEquals("员工", result.getRecords().get(0).getStaffName());
+        assertEquals("咨询部", result.getRecords().get(0).getDeptName());
     }
 
     @Test

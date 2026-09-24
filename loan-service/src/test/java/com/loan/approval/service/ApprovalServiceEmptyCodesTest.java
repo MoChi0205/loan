@@ -57,6 +57,7 @@ class ApprovalServiceEmptyCodesTest {
     @Mock private ReportTemplateMapper reportTemplateMapper;
     @Mock private NotificationService notificationService;
     @Mock private com.loan.attachment.mapper.ServiceAttachmentMapper serviceAttachmentMapper;
+    @Mock private com.loan.serviceops.service.OutingService outingService;
 
     private ApprovalService service;
 
@@ -67,7 +68,8 @@ class ApprovalServiceEmptyCodesTest {
         service = new ApprovalService(productApprovalMapper, downloadApprovalMapper,
                 materialReviewMapper, materialReviewService, bankProductMapper, miniClientService,
                 staffMapper, businessNameService, partnerProductService, contentApprovalMapper,
-                smsTemplateMapper, reportTemplateMapper, notificationService, serviceAttachmentMapper);
+                smsTemplateMapper, reportTemplateMapper, notificationService, serviceAttachmentMapper,
+                outingService);
 
         Field enabled = ApprovalService.class.getDeclaredField("enabledTypes");
         enabled.setAccessible(true);
