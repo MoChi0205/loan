@@ -162,6 +162,8 @@ public class MiniMatchController {
         if (LoanUser.TYPE_CUSTOMER.equals(user.getUserType())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "客户侧不提供金融产品或匹配结果");
         }
+        // 产品明细与报告详情使用同一 STAFF 数据范围；禁止通过子资源接口绕过归属校验。
+        miniMatchService.staffReportDetail(reportNo, user);
         return Result.ok(miniMatchService.reportProducts(reportNo));
     }
 
@@ -183,6 +185,10 @@ public class MiniMatchController {
             throw new BusinessException(ResultCode.FORBIDDEN, "渠道合作方不可见客户经营诊断");
         }
         String clientCode = LoanUser.TYPE_CUSTOMER.equals(user.getUserType()) ? user.getUserNo() : null;
+        if (LoanUser.TYPE_STAFF.equals(user.getUserType())) {
+            // 员工经营诊断同样受本人/部门/全公司数据范围约束。
+            miniMatchService.staffReportDetail(reportNo, user);
+        }
         return Result.ok(miniMatchService.reportDiagnosis(reportNo, clientCode));
     }
 
@@ -205,7 +211,7 @@ public class MiniMatchController {
             return Result.ok(detail);
         }
         if (LoanUser.TYPE_STAFF.equals(user.getUserType())) {
-            StaffReportDetail detail = miniMatchService.staffReportDetail(reportNo);
+            StaffReportDetail detail = miniMatchService.staffReportDetail(reportNo, user);
             return Result.ok(detail);
         }
         throw new BusinessException(ResultCode.FORBIDDEN, "当前账号无权查看报告");

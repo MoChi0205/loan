@@ -21,6 +21,7 @@ import com.loan.report.mapper.ClientScreeningMapper;
 import com.loan.report.mapper.ScreeningProductMapper;
 import com.loan.report.service.IndustryBenchmarkService;
 import com.loan.report.service.ReportQueryService;
+import com.loan.report.service.ReportService;
 import com.loan.screening.service.ScreeningService;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
@@ -59,6 +60,7 @@ public class MiniMatchService {
     private final ClientProfileMapper clientProfileMapper;
     private final com.loan.personal.service.PersonalProfileService personalProfileService;
     private final ReportQueryService reportQueryService;
+    private final ReportService reportService;
     private final StaffMapper staffMapper;
     private final ScreeningProductMapper screeningProductMapper;
     private final BankProductMapper bankProductMapper;
@@ -182,9 +184,14 @@ public class MiniMatchService {
         return detail;
     }
 
-    /** 员工内部报告详情；调用方必须先确认当前登录身份为 STAFF。 */
-    public StaffReportDetail staffReportDetail(String reportNo) {
-        return reportQueryService.staffDetail(reportNo);
+    /**
+     * 员工内部报告详情；服务端重新执行 STAFF 角色、部门/归属范围校验。
+     *
+     * <p>不能只依赖 Controller 的角色分支：报告编号是可枚举的业务参数，必须在服务层
+     * 复用 {@link ReportService#staffScreeningDetail(String, LoanUser)} 做最终授权。</p>
+     */
+    public StaffReportDetail staffReportDetail(String reportNo, LoanUser user) {
+        return reportService.staffScreeningDetail(reportNo, user);
     }
 
     /* ==================== C3 / C11：报告列表（角色二分 + 四维查询） ==================== */

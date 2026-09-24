@@ -183,7 +183,7 @@ class MiniMatchControllerTest {
     void get_api_mini_report_test() throws Exception {
         StaffReportDetail detail = new StaffReportDetail();
         detail.setReportNo("test");
-        Mockito.when(miniMatchService.staffReportDetail("test")).thenReturn(detail);
+        Mockito.when(miniMatchService.staffReportDetail(Mockito.eq("test"), Mockito.any(LoanUser.class))).thenReturn(detail);
         try {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(get("/api/mini/report/test"))
@@ -227,7 +227,7 @@ class MiniMatchControllerTest {
         detail.setTotalResult("PASS");
         detail.setBankCount(2);
         detail.setProductCount(3);
-        Mockito.when(miniMatchService.staffReportDetail("R-STAFF")).thenReturn(detail);
+        Mockito.when(miniMatchService.staffReportDetail(Mockito.eq("R-STAFF"), Mockito.any(LoanUser.class))).thenReturn(detail);
         try {
             UserContext.setUser(TestUsers.staffUser());
             mvc.perform(get("/api/mini/report/R-STAFF"))
@@ -236,6 +236,36 @@ class MiniMatchControllerTest {
                 .andExpect(jsonPath("$.data.totalResult").value("PASS"))
                 .andExpect(jsonPath("$.data.bankCount").value(2))
                 .andExpect(jsonPath("$.data.productCount").value(3));
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("员工产品明细先执行报告数据范围校验")
+    void staff_report_products_require_report_scope_check() throws Exception {
+        Mockito.when(miniMatchService.staffReportDetail(Mockito.eq("R-SCOPE"), Mockito.any(LoanUser.class)))
+                .thenReturn(new StaffReportDetail());
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(get("/api/mini/report/R-SCOPE/products"))
+                    .andExpect(status().isOk());
+            Mockito.verify(miniMatchService).staffReportDetail(Mockito.eq("R-SCOPE"), Mockito.any(LoanUser.class));
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("员工经营诊断先执行报告数据范围校验")
+    void staff_report_diagnosis_require_report_scope_check() throws Exception {
+        Mockito.when(miniMatchService.staffReportDetail(Mockito.eq("R-SCOPE"), Mockito.any(LoanUser.class)))
+                .thenReturn(new StaffReportDetail());
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(get("/api/mini/report/R-SCOPE/diagnosis"))
+                    .andExpect(status().isOk());
+            Mockito.verify(miniMatchService).staffReportDetail(Mockito.eq("R-SCOPE"), Mockito.any(LoanUser.class));
         } finally {
             UserContext.clear();
         }
