@@ -2,7 +2,6 @@
   <div class="workbench">
     <div class="loan-page-header workbench-hero">
       <div>
-        <span class="hero-kicker">TODAY · 业务总览</span>
         <h2 class="loan-page-title">{{ welcomeText }}</h2>
         <p class="loan-page-subtitle">{{ workbenchSubtitle }}</p>
       </div>
@@ -124,7 +123,7 @@
             class="recent-item"
             role="link"
             tabindex="0"
-            :title="`查看审计详情 · ${r.trace}`"
+            title="查看审计详情"
             @click="goAudit(r.trace)"
             @keyup.enter="goAudit(r.trace)"
           >
@@ -136,7 +135,7 @@
               </div>
               <div class="recent-meta">
                 <span>{{ r.time }}</span>
-                <span class="recent-trace mono">{{ r.trace }}</span>
+                <span>查看执行详情</span>
               </div>
             </div>
           </li>
@@ -349,6 +348,7 @@ function metric(label, value, foot, icon, color) {
 const todos = computed(() => {
   const t = todo.value || {};
   const mine = [
+    { name: '我的外出申请', count: t.myOutingApply ?? 0, desc: '待审批的本人外出申请', path: '/approval/mine' },
     { name: '我的认领申请', count: t.myAllocationApply ?? 0, desc: '待处理的客户认领/转移', path: '/approval/mine' },
     { name: '我的下载申请', count: t.myDownloadApply ?? 0, desc: '待处理的资料下载申请', path: '/approval/mine' },
     { name: '我的工单', count: t.myOrderCount ?? 0, desc: '服务中的客户工单', path: '/order' },
@@ -356,12 +356,14 @@ const todos = computed(() => {
   ];
   if (roleCode.value === 'ADVISER') return mine;
   const allocation = { name: roleCode.value === 'DEPT_MANAGER' ? '团队认领待审批' : '客户认领待审批', count: t.pendingAllocationApproval ?? 0, desc: roleCode.value === 'DEPT_MANAGER' ? '本团队客户归属流转' : '客户归属流转审核', path: '/approval/allocation' };
-  if (roleCode.value === 'DEPT_MANAGER') return [allocation, ...mine];
+  const outing = { name: roleCode.value === 'DEPT_MANAGER' ? '团队外出待审批' : '外出待审批', count: t.pendingOutingApproval ?? 0, desc: roleCode.value === 'DEPT_MANAGER' ? '本团队员工外出申请' : '权限范围内的员工外出申请', path: '/approval/outing' };
+  if (roleCode.value === 'DEPT_MANAGER') return [outing, allocation, ...mine];
   if (roleCode.value === 'OPERATOR') return [
-    { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval/download' }, allocation,
+    outing, { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval/download' }, allocation,
     { name: '奖励待处理', count: t.pendingReward ?? 0, desc: '成交奖励审核与发放', path: '/reward/records' }, ...mine.slice(2),
   ];
   return [
+    outing,
     { name: '产品待审批', count: t.pendingProductApproval ?? 0, desc: '新增产品发布审核', path: '/approval/product' },
     { name: '下载待审批', count: t.pendingDownloadApproval ?? 0, desc: '无水印资料下载审核', path: '/approval/download' },
     allocation,
@@ -390,7 +392,7 @@ const quick = [
   {
     path: '/audit',
     name: '审计日志',
-    desc: '匹配全链路 traceUuid 追踪',
+    desc: '匹配全链路执行追踪',
     icon: 'audit',
   },
   {
@@ -485,7 +487,7 @@ async function loadRecent() {
     const res = await pageAudit({ page: 1, size: 5 });
     recentMatches.value = (res.data?.records || []).map((t) => ({
       id: t.id,
-      product: `匹配 ${shortTrace(t.traceUuid)}`,
+      product: t.enterpriseName || t.contactName || '客户匹配记录',
       result: t.totalResult,
       time: relativeTime(t.executedAt),
       trace: t.traceUuid,
@@ -507,32 +509,13 @@ const chain = ['认证', '资料提取', '规则引擎匹配', '档位聚合', '
 .workbench-hero {
   position: relative;
   overflow: hidden;
-  margin-bottom: 18px;
-  padding: 22px 24px;
+  margin-bottom: 14px;
+  padding: 15px 20px;
   border: 1px solid color-mix(in srgb, var(--loan-primary) 18%, var(--loan-border));
-  border-radius: 16px;
+  border-radius: 12px;
   background:
     radial-gradient(circle at 88% 20%, color-mix(in srgb, var(--loan-accent) 18%, transparent) 0, transparent 32%),
     linear-gradient(135deg, color-mix(in srgb, var(--loan-primary) 10%, var(--loan-card-bg)) 0%, var(--loan-card-bg) 72%);
-}
-.workbench-hero::after {
-  content: '';
-  position: absolute;
-  right: 54px;
-  bottom: -44px;
-  width: 150px;
-  height: 150px;
-  border: 24px solid color-mix(in srgb, var(--loan-primary) 6%, transparent);
-  border-radius: 50%;
-  pointer-events: none;
-}
-.hero-kicker {
-  display: block;
-  margin-bottom: 7px;
-  color: var(--loan-primary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
 }
 .service-overview {
   margin-bottom: 20px;

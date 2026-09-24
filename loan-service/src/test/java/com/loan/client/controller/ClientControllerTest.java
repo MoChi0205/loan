@@ -138,7 +138,8 @@ class ClientControllerTest {
         UserContext.setUser(staff("BOSS", "B001"));
         when(clientService.pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ASSIGNED"))).thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
+                eq("ASSIGNED"), isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
 
         mvc.perform(get("/api/admin/client/page-lite").param("scope", "ALL"))
                 .andExpect(status().isOk())
@@ -146,7 +147,7 @@ class ClientControllerTest {
 
         verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ASSIGNED"));
+                eq("ASSIGNED"), isNull(), isNull(), isNull(), isNull(), isNull());
     }
 
     @Test
@@ -161,7 +162,8 @@ class ClientControllerTest {
         UserContext.setUser(staff("ADVISER", "S001"));
         when(clientService.pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ENTERPRISE"))).thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
+                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
 
         mvc.perform(get("/api/admin/client/page-lite").param("scope", "COMPANY_SEA"))
                 .andExpect(status().isOk())
@@ -169,7 +171,7 @@ class ClientControllerTest {
 
         verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ENTERPRISE"));
+                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull());
     }
 
     private LoanUser staff(String roleCode, String staffCode) {

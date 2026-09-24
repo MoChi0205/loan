@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">经营概览</h2>
-        <p class="loan-page-subtitle">经营核心指标 · 转化漏斗 · 客群 / 产品 / 工单分布 · 成交 / 奖励趋势</p>
+        <p class="loan-page-subtitle">经营核心指标 · 转化漏斗 · 客群 / 产品 / 工单分布</p>
       </div>
       <div class="range-hint">数据周期：截至 {{ today }}</div>
     </div>
@@ -45,26 +45,6 @@
             <span v-else class="conv-badge muted">—</span>
           </div>
           <div class="funnel-conv" v-else><span class="conv-badge root">入口</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 趋势分析 -->
-    <div class="trend-grid" v-loading="loadingT">
-      <div class="loan-card">
-        <div class="panel-title">成交趋势（近 12 个月）<small>单数 / 金额</small></div>
-        <AppTrendChart title="成交趋势" :data="orderChartData" color="var(--loan-primary)" height="170px" />
-        <div class="trend-foot">
-          <span>近12月成交 <b class="mono">{{ fmtInt(orderTotalCount) }}</b> 单</span>
-          <span>金额 <b class="mono">¥{{ fmtAmount(orderTotalAmount) }}</b></span>
-        </div>
-      </div>
-      <div class="loan-card">
-        <div class="panel-title">奖励趋势（近 12 个月）<small>单数 / 金额</small></div>
-        <AppTrendChart title="奖励趋势" :data="rewardChartData" color="var(--loan-accent)" height="170px" />
-        <div class="trend-foot">
-          <span>近12月奖励 <b class="mono">{{ fmtInt(rewardTotalCount) }}</b> 单</span>
-          <span>金额 <b class="mono">¥{{ fmtAmount(rewardTotalAmount) }}</b></span>
         </div>
       </div>
     </div>
@@ -116,10 +96,9 @@
 <script setup>
 defineOptions({ name: '_report_overview' });
 import { ref, computed, onMounted } from 'vue';
-import AppTrendChart from '@/components/AppTrendChart.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppIcon from '@/components/AppIcon.vue';
-import { reportOverview, orderTrend, rewardTrend } from '@/api/report';
+import { reportOverview } from '@/api/report';
 
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -131,7 +110,6 @@ function fmtInt(v) {
 const today = new Date().toLocaleDateString('zh-CN');
 
 const loadingOv = ref(false);
-const loadingT = ref(false);
 const overview = ref({});
 
 const statCards = computed(() => [
@@ -186,27 +164,13 @@ function statusColor(s) {
   return { NEW: '#94a3b8', IN_SERVICE: '#3b82f6', DEAL: '#22c55e', CANCEL: '#f87171', REFUND: '#f59e0b' }[s] || '#94a3b8';
 }
 
-/* 趋势 */
-const orderTrendData = ref([]);
-const rewardTrendData = ref([]);
-const orderChartData = computed(() => (orderTrendData.value || []).map((r) => ({ label: r.month, value: r.count })));
-const rewardChartData = computed(() => (rewardTrendData.value || []).map((r) => ({ label: r.month, value: r.count })));
-const orderTotalCount = computed(() => (orderTrendData.value || []).reduce((a, r) => a + Number(r.count || 0), 0));
-const orderTotalAmount = computed(() => (orderTrendData.value || []).reduce((a, r) => a + Number(r.amount || 0), 0));
-const rewardTotalCount = computed(() => (rewardTrendData.value || []).reduce((a, r) => a + Number(r.count || 0), 0));
-const rewardTotalAmount = computed(() => (rewardTrendData.value || []).reduce((a, r) => a + Number(r.amount || 0), 0));
-
 onMounted(async () => {
   loadingOv.value = true;
-  loadingT.value = true;
   try {
-    const [ov, ot, rt] = await Promise.all([reportOverview(), orderTrend(12), rewardTrend(12)]);
+    const ov = await reportOverview();
     overview.value = ov.data || {};
-    orderTrendData.value = ot.data || [];
-    rewardTrendData.value = rt.data || [];
   } catch (e) { /* 拦截器已提示 */ } finally {
     loadingOv.value = false;
-    loadingT.value = false;
   }
 });
 </script>
@@ -353,22 +317,6 @@ onMounted(async () => {
 .conv-badge.root { color: var(--loan-primary); }
 .conv-badge.muted { opacity: .5; }
 
-/* 趋势 */
-.trend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-.trend-foot {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--loan-text-secondary, var(--loan-text-muted));
-}
-.trend-foot b { color: var(--loan-text); }
-
 /* 分布 */
 .dist-grid {
   display: grid;
@@ -412,7 +360,6 @@ onMounted(async () => {
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 
 @media (max-width: 1100px) {
-  .trend-grid { grid-template-columns: 1fr; }
   .dist-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {

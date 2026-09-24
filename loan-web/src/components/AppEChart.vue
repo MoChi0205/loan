@@ -21,28 +21,9 @@
  *   loading  显示 v-loading 遮罩
  */
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import * as echarts from 'echarts/core';
-import { LineChart, BarChart, PieChart } from 'echarts/charts';
-import {
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  TitleComponent,
-  ToolboxComponent,
-} from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
-
-echarts.use([
-  LineChart,
-  BarChart,
-  PieChart,
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  TitleComponent,
-  ToolboxComponent,
-  CanvasRenderer,
-]);
+// 统一从完整入口加载，避免 Vite 预构建时 core/charts 形成两个 ECharts 运行时实例，
+// 造成 series 数据由 A 实例创建、DataStore 由 B 实例消费并抛 Invalid data provider。
+import * as echarts from 'echarts';
 
 const props = defineProps({
   option: { type: Object, required: true },

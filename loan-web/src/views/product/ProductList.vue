@@ -3,7 +3,7 @@
   <div v-else class="product-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">产品库</h2>
+        <h2 class="loan-page-title">{{ activeTab === 'cooperate' ? '合作产品库' : '全量产品库' }}</h2>
         <p class="loan-page-subtitle">全量库（公司产品）<template v-if="canManageProduct"> / 合作库（渠道展示）</template></p>
       </div>
       <el-button type="primary" @click="onHeaderAction">
@@ -11,11 +11,6 @@
         {{ activeTab === 'cooperate' ? '录入合作库' : '新增产品' }}
       </el-button>
     </div>
-
-    <el-tabs v-model="activeTab" @tab-change="onTabChange">
-      <el-tab-pane label="全量库" name="all" />
-      <el-tab-pane v-if="canManageProduct" label="合作库" name="cooperate" />
-    </el-tabs>
 
     <div class="loan-card">
       <!-- ============ 全量库 Tab ============ -->
@@ -218,7 +213,7 @@
 
     <!-- 续签弹窗 -->
     <AppDialog v-model:visible="renewDialog.visible" title="续签合作库" width="460px" :loading="renewDialog.saving" @confirm="onRenewSave">
-      <p class="renew-hint">为产品「{{ renewDialog.productName || renewDialog.code }}」续签，原到期日：{{ formatDateTime(renewDialog.oldUntil) }}</p>
+      <p class="renew-hint">为产品「{{ renewDialog.productName || '产品名称待补充' }}」续签，原到期日：{{ formatDateTime(renewDialog.oldUntil) }}</p>
       <el-form ref="renewFormRef" :model="renewDialog.form" :rules="renewRules" label-width="110px" label-position="right">
         <el-form-item label="新到期日" prop="cooperateUntil">
           <el-date-picker
@@ -256,6 +251,7 @@
 <script setup>
 defineOptions({ name: '_product' });
 import { ref, reactive, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import DictSelect from '@/components/DictSelect.vue';
@@ -286,7 +282,8 @@ const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 const canManageProduct = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
 
-const activeTab = ref('all');
+const route = useRoute();
+const activeTab = ref(String(route.meta.productView || 'all'));
 
 // ============================================================
 // 全量库（原有逻辑，scope=all 保持不变）
@@ -341,13 +338,6 @@ function remainDays(row) {
 function isNearExpire(row) {
   const d = remainDays(row);
   return d !== null && d <= 30;
-}
-
-function onTabChange() {
-  queryAll.page = 1;
-  queryCo.page = 1;
-  if (activeTab.value === 'cooperate') loadCo();
-  else loadAll();
 }
 
 /** 页头按钮：按 Tab 区分动作 */
@@ -686,7 +676,10 @@ async function onUnbindCity(c) {
 }
 
 onMounted(() => {
-  if (!isChannel.value) loadAll();
+  if (!isChannel.value) {
+    if (activeTab.value === 'cooperate') loadCo();
+    else loadAll();
+  }
 });
 </script>
 

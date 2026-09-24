@@ -12,7 +12,10 @@ expected = set(ns["MENUS"])
 router = (ROOT / "loan-web/src/router/index.js").read_text(encoding="utf-8")
 router_paths = set(re.findall(r"path:\s*'([^']+)'", router))
 router_paths = {p if p.startswith("/") else "/" + p for p in router_paths}
-seed = (ROOT / "db/menu-permission-seed-2026-09-01.sql").read_text(encoding="utf-8")
+seed = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in (
+    "db/menu-permission-seed-2026-09-01.sql",
+    "db/migrate-web-submenu-pages-2026-09-23.sql",
+))
 seed_paths = set(re.findall(r"'(/[^']+)'", seed))
 missing_router = sorted(p for p in expected if p not in router_paths)
 missing_seed = sorted(p for p in expected if p not in seed_paths)

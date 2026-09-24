@@ -5,7 +5,7 @@
  * 避免持久化脏数据或无限标签参与每次 Vue patch。
  */
 export const HOME_TAB = Object.freeze({ path: '/workbench', title: '工作台' });
-export const MAX_OPEN_TABS = 12;
+export const MAX_OPEN_TABS = 7;
 
 function normalizeTab(tab) {
   const path = String(tab?.path || '').trim();

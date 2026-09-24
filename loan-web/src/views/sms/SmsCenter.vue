@@ -2,7 +2,7 @@
   <div class="sms-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">短信服务</h2>
+        <h2 class="loan-page-title">{{ activeTab === 'record' ? '短信发送记录' : '短信模板' }}</h2>
         <p class="loan-page-subtitle">模板管理（三类场景）· 发送记录全量落库 · 手动发送（模拟通道）</p>
       </div>
       <el-button type="primary" @click="openSend">
@@ -10,11 +10,6 @@
         手动发送
       </el-button>
     </div>
-
-    <el-tabs v-model="activeTab">
-      <el-tab-pane label="短信模板" name="template" />
-      <el-tab-pane label="发送记录" name="record" />
-    </el-tabs>
 
     <!-- 模板管理 -->
     <div v-show="activeTab === 'template'" class="loan-card">
@@ -135,7 +130,7 @@
         </el-form-item>
         <el-form-item label="模板" required>
           <el-select v-model="sendForm.templateCode" filterable placeholder="选择模板" style="width: 100%">
-            <el-option v-for="t in templateOptions" :key="t.templateCode" :label="`${t.templateName}（${t.templateCode}）`" :value="t.templateCode" />
+            <el-option v-for="t in templateOptions" :key="t.templateCode" :label="t.templateName || '短信模板名称待补充'" :value="t.templateCode" />
           </el-select>
         </el-form-item>
         <el-form-item label="内容">
@@ -149,6 +144,7 @@
 <script setup>
 defineOptions({ name: '_sms' });
 import { ref, reactive, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
@@ -162,7 +158,8 @@ import {
   pageSmsRecords, sendSms,
 } from '@/api/sms';
 
-const activeTab = ref('template');
+const route = useRoute();
+const activeTab = ref(String(route.meta.smsView || 'template'));
 const loadedTabs = reactive({ template: false, record: false });
 const typeText = { LOGIN_VERIFY: '登录验证', NOTIFICATION: '通知', MARKETING: '业务营销' };
 const statusText = { PENDING: '待发送', SENT: '已发送', SUCCESS: '成功', FAIL: '失败' };

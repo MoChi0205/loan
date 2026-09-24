@@ -2,7 +2,7 @@
   <div class="lead-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ isChannel ? '我的线索' : '线索管理' }}</h2>
+        <h2 class="loan-page-title">{{ activeTab === 'pool' ? '线索公海' : '我的线索' }}</h2>
         <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审核通过后进入公海' : '我的线索＝当前归属我的线索；线索公海＝未分配线索；客户公海＝未分配客户；创建人始终单独展示' }}</p>
       </div>
       <el-button v-permission="ACTION_PERMISSION.LEAD_CREATE" type="primary" @click="openCreate">
@@ -12,11 +12,6 @@
     </div>
 
     <div class="loan-card">
-      <el-tabs v-model="activeTab" @tab-change="onTabChange">
-        <el-tab-pane label="我的线索" name="mine" />
-        <el-tab-pane v-if="!isChannel" label="线索公海" name="pool" />
-      </el-tabs>
-
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
         <el-select v-if="activeTab !== 'clients'" v-model="query.leadType" placeholder="客群" clearable style="width: 130px">
           <el-option label="企业" value="ENTERPRISE" />
@@ -183,7 +178,7 @@
 <script setup>
 defineOptions({ name: '_lead' });
 import { ref, reactive, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
@@ -198,7 +193,8 @@ import { pageUnassignedClients, claimUnassignedClient, assignClient } from '@/ap
 import { useUserStore } from '@/store/user';
 import { ACTION_PERMISSION } from '@/utils/access';
 
-const activeTab = ref('mine');
+const route = useRoute();
+const activeTab = ref(String(route.meta.leadView || 'mine'));
 const router = useRouter();
 const userStore = useUserStore();
 const roleCode = computed(() => (userStore.roleCode || '').toUpperCase());
@@ -275,13 +271,6 @@ const { loading, data, total, query, load, onSearch, onReset, handleSortChange }
     : pageLead({ ...q, pool: activeTab.value === 'pool' }),
   { leadType: '', source: '', followStatus: '', keyword: '' },
 );
-
-function onTabChange() {
-  clearSelection();
-  selectedRows.value = [];
-  query.page = 1;
-  load();
-}
 
 /** 操作列 */
 function rowActions(row) {
@@ -395,7 +384,7 @@ async function onAssignClient() {
 
 /** 跳客户档案独立页（P0-6） */
 function goProfile(clientCode) {
-  router.push({ path: '/client', query: { clientCode } });
+  router.push({ path: '/client/my', query: { clientCode } });
 }
 
 async function onClaim(row) {
@@ -538,8 +527,8 @@ const followStatusMap = {
   REJECTED: { label: '已驳回', type: 'muted' },
 };
 /** 邀请绑定 / 小程序注册来源的引荐人与认证状态列：仅当列表数据含对应字段时展示 */
-const hasReferrer = computed(() => data.value.some((r) => r.referrerName || r.inviterName || r.referrer));
-const hasAuthStatus = computed(() => data.value.some((r) => r.authStatus || r.certStatus));
+const hasReferrer = computed(() => (data.value || []).some((r) => r.referrerName || r.inviterName || r.referrer));
+const hasAuthStatus = computed(() => (data.value || []).some((r) => r.authStatus || r.certStatus));
 
 const sourceMap = { BOSS: '老板', ADVISER: '顾问', CHANNEL: '渠道', VIP: 'VIP 客户', INVITE: '小程序注册·邀请', MINI: '小程序注册' };
 

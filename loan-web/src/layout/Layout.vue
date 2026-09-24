@@ -267,7 +267,7 @@ const BASE_MENU_GROUPS = [
       { path: '/lead/my', title: '我的线索', icon: 'lead', indent: true },
       { path: '/lead/pool', title: '线索公海', icon: 'sea', indent: true, roles: ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
       { title: '客户档案', icon: 'client', isSection: true },
-      { path: '/client/my', title: '我的客户', icon: 'client', indent: true, roles: ['CHANNEL', 'ADVISER', 'DEPT_MANAGER'] },
+      { path: '/client/my', title: '我的客户', icon: 'client', indent: true },
       { path: '/client/team', title: '团队客户', icon: 'client', indent: true, roles: ['DEPT_MANAGER'] },
       { path: '/client/company', title: '全司客户', icon: 'client', indent: true, roles: ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/client/company-sea', title: '客户公海', icon: 'sea', indent: true, roles: ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
@@ -304,12 +304,13 @@ const BASE_MENU_GROUPS = [
     icon: 'approval',
     items: [
       { path: '/approval/mine', title: '我的申请', icon: 'approval' },
-      { path: '/approval/product', title: '产品审核', icon: 'product', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/product', title: '产品审核', icon: 'product', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/approval/download', title: '附件下载审核', icon: 'download' },
       { path: '/approval/allocation', title: '客户分配审核', icon: 'client', roles: ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/outing', title: '外出审批', icon: 'lead', roles: ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/approval/channel-lead', title: '渠道线索审核', icon: 'channel', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/approval/sms-template', title: '短信模板审核', icon: 'sms', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/approval/report-template', title: '报告模板审核', icon: 'reportDoc', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/sms-template', title: '短信模板审核', icon: 'sms', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/report-template', title: '报告模板审核', icon: 'reportDoc', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
     ],
   },
   {
@@ -407,10 +408,18 @@ const menuGroups = computed(() => {
   if (allowedCodes.value.size === 0) return [SAFE_MENU_GROUPS[0]]; // 仅工作台
   const set = allowedCodes.value;
   const filtered = raw
-    .map((g) => ({ ...g, items: g.items.filter((it) =>
-      (!it.roles || it.roles.includes(userStore.roleCode))
-      && (!it.path || set.has(it.path.split('?')[0]))
-    ) }))
+    .map((g) => {
+      const visibleLeaves = g.items.filter((it) => it.path
+        && (!it.roles || it.roles.includes(userStore.roleCode))
+        && set.has(it.path.split('?')[0]));
+      const visibleSections = new Set();
+      let currentSection = null;
+      g.items.forEach((item) => {
+        if (item.isSection) currentSection = item;
+        else if (item.path && visibleLeaves.includes(item) && currentSection) visibleSections.add(currentSection);
+      });
+      return { ...g, items: g.items.filter((it) => visibleLeaves.includes(it) || visibleSections.has(it)) };
+    })
     .filter((g) => g.items.length);
   return filtered.length ? filtered : [SAFE_MENU_GROUPS[0]];
 });
@@ -1087,7 +1096,8 @@ watch(menus, () => {
   align-items: center;
   background: color-mix(in srgb, var(--loan-bg) 88%, var(--loan-card-bg));
   border-bottom: 1px solid var(--loan-border);
-  padding: 7px 16px 0;
+  padding: 5px 22px 0;
+  min-height: 42px;
   min-width: 0;
 }
 .route-tabs {
@@ -1105,8 +1115,8 @@ watch(menus, () => {
   appearance: none;
   border: 1px solid var(--loan-border);
   border-radius: 8px 8px 0 0;
-  height: 34px;
-  padding: 0 13px;
+  height: 32px;
+  padding: 0 12px;
   font-size: 12px;
   background: var(--loan-card-bg);
   color: var(--loan-text-secondary);
@@ -1187,13 +1197,13 @@ watch(menus, () => {
 }
 
 .topbar {
-  height: 66px;
+  height: 58px;
   background: var(--loan-card-bg);
   border-bottom: 1px solid var(--loan-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 26px;
+  padding: 0 24px;
   flex-shrink: 0;
 }
 
@@ -1282,7 +1292,7 @@ watch(menus, () => {
   display: flex;          /* 让 .loan-page 作为 flex 子项可以占满 */
   flex-direction: column;
   overflow-y: auto;
-  padding: 20px 28px 28px;
+  padding: 18px 28px 28px;
 }
 
 /* 移动端：侧栏收起为窄条，避免挤压内容 */

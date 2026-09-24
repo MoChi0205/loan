@@ -238,6 +238,12 @@ public class ClientController {
             @RequestParam(required = false) String enterpriseName,
             @RequestParam(required = false) String creditCode,
             @RequestParam(required = false) String ownerStaffCode,
+            @RequestParam(required = false) String ownerDeptCode,
+            @RequestParam(required = false) String customerGroup,
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String followState,
+            @RequestParam(required = false) Boolean hasDeal,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime createdAtStart,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime createdAtEnd,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dealTimeStart,
@@ -250,7 +256,7 @@ public class ClientController {
             @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
         String scopedOwner = ownerStaffCode;
-        String ownerDeptCode = null;
+        String scopedDeptCode = null;
         String ownershipScope = null;
         String normalizedScope = scope == null ? "ALL" : scope.trim().toUpperCase();
         if ("MY".equals(normalizedScope)) {
@@ -261,7 +267,7 @@ public class ClientController {
                         com.loan.common.ResultCode.FORBIDDEN, "仅部门经理可查看团队客户");
             }
             scopedOwner = null;
-            ownerDeptCode = user.getDeptCode();
+            scopedDeptCode = user.getDeptCode();
         } else if ("COMPANY_SEA".equals(normalizedScope)) {
             scopedOwner = null;
             ownershipScope = "ENTERPRISE";
@@ -272,19 +278,21 @@ public class ClientController {
             }
             scopedOwner = null;
             ownershipScope = "TEAM";
-            ownerDeptCode = user.getDeptCode();
+            scopedDeptCode = user.getDeptCode();
         } else if ("ALL".equals(normalizedScope)) {
             String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
             if (!java.util.Arrays.asList("BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER").contains(role)) {
                 throw new com.loan.exception.BusinessException(
                         com.loan.common.ResultCode.FORBIDDEN, "当前角色无权查看全司已分配客户");
             }
-            scopedOwner = null;
+            scopedOwner = ownerStaffCode;
+            scopedDeptCode = ownerDeptCode;
             ownershipScope = "ASSIGNED";
         }
         return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
                 scopedOwner, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir, ownerDeptCode, ownershipScope));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, scopedDeptCode, ownershipScope,
+                customerGroup, source, status, followState, hasDeal));
     }
 
     /**

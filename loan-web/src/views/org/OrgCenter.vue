@@ -2,16 +2,10 @@
   <div class="org-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">组织权限</h2>
-        <p class="loan-page-subtitle">部门树 / 员工管理 / 角色权限配置</p>
+        <h2 class="loan-page-title">{{ { staff: '员工管理', role: '角色权限', api: '接口权限' }[activeTab] }}</h2>
+        <p class="loan-page-subtitle">{{ { staff: '部门与员工账号管理', role: '角色菜单与操作权限配置', api: '网关接口访问权限配置' }[activeTab] }}</p>
       </div>
     </div>
-
-    <el-tabs v-model="activeTab">
-      <el-tab-pane label="员工管理" name="staff" />
-      <el-tab-pane label="角色权限" name="role" />
-      <el-tab-pane label="接口权限" name="api" />
-    </el-tabs>
 
     <!-- ============ 员工管理 ============ -->
     <div v-show="activeTab === 'staff'" class="org-body">
@@ -68,7 +62,7 @@
           </el-table-column>
           <el-table-column label="角色" width="110">
             <template #default="{ row }">
-              <span class="loan-tag" :class="roleTag(row.roleCode)">{{ row.roleName || row.roleCode }}</span>
+              <span class="loan-tag" :class="roleTag(row.roleCode)">{{ row.roleName || '角色名称待补充' }}</span>
             </template>
           </el-table-column>
           <el-table-column label="手机号" min-width="130">
@@ -93,7 +87,7 @@
       <div class="role-grid">
         <div v-for="r in roles" :key="r.roleCode" class="role-card">
           <div class="role-card__head">
-            <span class="role-code mono">{{ r.roleCode }}</span>
+            <span class="role-code">{{ r.roleName || '角色名称待补充' }}</span>
             <span class="loan-tag loan-tag-success">启用</span>
           </div>
           <div class="role-name">{{ r.roleName }}</div>
@@ -190,7 +184,6 @@
             @click="onApiRoleSelect(r.roleCode)"
           >
             <span class="loan-tag" :class="roleTag(r.roleCode)">{{ r.roleName }}</span>
-            <span class="api-role-code">{{ r.roleCode }}</span>
           </div>
         </div>
       </div>
@@ -198,7 +191,7 @@
       <div class="loan-card">
         <div class="dept-head" style="margin-bottom: 10px">
           <span class="panel-title">
-            接口授权：{{ currentApiRole?.roleName || apiRoleCode || '—' }}
+            接口授权：{{ currentApiRole?.roleName || '角色名称待补充' }}
           </span>
           <div>
             <el-button size="small" :loading="apiLoading" @click="loadApiPerms">
@@ -231,6 +224,7 @@
 <script setup>
 defineOptions({ name: '_org' });
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
@@ -241,7 +235,8 @@ import { desensitizePhone } from '@/utils/format';
 import { departmentTree, roleList, staffPage, menuTree as fetchMenuTree, rolePermissionMenuIds as fetchRolePermissionMenuIds, saveStaff, disableStaff, saveDepartment, disableDepartment, saveRolePermission } from '@/api/org';
 import { pageApiPerm, roleApiPerm, saveRoleApiPerm } from '@/api/apiperm';
 
-const activeTab = ref('staff');
+const route = useRoute();
+const activeTab = ref(String(route.meta.orgView || 'staff'));
 const deptTree = ref([]);
 const roles = ref([]);
 const menuTree = ref([]);

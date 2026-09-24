@@ -2,8 +2,8 @@
   <div class="client-profile-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ !clientCode ? (showOwnClientList ? '我的客户' : '客户档案') : (detail.enterpriseName || detail.realName || detail.name || '客户档案') }}</h2>
-        <p class="loan-page-subtitle">{{ !clientCode ? '多维筛选 · 客户列表（手机号 / 姓名 / 企业名 / 信用代码 / 建档时间）' : (isChannel ? '本人录入客户 · 档案只读 · 服务归属' : (isAdviser ? '本人归属客户 · 档案与服务记录' : '客户资料 · 认证信息 · 服务归属 · 分配/跟进历史')) }}</p>
+        <h2 class="loan-page-title">{{ !clientCode ? listPageTitle : (detail.enterpriseName || detail.realName || detail.name || '客户档案') }}</h2>
+        <p class="loan-page-subtitle">{{ !clientCode ? '按客户身份、来源、状态、跟进与成交情况筛选' : (isChannel ? '本人录入客户 · 档案只读 · 服务归属' : (isAdviser ? '本人归属客户 · 档案与服务记录' : '客户资料 · 认证信息 · 服务归属 · 分配/跟进历史')) }}</p>
       </div>
       <div class="header-actions">
         <el-button v-if="clientCode" @click="backToClientList">返回客户列表</el-button>
@@ -21,19 +21,21 @@
     </div>
 
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
-      <el-tabs v-model="clientScope" class="client-scope-tabs" @tab-change="onScopeChange">
-        <el-tab-pane label="我的客户" name="MY" />
-        <el-tab-pane v-if="canViewTeamAssigned" label="团队已分配客户" name="TEAM" />
-        <el-tab-pane v-if="canViewCompanyAssigned" label="全司已分配客户" name="ALL" />
-        <el-tab-pane v-if="!isChannel" label="客户公海" name="COMPANY_SEA" />
-        <el-tab-pane v-if="canViewTeamAssigned" label="团队公海" name="TEAM_SEA" />
-      </el-tabs>
       <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
-        <el-input v-model="clientQuery.keyword" placeholder="搜索客户：身份证、信用代码、企业名、联系人或手机号" clearable style="width: 340px" @keyup.enter="searchClients" />
-        <el-input v-model="clientQuery.name" placeholder="联系人姓名" clearable style="width: 160px" @keyup.enter="searchClients" />
-        <el-input v-model="clientQuery.phone" placeholder="手机号" clearable style="width: 160px" @keyup.enter="searchClients" />
-        <el-input v-model="clientQuery.enterpriseName" placeholder="企业名称" clearable style="width: 200px" @keyup.enter="searchClients" />
-        <el-input v-model="clientQuery.creditCode" placeholder="统一社会信用代码" clearable style="max-width: 220px; min-width: 180px" @keyup.enter="searchClients" />
+        <el-input v-model="clientQuery.keyword" placeholder="企业名 / 姓名 / 手机号 / 证件号码" clearable style="width: 320px" @keyup.enter="searchClients" />
+        <el-select v-model="clientQuery.customerGroup" placeholder="客户类型" clearable style="width: 130px"><el-option label="企业客户" value="ENTERPRISE" /><el-option label="个人客户" value="PERSONAL" /></el-select>
+        <el-select v-model="clientQuery.status" placeholder="客户状态" clearable style="width: 130px"><el-option label="有效" value="ACTIVE" /><el-option label="已停用" value="DISABLED" /></el-select>
+        <el-select v-model="clientQuery.followState" placeholder="跟进情况" clearable style="width: 150px"><el-option label="从未跟进" value="NEVER" /><el-option label="30天未跟进" value="OVERDUE" /><el-option label="7天内已跟进" value="RECENT" /></el-select>
+        <el-select v-model="clientQuery.hasDeal" placeholder="成交情况" clearable style="width: 130px"><el-option label="已成交" :value="true" /><el-option label="未成交" :value="false" /></el-select>
+        <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerDeptCode" placeholder="归属部门" clearable filterable style="width: 160px"><el-option v-for="item in filterDepartments" :key="item.code" :label="item.name" :value="item.code" /></el-select>
+        <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerStaffCode" placeholder="归属顾问" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" style="width: 180px"><el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="item.staffName" :value="item.staffCode" /></el-select>
+        <el-button text type="primary" @click="moreFiltersVisible = !moreFiltersVisible">{{ moreFiltersVisible ? '收起筛选' : '更多筛选' }}</el-button>
+        <template v-if="moreFiltersVisible">
+          <el-input v-model="clientQuery.name" placeholder="联系人姓名" clearable style="width: 160px" @keyup.enter="searchClients" />
+          <el-input v-model="clientQuery.phone" placeholder="手机号" clearable style="width: 160px" @keyup.enter="searchClients" />
+          <el-input v-model="clientQuery.enterpriseName" placeholder="企业名称" clearable style="width: 200px" @keyup.enter="searchClients" />
+          <el-input v-model="clientQuery.creditCode" placeholder="统一社会信用代码" clearable style="width: 220px" @keyup.enter="searchClients" />
+          <el-input v-model="clientQuery.source" placeholder="客户来源" clearable style="width: 160px" @keyup.enter="searchClients" />
         <el-date-picker
           v-model="createdAtRange"
           type="daterange"
@@ -43,6 +45,7 @@
           value-format="YYYY-MM-DD HH:mm:ss"
           style="width: 260px"
         />
+        </template>
         <el-date-picker
           v-model="dealTimeRange"
           type="daterange"
@@ -70,6 +73,8 @@
             <div v-if="row.phone" class="cell-sub">{{ desensitizePhone(row.phone) }}</div>
           </template>
         </el-table-column>
+        <el-table-column label="类型" width="100"><template #default="{ row }">{{ row.customerGroup === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
+        <el-table-column label="来源" width="130"><template #default="{ row }">{{ sourceText(row.source) }}</template></el-table-column>
         <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
         <el-table-column label="最近跟进" width="190">
           <template #default="{ row }">
@@ -219,7 +224,7 @@
             <el-option
               v-for="o in assignOptions"
               :key="o.staffCode"
-              :label="`${o.staffName} · ${o.roleName || o.roleCode} · ${o.deptName || '未分部门'}（${o.staffCode}）`"
+              :label="`${o.staffName || '员工姓名待补充'} · ${o.roleName || '角色待补充'} · ${o.deptName || '未分部门'}`"
               :value="o.staffCode"
               :disabled="o.status && o.status !== 'ACTIVE'"
             />
@@ -251,7 +256,7 @@ import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory, claimUnassignedClient, batchClaimClients } from '@/api/client';
-import { staffPage } from '@/api/org';
+import { staffPage, departmentTree } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
 import { ACTION_PERMISSION } from '@/utils/access';
@@ -273,6 +278,9 @@ const clientScope = ref(defaultClientScope.value);
 const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
+const moreFiltersVisible = ref(false);
+const scopeTitle = Object.freeze({ MY: '我的客户', TEAM: '团队客户', ALL: '全司客户', COMPANY_SEA: '客户公海', TEAM_SEA: '团队公海' });
+const listPageTitle = computed(() => scopeTitle[clientScope.value] || '客户档案');
 const selectedClientCodes = ref([]);
 function onClientSelection(rows) { selectedClientCodes.value = rows.map((row) => row.clientCode); }
 async function onBatchClaim() {
@@ -297,6 +305,13 @@ const {
   phone: '',
   enterpriseName: '',
   creditCode: '',
+  customerGroup: '',
+  source: '',
+  status: '',
+  followState: '',
+  hasDeal: '',
+  ownerDeptCode: '',
+  ownerStaffCode: '',
   createdAtStart: '',
   createdAtEnd: '',
   dealTimeStart: '',
@@ -304,15 +319,24 @@ const {
   scope: defaultClientScope.value,
 });
 
-function onScopeChange(scope) {
-  clientQuery.scope = scope;
-  clientQuery.page = 1;
-  loadClients();
+const filterStaffOptions = ref([]); const filterStaffLoading = ref(false); const filterDepartments = ref([]);
+function flattenDepartments(nodes, output = []) {
+  (nodes || []).forEach((item) => { output.push({ code: item.code || item.deptCode, name: item.name || item.deptName }); flattenDepartments(item.children, output); });
+  return output;
+}
+async function searchFilterStaff(keyword = '') {
+  filterStaffLoading.value = true;
+  try { const res = await staffPage({ page: 1, size: 50, keyword, deptCode: clientQuery.ownerDeptCode || undefined }); filterStaffOptions.value = res.data?.records || []; }
+  finally { filterStaffLoading.value = false; }
+}
+async function loadFilterDepartments() {
+  if (clientScope.value !== 'ALL' || filterDepartments.value.length) return;
+  const res = await departmentTree(); filterDepartments.value = flattenDepartments(res.data || []); await searchFilterStaff('');
 }
 
-/** 菜单直达范围；未授权或缺失参数时回到当前角色默认范围。 */
+/** 独立子菜单固定列表范围；旧 query 链接只作兼容，不再渲染页内范围 Tab。 */
 function resolveRouteScope() {
-  const requested = String(route.query.scope || '').toUpperCase();
+  const requested = String(route.meta.clientScope || route.query.scope || '').toUpperCase();
   const allowed = new Set(['MY', 'COMPANY_SEA']);
   if (canViewTeamAssigned.value) {
     allowed.add('TEAM');
@@ -337,7 +361,7 @@ watch(dealTimeRange, (val) => {
 });
 
 function openChannelClient(row) {
-  router.push({ path: '/client', query: { clientCode: row.clientCode } });
+  router.push({ path: route.path, query: { clientCode: row.clientCode } });
 }
 /** 返回客户列表（所有角色统一入口） */
 function backToClientList() {
@@ -348,7 +372,7 @@ function backToClientList() {
   clientQuery.createdAtEnd = '';
   clientQuery.dealTimeStart = '';
   clientQuery.dealTimeEnd = '';
-  router.push({ path: '/client' });
+  router.push({ path: route.path });
 }
 
 // ============================================================
@@ -725,7 +749,7 @@ async function onAssignConfirm() {
   }
   try {
     await ElMessageBox.confirm(
-      `确认将客户【${detail.enterpriseName || detail.name || clientCode.value}】的归属调整为「${picked ? picked.staffName : assignTarget.value}」？此操作立即生效，无需审核。`,
+      `确认将客户【${detail.enterpriseName || detail.realName || detail.name || '未命名客户'}】的归属调整为「${picked ? picked.staffName : '目标顾问'}」？此操作立即生效，无需审核。`,
       '分配归属确认',
       { type: 'warning' },
     );
@@ -760,7 +784,7 @@ async function onRecycle() {
 // 路由参数 clientCode（query 或 path 参数均可）变化时重载
 // 所有角色均可看到客户列表（D67）：未选中客户时加载列表，选中时加载档案 + 历史
 watch(
-  () => [route.query.clientCode || route.params.clientCode, route.query.scope],
+  () => [route.query.clientCode || route.params.clientCode, route.meta.clientScope, route.query.scope],
   ([code]) => {
     if (code) {
       clientCode.value = code;
@@ -769,8 +793,9 @@ watch(
       return;
     }
     clientCode.value = '';
-    clientScope.value = resolveRouteScope();
-    clientQuery.scope = clientScope.value;
+      clientScope.value = resolveRouteScope();
+      clientQuery.scope = clientScope.value;
+      loadFilterDepartments();
     loadHistory('');
     loadClients();
   },

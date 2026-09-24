@@ -7,11 +7,45 @@
 const PUBLIC_PATHS = new Set(['/login']);
 const LAYOUT_COMMON_PATHS = new Set(['/workbench', '/403']);
 const ROUTE_PARENT = Object.freeze({
+  '/client': '/client/my',
+  '/service-operations': '/service-operations/daily',
   '/channel-config-wizard': '/channel-config',
+  // 合并菜单后的旧页面仍作为“渠道管理 / 奖励管理”的页内 Tab 保留。
+  '/reward-rule': '/reward/rules',
   '/report/overview': '/report/center',
   '/report/center': '/report/center',
   '/report/trend': '/report/trend',
   '/report/screening': '/report/screening',
+});
+
+const LEGACY_PARENT = Object.freeze({
+  '/lead/my': '/lead',
+  '/lead/pool': '/lead',
+  '/client/my': '/client',
+  '/client/team': '/client',
+  '/client/company': '/client',
+  '/client/company-sea': '/client',
+  '/client/team-sea': '/client',
+  '/service-operations/daily': '/service-operations',
+  '/service-operations/appointments': '/service-operations',
+  '/service-operations/outings': '/service-operations',
+  '/service-operations/replay': '/service-operations',
+  '/product/all': '/product',
+  '/product/cooperate': '/product',
+  '/reward/records': '/reward',
+  '/reward/rules': '/reward-rule',
+  '/sms/templates': '/sms',
+  '/sms/records': '/sms',
+  '/org/staff': '/org',
+  '/org/roles': '/org',
+  '/org/api-permissions': '/org',
+  '/approval/mine': '/approval',
+  '/approval/product': '/approval',
+  '/approval/download': '/approval',
+  '/approval/allocation': '/approval',
+  '/approval/channel-lead': '/approval',
+  '/approval/sms-template': '/approval',
+  '/approval/report-template': '/approval',
 });
 
 /** 把菜单树扁平化为不带 query 的 path 集合。 */
@@ -37,7 +71,9 @@ export function canAccessRoute(routePath, menuPaths, options = {}) {
   // 调试中心是“菜单授权 + 运行环境开关”双门禁；生产关闭时手输 URL 也不能加载组件。
   if (normalized === '/debug' && options.debugCenterEnabled !== true) return false;
   const requiredPath = ROUTE_PARENT[normalized] || normalized;
-  return menuPaths.has(requiredPath);
+  return menuPaths.has(normalized)
+    || menuPaths.has(requiredPath)
+    || Boolean(LEGACY_PARENT[normalized] && menuPaths.has(LEGACY_PARENT[normalized]));
 }
 
 /**

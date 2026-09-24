@@ -100,37 +100,7 @@
       </div>
     </div>
 
-    <!-- 趋势 -->
-    <div class="trend-grid" v-loading="loadingOv">
-      <div class="loan-card">
-        <div class="panel-title">成交趋势（近 12 个月）</div>
-        <AppEChart :option="orderEChartOption" height="200px" />
-        <table class="trend-table">
-          <thead><tr><th>月份</th><th>成交单数</th><th>成交金额（元）</th></tr></thead>
-          <tbody>
-            <tr v-for="r in orderTrendData" :key="r.month">
-              <td>{{ r.month }}</td><td>{{ r.count }}</td>
-              <td class="mono">¥{{ fmtAmount(r.amount) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="loan-card">
-        <div class="panel-title">奖励趋势（近 12 个月）</div>
-        <AppEChart :option="rewardEChartOption" height="200px" />
-        <table class="trend-table">
-          <thead><tr><th>月份</th><th>奖励单数</th><th>奖励金额（元）</th></tr></thead>
-          <tbody>
-            <tr v-for="r in rewardTrendData" :key="r.month">
-              <td>{{ r.month }}</td><td>{{ r.count }}</td>
-              <td class="mono">¥{{ fmtAmount(r.amount) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 初筛报告已独立到「数据与报表 / 初筛报告」，经营概览仅保留汇总与趋势。 -->
+    <!-- 初筛报告已独立到「智能匹配 / 诊断报告」，趋势已独立到「经营分析 / 趋势分析」。 -->
     <div v-if="false" class="loan-card" style="margin-top: 16px">
       <div class="panel-title">初筛报告</div>
       <AppSearchBar :loading="loadingS" @search="searchS" @reset="resetS">
@@ -224,7 +194,7 @@ import StaffAggregatedReport from '@/components/report/StaffAggregatedReport.vue
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { reportDisplayTitle } from '@/utils/display';
-import { reportOverview, reportOperations, orderTrend, rewardTrend, pageScreenings, screeningAggregate } from '@/api/report';
+import { reportOverview, reportOperations, pageScreenings, screeningAggregate } from '@/api/report';
 import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
@@ -238,7 +208,7 @@ const roleScopeText = computed(() => ({
   DEPT_MANAGER: '本团队实时经营数据',
   ADVISER: '本人实时业务数据',
 }[userStore.roleCode] || '当前角色可见数据'));
-const pageSubtitle = computed(() => `${roleScopeText.value} · 客户资产 · 公海效率 · 跟进时效 · 成交趋势`);
+const pageSubtitle = computed(() => `${roleScopeText.value} · 客户资产 · 公海效率 · 跟进时效`);
 
 const gradeText = { HIGH: '高', MIDDLE: '中', LOW: '低' };
 const gradeTag = (g) => ({ HIGH: 'loan-tag-success', MIDDLE: 'loan-tag-warning', LOW: 'loan-tag-muted' }[g] || 'loan-tag-muted');
@@ -381,137 +351,6 @@ async function loadOperations() {
 }
 
 // ============================================================
-// 趋势图表
-// ============================================================
-const orderTrendData = ref([]);
-const rewardTrendData = ref([]);
-
-/** 跟随当前 data-theme 的图表文字/轴线色 */
-const isDarkTheme = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark';
-const C_TEXT = isDarkTheme ? '#f3f4f6' : '#111827';
-const C_TEXT_SUB = isDarkTheme ? '#9ca3af' : '#6b7280';
-const C_BORDER = isDarkTheme ? 'rgba(255,255,255,0.12)' : '#e5e7eb';
-const C_TOOLTIP_BG = isDarkTheme ? 'rgba(17,24,39,0.92)' : 'rgba(255,255,255,0.96)';
-
-function buildTrendChartOption({ months, countData, amountData, countName, amountName, countColor, amountColor, areaColor }) {
-  return {
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: C_TOOLTIP_BG,
-      borderColor: C_BORDER,
-      textStyle: { color: C_TEXT },
-      formatter: (params) => {
-        const head = `<div style="font-weight:600;margin-bottom:4px;">${params[0]?.axisValue || ''}</div>`;
-        const rows = params.map((p) => {
-          const isAmount = p.seriesName.includes('金额');
-          const val = isAmount ? `¥${Number(p.value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : Number(p.value || 0).toLocaleString('zh-CN');
-          return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;"></span>${p.seriesName}: <b>${val}</b>`;
-        }).join('<br>');
-        return head + rows;
-      },
-    },
-    legend: {
-      data: [countName, amountName],
-      top: 0,
-      left: 'center',
-      itemGap: 20,
-      icon: 'roundRect',
-      itemWidth: 14,
-      itemHeight: 4,
-      textStyle: { fontSize: 12, color: C_TEXT },
-    },
-    grid: { left: 16, right: 72, top: 42, bottom: 22, containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: months,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: C_BORDER } },
-      axisLabel: { color: C_TEXT_SUB, fontSize: 11 },
-    },
-    yAxis: [
-      {
-        type: 'value',
-        name: '单数',
-        position: 'left',
-        nameTextStyle: { align: 'right', padding: [0, 6, 0, 0], color: C_TEXT_SUB },
-        splitLine: { lineStyle: { color: C_BORDER, type: 'dashed' } },
-        axisLabel: { color: C_TEXT_SUB, fontSize: 11 },
-      },
-      {
-        type: 'value',
-        name: '金额',
-        position: 'right',
-        offset: 10,
-        nameTextStyle: { align: 'left', padding: [0, 0, 0, 6], color: C_TEXT_SUB },
-        splitLine: { show: false },
-        axisLabel: {
-          color: C_TEXT_SUB,
-          fontSize: 11,
-          formatter: (v) => v >= 10000 ? (v / 10000).toFixed(0) + '万' : v,
-        },
-      },
-    ],
-    series: [
-      {
-        name: countName,
-        type: 'line',
-        smooth: true,
-        yAxisIndex: 0,
-        data: countData,
-        symbol: 'circle',
-        symbolSize: 5,
-        itemStyle: { color: countColor },
-        lineStyle: { width: 2.5, color: countColor },
-        areaStyle: { color: areaColor, opacity: 0.2 },
-      },
-      {
-        name: amountName,
-        type: 'line',
-        smooth: true,
-        yAxisIndex: 1,
-        data: amountData,
-        symbol: 'circle',
-        symbolSize: 5,
-        itemStyle: { color: amountColor },
-        lineStyle: { width: 2.5, type: 'dashed', color: amountColor },
-      },
-    ],
-  };
-}
-
-const orderEChartOption = computed(() => {
-  const months = (orderTrendData.value || []).map((r) => r.month);
-  const counts = (orderTrendData.value || []).map((r) => r.count || 0);
-  const amounts = (orderTrendData.value || []).map((r) => Number(r.amount || 0));
-  return buildTrendChartOption({
-    months,
-    countData: counts,
-    amountData: amounts,
-    countName: '成交单数',
-    amountName: '成交金额',
-    countColor: '#3b82f6',
-    amountColor: '#f59e0b',
-    areaColor: 'rgba(59, 130, 246, 0.25)',
-  });
-});
-
-const rewardEChartOption = computed(() => {
-  const months = (rewardTrendData.value || []).map((r) => r.month);
-  const counts = (rewardTrendData.value || []).map((r) => r.count || 0);
-  const amounts = (rewardTrendData.value || []).map((r) => Number(r.amount || 0));
-  return buildTrendChartOption({
-    months,
-    countData: counts,
-    amountData: amounts,
-    countName: '奖励单数',
-    amountName: '奖励金额',
-    countColor: '#10b981',
-    amountColor: '#f97316',
-    areaColor: 'rgba(16, 185, 129, 0.25)',
-  });
-});
-
-// ============================================================
 // 初筛报告
 // ============================================================
 const { loading: loadingS, data: dataS, total: totalS, query: queryS, load: loadS, onSearch: searchS, onReset: resetS, handleSortChange } =
@@ -532,10 +371,8 @@ onMounted(async () => {
   loadS();
   loadingOv.value = true;
   try {
-    const [ov, ot, rt] = await Promise.all([reportOverview(), orderTrend(12), rewardTrend(12), loadOperations()]);
+    const [ov] = await Promise.all([reportOverview(), loadOperations()]);
     overview.value = ov.data || {};
-    orderTrendData.value = ot.data || [];
-    rewardTrendData.value = rt.data || [];
   } catch (e) { /* 拦截器已提示 */ } finally {
     loadingOv.value = false;
   }
@@ -621,16 +458,7 @@ onMounted(async () => {
 .funnel-copy span { display: block; color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; }
 .funnel-copy strong { display: block; margin-top: 3px; color: var(--loan-text); font-size: 18px; }
 .funnel-arrow { position: absolute; right: 7px; color: var(--loan-text-secondary, var(--loan-text-muted)); }
-.trend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.trend-grid .app-echart {
-  margin: 4px 0 12px;
-}
 @media (max-width: 900px) {
-  .trend-grid { grid-template-columns: 1fr; }
   .metric-panel-grid { grid-template-columns: 1fr; }
   .visual-grid { grid-template-columns:1fr; }
   .funnel-grid { grid-template-columns: 1fr; }
@@ -644,17 +472,6 @@ onMounted(async () => {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--loan-border);
 }
-.trend-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.trend-table th, .trend-table td {
-  padding: 6px 8px;
-  text-align: right;
-  border-bottom: 1px solid var(--loan-border, var(--loan-surface));
-}
-.trend-table th:first-child, .trend-table td:first-child { text-align: left; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 .cell-main { font-weight: 500; }
 .cell-sub { font-size: 12px; color: var(--loan-text-secondary, var(--loan-text-muted)); }

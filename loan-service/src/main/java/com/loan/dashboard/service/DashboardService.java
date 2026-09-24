@@ -16,6 +16,8 @@ import com.loan.reward.entity.RewardRecord;
 import com.loan.reward.mapper.RewardRecordMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
+import com.loan.serviceops.entity.StaffOuting;
+import com.loan.serviceops.mapper.StaffOutingMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -43,6 +45,7 @@ public class DashboardService {
     private final LeadMapper leadMapper;
     private final ClientProfileMapper clientProfileMapper;
     private final StaffMapper staffMapper;
+    private final StaffOutingMapper outingMapper;
 
     /**
      * 客户档案禁用态。
@@ -93,6 +96,10 @@ public class DashboardService {
                 new LambdaQueryWrapper<ClientAllocationApproval>()
                         .eq(ClientAllocationApproval::getApproveStatus, "PENDING")
                         .eq(ClientAllocationApproval::getApplicantStaffCode, userNo)));
+        m.put("myOutingApply", outingMapper.selectCount(new LambdaQueryWrapper<StaffOuting>()
+                .eq(StaffOuting::getStaffCode, userNo)
+                .eq(StaffOuting::getStatus, "PENDING_REVIEW")));
+        m.put("pendingOutingApproval", countPendingOuting(roleCode, userNo));
         // 我的 X（owner 视角）
         m.put("myOrderCount", orderMapper.selectCount(new LambdaQueryWrapper<ServiceOrder>()
                 .eq(ServiceOrder::getOwnerStaffCode, userNo)
@@ -100,6 +107,24 @@ public class DashboardService {
         m.put("myLeadCount", leadMapper.selectCount(new LambdaQueryWrapper<Lead>()
                 .eq(Lead::getOwnerStaffCode, userNo)));
         return m;
+    }
+
+    private Long countPendingOuting(String roleCode, String userNo) {
+        String role = roleCode == null ? "" : roleCode.toUpperCase();
+        LambdaQueryWrapper<StaffOuting> wrapper = new LambdaQueryWrapper<StaffOuting>()
+                .eq(StaffOuting::getStatus, "PENDING_REVIEW")
+                .ne(StaffOuting::getStaffCode, userNo);
+        if ("DEPT_MANAGER".equals(role)) {
+            Staff current = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                    .eq(Staff::getStaffCode, userNo).last("LIMIT 1"));
+            if (current == null || current.getDeptCode() == null) return 0L;
+            wrapper.inSql(StaffOuting::getStaffCode,
+                    "SELECT staff_code FROM t_staff WHERE status='ACTIVE' AND dept_code='"
+                            + current.getDeptCode().replace("'", "''") + "'");
+        } else if (!java.util.Arrays.asList("BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER").contains(role)) {
+            return 0L;
+        }
+        return outingMapper.selectCount(wrapper);
     }
 
     /**

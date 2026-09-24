@@ -27,7 +27,7 @@
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'companyVisits' }">
               <div class="panel-head"><h3>今日来访</h3><span>{{ totalOf(workbench.companyVisits) }} 人</span></div>
               <button v-for="row in recordsOf(workbench.companyVisits)" :key="row.appointmentNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
-                <span><strong>{{ row.customerName || row.clientCode }}</strong><small>{{ timeOnly(row.scheduledStart) }} · {{ row.hostStaffName || row.hostStaffCode }}</small></span>
+                <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ timeOnly(row.scheduledStart) }} · {{ row.hostStaffName || '顾问姓名待补充' }}</small></span>
                 <el-tag size="small" :type="appointmentTag(row.status)">{{ appointmentStatusText[row.status] || row.status }}</el-tag>
               </button>
               <el-empty v-if="!recordsOf(workbench.companyVisits).length" description="当日暂无到公司服务" :image-size="52" />
@@ -35,7 +35,7 @@
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'staffOutings' }">
               <div class="panel-head"><h3>外出服务</h3><span>{{ totalOf(workbench.staffOutings) }} 人</span></div>
               <button v-for="row in recordsOf(workbench.staffOutings)" :key="row.outingNo" class="record-item" type="button" @click="row.clientCode && openClientReplay(row.clientCode)">
-                <span><strong>{{ row.staffName || row.staffCode }}</strong><small>{{ timeOnly(row.plannedStart) }} · {{ row.customerName || row.clientCode || '普通外出' }}</small></span>
+                <span><strong>{{ row.staffName || '员工姓名待补充' }}</strong><small>{{ timeOnly(row.plannedStart) }} · {{ row.customerName || (row.clientCode ? '客户名称待补充' : '普通外出') }}</small></span>
                 <el-tag size="small" :type="outingTag(row.status)">{{ outingStatusText[row.status] || row.status }}</el-tag>
               </button>
               <el-empty v-if="!recordsOf(workbench.staffOutings).length" description="当日暂无员工外出" :image-size="52" />
@@ -43,7 +43,7 @@
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'pendingFollows' }">
               <div class="panel-head"><h3>待回访</h3><span>{{ totalOf(workbench.pendingFollows) }} 项</span></div>
               <button v-for="row in recordsOf(workbench.pendingFollows)" :key="row.followNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
-                <span><strong>{{ row.customerName || row.clientCode }}</strong><small>{{ formatDateTime(row.nextFollowAt) }}</small></span>
+                <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ formatDateTime(row.nextFollowAt) }}</small></span>
                 <span class="record-note">{{ row.nextAction || '待跟进' }}</span>
               </button>
               <el-empty v-if="!recordsOf(workbench.pendingFollows).length" description="当日暂无待回访" :image-size="52" />
@@ -51,7 +51,7 @@
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'activeOrders' }">
               <div class="panel-head"><h3>活跃工单</h3><span>{{ totalOf(workbench.activeOrders) }} 单</span></div>
               <button v-for="row in recordsOf(workbench.activeOrders)" :key="row.orderNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
-                <span><strong>{{ row.customerName || row.clientCode }}</strong><small>{{ row.orderNo }} · {{ formatDateTime(row.updatedAt) }}</small></span>
+                <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ formatDateTime(row.updatedAt) }}</small></span>
                 <el-tag size="small" type="info">{{ row.status }}</el-tag>
               </button>
               <el-empty v-if="!recordsOf(workbench.activeOrders).length" description="暂无活跃工单" :image-size="52" />
@@ -70,10 +70,10 @@
           </div>
           <el-table v-loading="appointmentLoading" :data="appointments" stripe row-key="appointmentNo">
             <el-table-column label="客户" min-width="170">
-              <template #default="{ row }"><button class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || row.clientCode }}</button><div class="cell-sub">{{ row.contactName || '—' }} {{ row.contactPhoneMasked || '' }}</div></template>
+              <template #default="{ row }"><button class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || '未命名客户' }}</button><div class="cell-sub">{{ row.contactName || '—' }} {{ row.contactPhoneMasked || '' }}</div></template>
             </el-table-column>
             <el-table-column label="服务安排" min-width="210"><template #default="{ row }"><div>{{ methodText[row.serviceMethod] || row.serviceMethod }}</div><div class="cell-sub">{{ formatDateTime(row.scheduledStart) }} 至 {{ timeOnly(row.scheduledEnd) }}</div></template></el-table-column>
-            <el-table-column label="顾问/地点" min-width="160"><template #default="{ row }"><div>{{ row.hostStaffName || row.hostStaffCode }}</div><div class="cell-sub">{{ row.locationName || '线上服务' }}</div></template></el-table-column>
+            <el-table-column label="顾问/地点" min-width="160"><template #default="{ row }"><div>{{ row.hostStaffName || '顾问姓名待补充' }}</div><div class="cell-sub">{{ row.locationName || '线上服务' }}</div></template></el-table-column>
             <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="appointmentTag(row.status)" size="small">{{ appointmentStatusText[row.status] || row.status }}</el-tag><div class="cell-sub">{{ row.createdByType === 'STAFF' ? '公司已确认安排' : (row.customerConfirmStatus === 'CONFIRMED' ? '客户已提交确认' : '待客户确认') }}</div></template></el-table-column>
             <el-table-column label="操作" width="300" fixed="right">
               <template #default="{ row }">
@@ -103,8 +103,8 @@
             </el-select>
           </div>
           <el-table v-loading="outingLoading" :data="outings" stripe row-key="outingNo">
-            <el-table-column label="员工" min-width="130"><template #default="{ row }"><div>{{ row.staffName || row.staffCode }}</div><div class="cell-sub">{{ row.deptCode || '—' }}</div></template></el-table-column>
-            <el-table-column label="客户" min-width="150"><template #default="{ row }"><button v-if="row.clientCode" class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || row.clientCode }}</button><span v-else>无关联客户</span></template></el-table-column>
+            <el-table-column label="员工" min-width="130"><template #default="{ row }"><div>{{ row.staffName || '员工姓名待补充' }}</div><div class="cell-sub">{{ row.deptName || '所属部门待补充' }}</div></template></el-table-column>
+            <el-table-column label="客户" min-width="150"><template #default="{ row }"><button v-if="row.clientCode" class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || '客户名称待补充' }}</button><span v-else>无关联客户</span></template></el-table-column>
             <el-table-column label="计划时间" min-width="190"><template #default="{ row }">{{ formatDateTime(row.plannedStart) }}<div class="cell-sub">至 {{ timeOnly(row.plannedEnd) }}</div></template></el-table-column>
             <el-table-column label="目的地/目的" min-width="190"><template #default="{ row }"><div>{{ row.destination }}</div><div class="cell-sub">{{ row.purpose }}</div></template></el-table-column>
             <el-table-column label="打卡" min-width="210"><template #default="{ row }"><div>出发：{{ row.actualDepartedAt ? formatDateTime(row.actualDepartedAt) : '未打卡' }}<button v-if="row.departedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'DEPART', '出发打卡照片')">照片</button></div><div class="cell-sub">返回：{{ row.actualReturnedAt ? formatDateTime(row.actualReturnedAt) : '未打卡' }}<button v-if="row.returnedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'RETURN', '返回打卡照片')">照片</button></div></template></el-table-column>
@@ -121,13 +121,13 @@
               <el-input v-model="clientKeyword" clearable placeholder="姓名、企业名或手机号" @keyup.enter="searchClients"><template #append><el-button :loading="clientLoading" @click="searchClients">查询</el-button></template></el-input>
               <div class="client-results">
                 <button v-for="row in clientOptions" :key="row.clientCode" type="button" class="client-option" :class="{ active: selectedClient?.clientCode === row.clientCode }" @click="selectClient(row)">
-                  <strong>{{ row.enterpriseName || row.contactName || row.clientCode }}</strong><span>{{ row.contactName || '—' }} · {{ row.phone || '未绑定手机号' }}</span><small>{{ row.ownerStaffName || '暂未分配顾问' }}</small>
+                  <strong>{{ row.enterpriseName || row.contactName || '未命名客户' }}</strong><span>{{ row.contactName || '—' }} · {{ row.phone || '未绑定手机号' }}</span><small>{{ row.ownerStaffName || '暂未分配顾问' }}</small>
                 </button>
                 <el-empty v-if="clientSearched && !clientOptions.length" description="未找到可见客户" :image-size="48" />
               </div>
             </aside>
             <section class="timeline-panel">
-              <div class="panel-head replay-head"><div><h3>{{ selectedClientName }}</h3><span v-if="selectedClient">{{ selectedClient.clientCode }}</span></div><el-button v-if="canAddFollow" type="primary" @click="openFollow">新增跟进</el-button></div>
+              <div class="panel-head replay-head"><div><h3>{{ selectedClientName }}</h3><span v-if="selectedClient">客户跟进回放</span></div><el-button v-if="canAddFollow" type="primary" @click="openFollow">新增跟进</el-button></div>
 
               <div v-if="selectedClient" v-loading="insightLoading" class="insight-panel">
                 <div class="insight-head">
@@ -193,8 +193,8 @@
     <AppDialog v-model:visible="createVisible" title="创建客户预约" width="680px" :loading="saving" @confirm="submitAppointment">
       <el-alert title="员工代客创建后立即确认；预约开始前 5 分钟内的变更需走异常处理并留痕。" type="info" :closable="false" show-icon />
       <el-form ref="appointmentFormRef" :model="appointmentForm" :rules="appointmentRules" label-width="100px" class="dialog-form">
-        <el-form-item label="客户" prop="clientCode"><el-select v-model="appointmentForm.clientCode" filterable remote :remote-method="loadClientOptions" :loading="clientSelectLoading" placeholder="搜索姓名、企业名或手机号" style="width:100%" @visible-change="(v) => v && loadClientOptions('')"><el-option v-for="row in appointmentClientOptions" :key="row.clientCode" :label="`${row.enterpriseName || row.contactName || row.clientCode} · ${row.contactName || '—'}`" :value="row.clientCode" /></el-select></el-form-item>
-        <el-form-item label="服务顾问" prop="hostStaffCode"><el-input v-if="isAdviser" :model-value="`${userStore.displayName} · ${userNo}`" disabled /><el-select v-else v-model="appointmentForm.hostStaffCode" filterable remote :remote-method="loadStaffOptions" :loading="staffLoading" placeholder="搜索姓名或工号" style="width:100%" @visible-change="(v) => v && loadStaffOptions('')"><el-option v-for="row in staffOptions" :key="row.staffCode" :label="`${row.staffName} · ${row.staffCode}`" :value="row.staffCode" /></el-select></el-form-item>
+        <el-form-item label="客户" prop="clientCode"><el-select v-model="appointmentForm.clientCode" filterable remote :remote-method="loadClientOptions" :loading="clientSelectLoading" placeholder="搜索姓名、企业名或手机号" style="width:100%" @visible-change="(v) => v && loadClientOptions('')"><el-option v-for="row in appointmentClientOptions" :key="row.clientCode" :label="`${row.enterpriseName || row.contactName || '未命名客户'} · ${row.contactName || '联系人待补充'}`" :value="row.clientCode" /></el-select></el-form-item>
+        <el-form-item label="服务顾问" prop="hostStaffCode"><el-input v-if="isAdviser" :model-value="userStore.displayName || '当前顾问'" disabled /><el-select v-else v-model="appointmentForm.hostStaffCode" filterable remote :remote-method="loadStaffOptions" :loading="staffLoading" placeholder="搜索顾问姓名" style="width:100%" @visible-change="(v) => v && loadStaffOptions('')"><el-option v-for="row in staffOptions" :key="row.staffCode" :label="row.staffName || '顾问姓名待补充'" :value="row.staffCode" /></el-select></el-form-item>
         <el-form-item label="服务方式" prop="serviceMethod"><el-radio-group v-model="appointmentForm.serviceMethod"><el-radio-button v-for="(label, code) in methodText" :key="code" :label="code">{{ label }}</el-radio-button></el-radio-group></el-form-item>
         <el-form-item label="服务时间" prop="timeRange"><el-date-picker v-model="appointmentForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" style="width:100%" /></el-form-item>
         <el-form-item v-if="needsLocation" label="地点名称" prop="locationName"><el-input v-model="appointmentForm.locationName" placeholder="公司或拜访地点名称" /></el-form-item>
@@ -228,7 +228,7 @@
     <AppDialog v-model:visible="rejectVisible" title="驳回外出申请" width="520px" :loading="saving" @confirm="submitReject">
       <el-alert title="驳回后申请人可修改并重新提交，原因会记录在审核留痕与客户活动回放中。" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="dialog-form">
-        <el-form-item label="申请人"><span>{{ rejectTarget?.staffName || rejectTarget?.staffCode }}</span></el-form-item>
+        <el-form-item label="申请人"><span>{{ rejectTarget?.staffName || '员工姓名待补充' }}</span></el-form-item>
         <el-form-item label="驳回原因" required><el-input v-model="rejectReason" type="textarea" :rows="3" placeholder="必填：说明需要补充或修正的内容" /></el-form-item>
       </el-form>
     </AppDialog>
@@ -250,7 +250,7 @@
     <AppDialog v-model:visible="outingCreateVisible" :title="outingCreateTarget ? '提交上门外出申请' : '提交普通外出申请'" width="540px" :loading="saving" @confirm="submitOuting">
       <el-alert title="提交后需主管审核通过，才能出发与返回打卡；照片和单点位置均为必填。" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="dialog-form">
-        <el-form-item v-if="outingCreateTarget" label="客户"><span>{{ outingCreateTarget?.customerName || outingCreateTarget?.clientCode }}</span></el-form-item>
+        <el-form-item v-if="outingCreateTarget" label="客户"><span>{{ outingCreateTarget?.customerName || '客户名称待补充' }}</span></el-form-item>
         <el-form-item v-else label="计划时间" required><el-date-picker v-model="outingCreateForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" style="width:100%" /></el-form-item>
         <el-form-item label="目的地" required><el-input v-model="outingCreateForm.destination" placeholder="上门服务地点" /></el-form-item>
         <el-form-item label="拜访目的" required><el-input v-model="outingCreateForm.purpose" placeholder="例如：经营资料梳理" /></el-form-item>
@@ -513,7 +513,7 @@ async function submitReject() {
   } finally { saving.value = false; }
 }
 async function onApprove(row) {
-  await ElMessageBox.confirm(`确认通过「${row.staffName || row.staffCode}」的外出申请？通过后其可完成出发与返回打卡。`, '审核确认');
+  await ElMessageBox.confirm(`确认通过「${row.staffName || '该员工'}」的外出申请？通过后其可完成出发与返回打卡。`, '审核确认');
   await approveOuting(row.outingNo, '');
   ElMessage.success('已通过审核');
   await Promise.all([loadOutings(), loadWorkbench(true)]);
