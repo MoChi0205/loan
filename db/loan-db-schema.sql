@@ -945,7 +945,7 @@ CREATE TABLE `t_client_appointment` (
   `location_name` varchar(128) DEFAULT NULL COMMENT '客户可见地点名称',
   `location_detail` varchar(255) DEFAULT NULL COMMENT '客户可见地点详情或会议说明',
   `status` varchar(16) NOT NULL DEFAULT 'REQUESTED' COMMENT 'REQUESTED/CONFIRMED/ARRIVED/SERVING/COMPLETED/CANCELLED/NO_SHOW/RESCHEDULED',
-  `customer_confirm_status` varchar(16) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/CONFIRMED；员工代建同样保留客户确认状态',
+  `customer_confirm_status` varchar(16) NOT NULL DEFAULT 'PENDING' COMMENT '客户主动预约确认后为CONFIRMED；员工代客创建直接为CONFIRMED；PENDING仅表示历史未确认记录',
   `actual_arrived_at` datetime DEFAULT NULL COMMENT '公司现场实际到店时间',
   `actual_left_at` datetime DEFAULT NULL COMMENT '实际结束或离店时间',
   `cancel_reason` varchar(500) DEFAULT NULL COMMENT '取消或异常调整原因',
@@ -978,10 +978,10 @@ CREATE TABLE `t_staff_outing` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '物理主键，不对外暴露',
   `outing_no` varchar(64) NOT NULL COMMENT '外出业务编号',
   `staff_code` varchar(32) NOT NULL COMMENT '外出员工工号',
-  `client_code` varchar(64) NOT NULL COMMENT '关联客户业务编号',
-  `appointment_no` varchar(64) NOT NULL COMMENT '关联上门预约号',
+  `client_code` varchar(64) DEFAULT NULL COMMENT '可选关联客户业务编号',
+  `appointment_no` varchar(64) DEFAULT NULL COMMENT '可选关联上门预约号',
   `order_no` varchar(64) DEFAULT NULL COMMENT '关联服务工单号',
-  `outing_type` varchar(32) NOT NULL DEFAULT 'HOME_VISIT' COMMENT '第一版固定HOME_VISIT',
+  `outing_type` varchar(32) NOT NULL DEFAULT 'GENERAL' COMMENT 'HOME_VISIT上门拜访/GENERAL普通外出',
   `planned_start` datetime NOT NULL,
   `planned_end` datetime NOT NULL,
   `submitted_at` datetime DEFAULT NULL COMMENT '提交审核时间(本人提交申请，不接受他人代录)',
@@ -1009,10 +1009,10 @@ CREATE TABLE `t_staff_outing` (
   KEY `idx_outing_staff_status_time` (`staff_code`,`status`,`planned_start`),
   KEY `idx_outing_client_time` (`client_code`,`planned_start`),
   KEY `idx_outing_status_time` (`status`,`planned_start`),
-  CONSTRAINT `chk_outing_type` CHECK (`outing_type` = 'HOME_VISIT'),
+  CONSTRAINT `chk_outing_type` CHECK (`outing_type` IN ('HOME_VISIT','GENERAL')),
   CONSTRAINT `chk_outing_status` CHECK (`status` IN ('DRAFT','PENDING_REVIEW','REJECTED','READY','IN_PROGRESS','COMPLETED','CANCELLED')),
   CONSTRAINT `chk_outing_time` CHECK (`planned_end` > `planned_start`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='员工上门拜访外出：本人提交申请→主管审核→出发/返回双打卡(图片+单点定位)，无连续轨迹';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='员工外出：可关联上门预约或普通外出，主管审核后双打卡(图片+单点定位)，无连续轨迹';
 
 DROP TABLE IF EXISTS `t_client_follow_record`;
 CREATE TABLE `t_client_follow_record` (

@@ -45,4 +45,5 @@ public class StaffOutingDTO implements Serializable {
     private String departedPhotoKey;
     /** 返回打卡照片 fileKey。 */
     private String returnedPhotoKey;
+    private String outingType;
 }

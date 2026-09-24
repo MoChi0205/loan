@@ -139,6 +139,26 @@ class OutingServiceSecurityTest {
     }
 
     @Test
+    void createAllowsGeneralOutingWithoutCustomerOrAppointment() {
+        OutingCreateRequest request = new OutingCreateRequest();
+        request.setOutingType("GENERAL");
+        request.setPlannedStart(LocalDateTime.now().plusHours(1));
+        request.setPlannedEnd(LocalDateTime.now().plusHours(2));
+        request.setDestination("合作方办公点");
+        request.setPurpose("资料交接");
+
+        service.create(request, staff("staff01", "ADVISER"));
+
+        ArgumentCaptor<StaffOuting> saved = ArgumentCaptor.forClass(StaffOuting.class);
+        verify(outingMapper).insert(saved.capture());
+        assertEquals("GENERAL", saved.getValue().getOutingType());
+        assertEquals("staff01", saved.getValue().getStaffCode());
+        assertEquals(null, saved.getValue().getClientCode());
+        assertEquals(null, saved.getValue().getAppointmentNo());
+        verify(appointmentService, never()).requireAppointment(anyString());
+    }
+
+    @Test
     void reviewRejectsSelfApproval() {
         when(outingMapper.selectOne(any())).thenReturn(outing("outing01", "staff01", "PENDING_REVIEW"));
 

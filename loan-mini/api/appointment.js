@@ -4,7 +4,7 @@
  * 契约要点：
  * - 客户编号始终取登录态，前端不传 clientCode，服务端强校验归属；
  * - 改期不覆盖原预约：服务端把原预约置为 RESCHEDULED 并新建关联预约；
- * - 预约开始前 5 分钟内的取消/改期必须由服务顾问按异常流程处理，前端只做提示。
+ * - 员工代客创建的预约服务端直接确认，客户端不展示确认按钮；预约开始前 5 分钟内的取消/改期必须由服务顾问按异常流程处理，前端只做提示。
  */
 import { requestGet, requestPost } from './request';
 
@@ -36,7 +36,7 @@ export function requestAppointment(payload) {
   return requestPost('/api/mini/appointment/request', payload);
 }
 
-/** 客户确认员工代建的预约。 */
+/** 兼容旧客户端；员工代建预约现在创建即确认，客户端不应调用。 */
 export function confirmAppointment(appointmentNo) {
   return requestPost(`/api/mini/appointment/${appointmentNo}/confirm`);
 }

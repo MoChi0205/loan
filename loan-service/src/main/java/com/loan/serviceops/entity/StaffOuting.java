@@ -8,7 +8,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-/** 员工上门拜访外出：本人提交申请 → 主管审核 → 出发/返回双打卡（图片 + 定位）。定位只存 AES 密文。 */
+/** 员工外出：可关联客户上门预约，也可为普通外出；定位只存 AES 密文。 */
 @Data
 @TableName("t_staff_outing")
 public class StaffOuting implements Serializable {

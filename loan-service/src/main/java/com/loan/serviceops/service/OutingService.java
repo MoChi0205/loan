@@ -43,11 +43,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 员工上门外出：<b>本人提交申请 → 主管审核 → 出发/返回双打卡（现场照片 + 单点定位）</b>。
+ * 员工外出：<b>本人提交申请 → 主管审核 → 出发/返回双打卡（现场照片 + 单点定位）</b>。
  *
  * <p>三条硬约束（2026-09-21 与用户确认）：
  * <ol>
- *   <li><b>不接受他人代录</b>：只有预约的主服务顾问本人能创建，管理角色也不行；</li>
+ *   <li><b>关联预约不接受他人代录</b>：只有预约的主服务顾问本人能创建；无预约普通外出由员工本人提交；</li>
  *   <li><b>必须审核通过才能打卡</b>：待审核状态下 depart 条件更新不会命中；</li>
  *   <li><b>打卡必须同时有照片与定位</b>：缺任一项直接拒绝，避免无凭证打卡。</li>
  * </ol>
@@ -76,28 +76,37 @@ public class OutingService {
     /**
      * 提交外出申请（本人）。
      *
-     * @param request 申请内容（预约号 / 目的地 / 拜访目的）
+     * @param request 申请内容（可选预约号 / 计划时间 / 目的地 / 外出目的）
      * @param user    当前用户，必须是该预约的主服务顾问本人
      * @return 外出业务编号
      */
     @Transactional(rollbackFor = Exception.class)
     public String create(OutingCreateRequest request, LoanUser user) {
         scopeService.requireStaffListAccess(user);
-        if (request == null || !StringUtils.hasText(request.getAppointmentNo())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "上门预约不能为空");
-        }
-        ClientAppointment appointment = appointmentService.requireAppointment(request.getAppointmentNo());
-        if (!ServiceMethod.HOME_VISIT.name().equals(appointment.getAppointmentType())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "只有上门拜访预约可以创建外出记录");
-        }
-        requireApplicant(user, appointment);
-        if (!AppointmentStatus.CONFIRMED.name().equals(appointment.getStatus())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "预约确认后才能提交外出申请");
+        if (request == null) throw new BusinessException(ResultCode.PARAM_ERROR, "外出信息不能为空");
+        ClientAppointment appointment = null;
+        if (StringUtils.hasText(request.getAppointmentNo())) {
+            appointment = appointmentService.requireAppointment(request.getAppointmentNo());
+            if (!ServiceMethod.HOME_VISIT.name().equals(appointment.getAppointmentType())) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "只有上门拜访预约可以创建关联外出");
+            }
+            requireApplicant(user, appointment);
+            if (!AppointmentStatus.CONFIRMED.name().equals(appointment.getStatus())) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "预约确认后才能提交外出申请");
+            }
+        } else {
+            if (request.getPlannedStart() == null || request.getPlannedEnd() == null
+                    || !request.getPlannedEnd().isAfter(request.getPlannedStart())) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "无关联客户外出必须填写有效计划时间");
+            }
+            if (!"GENERAL".equalsIgnoreCase(request.getOutingType())) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "无关联客户外出类型必须为普通外出");
+            }
         }
         if (!StringUtils.hasText(request.getDestination()) || !StringUtils.hasText(request.getPurpose())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "目的地和拜访目的必填");
         }
-        Long existed = outingMapper.selectCount(new LambdaQueryWrapper<StaffOuting>()
+        Long existed = appointment == null ? 0L : outingMapper.selectCount(new LambdaQueryWrapper<StaffOuting>()
                 .eq(StaffOuting::getAppointmentNo, appointment.getAppointmentNo()));
         if (existed != null && existed > 0) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该预约已存在外出记录");
@@ -106,13 +115,13 @@ public class OutingService {
         LocalDateTime now = LocalDateTime.now();
         StaffOuting outing = new StaffOuting();
         outing.setOutingNo(BizIdGenerator.generate("outing"));
-        outing.setStaffCode(appointment.getHostStaffCode());
-        outing.setClientCode(appointment.getClientCode());
-        outing.setAppointmentNo(appointment.getAppointmentNo());
-        outing.setOrderNo(appointment.getOrderNo());
-        outing.setOutingType(ServiceMethod.HOME_VISIT.name());
-        outing.setPlannedStart(appointment.getScheduledStart());
-        outing.setPlannedEnd(appointment.getScheduledEnd());
+        outing.setStaffCode(appointment == null ? user.getUserNo() : appointment.getHostStaffCode());
+        outing.setClientCode(appointment == null ? null : appointment.getClientCode());
+        outing.setAppointmentNo(appointment == null ? null : appointment.getAppointmentNo());
+        outing.setOrderNo(appointment == null ? null : appointment.getOrderNo());
+        outing.setOutingType(appointment == null ? "GENERAL" : ServiceMethod.HOME_VISIT.name());
+        outing.setPlannedStart(appointment == null ? request.getPlannedStart() : appointment.getScheduledStart());
+        outing.setPlannedEnd(appointment == null ? request.getPlannedEnd() : appointment.getScheduledEnd());
         outing.setSubmittedAt(now);
         outing.setDestination(request.getDestination().trim());
         outing.setPurpose(request.getPurpose().trim());
@@ -123,10 +132,7 @@ public class OutingService {
         outing.setCreatedAt(now);
         outing.setUpdatedAt(now);
         outingMapper.insert(outing);
-        activityService.append(outing.getClientCode(), outing.getStaffCode(),
-                "OUTING_SUBMITTED", "OUTING", outing.getOutingNo(), "提交上门服务外出申请，待主管审核",
-                ClientActivityService.VISIBILITY_STAFF_ONLY,
-                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+        appendStaffActivity(outing, "OUTING_SUBMITTED", appointment == null ? "提交普通外出申请，待主管审核" : "提交上门服务外出申请，待主管审核", user);
         return outing.getOutingNo();
     }
 
@@ -148,10 +154,7 @@ public class OutingService {
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该申请已被处理，请刷新后重试");
         }
-        activityService.append(outing.getClientCode(), outing.getStaffCode(),
-                "OUTING_APPROVED", "OUTING", outing.getOutingNo(), "外出申请已通过审核",
-                ClientActivityService.VISIBILITY_STAFF_ONLY,
-                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+        appendStaffActivity(outing, "OUTING_APPROVED", "外出申请已通过审核", user);
     }
 
     /**
@@ -175,11 +178,7 @@ public class OutingService {
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该申请已被处理，请刷新后重试");
         }
-        activityService.append(outing.getClientCode(), outing.getStaffCode(),
-                "OUTING_REJECTED", "OUTING", outing.getOutingNo(),
-                "外出申请被驳回：" + remark.trim(),
-                ClientActivityService.VISIBILITY_STAFF_ONLY,
-                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+        appendStaffActivity(outing, "OUTING_REJECTED", "外出申请被驳回：" + remark.trim(), user);
     }
 
     /**
@@ -221,10 +220,7 @@ public class OutingService {
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该申请状态已变化，请刷新后重试");
         }
-        activityService.append(outing.getClientCode(), outing.getStaffCode(),
-                "OUTING_SUBMITTED", "OUTING", outing.getOutingNo(), "重新提交上门服务外出申请，待主管审核",
-                ClientActivityService.VISIBILITY_STAFF_ONLY,
-                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+        appendStaffActivity(outing, "OUTING_SUBMITTED", "重新提交外出申请，待主管审核", user);
     }
 
     /**
@@ -242,11 +238,10 @@ public class OutingService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "当前状态不能出发打卡（需审核通过），请刷新后重试");
         }
         // HOME_VISIT 从 CONFIRMED 直接进入 SERVING，不产生 ARRIVED。
-        appointmentService.startService(outing.getAppointmentNo(), user);
-        activityService.append(outing.getClientCode(), outing.getStaffCode(),
-                "OUTING_DEPARTED", "OUTING", outing.getOutingNo(), "员工已出发上门服务",
-                ClientActivityService.VISIBILITY_STAFF_ONLY,
-                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+        if (StringUtils.hasText(outing.getAppointmentNo())) {
+            appointmentService.startService(outing.getAppointmentNo(), user);
+        }
+        appendStaffActivity(outing, "OUTING_DEPARTED", "员工已出发外出服务", user);
     }
 
     /**
@@ -263,11 +258,10 @@ public class OutingService {
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "请先完成出发打卡，或刷新当前状态");
         }
-        appointmentService.complete(outing.getAppointmentNo(), user);
-        activityService.append(outing.getClientCode(), outing.getStaffCode(),
-                "OUTING_RETURNED", "OUTING", outing.getOutingNo(), "员工已返回，上门服务完成",
-                ClientActivityService.VISIBILITY_STAFF_ONLY,
-                LoanUser.TYPE_STAFF, user.getUserNo(), null);
+        if (StringUtils.hasText(outing.getAppointmentNo())) {
+            appointmentService.complete(outing.getAppointmentNo(), user);
+        }
+        appendStaffActivity(outing, "OUTING_RETURNED", "员工已返回，外出服务完成", user);
     }
 
     /**
@@ -368,6 +362,7 @@ public class OutingService {
             dto.setReviewRemark(item.getReviewRemark());
             dto.setDepartedPhotoKey(item.getDepartedPhotoKey());
             dto.setReturnedPhotoKey(item.getReturnedPhotoKey());
+            dto.setOutingType(item.getOutingType());
             return dto;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
@@ -382,7 +377,7 @@ public class OutingService {
         return outing;
     }
 
-    /** 不允许他人代录：必须是预约的主服务顾问本人。 */
+    /** 关联预约时不允许他人代录：必须是预约的主服务顾问本人；普通外出由本人提交。 */
     private void requireApplicant(LoanUser user, ClientAppointment appointment) {
         boolean self = user != null
                 && LoanUser.TYPE_STAFF.equalsIgnoreCase(user.getUserType())
@@ -495,5 +490,13 @@ public class OutingService {
 
     private String trimToNull(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private void appendStaffActivity(StaffOuting outing, String eventType, String summary, LoanUser user) {
+        if (StringUtils.hasText(outing.getClientCode())) {
+            activityService.append(outing.getClientCode(), outing.getStaffCode(), eventType, "OUTING",
+                    outing.getOutingNo(), summary, ClientActivityService.VISIBILITY_STAFF_ONLY,
+                    LoanUser.TYPE_STAFF, user.getUserNo(), null);
+        }
     }
 }

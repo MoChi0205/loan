@@ -73,6 +73,35 @@ class AppointmentServiceSecurityTest {
     }
 
     @Test
+    void staffCreatedAppointmentIsImmediatelyConfirmed() {
+        ClientProfile client = new ClientProfile();
+        client.setClientCode("client-real");
+        client.setOwnerStaffCode("staff-owner");
+        Staff staff = new Staff();
+        staff.setStaffCode("staff-owner");
+        staff.setStatus("ACTIVE");
+        when(scopeService.requireClient("client-real")).thenReturn(client);
+        org.mockito.Mockito.doNothing().when(scopeService).requireClientVisibleToStaff(any(), eq(client));
+        when(scopeService.requireActiveStaff("staff-owner")).thenReturn(staff);
+        when(appointmentMapper.selectCount(any())).thenReturn(0L);
+
+        LoanUser employee = new LoanUser();
+        employee.setUserNo("staff-owner");
+        employee.setUserType("STAFF");
+        employee.setRoleCode("ADVISER");
+        AppointmentCreateRequest request = validRequest();
+        request.setClientCode("client-real");
+        request.setHostStaffCode("staff-owner");
+
+        service.createForStaff(request, employee);
+
+        ArgumentCaptor<ClientAppointment> captor = ArgumentCaptor.forClass(ClientAppointment.class);
+        verify(appointmentMapper).insert(captor.capture());
+        assertEquals("CONFIRMED", captor.getValue().getStatus());
+        assertEquals("CONFIRMED", captor.getValue().getCustomerConfirmStatus());
+    }
+
+    @Test
     void customerDtoUsesAdviserNameAndNoStaffCode() {
         LoanUser user = customer("client-real");
         ClientAppointment appointment = new ClientAppointment();

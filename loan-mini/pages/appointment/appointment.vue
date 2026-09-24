@@ -95,7 +95,8 @@
             <text class="appt-time">{{ formatRange(item.scheduledStart, item.scheduledEnd) }}</text>
             <text v-if="item.adviserName" class="appt-meta">服务顾问：{{ item.adviserName }}</text>
             <text v-if="item.locationName" class="appt-meta">地点：{{ item.locationName }}</text>
-            <text v-if="item.nextAction" class="appt-next">{{ item.nextAction }}</text>
+            <text v-if="item.nextActionText || item.nextAction" class="appt-next">{{ item.nextActionText || item.nextAction }}</text>
+            <text v-if="item.customerNote" class="appt-note">你的补充说明：{{ item.customerNote }}</text>
 
             <view v-if="actionsOf(item).length" class="appt-actions">
               <AppButton
@@ -141,8 +142,8 @@ import {
 
 /** 服务方式与后端 ServiceMethod 枚举一一对应。 */
 const METHOD_OPTIONS = [
-  { value: 'COMPANY_ON_SITE', label: '到公司现场' },
-  { value: 'HOME_VISIT', label: '顾问上门' },
+  { value: 'COMPANY_ON_SITE', label: '客户到访我司' },
+  { value: 'HOME_VISIT', label: '顾问上门拜访您' },
   { value: 'VIDEO_MEETING', label: '视频沟通' },
   { value: 'PHONE_CONSULT', label: '电话沟通' },
 ];
@@ -153,7 +154,7 @@ const DURATION_OPTIONS = [
   { value: 120, label: '2 小时' },
 ];
 const STATUS_TEXT = {
-  REQUESTED: '待确认', CONFIRMED: '已确认', ARRIVED: '已到店',
+  REQUESTED: '待顾问确认', CONFIRMED: '已预约', ARRIVED: '已到店',
   SERVING: '服务中', COMPLETED: '已完成', CANCELLED: '已取消',
   NO_SHOW: '未到场', RESCHEDULED: '已改期',
 };
@@ -232,7 +233,6 @@ function formatRange(start, end) {
 /** 与后端约束保持一致：仅公司现场预约可自助签到，未开始的预约可改期与取消。 */
 function actionsOf(item) {
   const actions = [];
-  if (item.status === 'REQUESTED') actions.push({ key: 'confirm', label: '确认预约', variant: 'primary' });
   if (item.status === 'CONFIRMED' && item.serviceMethod === 'COMPANY_ON_SITE') {
     actions.push({ key: 'checkIn', label: '到店签到', variant: 'primary' });
   }

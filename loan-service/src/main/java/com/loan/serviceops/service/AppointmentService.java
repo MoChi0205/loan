@@ -65,7 +65,8 @@ public class AppointmentService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "客户暂未分配服务顾问，无法预约");
         }
         AppointmentCreateRequest safeRequest = copyForCustomer(request, client);
-        return create(safeRequest, user, sourceTerminal, "CONFIRMED");
+        // 客户主动发起：客户意图已确认，但仍需顾问接单后进入 CONFIRMED。
+        return create(safeRequest, user, sourceTerminal, "CONFIRMED", false);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -77,11 +78,12 @@ public class AppointmentService {
                 ? request.getHostStaffCode().trim() : user.getUserNo();
         requireAssignableHost(user, host);
         request.setHostStaffCode(host);
-        return create(request, user, "WEB", "PENDING");
+        // 员工代客创建即代表公司已确认服务安排：客户无需再次确认，员工也无需二次确认。
+        return create(request, user, "WEB", "CONFIRMED", true);
     }
 
     private String create(AppointmentCreateRequest request, LoanUser user, String sourceTerminal,
-                          String customerConfirmStatus) {
+                          String customerConfirmStatus, boolean immediateConfirm) {
         ValidatedAppointment validated = validateCreate(request);
         requireNoConflict(validated.host.getStaffCode(), request.getScheduledStart(), request.getScheduledEnd(), null);
 
@@ -95,7 +97,8 @@ public class AppointmentService {
         appointment.setScheduledEnd(request.getScheduledEnd());
         appointment.setLocationName(trimToNull(request.getLocationName()));
         appointment.setLocationDetail(trimToNull(request.getLocationDetail()));
-        appointment.setStatus(AppointmentStatus.REQUESTED.name());
+        appointment.setStatus(immediateConfirm ? AppointmentStatus.CONFIRMED.name()
+                : AppointmentStatus.REQUESTED.name());
         appointment.setCustomerConfirmStatus(customerConfirmStatus);
         appointment.setCustomerVisibleNote(trimToNull(request.getCustomerVisibleNote()));
         appointment.setInternalNote(LoanUser.TYPE_STAFF.equals(user.getUserType())
@@ -111,7 +114,8 @@ public class AppointmentService {
 
         activityService.append(appointment.getClientCode(), appointment.getHostStaffCode(),
                 "APPOINTMENT_CREATED", "APPOINTMENT", appointment.getAppointmentNo(),
-                "预约已创建，等待确认", ClientActivityService.VISIBILITY_CUSTOMER,
+                immediateConfirm ? "预约已创建，已确认服务安排" : "预约已提交，等待顾问确认",
+                ClientActivityService.VISIBILITY_CUSTOMER,
                 user.getUserType(), user.getUserNo(), null);
         return appointment.getAppointmentNo();
     }
@@ -120,33 +124,26 @@ public class AppointmentService {
     public void confirmByStaff(String appointmentNo, LoanUser user) {
         ClientAppointment appointment = requireAppointment(appointmentNo);
         requireHost(user, appointment);
-        if (!"CONFIRMED".equals(appointment.getCustomerConfirmStatus())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "员工代建预约需客户先确认");
+        if (AppointmentStatus.CONFIRMED.name().equals(appointment.getStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "员工代建预约已自动确认，无需重复确认");
         }
-        transition(appointment, AppointmentStatus.CONFIRMED, user, null, "APPOINTMENT_CONFIRMED", "预约已确认");
+        if (!AppointmentStatus.REQUESTED.name().equals(appointment.getStatus())
+                || !"CONFIRMED".equals(appointment.getCustomerConfirmStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "客户主动预约需先完成客户确认后再由顾问接单");
+        }
+        transition(appointment, AppointmentStatus.CONFIRMED, user, null, "APPOINTMENT_CONFIRMED", "顾问已确认预约");
     }
 
+    /** 客户主动预约的确认接口保留幂等兼容；员工代建预约从创建时即已确认。 */
     @Transactional(rollbackFor = Exception.class)
     public void confirmByCustomer(String appointmentNo, LoanUser user) {
         requireCustomer(user);
         ClientAppointment appointment = requireAppointment(appointmentNo);
         requireCustomerOwner(user, appointment);
-        if (!AppointmentStatus.REQUESTED.name().equals(appointment.getStatus())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "当前预约状态不可确认");
-        }
         if ("CONFIRMED".equals(appointment.getCustomerConfirmStatus())) {
             return;
         }
-        ClientAppointment update = new ClientAppointment();
-        update.setId(appointment.getId());
-        update.setCustomerConfirmStatus("CONFIRMED");
-        update.setUpdatedBy(operatorName(user));
-        update.setUpdatedAt(LocalDateTime.now());
-        appointmentMapper.updateById(update);
-        activityService.append(appointment.getClientCode(), appointment.getHostStaffCode(),
-                "CUSTOMER_CONFIRMED", "APPOINTMENT", appointment.getAppointmentNo(),
-                "客户已确认预约信息", ClientActivityService.VISIBILITY_CUSTOMER,
-                LoanUser.TYPE_CUSTOMER, user.getUserNo(), null);
+        throw new BusinessException(ResultCode.PARAM_ERROR, "当前预约无需客户确认");
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -523,7 +520,29 @@ public class AppointmentService {
         dto.setLocationDetail(item.getLocationDetail());
         dto.setStatus(item.getStatus());
         dto.setStatusName(statusName(item.getStatus()));
-        dto.setNextAction(item.getCustomerVisibleNote());
+        dto.setCustomerNote(item.getCustomerVisibleNote());
+        String nextActionText;
+        if (AppointmentStatus.REQUESTED.name().equals(item.getStatus())) {
+            nextActionText = "等待顾问确认";
+        } else if (AppointmentStatus.CONFIRMED.name().equals(item.getStatus())) {
+            nextActionText = "预约已确认，请按预约时间参加服务";
+        } else if (AppointmentStatus.ARRIVED.name().equals(item.getStatus())) {
+            nextActionText = "已到店，等待顾问开始服务";
+        } else if (AppointmentStatus.SERVING.name().equals(item.getStatus())) {
+            nextActionText = "服务进行中";
+        } else if (AppointmentStatus.COMPLETED.name().equals(item.getStatus())) {
+            nextActionText = "服务已完成";
+        } else if (AppointmentStatus.CANCELLED.name().equals(item.getStatus())) {
+            nextActionText = "预约已取消，无需操作";
+        } else if (AppointmentStatus.RESCHEDULED.name().equals(item.getStatus())) {
+            nextActionText = "原预约已改期，请查看新时间";
+        } else if (AppointmentStatus.NO_SHOW.name().equals(item.getStatus())) {
+            nextActionText = "本次预约未到场，如需服务请重新预约";
+        } else {
+            nextActionText = "请关注预约状态";
+        }
+        dto.setNextActionText(nextActionText);
+        dto.setNextAction(nextActionText);
         dto.setChangeAllowed((AppointmentStatus.REQUESTED.name().equals(item.getStatus())
                 || AppointmentStatus.CONFIRMED.name().equals(item.getStatus()))
                 && AppointmentStateMachine.canSelfChange(item.getScheduledStart(), LocalDateTime.now()));
@@ -592,8 +611,8 @@ public class AppointmentService {
 
     private String methodName(String value) {
         Map<String, String> names = new HashMap<>();
-        names.put("COMPANY_ON_SITE", "公司现场");
-        names.put("HOME_VISIT", "上门拜访");
+        names.put("COMPANY_ON_SITE", "客户到访我司");
+        names.put("HOME_VISIT", "员工上门拜访客户");
         names.put("VIDEO_MEETING", "视频会议");
         names.put("PHONE_CONSULT", "电话咨询");
         return names.getOrDefault(value, value);
@@ -601,7 +620,7 @@ public class AppointmentService {
 
     private String statusName(String value) {
         Map<String, String> names = new HashMap<>();
-        names.put("REQUESTED", "待确认");
+        names.put("REQUESTED", "待处理");
         names.put("CONFIRMED", "已预约");
         names.put("ARRIVED", "已到店");
         names.put("SERVING", "服务中");

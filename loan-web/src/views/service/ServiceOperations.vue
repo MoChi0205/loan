@@ -9,6 +9,7 @@
         <el-date-picker v-model="selectedDate" type="date" value-format="YYYY-MM-DD" :clearable="false" aria-label="业务日期" />
         <el-button :loading="refreshing" @click="refreshCurrent">刷新</el-button>
         <el-button type="primary" @click="openCreateAppointment">创建预约</el-button>
+        <el-button v-if="activeTab === 'outings'" @click="openCreateGeneralOuting">普通外出</el-button>
       </div>
     </div>
 
@@ -33,11 +34,11 @@
             </section>
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'staffOutings' }">
               <div class="panel-head"><h3>外出服务</h3><span>{{ totalOf(workbench.staffOutings) }} 人</span></div>
-              <button v-for="row in recordsOf(workbench.staffOutings)" :key="row.outingNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
-                <span><strong>{{ row.staffName || row.staffCode }}</strong><small>{{ timeOnly(row.plannedStart) }} · {{ row.customerName || row.clientCode }}</small></span>
+              <button v-for="row in recordsOf(workbench.staffOutings)" :key="row.outingNo" class="record-item" type="button" @click="row.clientCode && openClientReplay(row.clientCode)">
+                <span><strong>{{ row.staffName || row.staffCode }}</strong><small>{{ timeOnly(row.plannedStart) }} · {{ row.customerName || row.clientCode || '普通外出' }}</small></span>
                 <el-tag size="small" :type="outingTag(row.status)">{{ outingStatusText[row.status] || row.status }}</el-tag>
               </button>
-              <el-empty v-if="!recordsOf(workbench.staffOutings).length" description="当日暂无上门外出" :image-size="52" />
+              <el-empty v-if="!recordsOf(workbench.staffOutings).length" description="当日暂无员工外出" :image-size="52" />
             </section>
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'pendingFollows' }">
               <div class="panel-head"><h3>待回访</h3><span>{{ totalOf(workbench.pendingFollows) }} 项</span></div>
@@ -73,7 +74,7 @@
             </el-table-column>
             <el-table-column label="服务安排" min-width="210"><template #default="{ row }"><div>{{ methodText[row.serviceMethod] || row.serviceMethod }}</div><div class="cell-sub">{{ formatDateTime(row.scheduledStart) }} 至 {{ timeOnly(row.scheduledEnd) }}</div></template></el-table-column>
             <el-table-column label="顾问/地点" min-width="160"><template #default="{ row }"><div>{{ row.hostStaffName || row.hostStaffCode }}</div><div class="cell-sub">{{ row.locationName || '线上服务' }}</div></template></el-table-column>
-            <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="appointmentTag(row.status)" size="small">{{ appointmentStatusText[row.status] || row.status }}</el-tag><div class="cell-sub">客户{{ row.customerConfirmStatus === 'CONFIRMED' ? '已确认' : '待确认' }}</div></template></el-table-column>
+            <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="appointmentTag(row.status)" size="small">{{ appointmentStatusText[row.status] || row.status }}</el-tag><div class="cell-sub">{{ row.createdByType === 'STAFF' ? '公司已确认安排' : (row.customerConfirmStatus === 'CONFIRMED' ? '客户已提交确认' : '待客户确认') }}</div></template></el-table-column>
             <el-table-column label="操作" width="300" fixed="right">
               <template #default="{ row }">
                 <div class="action-row">
@@ -103,7 +104,7 @@
           </div>
           <el-table v-loading="outingLoading" :data="outings" stripe row-key="outingNo">
             <el-table-column label="员工" min-width="130"><template #default="{ row }"><div>{{ row.staffName || row.staffCode }}</div><div class="cell-sub">{{ row.deptCode || '—' }}</div></template></el-table-column>
-            <el-table-column label="客户" min-width="150"><template #default="{ row }"><button class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || row.clientCode }}</button></template></el-table-column>
+            <el-table-column label="客户" min-width="150"><template #default="{ row }"><button v-if="row.clientCode" class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || row.clientCode }}</button><span v-else>无关联客户</span></template></el-table-column>
             <el-table-column label="计划时间" min-width="190"><template #default="{ row }">{{ formatDateTime(row.plannedStart) }}<div class="cell-sub">至 {{ timeOnly(row.plannedEnd) }}</div></template></el-table-column>
             <el-table-column label="目的地/目的" min-width="190"><template #default="{ row }"><div>{{ row.destination }}</div><div class="cell-sub">{{ row.purpose }}</div></template></el-table-column>
             <el-table-column label="打卡" min-width="210"><template #default="{ row }"><div>出发：{{ row.actualDepartedAt ? formatDateTime(row.actualDepartedAt) : '未打卡' }}<button v-if="row.departedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'DEPART', '出发打卡照片')">照片</button></div><div class="cell-sub">返回：{{ row.actualReturnedAt ? formatDateTime(row.actualReturnedAt) : '未打卡' }}<button v-if="row.returnedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'RETURN', '返回打卡照片')">照片</button></div></template></el-table-column>
@@ -190,7 +191,7 @@
     </div>
 
     <AppDialog v-model:visible="createVisible" title="创建客户预约" width="680px" :loading="saving" @confirm="submitAppointment">
-      <el-alert title="员工代客创建后，客户需先确认；预约开始前 5 分钟内的变更需走异常处理并留痕。" type="info" :closable="false" show-icon />
+      <el-alert title="员工代客创建后立即确认；预约开始前 5 分钟内的变更需走异常处理并留痕。" type="info" :closable="false" show-icon />
       <el-form ref="appointmentFormRef" :model="appointmentForm" :rules="appointmentRules" label-width="100px" class="dialog-form">
         <el-form-item label="客户" prop="clientCode"><el-select v-model="appointmentForm.clientCode" filterable remote :remote-method="loadClientOptions" :loading="clientSelectLoading" placeholder="搜索姓名、企业名或手机号" style="width:100%" @visible-change="(v) => v && loadClientOptions('')"><el-option v-for="row in appointmentClientOptions" :key="row.clientCode" :label="`${row.enterpriseName || row.contactName || row.clientCode} · ${row.contactName || '—'}`" :value="row.clientCode" /></el-select></el-form-item>
         <el-form-item label="服务顾问" prop="hostStaffCode"><el-input v-if="isAdviser" :model-value="`${userStore.displayName} · ${userNo}`" disabled /><el-select v-else v-model="appointmentForm.hostStaffCode" filterable remote :remote-method="loadStaffOptions" :loading="staffLoading" placeholder="搜索姓名或工号" style="width:100%" @visible-change="(v) => v && loadStaffOptions('')"><el-option v-for="row in staffOptions" :key="row.staffCode" :label="`${row.staffName} · ${row.staffCode}`" :value="row.staffCode" /></el-select></el-form-item>
@@ -246,10 +247,11 @@
       <template #footer><el-button @click="photoVisible = false">关闭</el-button></template>
     </AppDialog>
 
-    <AppDialog v-model:visible="outingCreateVisible" title="提交上门外出申请" width="540px" :loading="saving" @confirm="submitOuting">
-      <el-alert title="只能由预约的主服务顾问本人提交，不接受他人代录；提交后需主管审核通过，才能出发与返回打卡。" type="warning" :closable="false" show-icon />
+    <AppDialog v-model:visible="outingCreateVisible" :title="outingCreateTarget ? '提交上门外出申请' : '提交普通外出申请'" width="540px" :loading="saving" @confirm="submitOuting">
+      <el-alert title="提交后需主管审核通过，才能出发与返回打卡；照片和单点位置均为必填。" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="dialog-form">
-        <el-form-item label="客户"><span>{{ outingCreateTarget?.customerName || outingCreateTarget?.clientCode }}</span></el-form-item>
+        <el-form-item v-if="outingCreateTarget" label="客户"><span>{{ outingCreateTarget?.customerName || outingCreateTarget?.clientCode }}</span></el-form-item>
+        <el-form-item v-else label="计划时间" required><el-date-picker v-model="outingCreateForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" style="width:100%" /></el-form-item>
         <el-form-item label="目的地" required><el-input v-model="outingCreateForm.destination" placeholder="上门服务地点" /></el-form-item>
         <el-form-item label="拜访目的" required><el-input v-model="outingCreateForm.purpose" placeholder="例如：经营资料梳理" /></el-form-item>
         <el-form-item label="内部备注"><el-input v-model="outingCreateForm.internalNote" type="textarea" :rows="2" placeholder="仅公司员工可见" /></el-form-item>
@@ -307,7 +309,7 @@ const refreshing = ref(false);
 const saving = ref(false);
 
 const methodText = Object.freeze({ COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', PHONE_CONSULT: '电话咨询' });
-const appointmentStatusText = Object.freeze({ REQUESTED: '待确认', CONFIRMED: '已确认', ARRIVED: '已到店', SERVING: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', NO_SHOW: '未到场', RESCHEDULED: '已改期' });
+const appointmentStatusText = Object.freeze({ REQUESTED: '待顾问确认', CONFIRMED: '已预约', ARRIVED: '已到店', SERVING: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', NO_SHOW: '未到场', RESCHEDULED: '已改期' });
 const outingStatusText = Object.freeze({ DRAFT: '草稿', PENDING_REVIEW: '待审核', REJECTED: '已驳回', READY: '待出发', IN_PROGRESS: '外出中', COMPLETED: '已返回', CANCELLED: '已取消' });
 const followChannelText = Object.freeze({ PHONE: '电话咨询', COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', WECOM: '企业微信', OTHER: '其他' });
 const servicePageTitle = computed(() => ({ daily: '今日服务台', appointments: '客户预约', outings: '员工外出', replay: '客户回放' }[activeTab.value] || '服务台'));
@@ -329,13 +331,13 @@ const workbench = ref({});
 const workbenchLoading = ref(false);
 const metrics = computed(() => [
   { key: 'visits', label: '今日来访', value: totalOf(workbench.value.companyVisits), hint: '客户到访我司', tab: 'appointments', method: 'COMPANY_ON_SITE' },
-  { key: 'outings', label: '外出服务', value: totalOf(workbench.value.staffOutings), hint: '员工上门拜访客户', tab: 'outings' },
+  { key: 'outings', label: '员工外出', value: totalOf(workbench.value.staffOutings), hint: '上门拜访或普通外出', tab: 'outings' },
   { key: 'follows', label: '待回访', value: totalOf(workbench.value.pendingFollows), hint: '按计划跟进客户', tab: 'daily' },
   { key: 'orders', label: '活跃工单', value: totalOf(workbench.value.activeOrders), hint: '进行中的服务工单', tab: 'daily' },
 ]);
-async function loadWorkbench() {
+async function loadWorkbench(refresh = false) {
   workbenchLoading.value = true;
-  try { workbench.value = (await getDailyServiceLists({ date: selectedDate.value, page: 1, size: 20 })).data || {}; }
+  try { workbench.value = (await getDailyServiceLists({ date: selectedDate.value, page: 1, size: 20, refresh })).data || {}; }
   finally { workbenchLoading.value = false; }
 }
 function goMetric(item) { router.push({ path: `/service-operations/${item.tab}`, query: item.method ? { serviceMethod: item.method } : {} }); }
@@ -350,7 +352,7 @@ async function loadAppointments() {
   finally { appointmentLoading.value = false; }
 }
 function canOperate(row) { return !!userNo.value && row.hostStaffCode === userNo.value; }
-function canConfirm(row) { return canOperate(row) && row.status === 'REQUESTED' && row.customerConfirmStatus === 'CONFIRMED'; }
+function canConfirm() { return false; }
 function canArrive(row) { return canOperate(row) && row.status === 'CONFIRMED' && row.serviceMethod === 'COMPANY_ON_SITE'; }
 function canStart(row) { return canOperate(row) && ((row.status === 'ARRIVED' && row.serviceMethod === 'COMPANY_ON_SITE') || (row.status === 'CONFIRMED' && ['VIDEO_MEETING', 'PHONE_CONSULT'].includes(row.serviceMethod))); }
 function canComplete(row) { return canOperate(row) && row.status === 'SERVING'; }
@@ -364,7 +366,7 @@ async function runAppointmentAction(action, row) {
   await ElMessageBox.confirm(`确认${label}？`, '操作确认');
   await appointmentActionMap[action](row.appointmentNo);
   ElMessage.success(`${label}成功`);
-  await Promise.all([loadAppointments(), loadWorkbench()]);
+  await Promise.all([loadAppointments(), loadWorkbench(true)]);
 }
 
 const outings = ref([]);
@@ -385,7 +387,7 @@ function onTabChange(tab) {
   if (tab === 'replay' && selectedClient.value) return loadTimeline();
   return Promise.resolve();
 }
-async function refreshCurrent() { refreshing.value = true; try { await onTabChange(activeTab.value); } finally { refreshing.value = false; } }
+async function refreshCurrent() { refreshing.value = true; try { if (activeTab.value === 'daily') await loadWorkbench(true); else await onTabChange(activeTab.value); } finally { refreshing.value = false; } }
 watch(selectedDate, () => { appointmentQuery.page = 1; outingQuery.page = 1; if (activeTab.value === 'daily') loadWorkbench(); else Promise.all([loadWorkbench(), onTabChange(activeTab.value)]); });
 
 const createVisible = ref(false);
@@ -408,7 +410,7 @@ async function submitAppointment() {
     delete data.timeRange;
     await createAppointment(data);
     createVisible.value = false;
-    ElMessage.success('预约已创建，等待客户确认');
+    ElMessage.success('预约已创建并确认');
     await router.push('/service-operations/appointments');
   } finally { saving.value = false; }
 }
@@ -427,7 +429,7 @@ async function submitChange() {
       if (!changeForm.timeRange?.[0] || !changeForm.timeRange?.[1]) return ElMessage.warning('请选择新的服务时间');
       await rescheduleAppointment(changeTarget.value.appointmentNo, { scheduledStart: changeForm.timeRange[0], scheduledEnd: changeForm.timeRange[1], locationName: changeForm.locationName, locationDetail: changeForm.locationDetail, reason: changeForm.reason }, exceptionFlow);
     } else await cancelAppointment(changeTarget.value.appointmentNo, changeForm.reason, exceptionFlow);
-    changeVisible.value = false; ElMessage.success(changeMode.value.includes('reschedule') ? '改期成功' : '取消成功'); await Promise.all([loadAppointments(), loadWorkbench()]);
+    changeVisible.value = false; ElMessage.success(changeMode.value.includes('reschedule') ? '改期成功' : '取消成功'); await Promise.all([loadAppointments(), loadWorkbench(true)]);
   } finally { saving.value = false; }
 }
 
@@ -492,7 +494,7 @@ async function submitCheckIn() {
   if (checkInForm.latitude == null) return ElMessage.warning('请先获取当前位置');
   if (!checkInForm.photoFileKey) return ElMessage.warning('请先上传现场照片');
   saving.value = true;
-  try { const fn = checkInMode.value === 'depart' ? departOuting : returnOuting; await fn(checkInTarget.value.outingNo, { ...checkInForm }); checkInVisible.value = false; ElMessage.success(`${checkInMode.value === 'depart' ? '出发' : '返回'}打卡成功`); await Promise.all([loadOutings(), loadWorkbench()]); }
+  try { const fn = checkInMode.value === 'depart' ? departOuting : returnOuting; await fn(checkInTarget.value.outingNo, { ...checkInForm }); checkInVisible.value = false; ElMessage.success(`${checkInMode.value === 'depart' ? '出发' : '返回'}打卡成功`); await Promise.all([loadOutings(), loadWorkbench(true)]); }
   finally { saving.value = false; }
 }
 
@@ -507,14 +509,14 @@ async function submitReject() {
     await rejectOuting(rejectTarget.value.outingNo, rejectReason.value.trim());
     rejectVisible.value = false;
     ElMessage.success('已驳回，申请人可修改后重新提交');
-    await Promise.all([loadOutings(), loadWorkbench()]);
+    await Promise.all([loadOutings(), loadWorkbench(true)]);
   } finally { saving.value = false; }
 }
 async function onApprove(row) {
   await ElMessageBox.confirm(`确认通过「${row.staffName || row.staffCode}」的外出申请？通过后其可完成出发与返回打卡。`, '审核确认');
   await approveOuting(row.outingNo, '');
   ElMessage.success('已通过审核');
-  await Promise.all([loadOutings(), loadWorkbench()]);
+  await Promise.all([loadOutings(), loadWorkbench(true)]);
 }
 
 const resubmitVisible = ref(false);
@@ -528,7 +530,7 @@ async function submitResubmit() {
     await resubmitOuting(resubmitTarget.value.outingNo, { ...resubmitForm });
     resubmitVisible.value = false;
     ElMessage.success('已重新提交，等待主管审核');
-    await Promise.all([loadOutings(), loadWorkbench()]);
+    await Promise.all([loadOutings(), loadWorkbench(true)]);
   } finally { saving.value = false; }
 }
 
@@ -549,20 +551,26 @@ async function viewPhoto(row, phase, title) {
 
 const outingCreateVisible = ref(false);
 const outingCreateTarget = ref(null);
-const outingCreateForm = reactive({ destination: '', purpose: '', internalNote: '' });
+const outingCreateForm = reactive({ timeRange: [], destination: '', purpose: '', internalNote: '' });
 function openCreateOuting(row) {
   outingCreateTarget.value = row;
-  Object.assign(outingCreateForm, { destination: row.locationDetail || row.locationName || '', purpose: '', internalNote: '' });
+  Object.assign(outingCreateForm, { timeRange: [], destination: row.locationDetail || row.locationName || '', purpose: '', internalNote: '' });
   outingCreateVisible.value = true;
 }
+function openCreateGeneralOuting() { outingCreateTarget.value = null; Object.assign(outingCreateForm, { timeRange: [], destination: '', purpose: '', internalNote: '' }); outingCreateVisible.value = true; }
 async function submitOuting() {
   if (!outingCreateForm.destination.trim() || !outingCreateForm.purpose.trim()) return ElMessage.warning('目的地和拜访目的必填');
+  if (!outingCreateTarget.value && (!outingCreateForm.timeRange?.[0] || !outingCreateForm.timeRange?.[1])) return ElMessage.warning('请选择普通外出计划时间');
   saving.value = true;
   try {
-    await createOuting({ appointmentNo: outingCreateTarget.value.appointmentNo, ...outingCreateForm });
+    const payload = { ...outingCreateForm, outingType: outingCreateTarget.value ? 'HOME_VISIT' : 'GENERAL' };
+    if (outingCreateTarget.value) payload.appointmentNo = outingCreateTarget.value.appointmentNo;
+    else { payload.plannedStart = payload.timeRange[0]; payload.plannedEnd = payload.timeRange[1]; }
+    delete payload.timeRange;
+    await createOuting(payload);
     outingCreateVisible.value = false;
     ElMessage.success('外出申请已提交，待主管审核通过后可打卡');
-    await Promise.all([loadAppointments(), loadWorkbench()]);
+    await Promise.all([loadAppointments(), loadWorkbench(true)]);
   } finally { saving.value = false; }
 }
 
@@ -650,7 +658,7 @@ async function submitFollow() {
   if (!followForm.channelType || !followForm.resultCode.trim() || !followForm.content.trim()) return ElMessage.warning('跟进渠道、结果和内容必填');
   if (followCustomerVisible.value && !followForm.customerVisibleSummary.trim()) return ElMessage.warning('请填写客户可见摘要');
   saving.value = true;
-  try { await createFollowRecord(selectedClient.value.clientCode, { ...followForm, visibility: followCustomerVisible.value ? 'CUSTOMER' : 'STAFF_ONLY' }); followVisible.value = false; ElMessage.success('跟进记录已保存'); await Promise.all([loadTimeline(), loadWorkbench()]); }
+  try { await createFollowRecord(selectedClient.value.clientCode, { ...followForm, visibility: followCustomerVisible.value ? 'CUSTOMER' : 'STAFF_ONLY' }); followVisible.value = false; ElMessage.success('跟进记录已保存'); await Promise.all([loadTimeline(), loadWorkbench(true)]); }
   finally { saving.value = false; }
 }
 
