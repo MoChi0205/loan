@@ -73,7 +73,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     /** 顾问（ADVISER）默认可访问接口（一线业务） */
     private static final String[] ADVISER_APIS = {
             "order:page", "order:create", "order:detail", "order:updateStatus",
-            "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim", "lead:applyView", "lead:quota",
+            "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim", "lead:applyView", "lead:applyClientView", "lead:quota",
             "client:pageLite", "client:detail", "client:update", "client:release", "client:follow", "client:history",
             "client:unassignedPage", "client:claim", "client:batchClaim", "client:lookup",
             "client:createFollow", "client:activityTimeline",
@@ -122,6 +122,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "approval:downloadVoid",
             "approval:allocationPending", "approval:allocationApprove", "approval:allocationReject",
             "approval:unifiedPending", "approval:unifiedCounts", "approval:unifiedAudit",
+            "lead:pendingApprovals", "lead:auditApproval",
             // 员工外出审核（2026-09-21）：主管才可审核本人部门的外出申请，
             // 顾问侧只给提交/打卡/上传照片；老板/运营/超管属全量角色自动放行。
             "outing:pending", "outing:approve", "outing:reject",

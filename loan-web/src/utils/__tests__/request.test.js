@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
-import request from '@/utils/request';
+import request, { setAppRouter } from '@/utils/request';
 import router from '@/router';
 
 // ---- 外部依赖 mock ----
@@ -37,6 +37,7 @@ let adapterImpl;
 let lastConfig = null;
 
 beforeEach(() => {
+  setAppRouter(router);
   mockToken = 'tok-123';
   lastConfig = null;
   adapterImpl = (config) => {
@@ -111,7 +112,7 @@ describe('loan-web request 拦截器', () => {
     // 同步清凭据
     expect(removeStorage).toHaveBeenCalledWith(KEYS.TOKEN);
     expect(removeStorage).toHaveBeenCalledWith(KEYS.USER);
-    // 动态 import router 在微任务中 push
+    // 注入的路由实例在当前微任务中 push
     await tick();
     expect(router.push).toHaveBeenCalledWith(
       expect.objectContaining({ path: '/login' }),
