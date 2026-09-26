@@ -28,8 +28,10 @@
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</div>
-            <div class="cell-sub" v-if="row.phone">{{ desensitizePhone(row.phone) }}</div>
           </template>
+        </el-table-column>
+        <el-table-column label="联系方式" width="150">
+          <template #default="{ row }">{{ desensitizePhone(row.phone || row.contactPhoneMasked || row.contactPhone) }}</template>
         </el-table-column>
         <el-table-column label="客群" width="90">
           <template #default="{ row }">
@@ -151,7 +153,6 @@
           <el-descriptions-item label="归属顾问">{{ detail.ownerStaffName || (detail.ownerStaffCode ? '姓名待补充' : '待分配') }}</el-descriptions-item>
           <el-descriptions-item label="状态">{{ statusText[detail.status] || detail.status }}</el-descriptions-item>
           <el-descriptions-item label="来源">{{ sourceText(detail.source) }}</el-descriptions-item>
-          <el-descriptions-item label="来源单号">{{ detail.sourceOrderNo || '—' }}</el-descriptions-item>
           <el-descriptions-item label="成交金额">{{ detail.dealAmount ? '¥' + fmtAmount(detail.dealAmount) : '—' }}</el-descriptions-item>
           <el-descriptions-item label="成交时间">{{ detail.dealTime ? formatDateTime(detail.dealTime) : '—' }}</el-descriptions-item>
           <el-descriptions-item label="客户可见备注">{{ detail.customerRemark || '—' }}</el-descriptions-item>
@@ -302,7 +303,7 @@ function searchClients(keyword) {
 
 function goToLead() {
   createVisible.value = false;
-  router.push('/lead');
+  router.push('/lead/my');
 }
 
 async function onAdd() {

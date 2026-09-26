@@ -3,9 +3,20 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">审批中心</h2>
-        <p class="loan-page-subtitle">查看本人提交的审批工单；有审核权限时可处理对应待办</p>
+        <p class="loan-page-subtitle">查看本人申请；有审核权限时可处理当前数据范围内的待办</p>
+      </div>
+      <div class="header-actions">
+        <el-button v-if="canCreateAnyApplication" type="primary" @click="openApplicationChooser"><AppIcon name="plus" :size="15" /> 新增申请</el-button>
       </div>
     </div>
+
+    <AppDialog v-model:visible="applicationChooserVisible" title="选择申请类型" width="520px" :show-footer="false">
+      <div class="application-chooser">
+        <button v-if="canApplyDownload" type="button" class="application-choice" @click="openDownloadApplication"><AppIcon name="download" :size="22" /><span><strong>资料下载申请</strong><small>申请无水印资料下载并查看审批进度</small></span><span>→</span></button>
+        <button v-if="canCreateAppointment" type="button" class="application-choice" @click="goCreateAppointment"><AppIcon name="clock" :size="22" /><span><strong>客户预约</strong><small>进入预约页面创建客户服务安排</small></span><span>→</span></button>
+        <button v-if="canCreateOuting" type="button" class="application-choice" @click="goCreateOuting"><AppIcon name="lead" :size="22" /><span><strong>员工外出申请</strong><small>进入外出页面填写计划并提交审批</small></span><span>→</span></button>
+      </div>
+    </AppDialog>
 
     <div v-show="activeTab === 'mine'" class="loan-card">
       <el-table :data="mineRows" v-loading="mineLoading" stripe row-key="approvalNo">
@@ -283,7 +294,7 @@
 <script setup>
 defineOptions({ name: '_approval' });
 import { ref, reactive, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
@@ -312,9 +323,19 @@ import { pendingSensitiveViewApprovals, auditSensitiveViewApproval } from '@/api
 
 const userStore = useUserStore();
 const route = useRoute();
+const router = useRouter();
 /** D39/C24：DM 可审本团队分配，跨团队由后端拒绝并上收 BOSS。 */
 const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.ALLOCATION_AUDIT));
 const canAuditChannelContent = computed(() => userStore.hasPerm(ACTION_PERMISSION.CONTENT_AUDIT));
+const canApplyDownload = computed(() => userStore.hasPerm(ACTION_PERMISSION.DOWNLOAD_APPLY));
+const canCreateAppointment = computed(() => userStore.hasPerm(ACTION_PERMISSION.ORDER_CREATE));
+const canCreateOuting = computed(() => userStore.hasPerm(ACTION_PERMISSION.ORDER_CREATE));
+const canCreateAnyApplication = computed(() => canApplyDownload.value || canCreateAppointment.value || canCreateOuting.value);
+const applicationChooserVisible = ref(false);
+function openApplicationChooser() { applicationChooserVisible.value = true; }
+function openDownloadApplication() { applicationChooserVisible.value = false; activeTab.value = 'download'; openApply(); }
+function goCreateAppointment() { applicationChooserVisible.value = false; router.push({ path: '/service-operations/appointments', query: { create: '1' } }); }
+function goCreateOuting() { applicationChooserVisible.value = false; router.push({ path: '/service-operations/outings', query: { create: '1' } }); }
 
 const approvalView = String(route.path.split('/').pop() || 'mine');
 const approvalViewMap = Object.freeze({ 'channel-lead': 'channelLead', 'sms-template': 'smsTemplate', 'report-template': 'reportTemplate', 'sensitive-phone': 'sensitivePhone' });
@@ -598,10 +619,45 @@ watch(activeTab, async (tab) => {
 .link-token { font-size: 12px; color: var(--loan-primary); }
 .muted { color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .attachment-detail { line-height: 20px; white-space: normal; }
+.application-chooser { display: grid; gap: 10px; padding: 4px 0 8px; }
+.application-choice {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 70px;
+  padding: 13px 16px;
+  border: 1px solid var(--loan-border);
+  border-radius: var(--loan-radius-sm, 10px);
+  background: var(--loan-surface);
+  color: var(--loan-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--loan-transition), background var(--loan-transition), transform var(--loan-transition), box-shadow var(--loan-transition);
+}
+.application-choice:hover,
+.application-choice:focus-visible {
+  border-color: var(--loan-primary);
+  background: var(--loan-primary-soft);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--loan-primary) 12%, transparent);
+  transform: translateY(-1px);
+  outline: none;
+}
+.application-choice :deep(svg) { color: var(--loan-primary); }
+.application-choice > span:nth-child(2) { min-width: 0; }
+.application-choice strong,
+.application-choice small { display: block; }
+.application-choice strong { font-size: 14px; font-weight: 600; line-height: 20px; }
+.application-choice small { margin-top: 3px; color: var(--loan-text-muted); font-size: 12px; line-height: 18px; }
+.application-choice > span:last-child { color: var(--loan-primary); font-size: 18px; text-align: right; }
 .remote-more { min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--loan-primary); cursor: pointer; font-size: 13px; }
 :global(.download-apply-dialog .el-dialog) { max-width: calc(100vw - 32px); overflow: visible; }
 :global(.download-apply-dialog .el-dialog__body) { overflow: visible; }
 :global(.download-apply-dialog .attachment-select-popper) { max-width: 490px; }
 :global(.download-apply-dialog .attachment-select-popper .el-select-dropdown__wrap) { max-height: 220px; }
 :global(.download-apply-dialog .attachment-select-popper .el-select-dropdown__item) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+  .application-choice { grid-template-columns: 30px minmax(0, 1fr) 16px; padding: 11px 12px; }
+}
 </style>

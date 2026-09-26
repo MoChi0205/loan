@@ -95,8 +95,27 @@ public class ServiceOperationScopeService {
             return;
         }
         if (scope == ServiceListScope.SELF) {
+            // 公海客户没有归属人：只要该员工有内部名单权限即可申请查看，团队公海另校验部门。
+            if (!StringUtils.hasText(client.getOwnerStaffCode())) {
+                if ("DEPT_MANAGER".equalsIgnoreCase(user.getRoleCode())
+                        && "TEAM".equalsIgnoreCase(client.getSeaLevel())
+                        && StringUtils.hasText(client.getSeaDeptCode())
+                        && !client.getSeaDeptCode().equals(user.getDeptCode())) {
+                    throw new BusinessException(ResultCode.FORBIDDEN, "只能访问本部门客户");
+                }
+                return;
+            }
             if (!user.getUserNo().equals(client.getOwnerStaffCode())) {
                 throw new BusinessException(ResultCode.FORBIDDEN, "只能访问本人负责的客户");
+            }
+            return;
+        }
+        if (!StringUtils.hasText(client.getOwnerStaffCode())) {
+            if (scope == ServiceListScope.DEPARTMENT
+                    && "TEAM".equalsIgnoreCase(client.getSeaLevel())
+                    && StringUtils.hasText(client.getSeaDeptCode())
+                    && !client.getSeaDeptCode().equals(user.getDeptCode())) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "只能访问本部门客户");
             }
             return;
         }

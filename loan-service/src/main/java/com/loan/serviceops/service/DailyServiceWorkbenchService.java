@@ -41,7 +41,8 @@ public class DailyServiceWorkbenchService {
     public DailyServiceWorkbenchDTO daily(LocalDate date, LoanUser user, int page, int size, boolean refresh) {
         scopeService.requireStaffListAccess(user);
         LocalDate day = date == null ? LocalDate.now() : date;
-        String cacheKey = "service:workbench:daily:" + scopeKey(user) + ":" + day + ":" + page + ":" + size;
+        // v2：列表 DTO 已强制装配客户/员工/部门展示名，隔离旧缓存中只有业务编码的数据。
+        String cacheKey = "service:workbench:daily:v2:" + scopeKey(user) + ":" + day + ":" + page + ":" + size;
         if (refresh) {
             DailyServiceWorkbenchDTO current = loadDaily(day, user, page, size);
             cacheService.put(cacheKey, current);

@@ -12,7 +12,7 @@
     @update:model-value="(v) => $emit('update:visible', v)"
   >
     <slot />
-    <template #footer>
+    <template v-if="showFooter" #footer>
       <slot name="footer">
         <el-button @click="onCancel">取消</el-button>
         <el-button type="primary" :loading="loading" @click="onConfirm">确定</el-button>
@@ -54,6 +54,7 @@ const props = defineProps({
   closeOnClickModal: { type: Boolean, default: false },
   closeOnPressEscape: { type: Boolean, default: false },
   destroyOnClose: { type: Boolean, default: true },
+  showFooter: { type: Boolean, default: true },
   /** 透传给 el-dialog 的 modal-class，用于覆盖 Element Plus 内置类样式 */
   modalClass: { type: String, default: 'loan-app-dialog' },
 });

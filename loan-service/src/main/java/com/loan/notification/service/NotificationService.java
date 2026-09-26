@@ -169,10 +169,11 @@ public class NotificationService {
      * @param notificationId 通知业务 ID
      * @return 更新行数
      */
-    public int markAsRead(String notificationId) {
+    public int markAsRead(String notificationId, String userNo) {
         Notification po = notificationMapper.selectOne(new LambdaQueryWrapper<Notification>()
-                .eq(Notification::getNotificationId, notificationId));
-        int updated = notificationMapper.markRead(notificationId);
+                .eq(Notification::getNotificationId, notificationId)
+                .eq(Notification::getUserNo, userNo));
+        int updated = notificationMapper.markReadForUser(notificationId, userNo);
         if (po != null) {
             evictUnreadCache(po.getUserNo());
         }

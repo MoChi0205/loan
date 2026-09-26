@@ -24,6 +24,10 @@ public interface NotificationMapper extends BaseMapper<Notification> {
             + "WHERE notification_id = #{notificationId} AND read_status = 0")
     int markRead(@Param("notificationId") String notificationId);
 
+    @Update("UPDATE t_notification SET read_status = 1, read_at = NOW() "
+            + "WHERE notification_id = #{notificationId} AND user_no = #{userNo} AND read_status = 0")
+    int markReadForUser(@Param("notificationId") String notificationId, @Param("userNo") String userNo);
+
     /**
      * 标记当前用户全部已读。
      *

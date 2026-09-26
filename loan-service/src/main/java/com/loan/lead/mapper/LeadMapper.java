@@ -25,6 +25,13 @@ public interface LeadMapper extends BaseMapper<Lead> {
                          @Param("targetStatus") String targetStatus,
                          @Param("operator") String operator);
 
+    /** 员工录入线索后绑定同事务创建/复用的客户档案。 */
+    @Update("UPDATE t_lead SET client_profile_code = #{clientCode}, updated_by = #{operator}, "
+            + "updated_at = CURRENT_TIMESTAMP WHERE lead_no = #{leadNo}")
+    int bindClientProfile(@Param("leadNo") String leadNo,
+                          @Param("clientCode") String clientCode,
+                          @Param("operator") String operator);
+
     /** 公海认领条件更新；只有当前仍无归属的线索可成功认领。 */
     @Update("UPDATE t_lead SET owner_staff_code = #{staffCode}, updated_by = #{staffName}, "
             + "updated_at = CURRENT_TIMESTAMP WHERE lead_no = #{leadNo} AND owner_staff_code IS NULL")

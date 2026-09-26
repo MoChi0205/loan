@@ -305,39 +305,12 @@ const metrics = computed(() => {
     metric('团队工单', o.orderCount, '本团队服务工单', 'order', 'var(--loan-accent)'),
     metric('团队成交', '¥' + fmtAmount(o.dealAmountSum), `${o.dealOrderCount ?? 0} 单已成交`, 'money', 'var(--loan-success)'),
   ];
+  const scopeLabel = roleCode.value === 'DEPT_MANAGER' ? '团队范围' : '全司范围';
   return [
-    {
-      label: '合作银行',
-      value: String(c.channelCount ?? '-'),
-      foot: '家渠道已接入',
-      color: 'var(--loan-info)',
-      bg: 'color-mix(in srgb, var(--loan-info) 10%, transparent)',
-      icon: 'channel',
-    },
-    {
-      label: '产品库',
-      value: String(c.productCount ?? '-'),
-      foot: '个产品（含审核）',
-      color: 'var(--loan-primary)',
-      bg: 'var(--loan-primary-soft)',
-      icon: 'product',
-    },
-    {
-      label: '成交金额',
-      value: '¥' + fmtAmount(o.dealAmountSum),
-      foot: `${o.dealOrderCount ?? 0} 单已成交`,
-      color: 'var(--loan-success)',
-      bg: 'color-mix(in srgb, var(--loan-success) 10%, transparent)',
-      icon: 'money',
-    },
-    {
-      label: '奖励发放',
-      value: '¥' + fmtAmount(o.rewardAmountSum),
-      foot: `${o.rewardCount ?? 0} 单奖励`,
-      color: 'var(--loan-accent)',
-      bg: 'var(--loan-accent-soft)',
-      icon: 'reward',
-    },
+    metric(scopeLabel + '客户', o.clientCount, '已归属客户', 'client', 'var(--loan-info)'),
+    metric('公司公海客户', o.publicSeaClientCount, '尚未分配的客户', 'client', 'var(--loan-warning)'),
+    metric('客户转化率', `${Number(o.clientConversionRate ?? 0).toFixed(1)}%`, '客户数 ÷ 归属范围线索数', 'trend', 'var(--loan-primary)'),
+    metric('成交金额', '¥' + fmtAmount(o.dealAmountSum), `${o.dealOrderCount ?? 0} 单已成交`, 'money', 'var(--loan-success)'),
   ];
 });
 function metric(label, value, foot, icon, color) {
@@ -394,6 +367,12 @@ const quick = [
     name: '审计日志',
     desc: '匹配全链路执行追踪',
     icon: 'audit',
+  },
+  {
+    path: '/approval/mine',
+    name: '我的申请',
+    desc: '查看本人提交的申请及审批进度',
+    icon: 'approval',
   },
   {
     path: '/config-wizard',

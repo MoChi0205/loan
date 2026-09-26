@@ -11,6 +11,8 @@ import com.loan.common.util.PageOrder;
 import com.loan.common.service.BusinessNameService;
 import com.loan.exception.BusinessException;
 import com.loan.infrastructure.security.HashUtils;
+import com.loan.infrastructure.security.AesUtils;
+import com.loan.utils.DesensitizeUtils;
 import com.loan.order.dto.OrderCreateReq;
 import com.loan.order.dto.OrderStatusReq;
 import com.loan.order.entity.ServiceOrder;
@@ -279,6 +281,11 @@ public class OrderService {
         List<String> clientCodes = orders.stream().map(ServiceOrder::getClientProfileCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
         Map<String, String> clientNameMap = businessNameService.clientNames(clientCodes);
+        Map<String, String> clientPhoneMap = clientCodes.isEmpty() ? java.util.Collections.emptyMap()
+                : clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+                        .in(ClientProfile::getClientCode, clientCodes)).stream()
+                        .collect(Collectors.toMap(ClientProfile::getClientCode,
+                                c -> DesensitizeUtils.phone(AesUtils.decrypt(c.getPhone())), (a, b) -> a));
 
         List<String> productCodes = orders.stream().map(ServiceOrder::getBankProductCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
@@ -293,6 +300,7 @@ public class OrderService {
             m.put("orderNo", o.getOrderNo());
             m.put("clientProfileCode", o.getClientProfileCode());
             m.put("clientName", clientNameMap.get(o.getClientProfileCode()));
+            m.put("contactPhoneMasked", clientPhoneMap.get(o.getClientProfileCode()));
             m.put("customerGroup", o.getCustomerGroup());
             m.put("bankProductCode", o.getBankProductCode());
             m.put("bankProductName", productNameMap.get(o.getBankProductCode()));

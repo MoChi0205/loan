@@ -71,8 +71,9 @@ public class NotificationController {
      * @return 更新行数
      */
     @PostMapping("/{notificationId}/read")
-    public Result<Integer> markAsRead(@PathVariable String notificationId) {
-        return Result.ok(notificationService.markAsRead(notificationId));
+    public Result<Integer> markAsRead(@PathVariable String notificationId,
+                                      @CurrentUser("userNo") String userNo) {
+        return Result.ok(notificationService.markAsRead(notificationId, userNo));
     }
 
     /**

@@ -141,6 +141,7 @@ const ICONS = {
   user: [{ k: 'circle', cx: 12, cy: 8, r: 4 }, { k: 'path', d: 'M4 20c0-4 4-6 8-6s8 2 8 6' }],
   lock: [{ k: 'rect', x: 4, y: 10, w: 16, h: 10, rx: 2 }, { k: 'path', d: 'M8 10V7a4 4 0 0 1 8 0v3' }],
   clock: [{ k: 'circle', cx: 12, cy: 12, r: 9 }, { k: 'path', d: 'M12 7v5l3 2' }],
+  bell: [{ k: 'path', d: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9' }, { k: 'path', d: 'M10 21h4' }],
   arrowLeft: [{ k: 'path', d: 'M15 18l-6-6 6-6' }],
   arrowRight: [{ k: 'path', d: 'M9 18l6-6-6-6' }],
   arrowUp: [{ k: 'path', d: 'M5 15l7-7 7 7' }],

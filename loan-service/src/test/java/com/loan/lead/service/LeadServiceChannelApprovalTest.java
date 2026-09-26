@@ -3,6 +3,7 @@ package com.loan.lead.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.loan.allocation.service.ClaimQuotaService;
+import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
 import com.loan.lead.entity.Lead;
@@ -45,7 +46,7 @@ class LeadServiceChannelApprovalTest {
     void setUp() {
         leadMapper = mock(LeadMapper.class);
         recordMapper = mock(LeadAllocationRecordMapper.class);
-        service = new LeadService(leadMapper, recordMapper,
+        service = new LeadService(leadMapper, mock(ClientProfileMapper.class), recordMapper,
                 mock(NotificationService.class), mock(SensitiveViewService.class),
                 mock(ClaimQuotaService.class));
     }

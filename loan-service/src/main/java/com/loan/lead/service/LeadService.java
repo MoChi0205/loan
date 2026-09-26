@@ -6,6 +6,8 @@ import com.loan.allocation.service.ClaimQuotaService;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
+import com.loan.client.entity.ClientProfile;
+import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.util.PageOrder;
 import com.loan.exception.BusinessException;
 import com.loan.lead.entity.Lead;
@@ -58,6 +60,7 @@ public class LeadService {
     }
 
     private final LeadMapper leadMapper;
+    private final ClientProfileMapper clientProfileMapper;
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final NotificationService notificationService;
     private final SensitiveViewService sensitiveViewService;
@@ -87,6 +90,36 @@ public class LeadService {
         lead.setOwnerStaffCode(toPool ? null : recorderCode);
         lead.setCreatedBy(recorderName);
         leadMapper.insert(lead);
+
+        // 公司员工录入的线索同时进入“我的客户”。渠道/VIP 仍保持原审批、公海链路不变。
+        if (!toPool) {
+            ClientProfile profile = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                    .eq(ClientProfile::getPhoneHash, lead.getPhoneHash())
+                    .eq(ClientProfile::getCustomerGroup, lead.getLeadType())
+                    .last("limit 1"));
+            if (profile == null) {
+                profile = new ClientProfile();
+                profile.setClientCode(BizIdGenerator.generate("client"));
+                profile.setCustomerGroup(lead.getLeadType());
+                profile.setContactName(lead.getContactName());
+                profile.setPhone(lead.getPhone());
+                profile.setPhonePlain(lead.getPhone());
+                profile.setPhoneHash(lead.getPhoneHash());
+                profile.setOwnerStaffCode(recorderCode);
+                profile.setSource("LEAD");
+                profile.setLeadNo(lead.getLeadNo());
+                profile.setStatus("ACTIVE");
+                profile.setInvitedFlag(0);
+                profile.setWecomAdded(0);
+                profile.setCreatedBy(recorderName);
+                clientProfileMapper.insert(profile);
+            } else if (!StringUtils.hasText(profile.getOwnerStaffCode())) {
+                clientProfileMapper.assignOwnerIfUnassigned(profile.getClientCode(), recorderCode,
+                        recorderName, LocalDateTime.now());
+            }
+            lead.setClientProfileCode(profile.getClientCode());
+            leadMapper.bindClientProfile(lead.getLeadNo(), profile.getClientCode(), recorderName);
+        }
 
         allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "MANUAL", null, lead.getOwnerStaffCode(),
                 recorderName, "录入线索"));
@@ -140,11 +173,10 @@ public class LeadService {
         }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, Lead::getCreatedAt);
         Page<Lead> result = leadMapper.selectPage(new Page<>(page, size), wrapper);
-        // 出参：手机号 AES 解密；豁免角色直看明文，受限角色列表页脱敏
-        boolean exempt = sensitiveViewService.isExemptRole(roleCode);
+        // 列表出参一律脱敏；明文仅允许通过敏感查看服务的授权、限额和审计链路读取。
         result.getRecords().forEach(lead -> {
             String plain = com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone());
-            lead.setPhone(exempt ? plain : DesensitizeUtils.phone(plain));
+            lead.setPhone(DesensitizeUtils.phone(plain));
         });
         return PageResult.build(page, size, result.getTotal(), result.getRecords());
     }

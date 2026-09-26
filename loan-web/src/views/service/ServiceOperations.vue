@@ -22,6 +22,10 @@
     </div>
 
     <div class="loan-card main-card">
+        <div v-if="activeTab === 'daily'" class="scope-notice">
+          <AppIcon name="info" :size="14" />
+          <span>{{ scopeNotice }}</span>
+        </div>
         <div v-if="activeTab === 'daily'">
           <div class="list-grid" v-loading="workbenchLoading">
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'companyVisits' }">
@@ -72,6 +76,7 @@
             <el-table-column label="客户" min-width="170">
               <template #default="{ row }"><button class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || '未命名客户' }}</button><div class="cell-sub">{{ row.contactName || '—' }} {{ row.contactPhoneMasked || '' }}</div></template>
             </el-table-column>
+            <el-table-column label="联系方式" width="150"><template #default="{ row }">{{ row.contactPhoneMasked || '—' }}</template></el-table-column>
             <el-table-column label="服务安排" min-width="210"><template #default="{ row }"><div>{{ methodText[row.serviceMethod] || row.serviceMethod }}</div><div class="cell-sub">{{ formatDateTime(row.scheduledStart) }} 至 {{ timeOnly(row.scheduledEnd) }}</div></template></el-table-column>
             <el-table-column label="顾问/地点" min-width="160"><template #default="{ row }"><div>{{ row.hostStaffName || '顾问姓名待补充' }}</div><div class="cell-sub">{{ row.locationName || '线上服务' }}</div></template></el-table-column>
             <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="appointmentTag(row.status)" size="small">{{ appointmentStatusText[row.status] || row.status }}</el-tag><div class="cell-sub">{{ row.createdByType === 'STAFF' ? '公司已确认安排' : (row.customerConfirmStatus === 'CONFIRMED' ? '客户已提交确认' : '待客户确认') }}</div></template></el-table-column>
@@ -121,7 +126,7 @@
               <el-input v-model="clientKeyword" clearable placeholder="姓名、企业名或手机号" @keyup.enter="searchClients"><template #append><el-button :loading="clientLoading" @click="searchClients">查询</el-button></template></el-input>
               <div class="client-results">
                 <button v-for="row in clientOptions" :key="row.clientCode" type="button" class="client-option" :class="{ active: selectedClient?.clientCode === row.clientCode }" @click="selectClient(row)">
-                  <strong>{{ row.enterpriseName || row.contactName || '未命名客户' }}</strong><span>{{ row.contactName || '—' }} · {{ row.phone || '未绑定手机号' }}</span><small>{{ row.ownerStaffName || '暂未分配顾问' }}</small>
+                  <strong>{{ row.enterpriseName || row.contactName || row.name || '未命名客户' }}</strong><span>{{ row.contactName || row.name || '—' }} · {{ row.phone || '未绑定手机号' }}</span><small>{{ row.ownerStaffName || '暂未分配顾问' }}</small>
                 </button>
                 <el-empty v-if="clientSearched && !clientOptions.length" description="未找到可见客户" :image-size="48" />
               </div>
@@ -196,7 +201,7 @@
         <el-form-item label="客户" prop="clientCode"><el-select v-model="appointmentForm.clientCode" filterable remote :remote-method="loadClientOptions" :loading="clientSelectLoading" placeholder="搜索姓名、企业名或手机号" style="width:100%" @visible-change="(v) => v && loadClientOptions('')"><el-option v-for="row in appointmentClientOptions" :key="row.clientCode" :label="`${row.enterpriseName || row.contactName || '未命名客户'} · ${row.contactName || '联系人待补充'}`" :value="row.clientCode" /></el-select></el-form-item>
         <el-form-item label="服务顾问" prop="hostStaffCode"><el-input v-if="isAdviser" :model-value="userStore.displayName || '当前顾问'" disabled /><el-select v-else v-model="appointmentForm.hostStaffCode" filterable remote :remote-method="loadStaffOptions" :loading="staffLoading" placeholder="搜索顾问姓名" style="width:100%" @visible-change="(v) => v && loadStaffOptions('')"><el-option v-for="row in staffOptions" :key="row.staffCode" :label="row.staffName || '顾问姓名待补充'" :value="row.staffCode" /></el-select></el-form-item>
         <el-form-item label="服务方式" prop="serviceMethod"><el-radio-group v-model="appointmentForm.serviceMethod"><el-radio-button v-for="(label, code) in methodText" :key="code" :label="code">{{ label }}</el-radio-button></el-radio-group></el-form-item>
-        <el-form-item label="服务时间" prop="timeRange"><el-date-picker v-model="appointmentForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" style="width:100%" /></el-form-item>
+        <el-form-item label="服务时间" prop="timeRange"><ServiceDateTimeRange v-model="appointmentForm.timeRange" :default-time="defaultAppointmentTime" /></el-form-item>
         <el-form-item v-if="needsLocation" label="地点名称" prop="locationName"><el-input v-model="appointmentForm.locationName" placeholder="公司或拜访地点名称" /></el-form-item>
         <el-form-item v-if="needsLocation" label="详细地址"><el-input v-model="appointmentForm.locationDetail" placeholder="详细地址（客户可见）" /></el-form-item>
         <el-form-item label="客户提示"><el-input v-model="appointmentForm.customerVisibleNote" type="textarea" :rows="2" placeholder="客户可见的下一步安排" /></el-form-item>
@@ -206,7 +211,7 @@
 
     <AppDialog v-model:visible="changeVisible" :title="changeMode.includes('reschedule') ? '预约改期' : '取消预约'" width="560px" :loading="saving" @confirm="submitChange">
       <el-form label-width="90px">
-        <el-form-item v-if="changeMode.includes('reschedule')" label="新时间" required><el-date-picker v-model="changeForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" style="width:100%" /></el-form-item>
+        <el-form-item v-if="changeMode.includes('reschedule')" label="新时间" required><ServiceDateTimeRange v-model="changeForm.timeRange" :default-time="defaultAppointmentTime" /></el-form-item>
         <el-form-item v-if="changeMode.includes('reschedule')" label="地点名称"><el-input v-model="changeForm.locationName" /></el-form-item>
         <el-form-item label="原因" :required="changeMode.startsWith('exception')"><el-input v-model="changeForm.reason" type="textarea" :rows="3" :placeholder="changeMode.startsWith('exception') ? '异常处理原因必填' : '请填写变更原因'" /></el-form-item>
       </el-form>
@@ -251,7 +256,7 @@
       <el-alert title="提交后需主管审核通过，才能出发与返回打卡；照片和单点位置均为必填。" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="dialog-form">
         <el-form-item v-if="outingCreateTarget" label="客户"><span>{{ outingCreateTarget?.customerName || '客户名称待补充' }}</span></el-form-item>
-        <el-form-item v-else label="计划时间" required><el-date-picker v-model="outingCreateForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" style="width:100%" /></el-form-item>
+        <el-form-item v-else label="计划时间" required><ServiceDateTimeRange v-model="outingCreateForm.timeRange" :default-time="defaultAppointmentTime" /></el-form-item>
         <el-form-item label="目的地" required><el-input v-model="outingCreateForm.destination" placeholder="上门服务地点" /></el-form-item>
         <el-form-item label="拜访目的" required><el-input v-model="outingCreateForm.purpose" placeholder="例如：经营资料梳理" /></el-form-item>
         <el-form-item label="内部备注"><el-input v-model="outingCreateForm.internalNote" type="textarea" :rows="2" placeholder="仅公司员工可见" /></el-form-item>
@@ -279,7 +284,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppDialog from '@/components/AppDialog.vue';
 import AppPagination from '@/components/AppPagination.vue';
-import { pageClients } from '@/api/client';
+import AppIcon from '@/components/AppIcon.vue';
+import ServiceDateTimeRange from '@/components/ServiceDateTimeRange.vue';
+import { pageClients, getClientDetail } from '@/api/client';
 import { staffPage } from '@/api/org';
 import {
   getDailyServiceLists, pageAppointments, createAppointment, confirmAppointment,
@@ -314,25 +321,30 @@ const outingStatusText = Object.freeze({ DRAFT: '草稿', PENDING_REVIEW: '待�
 const followChannelText = Object.freeze({ PHONE: '电话咨询', COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', WECOM: '企业微信', OTHER: '其他' });
 const servicePageTitle = computed(() => ({ daily: '今日服务台', appointments: '客户预约', outings: '员工外出', replay: '客户回放' }[activeTab.value] || '服务台'));
 const servicePageSubtitle = computed(() => ({
-  daily: '今日客户到访、员工上门、待回访与活跃工单',
+  daily: `${scopeLabel.value} · 今日来访、外出、待回访与活跃工单`,
   appointments: '客户到访我司、员工上门拜访客户、视频会议与电话咨询预约',
   outings: '员工上门拜访客户的计划、单点位置打卡与结果记录',
   replay: '按客户查看画像、预约、外出、工单和跟进时间线',
 }[activeTab.value] || '服务过程协同'));
+const scopeLabel = computed(() => ({
+  BOSS: '全公司', OPERATOR: '全公司', SUPER_ADMIN: '全公司', SUPER: '全公司',
+  DEPT_MANAGER: '本部门', ADVISER: '本人',
+}[userStore.roleCode] || '当前范围'));
+const scopeNotice = computed(() => `${scopeLabel.value}数据 · “待回访”是员工为客户设置下一次跟进时间后，在所选日期需要处理的跟进事项`);
 const eventText = Object.freeze({ APPOINTMENT_CREATED: '创建预约', CUSTOMER_CONFIRMED: '客户确认', APPOINTMENT_CONFIRMED: '预约确认', CUSTOMER_ARRIVED: '客户到店', SERVICE_STARTED: '开始服务', SERVICE_COMPLETED: '服务完成', APPOINTMENT_CANCELLED: '取消预约', APPOINTMENT_NO_SHOW: '客户未到场', APPOINTMENT_RESCHEDULED: '预约改期', OUTING_SUBMITTED: '提交外出申请', OUTING_APPROVED: '外出审核通过', OUTING_REJECTED: '外出申请驳回', OUTING_DEPARTED: '出发打卡', OUTING_RETURNED: '返回打卡', FOLLOW_RECORDED: '客户跟进' });
 const actorText = Object.freeze({ STAFF: '员工', CUSTOMER: '客户', SYSTEM: '系统' });
 function recordsOf(page) { return Array.isArray(page?.records) ? page.records : []; }
 function totalOf(page) { return Number(page?.total || 0); }
 function timeOnly(value) { const text = formatDateTime(value); return text === '-' ? text : text.slice(11, 16); }
-function appointmentTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', NO_SHOW: 'danger', SERVING: 'warning', ARRIVED: 'warning' })[status] || ''; }
-function outingTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', IN_PROGRESS: 'warning', PENDING_REVIEW: 'warning', REJECTED: 'danger' })[status] || ''; }
+function appointmentTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', NO_SHOW: 'danger', SERVING: 'warning', ARRIVED: 'warning' })[status] || 'info'; }
+function outingTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', IN_PROGRESS: 'warning', PENDING_REVIEW: 'warning', REJECTED: 'danger' })[status] || 'info'; }
 
 const workbench = ref({});
 const workbenchLoading = ref(false);
 const metrics = computed(() => [
   { key: 'visits', label: '今日来访', value: totalOf(workbench.value.companyVisits), hint: '客户到访我司', tab: 'appointments', method: 'COMPANY_ON_SITE' },
   { key: 'outings', label: '员工外出', value: totalOf(workbench.value.staffOutings), hint: '上门拜访或普通外出', tab: 'outings' },
-  { key: 'follows', label: '待回访', value: totalOf(workbench.value.pendingFollows), hint: '按计划跟进客户', tab: 'daily' },
+  { key: 'follows', label: '待回访', value: totalOf(workbench.value.pendingFollows), hint: '按计划处理跟进事项', tab: 'daily' },
   { key: 'orders', label: '活跃工单', value: totalOf(workbench.value.activeOrders), hint: '进行中的服务工单', tab: 'daily' },
 ]);
 async function loadWorkbench(refresh = false) {
@@ -393,6 +405,7 @@ watch(selectedDate, () => { appointmentQuery.page = 1; outingQuery.page = 1; if 
 const createVisible = ref(false);
 const appointmentFormRef = ref();
 const appointmentForm = reactive({ clientCode: '', hostStaffCode: '', serviceMethod: 'COMPANY_ON_SITE', timeRange: [], locationName: '', locationDetail: '', customerVisibleNote: '', internalNote: '' });
+const defaultAppointmentTime = [new Date(2000, 0, 1, 9, 0, 0), new Date(2000, 0, 1, 10, 0, 0)];
 const appointmentRules = { clientCode: [{ required: true, message: '请选择客户', trigger: 'change' }], hostStaffCode: [{ required: true, message: '请选择服务顾问', trigger: 'change' }], serviceMethod: [{ required: true, message: '请选择服务方式', trigger: 'change' }], timeRange: [{ type: 'array', required: true, min: 2, message: '请选择服务起止时间', trigger: 'change' }], locationName: [{ validator: (_rule, value, callback) => needsLocation.value && !value ? callback(new Error('请填写服务地点')) : callback(), trigger: 'blur' }] };
 const needsLocation = computed(() => ['COMPANY_ON_SITE', 'HOME_VISIT'].includes(appointmentForm.serviceMethod));
 const appointmentClientOptions = ref([]);
@@ -400,10 +413,25 @@ const clientSelectLoading = ref(false);
 const staffOptions = ref([]);
 const staffLoading = ref(false);
 function openCreateAppointment() { Object.assign(appointmentForm, { clientCode: '', hostStaffCode: userNo.value, serviceMethod: 'COMPANY_ON_SITE', timeRange: [], locationName: '', locationDetail: '', customerVisibleNote: '', internalNote: '' }); createVisible.value = true; loadClientOptions(''); if (!isAdviser.value) loadStaffOptions(''); }
-async function loadClientOptions(keyword) { clientSelectLoading.value = true; try { const page = (await pageClients({ keyword, page: 1, size: 20, scope: userStore.roleCode === 'ADVISER' ? 'MY' : 'ALL' })).data || {}; appointmentClientOptions.value = recordsOf(page); } finally { clientSelectLoading.value = false; } }
+let clientOptionTimer;
+let clientOptionSequence = 0;
+function loadClientOptions(keyword) {
+  clearTimeout(clientOptionTimer);
+  const seq = ++clientOptionSequence;
+  clientOptionTimer = setTimeout(async () => {
+    clientSelectLoading.value = true;
+    try {
+      const page = (await pageClients({ keyword: keyword || '', page: 1, size: 20, scope: userStore.roleCode === 'ADVISER' ? 'MY' : 'ALL' })).data || {};
+      if (seq === clientOptionSequence) appointmentClientOptions.value = recordsOf(page);
+    } finally { if (seq === clientOptionSequence) clientSelectLoading.value = false; }
+  }, 220);
+}
 async function loadStaffOptions(keyword) { staffLoading.value = true; try { const params = { keyword, page: 1, size: 50 }; if (userStore.roleCode === 'DEPT_MANAGER') params.deptCode = userStore.user?.deptCode; const page = (await staffPage(params)).data || {}; staffOptions.value = recordsOf(page).filter((row) => !row.status || row.status === 'ACTIVE'); } finally { staffLoading.value = false; } }
 async function submitAppointment() {
-  await appointmentFormRef.value?.validate();
+  const valid = await appointmentFormRef.value?.validate().catch(() => false);
+  if (!valid) return;
+  if (!appointmentForm.timeRange?.[0] || !appointmentForm.timeRange?.[1]) return ElMessage.warning('请选择完整的开始和结束日期时间');
+  if (new Date(appointmentForm.timeRange[1]).getTime() <= new Date(appointmentForm.timeRange[0]).getTime()) return ElMessage.warning('结束时间必须晚于开始时间');
   saving.value = true;
   try {
     const data = { ...appointmentForm, scheduledStart: appointmentForm.timeRange[0], scheduledEnd: appointmentForm.timeRange[1] };
@@ -579,14 +607,30 @@ const clientOptions = ref([]);
 const clientLoading = ref(false);
 const clientSearched = ref(false);
 const selectedClient = ref(null);
-const selectedClientName = computed(() => selectedClient.value ? (selectedClient.value.enterpriseName || selectedClient.value.contactName || selectedClient.value.clientCode) : '客户活动回放');
+const selectedClientName = computed(() => selectedClient.value ? (selectedClient.value.enterpriseName || selectedClient.value.contactName || selectedClient.value.name || '未命名客户') : '客户活动回放');
 const canAddFollow = computed(() => selectedClient.value?.ownerStaffCode === userNo.value);
-async function searchClients() { clientLoading.value = true; clientSearched.value = true; try { const page = (await pageClients({ keyword: clientKeyword.value, page: 1, size: 20, scope: userStore.roleCode === 'ADVISER' ? 'MY' : 'ALL' })).data || {}; clientOptions.value = recordsOf(page); } finally { clientLoading.value = false; } }
+let replaySearchTimer;
+let replaySearchSequence = 0;
+function searchClients() {
+  clearTimeout(replaySearchTimer);
+  const seq = ++replaySearchSequence;
+  clientSearched.value = true;
+  replaySearchTimer = setTimeout(async () => {
+    clientLoading.value = true;
+    try {
+      const page = (await pageClients({ keyword: clientKeyword.value.trim(), page: 1, size: 20, scope: userStore.roleCode === 'ADVISER' ? 'MY' : 'ALL' })).data || {};
+      if (seq === replaySearchSequence) clientOptions.value = recordsOf(page);
+    } finally { if (seq === replaySearchSequence) clientLoading.value = false; }
+  }, 220);
+}
 function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ path: '/service-operations/replay', query: { clientCode: row.clientCode } }); loadInsight(); loadTimeline(); }
 function openClientReplay(clientCode) {
   if (activeTab.value !== 'replay') return router.push({ path: '/service-operations/replay', query: { clientCode } });
-  clientKeyword.value = clientCode;
-  return searchClients().then(() => { const row = clientOptions.value.find((item) => item.clientCode === clientCode) || { clientCode }; selectClient(row); });
+  clientKeyword.value = '';
+  return getClientDetail(clientCode).then((res) => {
+    const row = res.data || { clientCode, contactName: '未命名客户' };
+    selectClient({ ...row, clientCode });
+  });
 }
 const timeline = ref([]);
 const timelineTotal = ref(0);
@@ -671,6 +715,10 @@ onMounted(async () => {
   await loadWorkbench();
   if (activeTab.value !== 'daily') onTabChange(activeTab.value);
   if (route.query.clientCode) openClientReplay(String(route.query.clientCode));
+  if (route.query.create === '1') {
+    if (activeTab.value === 'appointments') openCreateAppointment();
+    if (activeTab.value === 'outings') openCreateGeneralOuting();
+  }
 });
 </script>
 
@@ -685,6 +733,8 @@ onMounted(async () => {
 .metric-label, .metric-hint { display: block; color: var(--loan-text-muted); font-size: 12px; }
 .metric-value { display: block; margin: 7px 0 5px; color: var(--loan-text); font-size: 28px; line-height: 1; }
 .main-card { padding: 8px 18px 18px; min-width: 0; }
+.scope-notice { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; margin: 0 0 12px; border: 1px solid color-mix(in srgb, var(--loan-primary) 22%, var(--loan-border)); border-radius: var(--loan-radius-sm); background: var(--loan-primary-soft); color: var(--loan-text-secondary); font-size: 12px; line-height: 18px; }
+.scope-notice :deep(svg) { flex: 0 0 auto; margin-top: 2px; color: var(--loan-primary); }
 .list-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .list-panel { min-height: 230px; padding: 16px; border: 1px solid var(--loan-border); border-radius: var(--loan-radius); background: var(--loan-surface); }
 .list-panel--focused { border-color: var(--loan-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--loan-primary) 12%, transparent); }
@@ -703,6 +753,7 @@ onMounted(async () => {
 .replay-layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 18px; min-height: 520px; }
 .client-picker { padding-right: 16px; border-right: 1px solid var(--loan-border); }
 .client-results { max-height: 460px; margin-top: 10px; overflow-y: auto; }
+.client-results { scrollbar-gutter: stable; }
 .client-option { display: block; padding: 12px; border-radius: var(--loan-radius-sm); }
 .replay-head { min-height: 42px; }
 .insight-panel { padding: 14px 16px; margin-bottom: 16px; border: 1px solid var(--loan-border); border-radius: var(--loan-radius); background: var(--loan-surface); }
