@@ -44,6 +44,17 @@ public class WxCode2SessionService {
         if (!StringUtils.hasText(code)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "wx.login code 必填");
         }
+        if (wxProperties.isMockEnabled()) {
+            // 测试环境只接受显式 mock code，不把任意字符串当成登录凭证。
+            if (code.startsWith("mock-wx:")) {
+                String openid = code.substring("mock-wx:".length()).trim();
+                if (openid.length() >= 4) {
+                    return openid;
+                }
+            }
+            throw new BusinessException(ResultCode.PARAM_ERROR,
+                    "测试环境请使用 mock-wx:{openid} 登录凭证");
+        }
         if (!StringUtils.hasText(wxProperties.getAppid())
                 || "wx_CHANGE_ME".equals(wxProperties.getAppid())
                 || !StringUtils.hasText(wxProperties.getSecret())) {
@@ -59,7 +70,7 @@ public class WxCode2SessionService {
                 throw new BusinessException(ResultCode.THIRD_PARTY_ERROR, "微信登录失败：无响应");
             }
             Object openid = resp.get("openid");
-            if (!StringUtils.hasText(String.valueOf(openid))) {
+            if (openid == null || !StringUtils.hasText(String.valueOf(openid))) {
                 log.warn("jscode2session 返回错误: {}", resp);
                 Object err = resp.get("errmsg");
                 String errMsg = err != null ? String.valueOf(err) : "code 已失效";

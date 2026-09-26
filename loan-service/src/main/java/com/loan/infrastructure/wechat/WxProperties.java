@@ -28,6 +28,9 @@ public class WxProperties {
     /** 小程序 appsecret */
     private String secret = "";
 
+    /** 测试环境微信能力模拟开关；生产必须关闭并配置真实凭据。 */
+    private boolean mockEnabled = false;
+
     /** 商户号（P2-1 微信支付预留） */
     private String payMchId;
 

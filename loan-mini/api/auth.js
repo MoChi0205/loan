@@ -28,6 +28,17 @@ export function loginByWx(code, { nickname, avatar, inviteCode } = {}) {
   });
 }
 
+/** 微信手机号一键登录：phoneCode 来自 getPhoneNumber 回调，loginCode 可用于绑定微信身份。 */
+export function loginByWxPhone(loginCode, phoneCode, { nickname, avatar, inviteCode } = {}) {
+  return requestPost('/api/mini/auth/phone-login', {
+    loginCode,
+    phoneCode,
+    ...(nickname ? { nickname } : {}),
+    ...(avatar ? { avatar } : {}),
+    ...(inviteCode ? { inviteCode } : {}),
+  });
+}
+
 /**
  * 手机号验证码登录：H5 正式登录通道。
  *

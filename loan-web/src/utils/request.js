@@ -118,7 +118,10 @@ request.interceptors.response.use(
         redirectToLogin();
         return Promise.reject(new Error(res.message || '未登录或会话已过期'));
       }
-      showThrottled(res.message || '请求失败');
+      // 登录类请求由页面自行提示（__loanSilent），避免重复弹窗。
+      if (!response.config?.__loanSilent) {
+        showThrottled(res.message || '请求失败');
+      }
       return Promise.reject(new Error(res.message));
     }
     return res;
@@ -149,12 +152,16 @@ request.interceptors.response.use(
     }
     // 3) 超时：友好提示（节流）
     if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
-      showThrottled('请求超时，请稍后重试', 'warning');
+      if (!error.config?.__loanSilent) {
+        showThrottled('请求超时，请稍后重试', 'warning');
+      }
       return Promise.reject(error);
     }
     // 4) 其余网络/服务端错误：后端有 message 用后端，否则网络异常（节流）
     const serverMsg = error.response?.data?.message;
-    showThrottled(serverMsg || '网络异常，请稍后重试');
+    if (!error.config?.__loanSilent) {
+      showThrottled(serverMsg || '网络异常，请稍后重试');
+    }
     return Promise.reject(error);
   },
 );

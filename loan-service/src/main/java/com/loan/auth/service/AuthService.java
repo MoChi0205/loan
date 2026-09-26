@@ -198,20 +198,16 @@ public class AuthService {
     }
 
     /** 全角色密码登录，accountType 必须为 STAFF / CHANNEL / CUSTOMER。 */
-    public LoginResponse passwordLogin(String phone, String rsaEncryptedPassword, String accountType) {
-        if (!StringUtils.hasText(phone) || !StringUtils.hasText(rsaEncryptedPassword)
+    public LoginResponse passwordLogin(String account, String rsaEncryptedPassword, String accountType) {
+        if (!StringUtils.hasText(account) || !StringUtils.hasText(rsaEncryptedPassword)
                 || !StringUtils.hasText(accountType)) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "手机号、密码与账号类型必填");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "账号、密码与账号类型必填");
         }
         String plainPassword = decryptPassword(rsaEncryptedPassword);
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        String hash = sha256(phone);
+        String hash = sha256(account);
         if ("STAFF".equalsIgnoreCase(accountType)) {
-            Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
-                    .select(Staff::getId, Staff::getStaffCode, Staff::getStaffName,
-                            Staff::getDeptCode, Staff::getRoleCode, Staff::getPhone,
-                            Staff::getStatus, Staff::getPassword)
-                    .eq(Staff::getPhoneHash, hash).last("limit 1"));
+            Staff staff = staffByLoginAccount(account);
             requireActiveStaff(staff);
             requirePassword(encoder, plainPassword, staff.getPassword());
             return issue(buildStaffUser(staff));
@@ -224,7 +220,7 @@ public class AuthService {
             channelUserMapper.update(null, new LambdaUpdateWrapper<ChannelUser>()
                     .eq(ChannelUser::getId, channel.getId())
                     .set(ChannelUser::getLastLoginTime, LocalDateTime.now()));
-            return issue(buildChannelUser(channel, phone));
+            return issue(buildChannelUser(channel, account));
         }
         if ("CUSTOMER".equalsIgnoreCase(accountType)) {
             com.loan.client.entity.ClientProfile client = clientProfileMapper.selectOne(
@@ -241,7 +237,7 @@ public class AuthService {
                 throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
             }
             requirePassword(encoder, plainPassword, client.getPassword());
-            return issue(buildCustomerUser(client, phone));
+            return issue(buildCustomerUser(client, account));
         }
         throw new BusinessException(ResultCode.PARAM_ERROR, "不支持的账号类型");
     }
@@ -291,6 +287,21 @@ public class AuthService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "密码解密失败");
         }
         return password;
+    }
+
+    /** 员工密码登录支持手机号、员工账号(staff_code)或CRM账号(crm_user_id)。 */
+    private Staff staffByLoginAccount(String account) {
+        LambdaQueryWrapper<Staff> query = new LambdaQueryWrapper<Staff>()
+                .select(Staff::getId, Staff::getStaffCode, Staff::getStaffName,
+                        Staff::getCrmUserId, Staff::getDeptCode, Staff::getRoleCode,
+                        Staff::getPhone, Staff::getStatus, Staff::getPassword)
+                .last("limit 1");
+        if (account.matches("1\\d{10}")) {
+            query.eq(Staff::getPhoneHash, sha256(account));
+        } else {
+            query.and(w -> w.eq(Staff::getStaffCode, account).or().eq(Staff::getCrmUserId, account));
+        }
+        return staffMapper.selectOne(query);
     }
 
     private void requirePassword(BCryptPasswordEncoder encoder, String plain, String encoded) {

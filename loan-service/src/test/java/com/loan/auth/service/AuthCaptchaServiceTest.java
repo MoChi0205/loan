@@ -20,7 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 登录随机验证码：4 位数字、答案只留服务端、一次性消费。 */
+/** 登录随机验证码：4 位字母+数字、答案只留服务端、一次性消费。 */
 class AuthCaptchaServiceTest {
 
     private StringRedisTemplate redis;
@@ -48,7 +48,7 @@ class AuthCaptchaServiceTest {
         ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOps).set(keyCaptor.capture(), valueCaptor.capture(), any(Duration.class));
         assertTrue(keyCaptor.getValue().startsWith("loan:auth:captcha:"));
-        assertTrue(valueCaptor.getValue().matches("\\d{4}"), "验证码必须是 4 位数字");
+        assertTrue(valueCaptor.getValue().matches("[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}"), "验证码必须是 4 位字母+数字");
     }
 
     @Test

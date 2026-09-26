@@ -61,7 +61,7 @@
           <el-form-item prop="username">
             <el-input
               v-model="form.username"
-              placeholder="手机号"
+              :placeholder="usernamePlaceholder"
               autocomplete="username"
             >
               <template #prefix>
@@ -84,12 +84,12 @@
             </el-input>
           </el-form-item>
           <el-form-item v-else prop="code"><el-input v-model="form.code" placeholder="短信验证码"><template #append><el-button :disabled="codeCountdown > 0" @click="sendCode">{{ codeCountdown ? `${codeCountdown}s` : '获取验证码' }}</el-button></template></el-input></el-form-item>
-          <el-form-item>
-            <el-input v-model="form.captchaCode" placeholder="请输入图片中的 4 位验证码" maxlength="4">
+          <el-form-item class="captcha-form-item">
+            <el-input class="captcha-code-input" v-model="form.captchaCode" :placeholder="captchaPlaceholder" maxlength="4">
               <template #append>
                 <button type="button" class="captcha-image-btn" title="点击刷新验证码" @click="refreshCaptcha">
-                  <img v-if="captcha.imageBase64" class="captcha-image" :src="captchaSrc(captcha)" alt="登录验证码" />
-                  <span v-else class="captcha-placeholder">点击刷新</span>
+                  <img v-if="captchaSrc(captcha)" class="captcha-image" :src="captchaSrc(captcha)" alt="登录验证码" @error="captcha.imageBase64 = ''" />
+                  <span v-else class="captcha-placeholder">{{ captchaLoading ? '加载中…' : '点击刷新' }}</span>
                 </button>
               </template>
             </el-input>
@@ -105,22 +105,23 @@
           </el-button>
         </el-form>
 
-        <el-dialog v-model="resetVisible" title="验证码找回密码" width="420px" append-to-body>
-          <el-form label-position="top">
-            <el-form-item label="登录手机号"><el-input v-model="resetForm.phone" maxlength="11" /></el-form-item>
+        <el-dialog v-model="resetVisible" title="验证码找回密码" width="420px" append-to-body @open="refreshResetCaptcha">
+          <p class="reset-hint">使用账号绑定的手机号完成验证后设置新密码</p>
+          <el-form label-position="top" autocomplete="off">
+            <el-form-item label="登录手机号"><el-input v-model="resetForm.phone" maxlength="11" placeholder="请输入绑定手机号" autocomplete="tel" /></el-form-item>
             <el-form-item label="随机验证码">
-              <el-input v-model="resetForm.captchaCode" maxlength="4">
+              <el-input class="captcha-code-input" v-model="resetForm.captchaCode" placeholder="4位字母/数字" maxlength="4">
                 <template #append>
                   <button type="button" class="captcha-image-btn" title="点击刷新验证码" @click="refreshResetCaptcha">
-                    <img v-if="resetCaptcha.imageBase64" class="captcha-image" :src="captchaSrc(resetCaptcha)" alt="验证码" />
+                    <img v-if="captchaSrc(resetCaptcha)" class="captcha-image" :src="captchaSrc(resetCaptcha)" alt="验证码" @error="resetCaptcha.imageBase64 = ''" />
                     <span v-else class="captcha-placeholder">点击刷新</span>
                   </button>
                 </template>
               </el-input>
             </el-form-item>
-            <el-form-item label="短信验证码"><el-input v-model="resetForm.code"><template #append><el-button :disabled="resetCountdown > 0" @click="sendResetCode">{{ resetCountdown ? `${resetCountdown}s` : '获取验证码' }}</el-button></template></el-input></el-form-item>
-            <el-form-item label="新密码"><el-input v-model="resetForm.password" type="password" show-password placeholder="8-64位，同时包含字母和数字" /></el-form-item>
-            <el-form-item label="确认新密码"><el-input v-model="resetForm.confirmPassword" type="password" show-password /></el-form-item>
+            <el-form-item label="短信验证码"><el-input v-model="resetForm.code" placeholder="请输入短信验证码" autocomplete="one-time-code"><template #append><el-button :disabled="resetCountdown > 0" @click="sendResetCode">{{ resetCountdown ? `${resetCountdown}s` : '获取验证码' }}</el-button></template></el-input></el-form-item>
+            <el-form-item label="新密码"><el-input v-model="resetForm.password" type="password" show-password placeholder="8-64 位，需包含字母和数字" autocomplete="new-password" /></el-form-item>
+            <el-form-item label="确认新密码"><el-input v-model="resetForm.confirmPassword" type="password" show-password placeholder="请再次输入新密码" autocomplete="new-password" /></el-form-item>
           </el-form>
           <template #footer><el-button @click="resetVisible=false">取消</el-button><el-button type="primary" :loading="resetting" @click="submitReset">设置新密码</el-button></template>
         </el-dialog>
@@ -146,6 +147,8 @@ const router = useRouter();
 const userStore = useUserStore();
 const formRef = ref();
 const loading = ref(false);
+// 防止回车与按钮提交同时触发，导致重复登录请求和两个“登录成功”提示。
+const submitting = ref(false);
 const remember = ref(false);
 
 /** 员工与渠道都支持密码登录、短信验证码登录和验证码找回密码；默认走账号密码 + 4 位图片验证码。 */
@@ -154,6 +157,7 @@ const loginType = ref('password');
 const codeCountdown = ref(0);
 const captcha = reactive({ captchaId: '', imageBase64: '' });
 const resetCaptcha = reactive({ captchaId: '', imageBase64: '' });
+const captchaLoading = ref(false);
 const resetVisible = ref(false);
 const resetCountdown = ref(0);
 const resetting = ref(false);
@@ -161,6 +165,9 @@ const resetForm = reactive({ phone: '', code: '', password: '', confirmPassword:
 
 /** 登录表单 */
 const form = reactive({ username: '', password: '', code: '', captchaCode: '' });
+
+const usernamePlaceholder = computed(() => loginType.value === 'code' ? '请输入手机号' : '请输入账号');
+const captchaPlaceholder = '4位字母/数字';
 
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -206,7 +213,13 @@ async function encryptPassword(password) {
 }
 
 async function onLogin() {
-  await formRef.value.validate();
+  if (submitting.value) return;
+  submitting.value = true;
+  const valid = await formRef.value.validate().catch(() => false);
+  if (!valid) {
+    submitting.value = false;
+    return;
+  }
   loading.value = true;
   try {
     const accountType = mode.value === 'staff' ? 'STAFF' : 'CHANNEL';
@@ -216,7 +229,7 @@ async function onLogin() {
     } else {
       if (!form.captchaCode) return ElMessage.warning('请输入随机验证码');
       const encryptedPassword = await encryptPassword(form.password);
-      const res = await passwordLogin({ phone: form.username, password: encryptedPassword, accountType, captchaId: captcha.captchaId, captchaCode: form.captchaCode });
+      const res = await passwordLogin({ account: form.username, password: encryptedPassword, accountType, captchaId: captcha.captchaId, captchaCode: form.captchaCode });
       userStore.applyLogin(res);
     }
     if (remember.value) {
@@ -227,20 +240,53 @@ async function onLogin() {
     ElMessage.success('登录成功');
     router.push('/');
   } catch (e) {
-    // 拦截器已提示
+    // 登录类请求已标记 __loanSilent，提示统一在这里弹一次，并立即换一张验证码。
+    ElMessage.error(loginErrorMessage(e));
+    await refreshCaptcha();
   } finally {
     loading.value = false;
+    submitting.value = false;
   }
 }
-async function refreshCaptcha() { const res=await getCaptcha(); Object.assign(captcha,res.data||res); form.captchaCode=''; }
+
+/** 登录错误文案：后端 message 优先，网络类单独兜底。 */
+function loginErrorMessage(e) {
+  const raw = e?.response?.data?.message || e?.message || '';
+  if (/Network Error|timeout|ECONNABORTED/i.test(raw)) return '网络异常，请稍后重试';
+  if (!raw || raw === 'Error') return '登录失败，请检查账号、密码与验证码后重试';
+  return raw;
+}
+async function refreshCaptcha() {
+  captchaLoading.value = true;
+  try {
+    const res = await getCaptcha();
+    Object.assign(captcha, res?.data || res || {});
+    form.captchaCode = '';
+  } catch (e) {
+    captcha.captchaId = '';
+    captcha.imageBase64 = '';
+  } finally {
+    captchaLoading.value = false;
+  }
+}
 async function refreshResetCaptcha() { const res=await getCaptcha(); Object.assign(resetCaptcha,res.data||res); resetForm.captchaCode=''; }
 /** 验证码图片是服务端渲染的 Base64 PNG，答案不下发到前端。 */
-function captchaSrc(item) { return item.imageBase64 ? `data:image/png;base64,${item.imageBase64}` : ''; }
+function captchaSrc(item) {
+  const raw = String(item?.imageBase64 || '').trim();
+  if (!raw) return '';
+  return raw.startsWith('data:image/') ? raw : `data:image/png;base64,${raw}`;
+}
 function startCountdown(target) { target.value=60; const t=setInterval(()=>{ target.value--; if(target.value<=0) clearInterval(t); },1000); }
-async function sendCode() { if (!/^1\d{10}$/.test(form.username)) return ElMessage.warning('请输入正确手机号'); if(!form.captchaCode)return ElMessage.warning('请输入随机验证码'); const res=await sendLoginCode(form.username,captcha.captchaId,form.captchaCode,'LOGIN'); const devCode=res?.data?.devCode; if(devCode)form.code=devCode; startCountdown(codeCountdown); form.captchaCode=''; await refreshCaptcha(); ElMessage.success(devCode?`测试验证码已自动填入：${devCode}`:'验证码已发送'); }
-function forgotPassword() { resetForm.phone=form.username; resetVisible.value=true; refreshResetCaptcha(); }
-async function sendResetCode() { if(!/^1\d{10}$/.test(resetForm.phone))return ElMessage.warning('请输入正确手机号'); if(!resetForm.captchaCode)return ElMessage.warning('请输入随机验证码'); const res=await sendLoginCode(resetForm.phone,resetCaptcha.captchaId,resetForm.captchaCode,'RESET_PASSWORD'); const devCode=res?.data?.devCode; if(devCode)resetForm.code=devCode; startCountdown(resetCountdown); resetForm.captchaCode=''; await refreshResetCaptcha(); ElMessage.success(devCode?`测试验证码已自动填入：${devCode}`:'验证码已发送'); }
-async function submitReset() { if(!resetForm.code)return ElMessage.warning('请输入短信验证码'); if(!/^(?=.*[A-Za-z])(?=.*\d).{8,64}$/.test(resetForm.password))return ElMessage.warning('密码须为8-64位且包含字母和数字'); if(resetForm.password!==resetForm.confirmPassword)return ElMessage.warning('两次密码不一致'); resetting.value=true; try{ const password=await encryptPassword(resetForm.password); await resetPassword({phone:resetForm.phone,code:resetForm.code,password,accountType:mode.value==='staff'?'STAFF':'CHANNEL'}); resetVisible.value=false; form.username=resetForm.phone; loginType.value='password'; ElMessage.success('密码设置成功，请使用新密码登录'); }finally{resetting.value=false;} }
+async function sendCode() { if (!/^1\d{10}$/.test(form.username)) return ElMessage.warning('请输入正确手机号'); if(!form.captchaCode)return ElMessage.warning('请输入随机验证码'); try { const res=await sendLoginCode(form.username,captcha.captchaId,form.captchaCode,'LOGIN'); const devCode=res?.data?.devCode; if(devCode)form.code=devCode; startCountdown(codeCountdown); ElMessage.success(devCode?`测试验证码已自动填入：${devCode}`:'验证码已发送'); } catch (e) { ElMessage.error(loginErrorMessage(e)); } finally { form.captchaCode=''; await refreshCaptcha(); } }
+function forgotPassword() {
+  resetForm.phone = /^1\d{10}$/.test(form.username) ? form.username : '';
+  resetForm.code = '';
+  resetForm.password = '';
+  resetForm.confirmPassword = '';
+  resetVisible.value = true;
+}
+async function sendResetCode() { if(!/^1\d{10}$/.test(resetForm.phone))return ElMessage.warning('请输入正确手机号'); if(!resetForm.captchaCode)return ElMessage.warning('请输入随机验证码'); try { const res=await sendLoginCode(resetForm.phone,resetCaptcha.captchaId,resetForm.captchaCode,'RESET_PASSWORD'); const devCode=res?.data?.devCode; if(devCode)resetForm.code=devCode; startCountdown(resetCountdown); ElMessage.success(devCode?`测试验证码已自动填入：${devCode}`:'验证码已发送'); } catch (e) { ElMessage.error(loginErrorMessage(e)); } finally { resetForm.captchaCode=''; await refreshResetCaptcha(); } }
+async function submitReset() { if(!resetForm.code)return ElMessage.warning('请输入短信验证码'); if(!/^(?=.*[A-Za-z])(?=.*\d).{8,64}$/.test(resetForm.password))return ElMessage.warning('密码须为8-64位且包含字母和数字'); if(resetForm.password!==resetForm.confirmPassword)return ElMessage.warning('两次密码不一致'); resetting.value=true; try{ const password=await encryptPassword(resetForm.password); await resetPassword({phone:resetForm.phone,code:resetForm.code,password,accountType:mode.value==='staff'?'STAFF':'CHANNEL'}); resetVisible.value=false; form.username=resetForm.phone; loginType.value='password'; ElMessage.success('密码设置成功，请使用新密码登录'); } catch (e) { ElMessage.error(loginErrorMessage(e)); } finally{resetting.value=false;} }
 
 onMounted(() => {
   refreshCaptcha();
@@ -598,6 +644,21 @@ onMounted(() => {
 
 .login-card :deep(.el-input__wrapper) {
   padding: 6px 12px;
+}
+
+/* 验证码输入区与图片按钮分栏，避免长提示被 append 区域遮挡。 */
+.captcha-form-item :deep(.el-input__inner),
+.captcha-code-input :deep(.el-input__inner) {
+  min-width: 0;
+}
+.captcha-form-item :deep(.el-input-group__append) {
+  padding: 0 4px;
+}
+.reset-hint {
+  margin: -8px 0 18px;
+  color: var(--loan-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 /* 响应式：窄屏隐藏品牌区 */

@@ -49,6 +49,13 @@ public class MiniAuthController {
                 body.get("avatar"), body.get("inviteCode")));
     }
 
+    /** 微信手机号一键登录：loginCode 可选，用于把微信身份与手机号客户档案绑定。 */
+    @PostMapping("/auth/phone-login")
+    public Result<LoginResponse> phoneLogin(@RequestBody Map<String, String> body) {
+        return Result.ok(miniAuthService.wxPhoneLogin(body.get("loginCode"), body.get("phoneCode"),
+                body.get("nickname"), body.get("avatar"), body.get("inviteCode")));
+    }
+
     /**
      * 我的资料摘要（含角色信息，供小程序做角色化菜单与权限判定）。
      *

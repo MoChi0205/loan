@@ -71,7 +71,8 @@ public class AuthController {
     @PostMapping("/password-login")
     public Result<LoginResponse> passwordLogin(@RequestBody Map<String, String> body) {
         authCaptchaService.verify(body.get("captchaId"), body.get("captchaCode"));
-        return Result.ok(authService.passwordLogin(body.get("phone"), body.get("password"), body.get("accountType")));
+        String account = body.containsKey("account") ? body.get("account") : body.get("phone");
+        return Result.ok(authService.passwordLogin(account, body.get("password"), body.get("accountType")));
     }
 
     @PostMapping("/reset-password")
@@ -89,7 +90,8 @@ public class AuthController {
     @PostMapping("/channel-login")
     public Result<LoginResponse> channelLogin(@RequestBody Map<String, String> body) {
         authCaptchaService.verify(body.get("captchaId"), body.get("captchaCode"));
-        return Result.ok(authService.passwordLogin(body.get("phone"), body.get("password"), "CHANNEL"));
+        String account = body.containsKey("account") ? body.get("account") : body.get("phone");
+        return Result.ok(authService.passwordLogin(account, body.get("password"), "CHANNEL"));
     }
 
     /**

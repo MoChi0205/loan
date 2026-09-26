@@ -24,7 +24,7 @@ import java.util.Random;
 import java.util.UUID;
 
 /**
- * 登录随机验证码：4 位数字 + 干扰线与噪点，服务端保存答案，前端只拿到一次性 ID 与图片。
+ * 登录随机验证码：4 位字母+数字 + 干扰线与噪点，服务端保存答案，前端只拿到一次性 ID 与图片。
  *
  * <p>参照 tse {@code CaptchaServiceImpl} 的做法：验证码图片在服务端渲染为 Base64 PNG，
  * 答案只留在服务端（Redis），一次性消费、5 分钟有效，避免答案明文出网。
@@ -69,16 +69,19 @@ public class AuthCaptchaService {
         String key = KEY_PREFIX + captchaId;
         String expected = stringRedisTemplate.opsForValue().get(key);
         stringRedisTemplate.delete(key);
-        if (expected == null || !expected.equals(captchaCode.trim())) {
+        if (expected == null || !expected.equals(captchaCode.trim().toUpperCase())) {
             throw new BusinessException(ResultCode.CAPTCHA_ERROR, "随机验证码错误或已过期");
         }
     }
 
-    /** 固定 4 位数字（1000–9999），避免前导 0 带来的输入歧义。 */
+    /** 固定 4 位随机字母+数字，统一转大写，降低大小写输入歧义。 */
     private String randomCode() {
-        int bound = (int) Math.pow(10, CODE_LENGTH);
-        int min = bound / 10;
-        return String.valueOf(random.nextInt(bound - min) + min);
+        final String alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+        StringBuilder code = new StringBuilder(CODE_LENGTH);
+        for (int i = 0; i < CODE_LENGTH; i++) {
+            code.append(alphabet.charAt(random.nextInt(alphabet.length())));
+        }
+        return code.toString();
     }
 
     private String renderBase64Png(String code) {

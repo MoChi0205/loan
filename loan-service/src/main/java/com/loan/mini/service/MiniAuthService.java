@@ -20,6 +20,7 @@ import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.infrastructure.security.JwtService;
 import com.loan.infrastructure.wechat.WxCode2SessionService;
+import com.loan.infrastructure.wechat.WxPhoneNumberService;
 import com.loan.org.entity.Department;
 import com.loan.org.mapper.DepartmentMapper;
 import com.loan.product.entity.BankChannel;
@@ -61,6 +62,7 @@ public class MiniAuthService {
     private final ClientLifecycleEventMapper lifecycleEventMapper;
     private final ConfigItemMapper configItemMapper;
     private final WxCode2SessionService wxCode2SessionService;
+    private final WxPhoneNumberService wxPhoneNumberService;
     private final JwtService jwtService;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
@@ -99,27 +101,8 @@ public class MiniAuthService {
         String openidHash = HashUtils.sha256Hex(openid);
         ClientProfile client = clientProfileMapper.selectByWxOpenidHash(openidHash);
         if (client == null) {
-            client = new ClientProfile();
-            client.setClientCode(BizIdGenerator.generate("client"));
-            client.setCustomerGroup("PERSONAL");
-            client.setContactName(StringUtils.hasText(nickname) ? nickname : "微信客户");
-            client.setWxOpenid(openid);
-            client.setWxOpenidHash(openidHash);
-            client.setSource("MINI");
-            client.setStatus("ACTIVE");
-            client.setInvitedFlag(0);
-            client.setWecomAdded(0);
-            client.setCreatedBy("mini");
-            client.setCreatedAt(LocalDateTime.now());
-            clientProfileMapper.insert(client);
-            ClientLifecycleEvent event = new ClientLifecycleEvent();
-            event.setClientCode(client.getClientCode());
-            event.setEventType("ENTER_COMPANY_SEA");
-            event.setSeaLevel("ENTERPRISE");
-            event.setEpisodeNo(1);
-            event.setEventAt(client.getCreatedAt());
-            event.setReasonCode("WECHAT_SELF_REGISTER");
-            lifecycleEventMapper.insert(event);
+            // 新用户必须通过微信手机号能力建档，避免产生无法与 Web 手机号身份打通的空手机号档案。
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请使用微信手机号一键登录");
         }
         // 绑定邀请码只记录分享引荐关系，服务顾问由独立分配审批流程产生。
         // 邀请码为可选项：不存在/已用/过期时降级跳过，绝不阻断登录主流程。
@@ -166,6 +149,98 @@ public class MiniAuthService {
         response.setExpireMillis(86400000L);
         response.setUser(user);
         return response;
+    }
+
+    /**
+     * 微信手机号一键登录：手机号是 Web 客户登录的统一身份键，微信 openid 只作为登录绑定凭证。
+     * 已有手机号客户会复用同一个 client_code；微信新用户则在同一客户档案上补手机号。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public LoginResponse wxPhoneLogin(String loginCode, String phoneCode, String nickname,
+                                      String avatar, String inviteCode) {
+        String phone = wxPhoneNumberService.resolvePhone(phoneCode);
+        String phoneHash = HashUtils.sha256Hex(phone);
+        String openid = StringUtils.hasText(loginCode) ? wxCode2SessionService.code2Session(loginCode) : null;
+        String openidHash = StringUtils.hasText(openid) ? HashUtils.sha256Hex(openid) : null;
+
+        ClientProfile byPhone = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                .eq(ClientProfile::getPhoneHash, phoneHash).last("limit 1"));
+        ClientProfile byWx = StringUtils.hasText(openidHash)
+                ? clientProfileMapper.selectByWxOpenidHash(openidHash) : null;
+        if (byPhone != null && byWx != null && !byPhone.getClientCode().equals(byWx.getClientCode())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "手机号与微信已绑定不同客户账号，请联系公司处理");
+        }
+        ClientProfile client = byPhone != null ? byPhone : byWx;
+        if (client == null) {
+            client = new ClientProfile();
+            client.setClientCode(BizIdGenerator.generate("client"));
+            client.setCustomerGroup("PERSONAL");
+            client.setContactName(StringUtils.hasText(nickname) ? nickname : desensitize(phone));
+            client.setSource("MINI_WECHAT_PHONE");
+            client.setStatus("ACTIVE");
+            client.setInvitedFlag(0);
+            client.setWecomAdded(0);
+            client.setCreatedBy("mini");
+            client.setCreatedAt(LocalDateTime.now());
+        }
+        // ClientProfile.phone 交由 AesTypeHandler 单次加密，避免业务层预加密后再次加密。
+        client.setPhone(phone);
+        client.setPhonePlain(phone);
+        client.setPhoneHash(phoneHash);
+        if (StringUtils.hasText(openid)) {
+            client.setWxOpenid(openid);
+            client.setWxOpenidHash(openidHash);
+        }
+        client.setUpdatedBy("mini");
+        if (client.getId() == null) {
+            clientProfileMapper.insert(client);
+            ClientLifecycleEvent event = new ClientLifecycleEvent();
+            event.setClientCode(client.getClientCode());
+            event.setEventType("ENTER_COMPANY_SEA");
+            event.setSeaLevel("ENTERPRISE");
+            event.setEpisodeNo(1);
+            event.setEventAt(client.getCreatedAt());
+            event.setReasonCode("WECHAT_PHONE_SELF_REGISTER");
+            lifecycleEventMapper.insert(event);
+        } else {
+            clientProfileMapper.updateById(client);
+        }
+        return issueCustomer(client, phone, inviteCode, avatar);
+    }
+
+    private LoginResponse issueCustomer(ClientProfile client, String phone, String inviteCode, String avatar) {
+        String referrerNo = null;
+        if (StringUtils.hasText(inviteCode)) {
+            final ClientProfile current = client;
+            Map<String, Object> bind = newTxTemplate.execute(status -> {
+                try { return invitationService.bind(inviteCode, current.getClientCode(), current.getId()); }
+                catch (BusinessException e) { status.setRollbackOnly(); return null; }
+            });
+            if (bind != null && "CUSTOMER".equals(bind.get("referrerType"))) {
+                referrerNo = (String) bind.get("referrerClientCode");
+                if (!Integer.valueOf(1).equals(client.getInvitedFlag())) {
+                    client.setInvitedFlag(1);
+                    clientProfileMapper.updateById(client);
+                }
+            }
+        }
+        LoanUser user = new LoanUser();
+        user.setUserId(client.getId()); user.setUserNo(client.getClientCode()); user.setPhone(phone);
+        user.setName(client.getContactName()); user.setUserType(LoanUser.TYPE_CUSTOMER);
+        user.setRegion(client.getExtJson()); user.setAvatar(avatar); user.setReferrerNo(referrerNo);
+        user.setInvitedFlag(Integer.valueOf(1).equals(client.getInvitedFlag()));
+        return issue(user);
+    }
+
+    private LoginResponse issue(LoanUser user) {
+        String token = jwtService.generateToken(user.getUserId(), user.getUserType(), user.getUserNo(), null);
+        saveSession(user.getUserId(), user);
+        LoginResponse response = new LoginResponse(); response.setToken(token);
+        response.setExpireMillis(86400000L); response.setUser(user); return response;
+    }
+
+    private String desensitize(String phone) {
+        return phone.substring(0, 3) + "****" + phone.substring(7);
     }
 
     /**

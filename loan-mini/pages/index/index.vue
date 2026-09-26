@@ -34,16 +34,19 @@
         </view>
       </view>
 
-      <!-- 主 CTA -->
-      <AppButton class="cta-btn" variant="primary" size="lg" block :loading="loggingIn" :disabled="!agreementChecked" @click="onStart">
-        <AppIcon name="wechat" size="md" color="rgba(255,255,255,.95)" />
-        <text class="cta-text">{{ loggingIn ? '正在登录…' : '微信一键登录' }}</text>
-      </AppButton>
+      <!-- 小程序主通道：微信官方手机号快速验证；H5 主通道：短信验证码。 -->
+      <!-- #ifdef MP-WEIXIN -->
+      <button class="wx-phone-btn" :disabled="!agreementChecked || loggingIn" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
+        {{ loggingIn ? '正在登录…' : '微信手机号一键登录' }}
+      </button>
+      <!-- #endif -->
 
-      <!-- 手机号验证码登录：独立切换页（P2 定稿：与微信一键登录分离） -->
-      <view class="phone-login" v-if="isH5">
+      <view class="phone-login">
+        <AppButton v-if="isH5" class="cta-btn" variant="primary" size="lg" block :disabled="!agreementChecked" @click="goPhoneLogin">手机号验证码登录</AppButton>
+        <!-- #ifdef MP-WEIXIN -->
         <view class="login-divider"><view /><text>或</text><view /></view>
-        <AppButton class="code-login-btn" variant="secondary" size="md" block @click="goPhoneLogin">使用手机号验证码登录</AppButton>
+        <AppButton class="code-login-btn" variant="secondary" size="md" block :disabled="!agreementChecked" @click="goPhoneLogin">使用手机号验证码登录</AppButton>
+        <!-- #endif -->
       </view>
 
       <LoginConsent v-model="agreementChecked" @open="showAgreement" />
@@ -61,7 +64,7 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { wxLogin, isH5Env } from '../../utils/wx';
-import { loginByWx } from '../../api/auth';
+import { loginByWxPhone } from '../../api/auth';
 import { useUserStore } from '../../store/user';
 import { useThemeMode } from '../../theme';
 import LoginConsent from '../../components/LoginConsent.vue';
@@ -107,39 +110,26 @@ function jumpHome() {
   uni.reLaunch({ url: '/pages/home/home' });
 }
 
-async function doLogin() {
-  if (loggingIn.value) return;
-  if (!ensureAgreement()) return;
+async function onGetPhoneNumber(event) {
+  if (!ensureAgreement() || loggingIn.value) return;
+  const phoneCode = event?.detail?.code;
+  if (!phoneCode) {
+    uni.showToast({ title: '未取得微信手机号授权', icon: 'none' });
+    return;
+  }
   loggingIn.value = true;
   try {
-    const code = await wxLogin();
-    const pendingInviteCode = getPendingInviteCode();
-    const data = await loginByWx(code, {
-      inviteCode: pendingInviteCode || undefined,
-    });
-    if (pendingInviteCode) clearPendingInviteCode();
-    store.setToken(data.token);
-    store.setUser(data.user);
+    const loginCode = await wxLogin();
+    const data = await loginByWxPhone(loginCode, phoneCode, { inviteCode: getPendingInviteCode() || undefined });
+    clearPendingInviteCode();
+    store.setToken(data.token); store.setUser(data.user);
     await store.refreshProfile().catch(() => {});
     jumpHome();
   } catch (e) {
-    console.error('[login]', e);
-    if (!isH5.value && e && e.stage === 'wxLogin') {
-      // 仅小程序端可能「取不到 wx code」（用户拒绝授权等）；
-      // H5 下 wxLogin 直接返回模拟 code，不会走到该分支。
-      uni.showToast({ title: '微信授权失败，请重试', icon: 'none', duration: 2500 });
-    } else if (isH5.value) {
-      uni.showToast({ title: 'H5 请使用手机号验证码登录', icon: 'none', duration: 2500 });
-    } else {
-      uni.showToast({ title: (e && e.message) || '登录失败', icon: 'none', duration: 2500 });
-    }
+    uni.showToast({ title: e?.message || '微信手机号登录失败', icon: 'none' });
   } finally {
     loggingIn.value = false;
   }
-}
-
-function onStart() {
-  doLogin();
 }
 
 /** 跳转手机号验证码登录独立页（P2 定稿：与微信一键登录分离） */
@@ -343,6 +333,29 @@ function showAgreement(title) {
   white-space:nowrap
 }
 .cta-btn{ margin-top:28rpx; gap:12rpx; }
+.wx-phone-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100rpx;
+  margin-top:28rpx;
+  padding:0 36rpx;
+  border:0;
+  border-radius:var(--radius-full);
+  background:var(--btn-primary-bg);
+  color:var(--text-invert);
+  box-shadow:var(--btn-primary-shadow);
+  font-size:var(--fs-title);
+  font-weight:600;
+  letter-spacing:2rpx;
+}
+.wx-phone-btn::after{ border:0; }
+.wx-phone-btn[disabled]{
+  background:var(--btn-disabled-bg);
+  color:var(--btn-disabled-text);
+  box-shadow:none;
+}
 .cta-icon{
   font-size:36rpx
 }

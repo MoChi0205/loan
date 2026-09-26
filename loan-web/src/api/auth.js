@@ -4,7 +4,7 @@ import request from '@/utils/request';
  * 认证接口（对接 loan-service /api/auth）。
  */
 export function getPublicKey() {
-  return request({
+  return silentRequest({
     url: '/api/auth/public-key',
     method: 'get',
   });
@@ -17,26 +17,34 @@ export function getCaptcha() {
 /**
  * 渠道账号登录。password 必须使用登录公钥进行 RSA PKCS#1 加密。
  */
+/**
+ * 登录类接口统一标记 `__loanSilent`：由登录页自己弹一次明确提示，
+ * 避免拦截器与页面各弹一次造成重复或无提示。
+ */
+function silentRequest(config) {
+  return request({ ...config, __loanSilent: true });
+}
+
 export function channelLogin(data) {
-  return request({
+  return silentRequest({
     url: '/api/auth/channel-login',
     method: 'post',
     data,
   });
 }
 export function passwordLogin(data) {
-  return request({ url: '/api/auth/password-login', method: 'post', data });
+  return silentRequest({ url: '/api/auth/password-login', method: 'post', data });
 }
 export function sendLoginCode(phone, captchaId, captchaCode, scene = 'LOGIN') {
-  return request({ url: '/api/sms/send-code', method: 'post', data: { phone, captchaId, captchaCode, scene } });
+  return silentRequest({ url: '/api/sms/send-code', method: 'post', data: { phone, captchaId, captchaCode, scene } });
 }
 
 export function codeLogin(data) {
-  return request({ url: '/api/auth/code-login', method: 'post', data });
+  return silentRequest({ url: '/api/auth/code-login', method: 'post', data });
 }
 
 export function resetPassword(data) {
-  return request({ url: '/api/auth/reset-password', method: 'post', data });
+  return silentRequest({ url: '/api/auth/reset-password', method: 'post', data });
 }
 
 export function logout() {
