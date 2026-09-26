@@ -114,10 +114,6 @@
           <span class="loan-tag" :class="categoryTag(currentRule.categoryName)">{{ currentRule.categoryName || '未分类' }}</span>
         </div>
         <div class="rule-dialog__row">
-          <span class="rule-dialog__label">编码</span>
-          <code>{{ currentRule.ruleCode }}</code>
-        </div>
-        <div class="rule-dialog__row">
           <span class="rule-dialog__label">名称</span>
           <span>{{ currentRule.ruleName }}</span>
         </div>

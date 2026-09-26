@@ -2,7 +2,7 @@
   <div class="report-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ isChannel ? '客户分析报告' : '初筛报告' }}</h2>
+        <h2 class="loan-page-title">{{ isChannel ? '客户分析报告' : '诊断报告' }}</h2>
         <p class="loan-page-subtitle">{{ isChannel ? '仅展示本人录入客户的分析结果和归属顾问' : '初筛引擎生成的报告记录，可按客户、档位和状态检索' }}</p>
       </div>
     </div>
@@ -20,7 +20,7 @@
           <el-option label="小程序提交" value="MINI" />
           <el-option label="Web 录入" value="WEB" />
         </el-select>
-        <el-input v-model="queryS.keyword" placeholder="客户ID / 企业 / 姓名 / 手机 / 日期 / 报告编号" style="width: 360px" clearable @keyup.enter="searchS" />
+        <el-input v-model="queryS.keyword" placeholder="企业名称 / 客户姓名 / 手机号 / 生成日期" style="width: 360px" clearable @keyup.enter="searchS" />
       </AppSearchBar>
 
       <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -31,9 +31,11 @@
         <el-table-column label="客户" min-width="220" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="cell-main">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</div>
-            <div class="cell-sub">{{ row.contactName || '—' }} · {{ row.contactPhoneMasked || '—' }}</div>
-            <div class="cell-sub mono">{{ row.clientProfileCode || '—' }}</div>
+            <div class="cell-sub">{{ row.contactName || '—' }}</div>
           </template>
+        </el-table-column>
+        <el-table-column label="联系方式" width="150">
+          <template #default="{ row }">{{ desensitizePhone(row.contactPhoneMasked || row.phone || row.contactPhone) }}</template>
         </el-table-column>
         <el-table-column v-if="isChannel" prop="ownerStaffName" label="归属顾问" width="130"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
         <el-table-column v-if="!isChannel" label="来源" width="110">
@@ -164,7 +166,7 @@ const starTag = (g) => ({ HIGH: 'loan-tag-success', MIDDLE: 'loan-tag-info', LOW
 /** 报告来源（P0-4：小程序提交标注） */
 const sourceMap = { MINI: '小程序提交', WEB: 'Web 录入', INVITE: '邀请提交' };
 function sourceText(code) {
-  return sourceMap[code] || code || '-';
+  return sourceMap[code] || '其他来源';
 }
 function sourceTag(code) {
   const m = { MINI: 'loan-tag-info', WEB: 'loan-tag-muted', INVITE: 'loan-tag-primary' };

@@ -94,7 +94,7 @@ const strategyMap = ref({});
 const strategyLoading = ref({});
 const plans = ref([]);
 
-function planName(code) { return plans.value.find((p) => p.planCode === code)?.planName || code || '-'; }
+function planName(code) { return plans.value.find((p) => p.planCode === code)?.planName || '执行计划名称待补充'; }
 
 async function onExpandChange(row, expandedRows) {
   if (!expandedRows.length) return;

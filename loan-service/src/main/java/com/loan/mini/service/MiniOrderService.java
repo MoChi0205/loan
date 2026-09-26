@@ -135,7 +135,7 @@ public class MiniOrderService {
                 m.put("phone", maskPhone(p.getPhone()));
             }
             if (StringUtils.hasText(o.getOwnerStaffCode())) {
-                m.put("ownerStaffName", staffNameMap.getOrDefault(o.getOwnerStaffCode(), o.getOwnerStaffCode()));
+                m.put("ownerStaffName", staffNameMap.get(o.getOwnerStaffCode()));
             }
             return m;
         }).collect(Collectors.toList());
@@ -196,7 +196,7 @@ public class MiniOrderService {
         return map;
     }
 
-    /** 员工工号集合 → 姓名 Map（批量，防 N+1；查不到保留工号） */
+    /** 员工工号集合 → 姓名 Map（批量，防 N+1）；缺失名称不写编码兜底。 */
     private Map<String, String> loadStaffNames(List<String> staffCodes) {
         Map<String, String> map = new LinkedHashMap<>();
         if (staffCodes == null || staffCodes.isEmpty()) {
@@ -205,10 +205,9 @@ public class MiniOrderService {
         List<Staff> staffs = staffMapper.selectList(
                 new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, staffCodes));
         for (Staff s : staffs) {
-            map.put(s.getStaffCode(), StringUtils.hasText(s.getStaffName()) ? s.getStaffName() : s.getStaffCode());
-        }
-        for (String code : staffCodes) {
-            map.putIfAbsent(code, code);
+            if (StringUtils.hasText(s.getStaffName())) {
+                map.put(s.getStaffCode(), s.getStaffName());
+            }
         }
         return map;
     }

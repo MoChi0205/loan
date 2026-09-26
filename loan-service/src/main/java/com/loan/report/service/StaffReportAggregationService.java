@@ -7,6 +7,7 @@ import com.loan.approval.entity.MaterialReview;
 import com.loan.approval.mapper.MaterialReviewMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.common.service.BusinessNameService;
 import com.loan.context.LoanUser;
 import com.loan.mini.service.MiniMatchService;
 import com.loan.personal.entity.PersonalProfile;
@@ -46,6 +47,7 @@ public class StaffReportAggregationService {
     private final ClientSubmissionMapper submissionMapper;
     private final MaterialReviewMapper materialReviewMapper;
     private final ObjectMapper objectMapper;
+    private final BusinessNameService businessNameService;
 
     public StaffAggregatedReport aggregate(String reportNo, LoanUser user) {
         // 必须置于第一步：复用 P0 的 STAFF 身份、角色和客户归属范围校验。
@@ -106,6 +108,11 @@ public class StaffReportAggregationService {
             if (!StringUtils.hasText(target.getContactName())) target.setContactName(personal.getRealName());
         }
         target.setOwnerStaffCode(source.getOwnerStaffCode());
+        if (StringUtils.hasText(source.getOwnerStaffCode())) {
+            Map<String, String> ownerNames = businessNameService.staffNames(
+                    java.util.Collections.singleton(source.getOwnerStaffCode()));
+            target.setOwnerStaffName(ownerNames == null ? null : ownerNames.get(source.getOwnerStaffCode()));
+        }
         target.setSource(source.getSource());
         target.setStatus(source.getStatus());
         target.setVipLevel(source.getVipLevel());

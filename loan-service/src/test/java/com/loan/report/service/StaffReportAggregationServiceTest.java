@@ -6,6 +6,7 @@ import com.loan.approval.mapper.MaterialReviewMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.context.LoanUser;
+import com.loan.common.service.BusinessNameService;
 import com.loan.exception.BusinessException;
 import com.loan.mini.service.MiniMatchService;
 import com.loan.personal.mapper.PersonalProfileMapper;
@@ -43,6 +44,7 @@ class StaffReportAggregationServiceTest {
     private ClientSubmissionMapper submissionMapper;
     private MaterialReviewMapper materialReviewMapper;
     private StaffReportAggregationService service;
+    private BusinessNameService businessNameService;
 
     @BeforeEach
     void setUp() {
@@ -53,8 +55,10 @@ class StaffReportAggregationServiceTest {
         personalProfileMapper = mock(PersonalProfileMapper.class);
         submissionMapper = mock(ClientSubmissionMapper.class);
         materialReviewMapper = mock(MaterialReviewMapper.class);
+        businessNameService = mock(BusinessNameService.class);
         service = new StaffReportAggregationService(reportService, miniMatchService, screeningMapper,
-                profileMapper, personalProfileMapper, submissionMapper, materialReviewMapper, new ObjectMapper());
+                profileMapper, personalProfileMapper, submissionMapper, materialReviewMapper, new ObjectMapper(),
+                businessNameService);
     }
 
     @Test
@@ -78,7 +82,9 @@ class StaffReportAggregationServiceTest {
         profile.setEnterpriseName("测试企业");
         profile.setPhone("13812345678");
         profile.setCreditCode("913100001234567890");
+        profile.setOwnerStaffCode("S-1");
         when(profileMapper.selectOne(any())).thenReturn(profile);
+        when(businessNameService.staffNames(any())).thenReturn(Collections.singletonMap("S-1", "李顾问"));
 
         ClientSubmission submission = new ClientSubmission();
         submission.setSubmissionNo("SUB-1");
@@ -104,6 +110,7 @@ class StaffReportAggregationServiceTest {
 
         assertEquals("R-1", result.getReportSummary().getReportNo());
         assertEquals("测试企业", result.getClientProfile().getEnterpriseName());
+        assertEquals("李顾问", result.getClientProfile().getOwnerStaffName());
         assertEquals("138****5678", result.getClientProfile().getContactPhoneMasked());
         assertEquals("v2", result.getMaterialStatus().getMaterialVersion());
         assertEquals(1, result.getMaterialStatus().getApprovedCount());

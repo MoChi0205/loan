@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">审计中心</h2>
-        <p class="loan-page-subtitle">按客户、企业、手机号、唯一身份标识或 traceUuid 检索匹配全链路审计记录（仅管理端可见）</p>
+        <p class="loan-page-subtitle">按客户、企业、手机号或唯一身份标识检索匹配全链路审计记录（仅管理端可见）</p>
       </div>
     </div>
 
@@ -11,7 +11,7 @@
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
         <el-input
           v-model="query.keyword"
-          placeholder="客户ID / 姓名 / 企业 / 手机 / 证件号"
+          placeholder="客户姓名 / 企业名称 / 手机号 / 证件号"
           style="width: 300px"
           clearable
         >
@@ -23,7 +23,6 @@
           {{ showMore ? '收起筛选 ▴' : '更多筛选 ▾' }}
         </el-button>
         <template v-if="showMore">
-          <el-input v-model="query.traceUuid" placeholder="traceUuid 模糊查询" clearable style="width: 220px" />
           <el-select v-model="query.customerGroup" placeholder="客群" clearable style="width: 120px">
             <el-option v-for="o in groupOptions" :key="o.value" :label="o.label" :value="o.value" />
           </el-select>
@@ -53,15 +52,11 @@
         <template #empty>
           <AppEmpty title="暂无执行记录" desc="匹配 / 初筛执行后将在此生成审计轨迹" />
         </template>
-        <el-table-column label="traceUuid" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">
-            <code class="mono uuid-cell">{{ row.traceUuid }}</code>
-          </template>
-        </el-table-column>
+        <el-table-column label="执行记录" min-width="150"><template #default="{ row }">{{ formatDateTime(row.executedAt) }}</template></el-table-column>
         <el-table-column label="客户/企业" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="cell-main">{{ row.enterpriseName || row.contactName || '未绑定客户' }}</div>
-            <div class="cell-sub">{{ row.clientProfileCode || '影子执行' }}</div>
+            <div class="cell-sub">{{ row.clientProfileCode ? '已绑定客户' : '影子执行' }}</div>
           </template>
         </el-table-column>
         <el-table-column label="联系人" min-width="130">
@@ -112,15 +107,11 @@
     <!-- 审计详情弹窗 -->
     <AppDialog
       v-model:visible="detailVisible"
-      :title="`审计详情 · ${detailTrace?.traceUuid || ''}`"
+      title="审计详情"
       width="760px"
     >
       <div v-if="detailTrace" class="audit-detail">
         <div class="audit-meta">
-          <div class="meta-item wide">
-            <span class="meta-label">客户业务ID</span>
-            <span class="meta-value mono">{{ detailTrace.clientProfileCode || '影子执行未绑定' }}</span>
-          </div>
           <div class="meta-item">
             <span class="meta-label">企业/个人</span>
             <span class="meta-value">{{ detailTrace.enterpriseName || detailTrace.contactName || '—' }}</span>
@@ -168,7 +159,7 @@
             :hollow="true"
           >
             <div class="tl-head">
-              <span class="rule-name">{{ r.ruleName || r.ruleCode }}</span>
+              <span class="rule-name">{{ r.ruleName || '规则名称待补充' }}</span>
               <DictTag type="stepResult" :value="r.stepResult" />
             </div>
             <div class="tl-expr">{{ r.expression }}</div>

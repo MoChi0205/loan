@@ -134,7 +134,7 @@
                 <el-table-column prop="stepSort" label="序" width="48" />
                 <el-table-column label="规则" min-width="160">
                   <template #default="{ row }">
-                    <span :title="row.ruleCode">{{ row.ruleName || row.ruleCode }}</span>
+                    <span>{{ row.ruleName || '规则名称待补充' }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="条件" min-width="160">
@@ -252,7 +252,7 @@
         </el-form-item>
         <el-form-item label="执行计划" prop="executionPlanCode">
           <el-select v-model="strategyDialog.form.executionPlanCode" placeholder="选择计划(1:1)" filterable style="width: 100%">
-            <el-option v-for="p in plans" :key="p.planCode" :label="`${p.planName}（${p.planCode}）`" :value="p.planCode" />
+            <el-option v-for="p in plans" :key="p.planCode" :label="p.planName || '执行计划名称待补充'" :value="p.planCode" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -296,7 +296,7 @@
       <el-form ref="stepFormRef" :model="stepDialog.form" :rules="stepRules" label-width="100px">
         <el-form-item label="规则" prop="ruleId">
           <el-select v-model="stepDialog.form.ruleId" placeholder="选择规则（必选）" filterable :disabled="!!stepDialog.editingId" style="width: 100%" @change="onRuleChange">
-            <el-option v-for="r in availableRules" :key="r.id" :label="`${r.ruleName}（${r.ruleCode}）`" :value="r.id" />
+            <el-option v-for="r in availableRules" :key="r.id" :label="r.ruleName || '规则名称待补充'" :value="r.id" />
           </el-select>
           <p v-if="stepDialog.editingId" class="step-edit-hint">编辑模式下不可更换规则；如需替换请新建步骤</p>
         </el-form-item>
@@ -345,7 +345,7 @@
       <el-form label-width="110px">
         <el-form-item label="源渠道">
           <el-select v-model="importDialog.sourceChannel" placeholder="选择源渠道" filterable style="width: 100%" @change="onSourceChannelChange">
-            <el-option v-for="c in sourceChannels" :key="c.channelCode" :label="`${c.bankName}（${c.channelCode}）`" :value="c.channelCode" />
+            <el-option v-for="c in sourceChannels" :key="c.channelCode" :label="c.bankName || '渠道名称待补充'" :value="c.channelCode" />
           </el-select>
         </el-form-item>
         <el-form-item label="源策略">
@@ -431,7 +431,7 @@ const OP_MAP = {
 const currentChannelName = computed(() => channels.value.find((c) => c.channelCode === channelCode.value)?.bankName || '');
 
 function productName(code) { return strategies.value.find((p) => p.bankProductCode === code)?.bankProductName || '产品信息待补充'; }
-function planName(code) { return plans.value.find((p) => p.planCode === code)?.planName || code || '-'; }
+function planName(code) { return plans.value.find((p) => p.planCode === code)?.planName || '执行计划名称待补充'; }
 /** 计划编码作为计划主资源定位；模块/步骤仍使用后端返回的内部 FK。 */
 function planIdOf(code) { return plans.value.find((p) => p.planCode === code)?.id || null; }
 

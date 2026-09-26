@@ -182,6 +182,8 @@ public class ReportService {
         long rewardCount = scopedRewardCount(scope, orderNos);
         BigDecimal rewardAmountSum = scopedRewardAmountSum(scope, orderNos);
         long screeningCount = scopedScreeningCount(scope, clientCodes);
+        long publicSeaCount = visiblePublicSeaCount(user, role, scope);
+        double clientConversionRate = leadCount == 0 ? 0D : round1((clientCount * 100D) / leadCount);
 
         m.put("clientCount", clientCount);
         m.put("leadCount", leadCount);
@@ -191,6 +193,10 @@ public class ReportService {
         m.put("rewardCount", rewardCount);
         m.put("rewardAmountSum", rewardAmountSum);
         m.put("screeningCount", screeningCount);
+        // 公海客户单独统计，避免管理角色只看到线索而忽略尚未分配的公司客户。
+        m.put("publicSeaClientCount", publicSeaCount);
+        m.put("clientConversionRate", clientConversionRate);
+        m.put("conversionBasis", "客户数 ÷ 归属范围线索数；仅作经营分析，不代表任何准入结论");
 
         // 环比（本月新增 vs 上月新增，按同一角色范围过滤）
         LocalDateTime[] cur = monthBounds(0);
@@ -220,6 +226,21 @@ public class ReportService {
         m.put("productDist", distribution("product", scope));
         m.put("orderStatusDist", distribution("orderStatus", scope));
         return m;
+    }
+
+    /** 当前角色可见的未归属客户：全司看公司公海，部门主管看本部门 TEAM 公海。 */
+    private long visiblePublicSeaCount(LoanUser user, String role, Set<String> scope) {
+        if (scope != null && scope.isEmpty()) return 0L;
+        if (!"DEPT_MANAGER".equals(role) && !REPORT_FULL_ROLES.contains(role)) return 0L;
+        LambdaQueryWrapper<ClientProfile> w = new LambdaQueryWrapper<ClientProfile>()
+                .isNull(ClientProfile::getOwnerStaffCode)
+                .ne(ClientProfile::getStatus, "DISABLED");
+        if ("DEPT_MANAGER".equals(role)) {
+            w.eq(ClientProfile::getSeaLevel, "TEAM").eq(ClientProfile::getSeaDeptCode, user.getDeptCode());
+        } else {
+            w.eq(ClientProfile::getSeaLevel, "ENTERPRISE");
+        }
+        return clientProfileMapper.selectCount(w);
     }
 
     /**

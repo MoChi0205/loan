@@ -83,7 +83,7 @@
           </div>
           <div class="tpl-steps">
             <div v-for="s in m.steps" :key="s.stepCode" class="tpl-step">
-              <span class="tpl-step-rule">{{ s.ruleName || s.ruleCode }}</span>
+              <span class="tpl-step-rule">{{ s.ruleName || '规则名称待补充' }}</span>
               <span v-if="s.joinWithNext === 'OR'" class="loan-tag loan-tag-warning">或</span>
               <span v-else-if="s.joinWithNext === 'AND'" class="loan-tag loan-tag-info">且</span>
               <span v-if="s.isDryRun === 1" class="loan-tag loan-tag-danger" title="空跑模式：Handler REJECT 时不阻断流程">空跑</span>
@@ -127,7 +127,7 @@
             <el-option
               v-for="r in availableRules"
               :key="r.id"
-              :label="`${r.ruleName}（${r.ruleCode}）`"
+              :label="r.ruleName || '规则名称待补充'"
               :value="r.id"
             />
           </el-select>
@@ -200,7 +200,7 @@
       <el-form label-width="110px">
         <el-form-item label="源渠道">
           <el-select v-model="snapshotDialog.channelCode" placeholder="选择渠道" filterable style="width: 100%" @change="onSnapshotChannelChange">
-            <el-option v-for="c in channels" :key="c.channelCode" :label="`${c.bankName}（${c.channelCode}）`" :value="c.channelCode" />
+            <el-option v-for="c in channels" :key="c.channelCode" :label="c.bankName || '渠道名称待补充'" :value="c.channelCode" />
           </el-select>
         </el-form-item>
         <el-form-item label="源策略" v-loading="snapshotDialog.loadingStrategies">

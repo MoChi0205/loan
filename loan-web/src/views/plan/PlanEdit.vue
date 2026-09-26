@@ -123,7 +123,7 @@
         </el-form-item>
         <el-form-item label="规则" prop="ruleId">
           <el-select v-model="stepDialog.form.ruleId" :placeholder="stepDialog.form.categoryCode ? '选择规则' : '请先选择规则分类'" filterable :disabled="!stepDialog.form.categoryCode" style="width: 100%" teleported>
-            <el-option v-for="r in filteredRules" :key="r.ruleId || r.ruleCode" :label="`${r.ruleName}（${r.ruleCode}）`" :value="r.ruleId || r.ruleCode" />
+            <el-option v-for="r in filteredRules" :key="r.ruleId || r.ruleCode" :label="r.ruleName || '规则名称待补充'" :value="r.ruleId || r.ruleCode" />
           </el-select>
         </el-form-item>
         <el-row :gutter="16">
@@ -183,7 +183,6 @@
       <div class="detail-dialog-body">
         <div class="detail-header">
           <span class="detail-title">{{ currentPlan?.planName }}</span>
-          <span class="detail-code">{{ currentPlan?.planCode }}</span>
           <span class="detail-ver">v{{ currentPlan?.version }}</span>
           <span class="loan-tag" :class="currentPlan?.customerGroup === 'PERSONAL' ? 'loan-tag-warning' : 'loan-tag-primary'">
             {{ currentPlan?.customerGroup === 'PERSONAL' ? '个贷' : '企业' }}
@@ -201,8 +200,7 @@
             >
               <span class="mod-index">M{{ mi + 1 }}</span>
               <div class="module-item-info">
-                <div class="module-item-name">{{ m.moduleName || m.moduleCode }}</div>
-                <div class="module-item-code">{{ m.moduleCode }}</div>
+                <div class="module-item-name">{{ m.moduleName || '模块名称待补充' }}</div>
               </div>
             </div>
             <AppEmpty v-if="!modules.length" title="暂无模块" desc="该计划下未配置任何模块" />
@@ -214,8 +212,7 @@
               <div class="mod-head">
                 <div class="mod-head-left">
                   <span class="mod-index">M{{ activeModuleIndex + 1 }}</span>
-                  <span class="mod-name">{{ activeModule.moduleName || activeModule.moduleCode }}</span>
-                  <span class="mod-code">{{ activeModule.moduleCode }}</span>
+                  <span class="mod-name">{{ activeModule.moduleName || '模块名称待补充' }}</span>
                 </div>
                 <div class="mod-head-right">
                   <span class="mod-tag" :class="activeModule.logicType === 'OR' ? 'tag-warn' : 'tag-info'">{{ activeModule.logicType }}</span>
@@ -233,7 +230,6 @@
                     <tr>
                       <th style="width:50px">#</th>
                       <th>规则名称</th>
-                      <th style="width:180px">规则编码</th>
                       <th style="width:70px">连接</th>
                       <th style="width:60px">空跑</th>
                       <th style="width:220px">前置条件</th>
@@ -243,8 +239,7 @@
                   <tbody>
                     <tr v-for="(s, si) in activeModule.steps" :key="s.stepCode">
                       <td class="col-num">{{ s.stepSort ?? si + 1 }}</td>
-                      <td class="col-rule-name">{{ s.ruleName || s.ruleCode || '—' }}</td>
-                      <td class="col-code"><code>{{ s.ruleCode || '—' }}</code></td>
+                      <td class="col-rule-name">{{ s.ruleName || '规则名称待补充' }}</td>
                       <td>
                         <span v-if="s.joinWithNext === 'OR'" class="mod-tag tag-warn tag-sm">OR</span>
                         <span v-else-if="s.joinWithNext === 'AND'" class="mod-tag tag-info tag-sm">AND</span>

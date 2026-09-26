@@ -20,6 +20,7 @@ public class StaffClientProfile implements Serializable {
     private String identityMasked;
     private String creditCodeMasked;
     private String ownerStaffCode;
+    private String ownerStaffName;
     private String source;
     private String status;
     private String vipLevel;

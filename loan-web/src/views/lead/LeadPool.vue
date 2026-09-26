@@ -72,7 +72,7 @@
           </template>
         </el-table-column>
         <el-table-column v-if="activeTab !== 'clients'" prop="contactName" label="联系人" width="110" />
-        <el-table-column label="手机号" width="130">
+        <el-table-column label="联系方式" width="150">
           <template #default="{ row }">{{ desensitizePhone(row.phone) || '未绑定' }}</template>
         </el-table-column>
         <el-table-column label="客群" width="90">

@@ -69,9 +69,7 @@
         <h3 class="panel-title">
           匹配结果
           <span v-if="result" class="panel-extra">
-            trace：
-            <code class="trace-code">{{ result.traceUuid }}</code>
-            <el-button link type="primary" size="small" @click="onCopyTrace">复制</el-button>
+            执行记录已生成
           </span>
         </h3>
 
@@ -113,7 +111,7 @@
               <div class="product-head">
                 <div class="product-info">
                   <span class="product-name">{{ p.productName }}</span>
-                  <span class="product-code">{{ p.productCode }}</span>
+                  <span v-if="!p.productName" class="product-code">产品名称待补充</span>
                 </div>
                 <DictTag type="totalResult" :value="p.totalResult" />
               </div>

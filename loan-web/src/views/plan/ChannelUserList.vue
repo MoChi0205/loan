@@ -135,12 +135,13 @@ import { formatDateTime } from '@/utils/format';
 import { listChannels } from '@/api/channel';
 import { pageUserList, addUserList, updateUserList, deleteUserList, batchDeleteUserList } from '@/api/channelUserList';
 
+
 const channels = ref([]);
 const { loading, data, total, query, load, onSearch, onReset } = useTable(pageUserList, { channelCode: '', customerGroup: '', listType: '', keyword: '' });
 
 const channelMap = computed(() => Object.fromEntries(channels.value.map((c) => [c.channelCode, c.bankName])));
 function channelName(code) {
-  return channelMap.value[code] || code;
+  return channelMap.value[code] || '渠道名称待补充';
 }
 
 // 多选

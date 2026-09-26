@@ -15,7 +15,6 @@
     </view>
 
     <view class="app-li__main">
-      <text v-if="id" class="app-li__id">{{ id }}</text>
       <text class="app-li__title">{{ title }}</text>
       <view v-if="$slots.meta || desc" class="app-li__meta">
         <slot name="meta">
@@ -46,7 +45,7 @@
  * 触控：min-height 88rpx = 44px（WCAG 2.5.5）。
  *
  * 用法：
- *   <AppListItem title="王*明 · 上海*明科技" id="rep-001" tappable @click="go">
+ *   <AppListItem title="王*明 · 上海*明科技" tappable @click="go">
  *     <template #leading><view class="grade">B+</view></template>
  *     <template #meta><text>归属 陈顾问 · 命中 3 款</text></template>
  *     <template #trailing><AppTag type="success">已上架</AppTag></template>

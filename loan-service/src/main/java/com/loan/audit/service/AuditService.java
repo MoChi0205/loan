@@ -221,7 +221,7 @@ public class AuditService {
     private String resolveRuleName(String code, Map<String, String> names) {
         if (StringUtils.hasText(names.get(code))) return names.get(code);
         RuleCatalog catalog = RuleCatalog.fromCode(code);
-        return catalog == null ? code : catalog.getDisplayName();
+        return catalog == null ? "规则名称待补充" : catalog.getDisplayName();
     }
 
     private String maskCreditCode(String value) {

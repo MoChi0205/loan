@@ -308,7 +308,7 @@ public class MiniMatchService {
                 m.put("entName", p.getEnterpriseName());
                 m.put("contactPhone", maskPhone(p.getPhone()));
                 m.put("ownerStaffCode", p.getOwnerStaffCode());
-                m.put("ownerStaffName", staffNameMap.getOrDefault(p.getOwnerStaffCode(), p.getOwnerStaffCode()));
+                m.put("ownerStaffName", staffNameMap.get(p.getOwnerStaffCode()));
             }
             return m;
         }).collect(Collectors.toList());
@@ -859,9 +859,7 @@ public class MiniMatchService {
         return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 
-    /**
-     * 员工工号 → 姓名（单查，接 t_staff；查不到返回工号兜底）。
-     */
+    /** 员工工号 → 姓名；查不到时返回空，禁止把业务编码伪装成姓名输出。 */
     private String staffName(String staffCode) {
         if (!StringUtils.hasText(staffCode)) {
             return null;
@@ -869,12 +867,12 @@ public class MiniMatchService {
         List<Staff> list = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
                 .eq(Staff::getStaffCode, staffCode).last("limit 1"));
         if (list.isEmpty() || !StringUtils.hasText(list.get(0).getStaffName())) {
-            return staffCode;
+            return null;
         }
         return list.get(0).getStaffName();
     }
 
-    /** 员工工号集合 → 姓名 Map（批量，防 N+1；查不到保留工号） */
+    /** 员工工号集合 → 姓名 Map（批量，防 N+1）；缺失名称不写编码兜底。 */
     private Map<String, String> loadStaffNames(List<String> staffCodes) {
         Map<String, String> map = new LinkedHashMap<>();
         if (staffCodes == null || staffCodes.isEmpty()) {
@@ -883,11 +881,9 @@ public class MiniMatchService {
         List<Staff> staffs = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
                 .in(Staff::getStaffCode, staffCodes));
         for (Staff s : staffs) {
-            map.put(s.getStaffCode(), StringUtils.hasText(s.getStaffName()) ? s.getStaffName() : s.getStaffCode());
-        }
-        // 未命中的工号原样返回
-        for (String code : staffCodes) {
-            map.putIfAbsent(code, code);
+            if (StringUtils.hasText(s.getStaffName())) {
+                map.put(s.getStaffCode(), s.getStaffName());
+            }
         }
         return map;
     }

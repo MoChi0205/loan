@@ -84,7 +84,7 @@
         </el-form-item>
         <el-form-item label="执行计划" prop="executionPlanCode">
           <el-select v-model="form.executionPlanCode" placeholder="选择计划(1:1)" style="width: 100%">
-            <el-option v-for="p in plans" :key="p.planCode" :label="`${p.planName}（${p.planCode}）`" :value="p.planCode" />
+            <el-option v-for="p in plans" :key="p.planCode" :label="p.planName || '执行计划名称待补充'" :value="p.planCode" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -110,6 +110,7 @@ import {
   pageStrategy, createStrategy, updateStrategy, deleteStrategy, enableStrategy, disableStrategy,
 } from '@/api/channelStrategy';
 
+
 const channels = ref([]);
 const plans = ref([]);
 
@@ -120,13 +121,13 @@ const { loading, data, total, query, load, onSearch, onReset } = useTable(pageSt
 });
 
 function channelName(code) {
-  return channels.value.find((c) => c.channelCode === code)?.bankName || code || '-';
+  return channels.value.find((c) => c.channelCode === code)?.bankName || '渠道名称待补充';
 }
 function productName(code) {
   return data.value.find((p) => p.bankProductCode === code)?.bankProductName || '产品信息待补充';
 }
 function planName(code) {
-  return plans.value.find((p) => p.planCode === code)?.planName || code || '-';
+  return plans.value.find((p) => p.planCode === code)?.planName || '执行计划名称待补充';
 }
 
 /** 操作列 */

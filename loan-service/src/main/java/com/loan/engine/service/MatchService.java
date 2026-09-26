@@ -145,14 +145,14 @@ public class MatchService {
     }
 
     /**
-     * 解析规则名称（目录内取展示名，自定义规则取 ruleCode）。
+     * 解析规则名称；自定义规则缺少展示名时返回业务提示，禁止向页面泄露 ruleCode。
      *
      * @param ruleCode 规则编码
      * @return 规则名称
      */
     private String resolveRuleName(String ruleCode) {
         RuleCatalog catalog = RuleCatalog.fromCode(ruleCode);
-        return catalog != null ? catalog.getDisplayName() : ruleCode;
+        return catalog != null ? catalog.getDisplayName() : "规则名称待补充";
     }
 
     /**

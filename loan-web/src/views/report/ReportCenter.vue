@@ -114,7 +114,7 @@
           <el-option label="小程序提交" value="MINI" />
           <el-option label="Web 录入" value="WEB" />
         </el-select>
-        <el-input v-model="queryS.keyword" placeholder="企业/客户姓名 / 日期 / 报告编号" style="width: 300px" clearable @keyup.enter="searchS" />
+        <el-input v-model="queryS.keyword" placeholder="企业/客户姓名 / 日期" style="width: 300px" clearable @keyup.enter="searchS" />
       </AppSearchBar>
 
       <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -125,8 +125,10 @@
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</div>
-            <div class="cell-sub" v-if="row.phone">{{ desensitizePhone(row.phone) }}</div>
           </template>
+        </el-table-column>
+        <el-table-column label="联系方式" width="150">
+          <template #default="{ row }">{{ desensitizePhone(row.contactPhoneMasked || row.phone || row.contactPhone) }}</template>
         </el-table-column>
         <el-table-column label="来源" width="110">
           <template #default="{ row }">

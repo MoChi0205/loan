@@ -12,7 +12,7 @@
       <div>
         <span class="banner-eyebrow">{{ profile.enterpriseName || profile.contactName || '客户经营分析' }}</span>
         <strong>{{ gradeText[summary.grade] || summary.grade || '待分析' }} · {{ summary.rating || '待评级' }}</strong>
-        <span class="banner-meta">{{ formatDateTime(summary.createdAt) }} · {{ detail.reportNo }}</span>
+        <span class="banner-meta">{{ formatDateTime(summary.createdAt) }}</span>
       </div>
       <div class="banner-metrics">
         <div><strong>{{ summary.productCount || 0 }}</strong><span>现有匹配产品</span></div>
@@ -24,13 +24,12 @@
     <section class="report-section">
       <h3>1. 客户画像</h3>
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="客户业务ID"><span class="mono">{{ profile.clientCode || '—' }}</span></el-descriptions-item>
         <el-descriptions-item label="客户类型">{{ customerGroupText(profile.customerGroup) }}</el-descriptions-item>
         <el-descriptions-item label="企业名称">{{ profile.enterpriseName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="联系人">{{ profile.contactName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="联系电话">{{ profile.contactPhoneMasked || '—' }}</el-descriptions-item>
         <el-descriptions-item :label="profile.identityType || '唯一身份标识'">{{ profile.identityMasked || profile.creditCodeMasked || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="归属顾问">{{ profile.ownerStaffCode || '待分配' }}</el-descriptions-item>
+        <el-descriptions-item label="归属顾问">{{ profile.ownerStaffName || '待分配' }}</el-descriptions-item>
         <el-descriptions-item label="客户状态">{{ profile.status || '—' }}</el-descriptions-item>
         <el-descriptions-item label="VIP 等级">{{ profile.vipLevel || '普通客户' }}</el-descriptions-item>
       </el-descriptions>
@@ -92,7 +91,7 @@
       <h3>4. 现有匹配结果</h3>
       <el-table v-if="products.length" :data="products" border size="small">
         <el-table-column prop="productName" label="产品" min-width="150">
-          <template #default="{ row }">{{ row.productName || row.productCode || '—' }}</template>
+          <template #default="{ row }">{{ row.productName || '产品名称待补充' }}</template>
         </el-table-column>
         <el-table-column prop="bankName" label="机构" min-width="120" />
         <el-table-column label="匹配结果" width="100">

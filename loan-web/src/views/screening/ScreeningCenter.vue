@@ -2,7 +2,7 @@
   <div class="screening-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">初筛执行</h2>
+        <h2 class="loan-page-title">匹配任务</h2>
         <p class="loan-page-subtitle">选客户 → 上传并复核材料 → OCR 结构化事实 → 规则引擎精准匹配 → 生成详细报告</p>
       </div>
     </div>
@@ -36,8 +36,8 @@
           <div class="material-guide">
             <div class="guide-index">1</div>
             <div class="guide-copy">
-              <strong>先完善材料，匹配结果更准确</strong>
-              <span>系统优先采用已复核材料数据，当前表单只需补充材料中没有的信息。</span>
+              <strong>补充经营事实，生成更完整的经营分析</strong>
+              <span>已复核材料会自动带入；这里只补充材料中未识别的事实，不展示或承诺任何银行准入结果。</span>
             </div>
             <el-button type="primary" plain size="small" @click="goMaterial">查看材料清单</el-button>
           </div>
@@ -156,7 +156,7 @@
           <el-option label="Web 录入" value="WEB" />
           <el-option label="邀请提交" value="INVITE" />
         </el-select>
-        <el-input v-model="queryR.keyword" placeholder="企业/客户姓名 / 日期 / 报告编号" clearable style="width: 300px" @keyup.enter="searchR" />
+        <el-input v-model="queryR.keyword" placeholder="企业/客户姓名 / 日期" clearable style="width: 300px" @keyup.enter="searchR" />
       </AppSearchBar>
 
       <el-table :data="dataR" v-loading="loadingR" stripe row-key="reportNo" style="height: calc(100vh - 320px); min-height: 360px">
@@ -166,6 +166,9 @@
         <el-table-column label="报告" min-width="210" show-overflow-tooltip><template #default="{ row }">{{ reportDisplayTitle(row) }}</template></el-table-column>
         <el-table-column label="客户" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ row.clientName || row.enterpriseName || row.contactName || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="联系方式" width="150">
+          <template #default="{ row }">{{ desensitizePhone(row.contactPhoneMasked || row.phone || row.contactPhone) }}</template>
         </el-table-column>
         <el-table-column label="来源" width="120">
           <template #default="{ row }">
@@ -209,7 +212,7 @@ import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { useTable } from '@/composables/useTable';
-import { formatDateTime } from '@/utils/format';
+import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { pageClientLite } from '@/api/order';
 import { runScreening } from '@/api/dashboard';
 import { pageScreenings, screeningDetail } from '@/api/report';
@@ -310,7 +313,7 @@ const { loading: loadingR, data: dataR, total: totalR, query: queryR, load: load
 
 const screeningSourceMap = { MINI: '小程序提交', WEB: 'Web 录入', INVITE: '邀请提交' };
 function screeningSourceText(code) {
-  return screeningSourceMap[code] || code || '-';
+  return screeningSourceMap[code] || '其他来源';
 }
 function screeningSourceTag(code) {
   const m = { MINI: 'loan-tag-info', WEB: 'loan-tag-muted', INVITE: 'loan-tag-primary' };

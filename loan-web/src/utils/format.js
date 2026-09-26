@@ -23,6 +23,8 @@ export function formatDateTime(value) {
  */
 export function desensitizePhone(phone) {
   if (!phone || phone.length < 7) return phone || '-';
+  // 后端列表接口已经完成脱敏时直接保留，避免二次格式化变成空值。
+  if (/^\d{3}\*{4}\d{4}$/.test(String(phone))) return String(phone);
   // 防御：手机号明文才是 11 位纯数字；AES 密文/异常值不解密直接返 "-"，避免显示乱码
   if (!/^\d{11}$/.test(phone)) return '-';
   return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
