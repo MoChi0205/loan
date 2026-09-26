@@ -2,18 +2,26 @@ package com.loan.gateway.filter;
 
 import com.loan.gateway.auth.ApiRuleService;
 import com.loan.gateway.auth.GatewayJwtUtil;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
+import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /** 渠道跨 mini 业务域精确授权边界测试。 */
 class ApiAuthGlobalFilterTest {
@@ -76,6 +84,45 @@ class ApiAuthGlobalFilterTest {
         assertFalse(filter.isRoleExplicitlyDenied(rules, "BOSS", "config:status"));
         assertFalse(filter.isRoleExplicitlyDenied(rules, "BOSS", "client:pageLite"));
         assertFalse(filter.isRoleExplicitlyDenied(rules, "SUPER", "org:saveRolePermission"));
+    }
+
+    @Test
+    void successfulForwardMustNotFallThroughToSecondForbiddenResponse() {
+        GatewayJwtUtil jwt = mock(GatewayJwtUtil.class);
+        ApiRuleService ruleService = mock(ApiRuleService.class);
+        filter = new ApiAuthGlobalFilter(jwt, ruleService);
+        Claims claims = Jwts.claims();
+        claims.put("userId", 1L);
+        claims.put("userNo", "BOSS001");
+        claims.put("userType", "STAFF");
+        claims.put("roleCode", "BOSS");
+        when(jwt.parse("valid-token")).thenReturn(claims);
+
+        Map<String, Object> api = new LinkedHashMap<>();
+        api.put("apiKey", "report:overview");
+        api.put("method", "GET");
+        api.put("pathPattern", "/api/admin/report/overview");
+        api.put("status", "ACTIVE");
+        api.put("clientTypes", Arrays.asList("WEB", "MINI_APP"));
+        Map<String, Object> rules = new LinkedHashMap<>();
+        rules.put("apis", Collections.singletonList(api));
+        rules.put("superRoles", Collections.singletonList("BOSS"));
+        when(ruleService.loadRules()).thenReturn(Mono.just(rules));
+
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/loan/api/admin/report/overview")
+                        .header("Authorization", "Bearer valid-token").build());
+        AtomicInteger forwarded = new AtomicInteger();
+        GatewayFilterChain chain = ignored -> {
+            forwarded.incrementAndGet();
+            return Mono.empty();
+        };
+
+        filter.filter(exchange, chain).block();
+
+        assertTrue(forwarded.get() == 1);
+        assertFalse(exchange.getResponse().getStatusCode() != null
+                && exchange.getResponse().getStatusCode().is4xxClientError());
     }
 
     private Map<String, String> rule(String method, String pathPattern) {

@@ -126,19 +126,19 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
             return forward(tracedExchange, chain, userId, userNo, roleCode, userType, clientType);
         }
         return ruleService.loadRules()
+                // Mono<Void> 在成功转发完成后不会发出元素，不能在 flatMap 之后使用
+                // switchIfEmpty，否则会把正常完成误判为“规则为空”并再次写 403。
+                // 先把真正的规则空流转换成空 Map，再只执行一次授权分支。
+                .defaultIfEmpty(java.util.Collections.emptyMap())
                 .flatMap(rules -> {
-                    if (rules == null) {
-                return reject(tracedExchange, HttpStatus.FORBIDDEN, 2001, "接口权限规则未配置，请联系管理员");
+                    if (rules.isEmpty()) {
+                        return reject(tracedExchange, HttpStatus.FORBIDDEN, 2001,
+                                "接口权限规则不可用，请联系管理员");
                     }
                     return doAuthorize(tracedExchange, chain, rules, roleCode, clientType, path,
                             httpMethod,
                             userId, userNo, userType);
-                })
-                // reject() 会写响应并记录拒绝日志，必须延迟到规则流确实为空时执行。
-                // 直接把 reject(...) 作为 switchIfEmpty 参数会在组装 Reactor 链时立即调用，
-                // 导致每个合法请求先打印一次 403，再实际返回 200 的假权限失败日志。
-                .switchIfEmpty(Mono.defer(() -> reject(tracedExchange, HttpStatus.FORBIDDEN, 2001,
-                        "接口权限规则不可用，请联系管理员")));
+                });
     }
 
     private String normalizeTraceId(String value) {
