@@ -49,7 +49,7 @@ public class OcrService {
     private final OcrRecordMapper ocrRecordMapper;
     private final OcrExtractor extractor;
 
-    @Value("${loan.upload.base-dir:./uploads}")
+    @Value("${loan.upload.base-dir}")
     private String baseDir;
 
     /**

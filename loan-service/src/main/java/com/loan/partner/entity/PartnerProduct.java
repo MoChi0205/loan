@@ -36,6 +36,7 @@ public class PartnerProduct implements Serializable {
      * {@code t_bank_product.id}，否则触发 "Field 'bank_product_id' doesn't have a default value"
      * 系统异常（D67）。迁移完成后本字段标记 {@code @TableField(exist = false)} 即可下线。</p>
      */
+    @TableField(exist = false)
     private Long bankProductId;
 
     /** 银行产品业务编码（小写前缀+32位随机，业务唯一） */

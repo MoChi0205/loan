@@ -48,7 +48,7 @@ public class OcrController {
     private final MaterialReviewService materialReviewService;
     private final ClientAllocationService clientAllocationService;
 
-    @Value("${loan.upload.base-dir:./uploads}")
+    @Value("${loan.upload.base-dir}")
     private String baseDir;
 
     /**

@@ -497,7 +497,10 @@ CREATE TABLE `t_client_profile` (
   `contact_name` varchar(64) DEFAULT NULL COMMENT '联系人姓名',
   `phone` varchar(256) NOT NULL COMMENT '手机号(AES加密)',
   `phone_hash` varchar(64) NOT NULL COMMENT '手机号SHA-256哈希(查重与等值查询)',
+  `phone_plain` varchar(32) DEFAULT NULL COMMENT '手机号内部原值，禁止对外返回',
   `password` varchar(128) DEFAULT NULL COMMENT '密码(BCrypt，验证码重置后设置)',
+  `wx_openid` varchar(128) DEFAULT NULL COMMENT '微信小程序openid',
+  `wx_openid_hash` varchar(64) DEFAULT NULL COMMENT 'openid SHA-256哈希',
   `credit_code` varchar(256) DEFAULT NULL COMMENT '统一社会信用代码(AES加密,企业客群)',
   `credit_code_hash` varchar(64) DEFAULT NULL COMMENT '信用代码SHA-256哈希',
   `owner_staff_code` varchar(64) DEFAULT NULL COMMENT '归属顾问工号(业务编码;为空表示公海未分配)',
@@ -521,6 +524,8 @@ CREATE TABLE `t_client_profile` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_client_code` (`client_code`),
   UNIQUE KEY `uk_phone_hash_group` (`phone_hash`,`customer_group`),
+  UNIQUE KEY `uk_wx_openid` (`wx_openid`),
+  KEY `idx_wx_openid_hash` (`wx_openid_hash`),
   KEY `idx_owner` (`owner_staff_code`),
   KEY `idx_lead_no` (`lead_no`),
   KEY `idx_created_at` (`created_at`),
@@ -1699,10 +1704,12 @@ CREATE TABLE `t_role_api` (
 CREATE TABLE `t_sensitive_view_grant` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `user_no` varchar(64) NOT NULL COMMENT '申请人工号(staff_code)',
-  `lead_no` varchar(64) NOT NULL COMMENT '线索业务ID',
+  `lead_no` varchar(64) DEFAULT NULL COMMENT '线索业务ID，与客户编码二选一',
+  `client_code` varchar(64) DEFAULT NULL COMMENT '客户业务编码',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '授权时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_lead` (`user_no`,`lead_no`),
+  UNIQUE KEY `uk_user_client` (`user_no`,`client_code`),
   KEY `idx_lead` (`lead_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='敏感数据查看授权(受限角色申请后授权,防并发重复)';
 
@@ -1712,13 +1719,40 @@ CREATE TABLE `t_sensitive_view_grant` (
 CREATE TABLE `t_sensitive_view_log` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `user_no` varchar(64) NOT NULL COMMENT '查看人工号',
-  `lead_no` varchar(64) NOT NULL COMMENT '线索业务ID',
+  `lead_no` varchar(64) DEFAULT NULL COMMENT '线索业务ID，与客户编码二选一',
+  `client_code` varchar(64) DEFAULT NULL COMMENT '客户业务编码',
   `view_date` date NOT NULL COMMENT '查看日期(日限额统计)',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '查看时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_date` (`user_no`,`view_date`),
+  KEY `idx_user_date_client` (`user_no`,`view_date`,`client_code`),
   KEY `idx_lead` (`lead_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='敏感数据查看留痕(日限额30/天)';
+
+-- ============================================================
+-- t_sensitive_view_approval（手机号查看额度外审批）
+-- ============================================================
+CREATE TABLE `t_sensitive_view_approval` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `approval_no` varchar(64) NOT NULL COMMENT '敏感数据查看审批业务ID',
+  `client_code` varchar(64) NOT NULL COMMENT '客户业务编码',
+  `applicant_staff_code` varchar(64) NOT NULL COMMENT '申请员工工号',
+  `applicant_role_code` varchar(32) NOT NULL,
+  `applicant_dept_code` varchar(64) DEFAULT NULL,
+  `view_date` date NOT NULL COMMENT '触发额度日期',
+  `approver_staff_code` varchar(64) DEFAULT NULL,
+  `approval_stage` varchar(20) NOT NULL COMMENT 'MANAGER_REVIEW/BOSS_REVIEW',
+  `approve_status` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `approve_opinion` varchar(500) DEFAULT NULL,
+  `approved_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `pending_unique_key` varchar(255) GENERATED ALWAYS AS (CASE WHEN (`approve_status` = 'PENDING') THEN concat(`client_code`,'#',`applicant_staff_code`,'#',`view_date`) ELSE NULL END) STORED,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sensitive_view_approval_no` (`approval_no`),
+  UNIQUE KEY `uk_sensitive_view_pending_only` (`pending_unique_key`),
+  KEY `idx_sensitive_view_stage_status` (`approval_stage`,`approve_status`),
+  KEY `idx_sensitive_view_applicant` (`applicant_staff_code`,`view_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='超出手机号查看额度审批单';
 
 -- ============================================================
 -- t_notification（2026-09-01 从远程库补录，D26：schema 真源缺表）
