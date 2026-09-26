@@ -220,9 +220,9 @@ const quickItems = computed(() => (rc.value.quick || []).filter((q) => q.route |
  * 磁贴宽度：按**实际数量**分列（与设计真源原型 gridCols 同规则，见 `utils/grid.js`）。
  *
  * <p>原实现把宽度写死成 4 列的 1/4，导致 6 个磁贴排成 4+2、3 个磁贴右侧空一格。
- * 列间距须与 `.m-grid` 的 `gap` 一致（20rpx，适配窄屏小程序）。
+ * 列间距须与 `.m-grid` 的 `gap` 一致（28rpx）。
  */
-const quickItemWidth = computed(() => gridItemWidth(quickItems.value.length, 20));
+const quickItemWidth = computed(() => gridItemWidth(quickItems.value.length, 28));
 
 function toneBg(tone) {
   return TONE_BG[tone] || TONE_BG.royal;
@@ -406,7 +406,7 @@ function openMsg() { msgOpen.value = true; }
    列间距 10px→20rpx、磁贴高 82px→164rpx，减少窄屏横向拥挤与首页留白。
    justify-content:center 让「不满的末行」居中（5 项 = 3+2，第二行 2 项居中而非左对齐）；
    列数仍由 utils/grid.js#gridCols 决定，与原型 gridStyle 同源。 */
-.m-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20rpx; margin-bottom: 24rpx; }
+.m-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 28rpx; margin-bottom: 24rpx; }
 .m-qk {
   /* 宽度由 script 按磁贴数量注入（utils/grid.js），不再写死 4 列的 1/4 */
   min-height: 164rpx;

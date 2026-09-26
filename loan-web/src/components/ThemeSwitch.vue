@@ -19,14 +19,14 @@
     </button>
 
     <!-- 主色选择 -->
-    <el-popover placement="bottom" trigger="click" width="216">
+    <el-popover placement="bottom" trigger="click" width="252" popper-class="theme-popover">
       <template #reference>
         <button class="theme-btn color-btn" type="button" title="主题色" aria-label="主题色">
           <span class="color-dot" :style="{ background: primary }"></span>
         </button>
       </template>
       <div class="palette">
-        <div class="palette-title">品牌主色</div>
+          <div class="palette-title">品牌主色 · 选择界面强调色</div>
         <div class="palette-grid">
           <button
             v-for="c in palette"
@@ -60,11 +60,17 @@ const primary = ref(initial.primary);
 /** 可选主色（墨金友好：以暖金为锚，保留一键切换主色能力） */
 const palette = [
   { name: '暖金', value: '#D9A441' },
-  { name: '墨蓝', value: '#16203A' },
+  { name: '琥珀', value: '#D97706' },
+  { name: '珊瑚红', value: '#DC2626' },
+  { name: '莓紫', value: '#DB2777' },
+  { name: '暗紫', value: '#6D28D9' },
+  { name: '靛蓝', value: '#4F46E5' },
   { name: '钢蓝', value: '#2443C2' },
+  { name: '青蓝', value: '#0891B2' },
   { name: '青', value: '#0E7490' },
   { name: '墨绿', value: '#15803D' },
-  { name: '暗紫', value: '#6D28D9' },
+  { name: '石板灰', value: '#475569' },
+  { name: '墨蓝', value: '#16203A' },
 ];
 
 function toggleMode() {
@@ -132,8 +138,10 @@ function checkColor(hex) {
 
 .palette-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, 28px);
   gap: 8px;
+  width: max-content;
+  max-width: 100%;
 }
 
 .palette-item {
@@ -168,5 +176,12 @@ function checkColor(hex) {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+}
+
+/* Element Plus 弹层会被 teleport 到 body，使用固定盒模型避免最后一枚色块越界。 */
+:global(.theme-popover) {
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+  overflow: visible;
 }
 </style>

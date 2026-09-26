@@ -802,6 +802,14 @@ body {
   font-weight: 500;
 }
 
+/* 日期时间范围组件：下拉层在小屏/弹窗内不溢出视口。 */
+.service-time-picker.el-picker-panel,
+.service-time-picker.el-popper {
+  max-width: min(640px, calc(100vw - 24px));
+  max-height: min(520px, calc(100vh - 24px));
+  overflow: auto;
+}
+
 /* ============================================================
  * 无障碍：统一焦点可见性（键盘导航清晰）
  * ============================================================ */

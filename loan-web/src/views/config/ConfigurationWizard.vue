@@ -61,12 +61,12 @@ const steps = computed(() => {
   const c = status.value || {};
   const mk = (key, title, desc, path, required, countLabel, done) => ({ key, title, desc, path, required, countLabel, done });
   return [
-    mk('dept', '组织架构', '配置部门树与员工账号（老板/主管/顾问）', '/org', true, `${c.departmentCount ?? 0} 部门 / ${c.staffCount ?? 0} 员工`, (c.departmentCount ?? 0) > 0 && (c.staffCount ?? 0) > 0),
-    mk('channel', '合作渠道', '接入合作银行渠道', '/product', false, `${c.channelCount ?? 0} 家银行`, (c.channelCount ?? 0) > 0),
+    mk('dept', '组织架构', '配置部门树与员工账号（老板/主管/顾问）', '/org/staff', true, `${c.departmentCount ?? 0} 部门 / ${c.staffCount ?? 0} 员工`, (c.departmentCount ?? 0) > 0 && (c.staffCount ?? 0) > 0),
+    mk('channel', '合作渠道', '接入合作银行渠道', '/product/cooperate', false, `${c.channelCount ?? 0} 家银行`, (c.channelCount ?? 0) > 0),
     mk('rule', '规则集', '配置准入规则与分类', '/rule', true, `${c.ruleCount ?? 0} 条规则`, (c.ruleCount ?? 0) > 0),
-    mk('product', '产品库', '录入产品并审核入全量库', '/product', true, `${c.productCount ?? 0} 个产品`, (c.productCount ?? 0) > 0),
-    mk('reward', '奖励规则', '配置推荐奖励比例（冻结快照）', '/reward', false, `${c.rewardRuleCount ?? 0} 条规则`, (c.rewardRuleCount ?? 0) > 0),
-    mk('sms', '短信模板', '配置三类短信模板与签名', '/sms', false, `${c.smsTemplateCount ?? 0} 个模板`, (c.smsTemplateCount ?? 0) > 0),
+    mk('product', '产品库', '录入产品并审核入全量库', '/product/all', true, `${c.productCount ?? 0} 个产品`, (c.productCount ?? 0) > 0),
+    mk('reward', '奖励规则', '配置推荐奖励比例（冻结快照）', '/reward/rules', false, `${c.rewardRuleCount ?? 0} 条规则`, (c.rewardRuleCount ?? 0) > 0),
+    mk('sms', '短信模板', '配置三类短信模板与签名', '/sms/templates', false, `${c.smsTemplateCount ?? 0} 个模板`, (c.smsTemplateCount ?? 0) > 0),
     mk('template', '报告模板', '配置报告档位映射与文案', '/report-template', false, `${c.reportTemplateCount ?? 0} 个模板`, (c.reportTemplateCount ?? 0) > 0),
   ];
 });

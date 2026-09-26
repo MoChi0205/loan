@@ -143,8 +143,20 @@
           </el-breadcrumb>
         </div>
 
+        <!-- 路由页签放在顶部导航中间，保留原有切换、关闭、刷新行为。 -->
+        <div v-if="openTabs.length" class="tabs-bar">
+          <div class="route-tabs" role="tablist" aria-label="已打开页面">
+            <button v-for="t in openTabs" :key="t.path" type="button" role="tab" class="route-tab" :class="{ 'is-active': route.fullPath === t.path }" :aria-selected="route.fullPath === t.path ? 'true' : 'false'" :title="t.title" @click="navigateToTab(t.path)" @contextmenu.prevent="onTabContextMenu($event, t)">
+              <span class="tab-label__text">{{ t.title }}</span>
+              <span v-if="t.path !== '/workbench' && openTabs.length > 1" class="tab-close" role="button" tabindex="0" aria-label="关闭标签" @click.stop="onTabClose(t.path)" @keyup.enter.stop="onTabClose(t.path)"><AppIcon name="close" :size="12" /></span>
+            </button>
+          </div>
+          <el-tooltip content="刷新当前页" placement="bottom"><button class="tabs-refresh" @click="onRefresh" aria-label="刷新"><AppIcon name="refresh" :size="16" /></button></el-tooltip>
+        </div>
+
         <div class="topbar-right">
           <ThemeSwitch />
+          <NotificationBell />
           <el-dropdown trigger="click" @command="onUserCommand">
           <button class="user" type="button" aria-label="用户菜单">
             <span class="user-avatar">{{ avatarText }}</span>
@@ -167,48 +179,15 @@
       </header>
 
       <main id="main-content" class="content">
-        <!-- 多标签栏：可切换 / 关闭 / 刷新（多主菜单独立保留） -->
-        <div v-if="openTabs.length" class="tabs-bar">
-          <div class="route-tabs" role="tablist" aria-label="已打开页面">
-            <button
-              v-for="t in openTabs"
-              :key="t.path"
-              type="button"
-              role="tab"
-              class="route-tab"
-              :class="{ 'is-active': route.fullPath === t.path }"
-              :aria-selected="route.fullPath === t.path ? 'true' : 'false'"
-              :title="t.title"
-              @click="navigateToTab(t.path)"
-              @contextmenu.prevent="onTabContextMenu($event, t)"
-            >
-              <span class="tab-label__text">{{ t.title }}</span>
-              <span
-                v-if="t.path !== '/workbench' && openTabs.length > 1"
-                class="tab-close"
-                role="button"
-                tabindex="0"
-                aria-label="关闭标签"
-                @click.stop="onTabClose(t.path)"
-                @keyup.enter.stop="onTabClose(t.path)"
-              >
-                <AppIcon name="close" :size="12" />
-              </span>
-            </button>
-          </div>
-          <el-tooltip content="刷新当前页" placement="bottom">
-            <button class="tabs-refresh" @click="onRefresh" aria-label="刷新">
-              <AppIcon name="refresh" :size="16" />
-            </button>
-          </el-tooltip>
-        </div>
         <router-view v-slot="{ Component, route: r }">
           <!--
             页面直接由最终路由驱动。不要在新增标签的同一更新周期动态修改 keep-alive
             include：两者与 RouterView 同时 patch 时会出现 parentNode=null，表现为地址和
             面包屑已变化但内容停留在旧页，刷新后才恢复。标签只保存导航记录，不缓存 DOM。
           -->
-          <component :is="Component" :key="`${r.fullPath}:${refreshKey}`" />
+          <transition name="fold-screen" mode="out-in">
+            <component :is="Component" :key="`${r.fullPath}:${refreshKey}`" />
+          </transition>
         </router-view>
       </main>
     </div>
@@ -226,6 +205,7 @@ import { canKeepOpenedTab } from '@/utils/routeAccess';
 import { KEYS, getStorageJSON, setStorage, setStorageJSON } from '@/utils/storage';
 import ThemeSwitch from '@/components/ThemeSwitch.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import NotificationBell from '@/components/NotificationBell.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -1095,10 +1075,12 @@ watch(menus, () => {
 .tabs-bar {
   display: flex;
   align-items: center;
-  background: color-mix(in srgb, var(--loan-bg) 88%, var(--loan-card-bg));
-  border-bottom: 1px solid var(--loan-border);
-  padding: 5px 22px 0;
-  min-height: 42px;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  padding: 0 18px;
+  min-height: 40px;
+  max-width: 720px;
   min-width: 0;
 }
 .route-tabs {
@@ -1116,7 +1098,7 @@ watch(menus, () => {
   appearance: none;
   border: 1px solid var(--loan-border);
   border-radius: 8px 8px 0 0;
-  height: 32px;
+  height: 30px;
   padding: 0 12px;
   font-size: 12px;
   background: var(--loan-card-bg);
@@ -1198,8 +1180,10 @@ watch(menus, () => {
 }
 
 .topbar {
-  height: 58px;
-  background: var(--loan-card-bg);
+  height: 64px;
+  background: color-mix(in srgb, var(--loan-card-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
   border-bottom: 1px solid var(--loan-border);
   display: flex;
   align-items: center;
@@ -1208,16 +1192,44 @@ watch(menus, () => {
   flex-shrink: 0;
 }
 
+/* 折叠屏式页面切换：轻微折页 + 毛玻璃退场，不打断用户操作。 */
+.fold-screen-enter-active,
+.fold-screen-leave-active {
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+  transition: opacity 180ms var(--loan-ease), transform 260ms var(--loan-ease), filter 220ms var(--loan-ease);
+}
+.fold-screen-enter-from {
+  opacity: 0;
+  transform: perspective(1400px) rotateY(-0.7deg) translate3d(10px, 0, 0);
+  filter: blur(3px) saturate(115%);
+}
+.fold-screen-leave-to {
+  opacity: 0;
+  transform: perspective(1400px) rotateY(0.7deg) translate3d(-8px, 0, 0);
+  filter: blur(2px);
+}
+@media (max-width: 768px) {
+  .fold-screen-enter-from { transform: perspective(900px) rotateY(-1.2deg) translate3d(14px, 0, 0); }
+  .fold-screen-leave-to { transform: perspective(900px) rotateY(1.2deg) translate3d(-12px, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fold-screen-enter-active, .fold-screen-leave-active { transition: opacity 1ms linear; }
+  .fold-screen-enter-from, .fold-screen-leave-to { transform: none; filter: none; }
+}
+
 .topbar-left {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 220px;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .collapse-btn {
