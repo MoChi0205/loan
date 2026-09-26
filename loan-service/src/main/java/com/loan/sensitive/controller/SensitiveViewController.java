@@ -55,4 +55,28 @@ public class SensitiveViewController {
     public Result<SensitiveQuotaVO> quota(@CurrentUser LoanUser user) {
         return Result.ok(sensitiveViewService.getQuota(user == null ? null : user.getUserNo()));
     }
+
+    @PostMapping("/client/apply-view")
+    @OpLog(bizType = "客户手机号查看", action = "APPLY_CLIENT_PHONE_VIEW")
+    public Result<SensitiveApplyViewResp> applyClientView(@RequestBody Map<String, String> body,
+                                                           @CurrentUser LoanUser user) {
+        String clientCode = body == null ? null : body.get("clientCode");
+        return Result.ok(sensitiveViewService.applyClientView(clientCode, user));
+    }
+
+    @GetMapping("/approval/pending")
+    public Result<java.util.List<com.loan.sensitive.entity.SensitiveViewApproval>> pendingApprovals(@CurrentUser LoanUser user) {
+        return Result.ok(sensitiveViewService.pendingApprovals(user));
+    }
+
+    @PostMapping("/approval/{approvalNo}/audit")
+    @OpLog(bizType = "敏感手机号查看审批", action = "AUDIT")
+    public Result<Void> auditApproval(@org.springframework.web.bind.annotation.PathVariable String approvalNo,
+                                      @RequestBody(required = false) Map<String, Object> body,
+                                      @CurrentUser LoanUser user) {
+        boolean approve = body == null || body.get("approve") == null || Boolean.TRUE.equals(body.get("approve"));
+        String opinion = body == null || body.get("opinion") == null ? null : String.valueOf(body.get("opinion"));
+        sensitiveViewService.auditApproval(approvalNo, approve, opinion, user);
+        return Result.ok();
+    }
 }

@@ -297,6 +297,7 @@ public class ClientService {
         if (StringUtils.hasText(req.getPhone())) {
             String phone = req.getPhone().trim();
             client.setPhone(phone);                      // AesTypeHandler 落库加密
+            client.setPhonePlain(phone);                 // 内部原值列；普通查询 select=false
             client.setPhoneHash(HashUtils.sha256Hex(phone));
             changed = true;
         }

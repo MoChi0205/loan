@@ -93,7 +93,9 @@ public class AuthService {
             client.setClientCode(com.loan.common.util.BizIdGenerator.generate("client"));
             client.setCustomerGroup("PERSONAL");
             client.setContactName(desensitizePhone(phone));
-            client.setPhone(com.loan.infrastructure.security.AesUtils.encrypt(phone));
+            // ClientProfile.phone 交由 AesTypeHandler 单次加密，phonePlain 仅供受控内部读取。
+            client.setPhone(phone);
+            client.setPhonePlain(phone);
             client.setPhoneHash(phoneHash);
             client.setSource("MINI");
             client.setStatus("ACTIVE");

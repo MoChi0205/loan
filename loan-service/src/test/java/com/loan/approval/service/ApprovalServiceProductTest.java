@@ -9,6 +9,7 @@ import com.loan.approval.mapper.ProductApprovalMapper;
 import com.loan.approval.mapper.ContentApprovalMapper;
 import com.loan.sms.mapper.SmsTemplateMapper;
 import com.loan.report.mapper.ReportTemplateMapper;
+import com.loan.sensitive.mapper.SensitiveViewApprovalMapper;
 import com.loan.notification.service.NotificationService;
 import com.loan.common.service.BusinessNameService;
 import com.loan.mini.service.MiniClientService;
@@ -56,6 +57,7 @@ class ApprovalServiceProductTest {
     @Mock private ContentApprovalMapper contentApprovalMapper;
     @Mock private SmsTemplateMapper smsTemplateMapper;
     @Mock private ReportTemplateMapper reportTemplateMapper;
+    @Mock private SensitiveViewApprovalMapper sensitiveViewApprovalMapper;
     @Mock private NotificationService notificationService;
     @Mock private com.loan.attachment.mapper.ServiceAttachmentMapper serviceAttachmentMapper;
     @Mock private com.loan.serviceops.service.OutingService outingService;
@@ -67,7 +69,8 @@ class ApprovalServiceProductTest {
         service = new ApprovalService(productApprovalMapper, downloadApprovalMapper, materialReviewMapper,
                 materialReviewService, bankProductMapper, miniClientService, staffMapper,
                 businessNameService, partnerProductService, contentApprovalMapper, smsTemplateMapper,
-                reportTemplateMapper, notificationService, serviceAttachmentMapper, outingService);
+                reportTemplateMapper, sensitiveViewApprovalMapper, notificationService,
+                serviceAttachmentMapper, outingService);
     }
 
     @Test

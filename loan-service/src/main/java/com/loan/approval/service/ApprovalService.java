@@ -34,6 +34,8 @@ import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import com.loan.serviceops.entity.StaffOuting;
 import com.loan.serviceops.service.OutingService;
+import com.loan.sensitive.entity.SensitiveViewApproval;
+import com.loan.sensitive.mapper.SensitiveViewApprovalMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -126,6 +128,7 @@ public class ApprovalService {
     private final ContentApprovalMapper contentApprovalMapper;
     private final SmsTemplateMapper smsTemplateMapper;
     private final ReportTemplateMapper reportTemplateMapper;
+    private final SensitiveViewApprovalMapper sensitiveViewApprovalMapper;
     private final NotificationService notificationService;
     private final ServiceAttachmentMapper serviceAttachmentMapper;
     private final OutingService outingService;
@@ -602,6 +605,20 @@ public class ApprovalService {
             m.put("subject", StringUtils.hasText(customerName) ? customerName + " · 材料复核" : "客户材料复核");
             m.put("approveStatus", "PENDING_REVIEW".equals(a.getReviewStatus()) ? "PENDING" : a.getReviewStatus());
             m.put("opinion", a.getReviewOpinion());
+            m.put("createdAt", a.getCreatedAt());
+            rows.add(m);
+        });
+
+        sensitiveViewApprovalMapper.selectList(new LambdaQueryWrapper<SensitiveViewApproval>()
+                .eq(SensitiveViewApproval::getApplicantStaffCode, user.getUserNo())
+                .orderByDesc(SensitiveViewApproval::getCreatedAt).last("LIMIT 100")).forEach(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("type", "SENSITIVE_VIEW");
+            m.put("approvalNo", a.getApprovalNo());
+            m.put("subject", "客户手机号查看额度外申请");
+            m.put("approveStatus", a.getApproveStatus());
+            m.put("approvalStage", a.getApprovalStage());
+            m.put("opinion", a.getApproveOpinion());
             m.put("createdAt", a.getCreatedAt());
             rows.add(m);
         });

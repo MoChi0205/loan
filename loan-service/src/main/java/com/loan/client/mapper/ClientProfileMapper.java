@@ -20,6 +20,13 @@ import java.util.List;
 @Mapper
 public interface ClientProfileMapper extends BaseMapper<ClientProfile> {
 
+    /** 受控手机号查看专用读取；普通查询不会选择 phone_plain。 */
+    @Select("SELECT phone_plain FROM t_client_profile WHERE client_code = #{clientCode} LIMIT 1")
+    String selectPhonePlain(@Param("clientCode") String clientCode);
+
+    @Update("UPDATE t_client_profile SET phone_plain = #{phonePlain} WHERE client_code = #{clientCode} AND (phone_plain IS NULL OR phone_plain = '')")
+    int backfillPhonePlain(@Param("clientCode") String clientCode, @Param("phonePlain") String phonePlain);
+
     /**
      * 渠道本人录入并已转化的客户分页。录入主体使用渠道业务编号，兼容历史 ext_json 记录。
      */

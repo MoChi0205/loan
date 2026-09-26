@@ -16,6 +16,8 @@ public class SensitiveApplyViewResp implements Serializable {
 
     /** 线索业务 ID */
     private String leadNo;
+    /** 客户档案业务编码；线索查看时为空。 */
+    private String clientCode;
 
     /** 明文手机号（仅授权/豁免角色可见） */
     private String phonePlain;
@@ -34,4 +36,9 @@ public class SensitiveApplyViewResp implements Serializable {
 
     /** 剩余 */
     private int remaining;
+
+    /** 超限时返回待审批单号；此时不返回手机号原值。 */
+    private String approvalNo;
+    private String approvalStatus;
+    private String message;
 }

@@ -28,6 +28,8 @@ public class SensitiveViewGrant implements Serializable {
 
     /** 线索业务 ID */
     private String leadNo;
+    /** 客户档案业务编码（客户手机号查看授权）；与 leadNo 二选一。 */
+    private String clientCode;
 
     /** 授权时间 */
     private LocalDateTime createdAt;

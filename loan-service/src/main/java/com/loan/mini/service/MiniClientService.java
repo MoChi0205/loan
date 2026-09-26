@@ -177,6 +177,9 @@ public class MiniClientService {
         client.setSeaLevel(null);
         client.setCreatedBy(staffCode);
         if (StringUtils.hasText(phone)) {
+            // ClientProfile.phone 由 AesTypeHandler 单次加密；业务层不得预加密，否则会形成双重密文。
+            client.setPhone(phone);
+            client.setPhonePlain(phone);
             client.setPhoneHash(sha256(phone));
         }
         if (StringUtils.hasText(creditCode)) {

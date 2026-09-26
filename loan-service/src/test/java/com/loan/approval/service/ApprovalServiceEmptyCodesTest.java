@@ -13,6 +13,7 @@ import com.loan.notification.service.NotificationService;
 import com.loan.partner.service.PartnerProductService;
 import com.loan.product.mapper.BankProductMapper;
 import com.loan.report.mapper.ReportTemplateMapper;
+import com.loan.sensitive.mapper.SensitiveViewApprovalMapper;
 import com.loan.sms.mapper.SmsTemplateMapper;
 import com.loan.staff.mapper.StaffMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +56,7 @@ class ApprovalServiceEmptyCodesTest {
     @Mock private ContentApprovalMapper contentApprovalMapper;
     @Mock private SmsTemplateMapper smsTemplateMapper;
     @Mock private ReportTemplateMapper reportTemplateMapper;
+    @Mock private SensitiveViewApprovalMapper sensitiveViewApprovalMapper;
     @Mock private NotificationService notificationService;
     @Mock private com.loan.attachment.mapper.ServiceAttachmentMapper serviceAttachmentMapper;
     @Mock private com.loan.serviceops.service.OutingService outingService;
@@ -68,7 +70,8 @@ class ApprovalServiceEmptyCodesTest {
         service = new ApprovalService(productApprovalMapper, downloadApprovalMapper,
                 materialReviewMapper, materialReviewService, bankProductMapper, miniClientService,
                 staffMapper, businessNameService, partnerProductService, contentApprovalMapper,
-                smsTemplateMapper, reportTemplateMapper, notificationService, serviceAttachmentMapper,
+                smsTemplateMapper, reportTemplateMapper, sensitiveViewApprovalMapper,
+                notificationService, serviceAttachmentMapper,
                 outingService);
 
         Field enabled = ApprovalService.class.getDeclaredField("enabledTypes");

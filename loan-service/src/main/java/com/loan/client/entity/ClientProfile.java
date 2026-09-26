@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.loan.infrastructure.security.AesTypeHandler;
 import lombok.Data;
 
@@ -42,6 +43,11 @@ public class ClientProfile implements Serializable {
 
     /** 手机号 SHA-256 哈希（查重与等值查询） */
     private String phoneHash;
+
+    /** 手机号内部原值（仅受控内部任务使用；select=false，禁止进入普通查询结果）。 */
+    @TableField(select = false)
+    @JsonIgnore
+    private String phonePlain;
 
     /** 密码（BCrypt；首次可通过短信重置进行设置） */
     @TableField(select = false)

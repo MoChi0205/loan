@@ -26,4 +26,8 @@ public interface SensitiveViewLogMapper extends BaseMapper<SensitiveViewLog> {
     @Select("SELECT COUNT(1) FROM t_sensitive_view_log "
             + "WHERE user_no = #{userNo} AND view_date = #{viewDate}")
     Long countToday(@Param("userNo") String userNo, @Param("viewDate") LocalDate viewDate);
+
+    @Select("SELECT COUNT(1) FROM t_sensitive_view_log "
+            + "WHERE user_no = #{userNo} AND view_date = #{viewDate} AND client_code IS NOT NULL")
+    Long countTodayClientViews(@Param("userNo") String userNo, @Param("viewDate") LocalDate viewDate);
 }
