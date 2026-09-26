@@ -36,6 +36,17 @@
       <AppPagination v-model:page="outingQuery.page" v-model:size="outingQuery.size" :total="outingTotal" @change="loadOutings" />
     </div>
 
+    <div v-show="activeTab === 'sensitivePhone'" class="loan-card">
+      <el-table :data="sensitiveRows" v-loading="sensitiveLoading" stripe row-key="approvalNo">
+        <template #empty><AppEmpty title="暂无手机号查看审批" desc="超过查看额度的申请会显示在这里" /></template>
+        <el-table-column label="申请人" prop="applicantStaffCode" width="130" />
+        <el-table-column label="客户" min-width="180"><template #default>客户档案（手机号查看申请）</template></el-table-column>
+        <el-table-column label="审批级别" width="130"><template #default="{ row }">{{ row.approvalStage === 'BOSS_REVIEW' ? '老板审批' : '部门经理审批' }}</template></el-table-column>
+        <el-table-column label="触发日期" prop="viewDate" width="130" />
+        <el-table-column label="操作" width="150" fixed="right"><template #default="{ row }"><el-button link type="success" @click="auditSensitive(row, true)">通过</el-button><el-button link type="danger" @click="auditSensitive(row, false)">驳回</el-button></template></el-table-column>
+      </el-table>
+    </div>
+
     <div v-for="kind in ['smsTemplate','reportTemplate']" :key="kind" v-show="activeTab === kind" class="loan-card">
       <el-table :data="contentRows[kind]" v-loading="contentLoading[kind]" stripe row-key="approvalNo">
         <template #empty><AppEmpty title="暂无待审核模板" desc="运营提交后将在此等待审核" /></template>
@@ -297,6 +308,7 @@ import {
 } from '@/api/approval';
 import { pageAttachments } from '@/api/attachment';
 import { pagePendingOutings, approveOuting, rejectOuting } from '@/api/serviceOperations';
+import { pendingSensitiveViewApprovals, auditSensitiveViewApproval } from '@/api/sensitive';
 
 const userStore = useUserStore();
 const route = useRoute();
@@ -305,12 +317,12 @@ const canAuditAllocation = computed(() => userStore.hasPerm(ACTION_PERMISSION.AL
 const canAuditChannelContent = computed(() => userStore.hasPerm(ACTION_PERMISSION.CONTENT_AUDIT));
 
 const approvalView = String(route.path.split('/').pop() || 'mine');
-const approvalViewMap = Object.freeze({ 'channel-lead': 'channelLead', 'sms-template': 'smsTemplate', 'report-template': 'reportTemplate' });
+const approvalViewMap = Object.freeze({ 'channel-lead': 'channelLead', 'sms-template': 'smsTemplate', 'report-template': 'reportTemplate', 'sensitive-phone': 'sensitivePhone' });
 const requestedTab = approvalViewMap[approvalView] || String(approvalView || route.query.tab || 'mine');
-const activeTab = ref(['mine', 'download', 'allocation', 'outing', 'product', 'channelLead', 'smsTemplate', 'reportTemplate'].includes(requestedTab) ? requestedTab : 'mine');
-const loadedTabs = reactive({ mine: false, product: false, download: false, allocation: false, outing: false, channelLead: false, smsTemplate: false, reportTemplate: false });
+const activeTab = ref(['mine', 'download', 'allocation', 'outing', 'sensitivePhone', 'product', 'channelLead', 'smsTemplate', 'reportTemplate'].includes(requestedTab) ? requestedTab : 'mine');
+const loadedTabs = reactive({ mine: false, product: false, download: false, allocation: false, outing: false, sensitivePhone: false, channelLead: false, smsTemplate: false, reportTemplate: false });
 const mineRows = ref([]); const mineLoading = ref(false);
-const typeText = { PRODUCT: '产品审批', DOWNLOAD: '附件下载', ALLOCATION: '客户认领/转移', OUTING: '外出申请', MATERIAL_REVIEW: '材料复核', SMS_TEMPLATE: '短信模板', REPORT_TEMPLATE: '报告模板' };
+const typeText = { PRODUCT: '产品审批', DOWNLOAD: '附件下载', ALLOCATION: '客户认领/转移', OUTING: '外出申请', MATERIAL_REVIEW: '材料复核', SENSITIVE_VIEW: '手机号查看', SMS_TEMPLATE: '短信模板', REPORT_TEMPLATE: '报告模板' };
 async function loadMine() { mineLoading.value = true; try { const res = await myApprovalApplications(); mineRows.value = res.data || []; } finally { mineLoading.value = false; } }
 const contentRows = reactive({ smsTemplate: [], reportTemplate: [] });
 const contentLoading = reactive({ smsTemplate: false, reportTemplate: false });
@@ -341,6 +353,9 @@ const { loading: loadingCL, error: errorCL, data: dataCL, total: totalCL, query:
   useTable(pageChannelLeadApprovals, { keyword: '' });
 
 const outingRows = ref([]); const outingTotal = ref(0); const outingLoading = ref(false);
+const sensitiveRows = ref([]); const sensitiveLoading = ref(false);
+async function loadSensitiveApprovals() { sensitiveLoading.value = true; try { sensitiveRows.value = (await pendingSensitiveViewApprovals()).data || []; } finally { sensitiveLoading.value = false; } }
+async function auditSensitive(row, approve) { let opinion = null; if (!approve) { opinion = window.prompt('请输入驳回原因'); if (!opinion?.trim()) return; } await auditSensitiveViewApproval(row.approvalNo, { approve, opinion }); ElMessage.success(approve ? '审批已通过' : '审批已驳回'); await loadSensitiveApprovals(); }
 const outingQuery = reactive({ page: 1, size: 20 });
 async function loadOutings() {
   outingLoading.value = true;
@@ -567,6 +582,7 @@ watch(activeTab, async (tab) => {
     else if (tab === 'download') await loadD();
     else if (tab === 'allocation') await loadA();
     else if (tab === 'outing') await loadOutings();
+    else if (tab === 'sensitivePhone') await loadSensitiveApprovals();
     else if (tab === 'channelLead') await loadCL();
     else await loadContent(tab);
   } catch {

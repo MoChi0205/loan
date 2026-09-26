@@ -308,6 +308,7 @@ const BASE_MENU_GROUPS = [
       { path: '/approval/download', title: '附件下载审核', icon: 'download' },
       { path: '/approval/allocation', title: '客户分配审核', icon: 'client', roles: ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/approval/outing', title: '外出审批', icon: 'lead', roles: ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/sensitive-phone', title: '手机号查看审批', icon: 'lock', roles: ['DEPT_MANAGER', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/approval/channel-lead', title: '渠道线索审核', icon: 'channel', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/approval/sms-template', title: '短信模板审核', icon: 'sms', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/approval/report-template', title: '报告模板审核', icon: 'reportDoc', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },

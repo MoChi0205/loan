@@ -70,7 +70,12 @@
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.enterpriseName || row.contactName || '—' }}</div>
-            <div v-if="row.phone" class="cell-sub">{{ desensitizePhone(row.phone) }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="联系方式" width="190">
+          <template #default="{ row }">
+            <span class="cell-main contact-phone">{{ desensitizePhone(row.phone) }}</span>
+            <el-button link type="primary" size="small" @click.stop="viewClientPhone(row)">申请查看</el-button>
           </template>
         </el-table-column>
         <el-table-column label="类型" width="100"><template #default="{ row }">{{ row.customerGroup === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
@@ -97,7 +102,10 @@
         <h3 class="panel-title">基础信息</h3>
         <el-descriptions :column="3" border>
           <el-descriptions-item label="客户姓名">{{ detail.name || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="手机号">{{ desensitizePhone(detail.phone) }}</el-descriptions-item>
+          <el-descriptions-item label="手机号">
+            <span>{{ detailPhoneDisplay }}</span>
+            <el-button v-if="!detailPhonePlain" link type="primary" size="small" @click="viewClientPhone(detail)">申请查看原值</el-button>
+          </el-descriptions-item>
           <el-descriptions-item label="来源">
             <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
           </el-descriptions-item>
@@ -261,6 +269,7 @@ import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
 import { ACTION_PERMISSION } from '@/utils/access';
 import AppTableActions from '@/components/AppTableActions.vue';
+import { applyClientPhoneView, sensitiveQuota } from '@/api/sensitive';
 
 const route = useRoute();
 const router = useRouter();
@@ -527,6 +536,27 @@ const detail = reactive({
   updatedBy: '',
   updatedAt: '',
 });
+const detailPhonePlain = ref('');
+const phoneQuota = ref({ limit: 30, used: 0, remaining: 30 });
+const detailPhoneDisplay = computed(() => detailPhonePlain.value || desensitizePhone(detail.phone));
+async function viewClientPhone(row) {
+  const code = row?.clientCode || clientCode.value;
+  if (!code) return;
+  try {
+    const data = (await applyClientPhoneView(code)).data || {};
+    if (data.phonePlain) {
+      detailPhonePlain.value = data.phonePlain;
+      if (row && row !== detail) row.phone = data.phonePlain;
+      phoneQuota.value = { limit: data.limit, used: data.used, remaining: data.remaining };
+      ElMessage.success(`已授权查看，本日剩余 ${data.remaining} 次`);
+    } else if (data.approvalNo) {
+      ElMessage.warning(data.message || '已提交审批，审批通过后可再次查看');
+    }
+  } catch (e) { /* 拦截器已提示 */ }
+}
+async function loadPhoneQuota() {
+  try { phoneQuota.value = (await sensitiveQuota()).data || phoneQuota.value; } catch { /* 静默 */ }
+}
 
 /** 拉取档案详情（兼容后端平铺 / 嵌套结构，逐字段兜底） */
 async function loadDetail(code) {
@@ -788,7 +818,9 @@ watch(
   ([code]) => {
     if (code) {
       clientCode.value = code;
+      detailPhonePlain.value = '';
       loadDetail(code);
+      loadPhoneQuota();
       loadHistory(code);
       return;
     }

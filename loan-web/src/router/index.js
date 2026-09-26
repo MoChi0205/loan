@@ -275,6 +275,12 @@ const routes = [
         meta: { title: '外出审批' },
       },
       {
+        path: 'approval/sensitive-phone',
+        name: 'ApprovalSensitivePhone',
+        component: () => import('@/views/approval/ApprovalCenter.vue'),
+        meta: { title: '手机号查看审批' },
+      },
+      {
         path: 'approval/channel-lead',
         name: 'ApprovalChannelLead',
         component: () => import('@/views/approval/ApprovalCenter.vue'),
