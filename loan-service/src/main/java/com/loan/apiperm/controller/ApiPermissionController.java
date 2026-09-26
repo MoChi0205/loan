@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,7 +40,7 @@ public class ApiPermissionController {
     private final ApiPermissionSyncService syncService;
 
     /** 内部接口调用令牌（网关配置同值） */
-    @Value("${internal.api.token:loan-internal-token}")
+    @Value("${app.gateway.internal-token}")
     private String internalToken;
 
     /**
@@ -139,7 +140,7 @@ public class ApiPermissionController {
      */
     @GetMapping("/internal/api-perm/rules")
     public Result<Map<String, Object>> internalRules(
-            @RequestParam(value = "token", required = false) String token) {
+            @RequestHeader(value = "X-Internal-Token", required = false) String token) {
         if (!internalToken.equals(token)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "内部接口令牌无效");
         }

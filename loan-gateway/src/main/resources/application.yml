@@ -1,9 +1,8 @@
 # ============================================================
-# 网关配置（本地联调版）：直连本地 loan-service(8080)，从本地 Redis 读鉴权规则
-# 生产环境：uri 改 lb://loan-service，Redis 走 Nacos 配置
+# 网关仅保留非敏感结构配置；Redis/JWT/内部令牌/服务地址由指定 Nacos namespace 提供。
 # ============================================================
 server:
-  port: 8088
+  port: 9088
 
 spring:
   application:
@@ -17,30 +16,12 @@ spring:
     gateway:
       routes:
         - id: loan-service
-          uri: http://127.0.0.1:8080
+          uri: ${loan.service.route-uri}
           predicates:
             - Path=/loan/**
-  redis:
-    host: 127.0.0.1
-    port: 6379
-    password:
-    database: 0
-    timeout: 3000ms
-
-# JWT 密钥（必须与 loan-service 一致，否则网关无法解析登录令牌）
-jwt:
-  secret: loan-platform-jwt-secret-key-2026
-  expire: 86400000
-
-# 内部接口令牌（与服务端 internal.api.token 一致，兜底拉取规则用）
-internal:
-  api:
-    token: loan-internal-token
-
-loan:
-  service:
-    base-url: http://127.0.0.1:8080/loan
-
 logging:
+  # 不使用 Spring Boot 默认的 %-15.15thread，避免控制台出现 [           main] 的定宽前导空格。
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   level:
     com.loan.gateway: info

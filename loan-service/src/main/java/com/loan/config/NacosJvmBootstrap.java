@@ -45,7 +45,7 @@ public final class NacosJvmBootstrap {
         String value = System.getProperty(key);
         if (value == null || value.trim().isEmpty()) {
             throw new IllegalStateException(
-                    "缺少 VM 参数 -D" + key + "；示例: -Dnacos.server-addr=127.0.0.1:8848 -Dnacos.namespace=dev");
+                    "缺少 VM 参数 -D" + key + "；必须显式指定 Nacos，禁止回退本地基础设施");
         }
         return value.trim();
     }

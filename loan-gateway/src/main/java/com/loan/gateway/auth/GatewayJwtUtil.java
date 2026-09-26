@@ -25,7 +25,7 @@ import java.security.MessageDigest;
 public class GatewayJwtUtil {
 
     /** JWT 密钥（与服务端一致） */
-    @Value("${jwt.secret:CHANGE_ME_JWT_SECRET}")
+    @Value("${jwt.secret}")
     private String secret;
 
     /** 派生后的签名密钥 */

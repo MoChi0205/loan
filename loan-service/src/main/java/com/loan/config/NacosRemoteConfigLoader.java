@@ -39,8 +39,8 @@ final class NacosRemoteConfigLoader {
                     + "&tenant=" + encode(namespace == null ? "" : namespace);
             URL url = new URL("http://" + serverAddr + "/nacos/v1/cs/configs?" + query);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(10_000);
-            conn.setReadTimeout(15_000);
+            conn.setConnectTimeout(timeoutMillis("nacos.config.connect-timeout-ms", 10_000));
+            conn.setReadTimeout(timeoutMillis("nacos.config.read-timeout-ms", 30_000));
             conn.setRequestMethod("GET");
             int status = conn.getResponseCode();
             if (status != HttpURLConnection.HTTP_OK) {
@@ -68,6 +68,22 @@ final class NacosRemoteConfigLoader {
             return URLEncoder.encode(value, StandardCharsets.UTF_8.name());
         } catch (java.io.UnsupportedEncodingException e) {
             throw new IllegalStateException("UTF-8 not supported", e);
+        }
+    }
+
+    private static int timeoutMillis(String property, int defaultValue) {
+        String configured = System.getProperty(property);
+        if (configured == null || configured.trim().isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            int value = Integer.parseInt(configured.trim());
+            if (value < 1_000 || value > 120_000) {
+                throw new IllegalArgumentException("must be between 1000 and 120000");
+            }
+            return value;
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("无效的 Nacos 超时参数 -D" + property + "=" + configured, e);
         }
     }
 

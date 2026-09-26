@@ -22,9 +22,9 @@
 -->
 <Configuration status="WARN" packages="com.loan.infrastructure.logging">
     <Properties>
-        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [traceId=%X{traceId}] %-5level %logger{36} - %msg%n</Property>
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [traceId=%X{traceId}] %level %logger{36} - %msg%n</Property>
         <!-- access 日志自包含 traceId，无需 %X，格式更紧凑便于按列解析 -->
-        <Property name="ACCESS_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level - %msg%n</Property>
+        <Property name="ACCESS_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} %level - %msg%n</Property>
         <!-- 后台启动由 LOAN_LOG_DIR 指定绝对目录；未设置时仍兼容本地前台运行。 -->
         <Property name="LOG_DIR">${env:LOAN_LOG_DIR:-logs}</Property>
     </Properties>

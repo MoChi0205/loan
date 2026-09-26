@@ -141,7 +141,7 @@ class ApiPermissionControllerTest {
     @Test
     @DisplayName("GET /internal/api-perm/rules")
     void get_internal_api_perm_rules() throws Exception {
-        mvc.perform(get("/internal/api-perm/rules").param("token", "test-internal-token"))
+        mvc.perform(get("/internal/api-perm/rules").header("X-Internal-Token", "test-internal-token"))
             .andExpect(result -> { int s = result.getResponse().getStatus(); if (s >= 500) throw new AssertionError("HTTP status >= 500: " + s); });
     }
 

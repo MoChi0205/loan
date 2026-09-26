@@ -7,14 +7,14 @@
  * - code=2000（未登录）/ HTTP 401 → 清 token 并跳转落地页（防重入）
  *
  * baseURL 说明（2026-08-28 三端本地联调）：
- * - H5：留空走 vite devServer 代理 (/api/... → 网关 http://localhost:8088/loan/api/...)
+ * - H5：留空走 vite devServer 代理 (/api/... → 网关 http://localhost:9088/loan/api/...)
  * - 微信开发者工具/真机：必须为绝对 URL（wx.request 不支持相对路径）
  *   微信开发者工具 → 详情 → 本地设置 → 勾选"不校验合法域名"才能用 http://localhost
  * - 生产环境：替换为配置了 https 合法域名的地址
  */
 let BASE_URL = '';
 // #ifndef H5
-BASE_URL = 'http://localhost:8088/loan';
+BASE_URL = 'http://localhost:9088/loan';
 // #endif
 
 /** 登录令牌在 storage 中的 key（与 store/user.js 共用） */

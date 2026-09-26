@@ -7,12 +7,12 @@ import org.springframework.context.annotation.Conditional;
 import java.io.*;
 import java.nio.file.*;
 
-/** 开发期本地实现；非云模式（mode 缺失/为空/local/其他非法值）时兜底启用。 */
+/** 仅当 Nacos 明确选择 local 模式时启用；生产不得依赖本地磁盘。 */
 @Service
 @Conditional(LocalOssCondition.class)
 public class LocalOssStorageService implements OssStorageService {
     private final Path root;
-    public LocalOssStorageService(@Value("${loan.upload.base-dir:./uploads}") String baseDir) {
+    public LocalOssStorageService(@Value("${loan.upload.base-dir}") String baseDir) {
         this.root = Paths.get(baseDir).toAbsolutePath().normalize();
     }
     private Path path(String key) { return root.resolve(key).normalize(); }

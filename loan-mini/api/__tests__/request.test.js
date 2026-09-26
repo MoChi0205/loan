@@ -199,6 +199,6 @@ describe('loan-mini request 工具导出', () => {
     expect(uni.removeStorageSync).toHaveBeenCalledWith(TOKEN_KEY);
   });
   it('BASE_URL 在非 H5 环境指向本地网关', () => {
-    expect(BASE_URL).toBe('http://localhost:8088/loan');
+    expect(BASE_URL).toBe('http://localhost:9088/loan');
   });
 });

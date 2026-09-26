@@ -6,10 +6,10 @@
 
 | 端 | 技术栈 | 本地端口 |
 |----|--------|----------|
-| 后端服务 | Java 8 · Spring Boot 2.7.18 · MyBatis-Plus · Redis · Nacos | 8080 |
-| 统一网关 | Spring Cloud Gateway | 8088 |
-| Web 管理端 | Vue 3 · Vite 5 · Element Plus · Pinia · Axios | 5173 |
-| uni-app 客户端 | Vue 3 · uni-app（H5 / mp-weixin） | H5 5174 |
+| 后端服务 | Java 8 · Spring Boot 2.7.18 · MyBatis-Plus · Redis · Nacos | 9080 |
+| 统一网关 | Spring Cloud Gateway | 9088 |
+| Web 管理端 | Vue 3 · Vite 5 · Element Plus · Pinia · Axios | 9173 |
+| uni-app 客户端 | Vue 3 · uni-app（H5 / mp-weixin） | H5 9174 |
 | 数据库 | MySQL 8（`loan_db`） | 以 `db/loan-db-schema.sql` 为准 |
 
 ## 目录结构
@@ -46,10 +46,10 @@ bash scripts/service.sh stop mini
 
 访问地址：
 
-- Web 管理端：`http://localhost:5173`
-- uni-app H5：`http://localhost:5174`
-- 网关：`http://localhost:8088/loan`
-- 后端直连仅用于诊断：`http://localhost:8080/loan`
+- Web 管理端：`http://localhost:9173`
+- uni-app H5：`http://localhost:9174`
+- 网关：`http://localhost:9088/loan`
+- 后端直连仅用于诊断：`http://localhost:9080/loan`
 
 `loan-web` 与 `loan-mini` 的开发代理默认均指向网关；不要把前端默认代理改回 8080。
 

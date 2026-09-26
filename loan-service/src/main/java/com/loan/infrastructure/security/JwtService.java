@@ -29,7 +29,7 @@ import java.util.Map;
 public class JwtService {
 
     /** JWT 密钥 */
-    @Value("${jwt.secret:CHANGE_ME_JWT_SECRET}")
+    @Value("${jwt.secret}")
     private String secret;
 
     /** 过期时间（毫秒），默认 24 小时 */

@@ -28,10 +28,12 @@ JAVA_HOME="$(loan_detect_java8)" || exit 1
 export JAVA_HOME
 loan_print_java8_summary "$JAVA_HOME"
 
-JVM_ARGS="-Dnacos.server-addr=124.221.150.239:9848 -Dnacos.namespace=prd -Dspring.cloud.nacos.discovery.register-enabled=false -Ddubbo.enabled=false -Dapp.gateway.trust-only=false"
+: "${NACOS_SERVER_ADDR:?必须显式设置 NACOS_SERVER_ADDR}"
+: "${NACOS_NAMESPACE:?必须显式设置 NACOS_NAMESPACE}"
+JVM_ARGS="-Dnacos.server-addr=${NACOS_SERVER_ADDR} -Dnacos.namespace=${NACOS_NAMESPACE} -Dspring.cloud.nacos.discovery.register-enabled=false -Ddubbo.enabled=false -Dapp.gateway.trust-only=false"
 
 echo ">>> 安装依赖模块 loan-api（首次需 install 供 loan-service 解析）"
 mvn -pl loan-api -am install -DskipTests -q
 
-echo ">>> 启动 ${MODULE}：直连 prd Nacos(124.221.150.239:9848) · namespace=prd · 不注册服务 · 关 Dubbo"
+echo ">>> 启动 ${MODULE}：Nacos(${NACOS_SERVER_ADDR}) · namespace=${NACOS_NAMESPACE} · 不注册服务 · 关 Dubbo"
 mvn -pl "${MODULE}" spring-boot:run -DskipTests -Dspring-boot.run.jvmArguments="${JVM_ARGS}"

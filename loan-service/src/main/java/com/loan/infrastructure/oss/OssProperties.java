@@ -10,7 +10,8 @@ import org.springframework.stereotype.Component;
 @RefreshScope
 @ConfigurationProperties(prefix = "loan.oss")
 public class OssProperties {
-    private String mode = "local";
+    /** 必须由 Nacos 明确提供，禁止代码默认本地存储。 */
+    private String mode;
     private String bucket;
     private Aliyun aliyun = new Aliyun();
     private Tencent tencent = new Tencent();

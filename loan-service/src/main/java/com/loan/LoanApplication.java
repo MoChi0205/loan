@@ -3,6 +3,7 @@ package com.loan;
 import com.loan.config.NacosJvmBootstrap;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -13,7 +14,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  *
  * @author loan-platform
  */
-@SpringBootApplication
+// 系统只使用自定义 JWT/UserContext，不启用 Spring 默认表单账号；排除默认用户自动配置，
+// 避免每次启动打印无意义的 "Using generated security password"。
+@SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
 @EnableScheduling
 public class LoanApplication {
 

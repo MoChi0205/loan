@@ -24,6 +24,10 @@ import java.util.Base64;
 @Component
 public class AesUtils {
 
+    /** 兼容历史迁移前以明文落库的手机号，避免将合法旧数据当作错误密文反复告警。 */
+    private static final java.util.regex.Pattern LEGACY_PHONE =
+            java.util.regex.Pattern.compile("1\\d{10}");
+
     /** 派生后的 32 字节密钥（静态，供 TypeHandler 无 Spring 上下文时调用） */
     private static volatile byte[] KEY_BYTES;
 
@@ -32,8 +36,11 @@ public class AesUtils {
      *
      * @param configuredKey 配置密钥
      */
-    @Value("${aes.key:loan-aes-key-2026-dev}")
+    @Value("${aes.key}")
     public void setConfiguredKey(String configuredKey) {
+        if (configuredKey == null || configuredKey.trim().isEmpty()) {
+            throw new IllegalStateException("缺少 aes.key 配置，禁止使用本地默认密钥");
+        }
         try {
             KEY_BYTES = MessageDigest.getInstance("SHA-256")
                     .digest(configuredKey.getBytes(StandardCharsets.UTF_8));
@@ -77,6 +84,10 @@ public class AesUtils {
     public static String decrypt(String cipherBase64) {
         if (cipherBase64 == null || cipherBase64.isEmpty()) {
             return null;
+        }
+        // 历史数据中仍可能存在迁移前的明文手机号；读取时原样返回，写入新数据仍强制走 AES。
+        if (LEGACY_PHONE.matcher(cipherBase64).matches()) {
+            return cipherBase64;
         }
         try {
             byte[] data = Base64.getDecoder().decode(cipherBase64);

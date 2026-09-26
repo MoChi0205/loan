@@ -39,7 +39,7 @@ public class ApiRuleService {
     private final WebClient webClient;
 
     /** 内部接口令牌（与服务端配置一致） */
-    @Value("${internal.api.token}")
+    @Value("${app.gateway.internal-token}")
     private String internalToken;
 
     /** 服务端地址（兜底拉取规则用） */
@@ -129,7 +129,8 @@ public class ApiRuleService {
      */
     private Mono<Map<String, Object>> fetchFromService() {
         return webClient.get()
-                .uri(serviceBaseUrl + "/internal/api-perm/rules?token=" + internalToken)
+                .uri(serviceBaseUrl + "/internal/api-perm/rules")
+                .header("X-Internal-Token", internalToken)
                 .retrieve()
                 .bodyToMono(String.class)
                 .timeout(Duration.ofSeconds(3))
