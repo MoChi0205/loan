@@ -84,11 +84,10 @@ public class ApiPermissionService {
     private final RoleApiMapper roleApiMapper;
 
     /**
-     * 严格模式开关（D39/aapiperm 需求 #198）：默认关闭=保守放行（无授权不误伤）；
-     * 置 true=严格模式：STAFF 角色命中已登记接口但 t_role_api 无授权时拒绝访问。
-     * 开启前需确保 DM/ADVISER 的 t_role_api 已补齐（{@code ApiPermissionSyncService} 启动时幂等回填）。
+     * 严格模式开关：默认开启。生产环境缺少接口登记或角色授权时必须拒绝，避免
+     * “菜单隐藏但接口可调用”的越权；测试放宽必须在 test/l3/offline 配置中显式关闭。
      */
-    @Value("${loan.apiperm.strict:false}")
+    @Value("${loan.apiperm.strict:true}")
     private boolean strict;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
@@ -97,7 +96,7 @@ public class ApiPermissionService {
      * 本地接口权限校验（应用内拦截器用，D30 接入）。
      *
      * <p>缓存 pathPattern → apiKeys 映射（启动时构建，O(1) 匹配），roleCode → apiKey 授权集合
-     * （运行期查库，无授权时保守放行防误伤）。
+     * （运行期查库，无授权时按严格模式拒绝）。
      */
     private final AntPathMatcher antMatcher = new AntPathMatcher();
     /** pathPattern → 该 pattern 命中的所有 apiKey 列表（启动时构建） */
@@ -166,7 +165,8 @@ public class ApiPermissionService {
         if (BOSS_ROLE.equals(role)) {
             List<String> matchedKeys = matchApiKeys(method, path);
             if (matchedKeys.isEmpty()) {
-                return CheckResult.ok("接口未登记（保守放行）");
+                return strict ? CheckResult.deny("接口未登记（严格模式拦截）")
+                        : CheckResult.ok("接口未登记（测试宽松模式）");
             }
             for (String apiKey : matchedKeys) {
                 if (isBossDeniedApi(apiKey)) {
@@ -181,7 +181,8 @@ public class ApiPermissionService {
         // STAFF：按 method+path 匹配已登记接口
         List<String> matchedKeys = matchApiKeys(method, path);
         if (matchedKeys.isEmpty()) {
-            return CheckResult.ok("接口未登记（保守放行）");
+            return strict ? CheckResult.deny("接口未登记（严格模式拦截）")
+                    : CheckResult.ok("接口未登记（测试宽松模式）");
         }
         // STAFF 管理角色默认全量（OPERATOR/SUPER_ADMIN/SUPER）；DM/ADVISER 按 t_role_api 精确授权
         if (FULL_ACCESS_ROLES.contains(role)) {
@@ -194,11 +195,11 @@ public class ApiPermissionService {
         if (granted != null && granted > 0) {
             return CheckResult.ok("已配置授权（命中 " + granted + " 条）");
         }
-        // 严格模式（#198）：未配置授权即拒绝；保守模式保持放行不误伤
+        // 严格模式：未配置授权即拒绝；只有隔离测试配置才允许显式放宽
         if (strict) {
             return CheckResult.deny("未配置授权（严格模式拦截，待业务方补 t_role_api）");
         }
-        return CheckResult.ok("未配置授权（保守放行，待业务方补 t_role_api）");
+        return CheckResult.ok("未配置授权（测试宽松模式）");
     }
 
     /** 按 HTTP 方法与路径匹配当前已登记接口键。 */
@@ -317,6 +318,9 @@ public class ApiPermissionService {
      */
     public void refreshRules(String operator) {
         try {
+            // 接口同步可能发生在本 Bean 的 @PostConstruct 之后。先重建本地路径缓存，
+            // 保证服务内拦截器与即将下发给网关的规则使用同一份最新接口清单。
+            rebuildPathCache();
             String json = objectMapper.writeValueAsString(buildRules());
             stringRedisTemplate.opsForValue().set(RULE_KEY, json, Duration.ofHours(24));
             stringRedisTemplate.opsForValue().set(RULE_VERSION_KEY, String.valueOf(System.currentTimeMillis()),

@@ -43,14 +43,33 @@ PREPARE add_order_owner_code_stmt FROM @add_order_owner_code_sql;
 EXECUTE add_order_owner_code_stmt;
 DEALLOCATE PREPARE add_order_owner_code_stmt;
 
-UPDATE t_service_order orders
-LEFT JOIN t_client_profile clients ON clients.id = orders.client_profile_id
-SET orders.client_profile_code = clients.client_code
-WHERE orders.client_profile_code IS NULL;
-UPDATE t_service_order orders
-LEFT JOIN t_staff staff ON staff.id = orders.owner_staff_id
-SET orders.owner_staff_code = staff.staff_code
-WHERE orders.owner_staff_code IS NULL;
+-- 业务编码迁移后的表已删除旧的 *_id 字段；仅在旧物理 ID 字段仍存在时执行回填。
+-- 使用动态 SQL，避免在已完成 biz-code 迁移的远程库上因 Unknown column 回滚后续菜单授权。
+SET @has_order_client_id := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_service_order' AND COLUMN_NAME = 'client_profile_id'
+);
+SET @backfill_order_client_sql := IF(
+  @has_order_client_id > 0,
+  'UPDATE t_service_order orders LEFT JOIN t_client_profile clients ON clients.id = orders.client_profile_id SET orders.client_profile_code = clients.client_code WHERE orders.client_profile_code IS NULL',
+  'SELECT 1'
+);
+PREPARE backfill_order_client_stmt FROM @backfill_order_client_sql;
+EXECUTE backfill_order_client_stmt;
+DEALLOCATE PREPARE backfill_order_client_stmt;
+
+SET @has_order_owner_id := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_service_order' AND COLUMN_NAME = 'owner_staff_id'
+);
+SET @backfill_order_owner_sql := IF(
+  @has_order_owner_id > 0,
+  'UPDATE t_service_order orders LEFT JOIN t_staff staff ON staff.id = orders.owner_staff_id SET orders.owner_staff_code = staff.staff_code WHERE orders.owner_staff_code IS NULL',
+  'SELECT 1'
+);
+PREPARE backfill_order_owner_stmt FROM @backfill_order_owner_sql;
+EXECUTE backfill_order_owner_stmt;
+DEALLOCATE PREPARE backfill_order_owner_stmt;
 
 INSERT INTO t_menu
   (parent_id, menu_name, path, component, menu_type, permission_code, sort, status, created_by)

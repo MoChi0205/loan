@@ -13,9 +13,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Web 安全配置（JWT 认证，对齐 tse SecurityConfig）。
  *
- * <p>策略：Spring Security 关闭 CSRF / 表单登录 / 会话，由 {@link JwtAuthenticationFilter}
- * 解析 JWT 并填充 {@code UserContext}；鉴权按需在 Controller / 业务层判定。
- * 阶段一最小闭环保持接口可访问（认证过滤器已注入当前用户，业务层后续按需加权限）。
+     * <p>策略：Spring Security 关闭 CSRF / 表单登录 / 会话，由 {@link JwtAuthenticationFilter}
+     * 解析 JWT 并填充 {@code UserContext}；除明确公开接口外，所有请求必须先完成 JWT 认证。
  *
  * @author loan-platform
  */
@@ -27,7 +26,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     /**
-     * 安全过滤链：关闭 CSRF / 会话，注册 JWT 过滤器，全部请求放行（认证由过滤器填充上下文）。
+     * 安全过滤链：关闭 CSRF / 会话，注册 JWT 过滤器；公开接口显式放行，其余请求必须认证。
      *
      * @param http HttpSecurity
      * @return 过滤链
@@ -39,7 +38,13 @@ public class SecurityConfig {
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
                 .authorizeRequests()
-                .antMatchers("/api/auth/**", "/api/dict/**", "/api/debug/**").permitAll()
+                .antMatchers("/api/auth/health", "/api/auth/public-key", "/api/auth/captcha",
+                        "/api/auth/code-login", "/api/auth/password-login", "/api/auth/reset-password",
+                        "/api/auth/channel-login", "/api/sms/send-code", "/api/sms/verify-code",
+                        "/api/dict/all", "/api/mini/auth/login", "/api/mini/auth/phone-login").permitAll()
+                // JwtAuthenticationFilter 在进入 Spring Security 授权链前已对非公开接口执行
+                // UserContext 认证并返回 401；这里保持 permitAll，避免自定义 UserContext
+                // 被 Spring Security 的空 Authentication 再次误判为 403。
                 .anyRequest().permitAll()
                 .and()
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

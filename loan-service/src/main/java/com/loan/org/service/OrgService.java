@@ -224,8 +224,25 @@ public class OrgService {
      * @return 菜单树
      */
     private List<MenuNodeVO> buildTree(List<Menu> all, Set<Long> allowedIds, boolean allAccess) {
+        // 角色只授权叶子菜单时也自动带入全部祖先。历史数据曾遗漏父分组授权，旧实现会
+        // 静默丢弃合法子菜单，表现为“数据库有权限但侧栏不显示”。父节点仅用于导航
+        // 分组，自动补祖先不会扩大到任何兄弟页面。
+        Set<Long> visibleIds = new java.util.HashSet<>(allowedIds);
+        if (!allAccess) {
+            Map<Long, Menu> menuById = all.stream().collect(Collectors.toMap(Menu::getId, Function.identity()));
+            for (Long allowedId : new java.util.HashSet<>(allowedIds)) {
+                Menu current = menuById.get(allowedId);
+                while (current != null && current.getParentId() != null) {
+                    Long parentId = current.getParentId();
+                    if (!visibleIds.add(parentId)) {
+                        break;
+                    }
+                    current = menuById.get(parentId);
+                }
+            }
+        }
         Map<Long, MenuNodeVO> nodeMap = all.stream()
-                .filter(m -> allAccess || allowedIds.contains(m.getId()))
+                .filter(m -> allAccess || visibleIds.contains(m.getId()))
                 .collect(Collectors.toMap(
                         Menu::getId,
                         m -> {

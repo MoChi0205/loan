@@ -43,6 +43,8 @@ const LEGACY_PARENT = Object.freeze({
   '/approval/product': '/approval',
   '/approval/download': '/approval',
   '/approval/allocation': '/approval',
+  '/approval/outing': '/approval',
+  '/approval/sensitive-phone': '/approval',
   '/approval/channel-lead': '/approval',
   '/approval/sms-template': '/approval',
   '/approval/report-template': '/approval',

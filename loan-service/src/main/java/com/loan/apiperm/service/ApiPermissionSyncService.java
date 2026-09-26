@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -73,7 +74,8 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     /** 顾问（ADVISER）默认可访问接口（一线业务） */
     private static final String[] ADVISER_APIS = {
             "order:page", "order:create", "order:detail", "order:updateStatus",
-            "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim", "lead:applyView", "lead:applyClientView", "lead:quota",
+            "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim",
+            "lead:applyView", "lead:applyClientView", "lead:quota",
             "client:pageLite", "client:detail", "client:update", "client:release", "client:follow", "client:history",
             "client:unassignedPage", "client:claim", "client:batchClaim", "client:lookup",
             "client:createFollow", "client:activityTimeline",
@@ -92,15 +94,15 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "screening:run",
             "notification:mine", "notification:unreadCount", "notification:markAsRead",
             "notification:markAllAsRead", "notification:deleteAll", "notification:deleteBatch",
-            "dashboard:todo", "mini:stats",
+            "dashboard:todo", "mini:dashboard:stats",
             // 小程序客户链路（D74/D75）：查重 → 建档 → 申请认领/转分配 → 查状态 → 释放本人客户。
             // 注意：这些 api_key 长期缺失，导致顾问/部门经理在小程序调用该链路时被网关拒绝
             // （老板/运营/超管属全量角色，故此前只有他们能用）。
-            "mini:search", "mini:create", "mini:claim", "mini:claimStatus", "mini:release", "mini:releaseLead",
-            "mini:myClients", "mini:seaClients",
+            "mini:client:search", "mini:client:create", "mini:client:claim", "mini:client:claimStatus", "mini:client:release", "mini:lead:releaseLead",
+            "mini:client:myClients", "mini:client:seaClients",
             // 站内消息中心（mini 端）：客户角色按 `mini:` 前缀整体放行，员工角色需显式授权，
             // 否则消息接口对其被网关拒绝（2026-09-11 审计 P0-2）。
-            "mini:messageList", "mini:messageUnreadCount", "mini:messageReadAll",
+            "mini:notification:mine", "mini:notification:unreadCount", "mini:notification:readAll",
             "audit:page", "audit:detail",
             "report:overview", "report:operations", "report:orderTrend", "report:rewardTrend",
             "report:screeningPage", "report:screeningDetail", "report:screeningAggregate",
@@ -136,13 +138,13 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "product:page", "product:get", "product:create", "product:update", "product:delete",
             "product-city:list", "product-city:page", "product-city:detail", "product-city:batchQuery",
             "product-city:bind", "product-city:update", "product-city:unbind",
-            "mini:stats",
-            "mini:search", "mini:create", "mini:claim", "mini:claimStatus", "mini:release", "mini:releaseLead",
-            "mini:myClients", "mini:seaClients",
+            "mini:dashboard:stats",
+            "mini:client:search", "mini:client:create", "mini:client:claim", "mini:client:claimStatus", "mini:client:release", "mini:lead:releaseLead",
+            "mini:client:myClients", "mini:client:seaClients",
             // 站内消息中心（mini 端）：主管同样需要，避免部门经理看得到入口却调不通
-            "mini:messageList", "mini:messageUnreadCount", "mini:messageReadAll",
+            "mini:notification:mine", "mini:notification:unreadCount", "mini:notification:readAll",
             // 部门经理专属（15-规则 §10/§32/§34）：团队客户视图 + 本团队回收
-            "mini:teamClients", "mini:recycleClient",
+            "mini:client:teamClients", "mini:client:recycleClient",
     };
 
     private final RequestMappingHandlerMapping handlerMapping;
@@ -225,6 +227,11 @@ public class ApiPermissionSyncService implements ApplicationRunner {
                 }
             }
             String methodName = handlerMethod.getMethod().getName();
+            // 小程序端接口：加 controller 模块段消除同名方法歧义（如 mini:invitation:mine），
+            // 避免多个 controller 的 mine() 同时映射到 mini:mine 产生 #1/#2 非确定性后缀。
+            if ("mini".equals(mod)) {
+                mod = "mini:" + miniModule(handlerMethod);
+            }
             String apiKey = mod + ":" + methodName;
             Integer cnt = keyCount.getOrDefault(apiKey, 0);
             keyCount.put(apiKey, cnt + 1);
@@ -263,8 +270,52 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             toInsert.forEach(apiPermissionMapper::insert);
         }
         toUpdate.forEach(apiPermissionMapper::updateById);
+        // 清理旧格式 mini:<方法名>（单冒号）键，避免与新的 mini:<模块>:<方法名> 并存导致鉴权歧义。
+        cleanupLegacyMiniKeys();
         Long total = apiPermissionMapper.selectCount(null);
         return total == null ? 0 : total.intValue();
+    }
+
+    /**
+     * 从小程序 controller 类名派生模块段（确定性，与扫描顺序无关）。
+     *
+     * <p>例：MiniInvitationController → invitation；MiniClientController → client；
+     * WxJsSdkController → wxjssdk。
+     */
+    private String miniModule(HandlerMethod handlerMethod) {
+        String name = handlerMethod.getBeanType().getSimpleName();
+        if (name.endsWith("Controller")) {
+            name = name.substring(0, name.length() - "Controller".length());
+        }
+        if (name.startsWith("Mini")) {
+            name = name.substring("Mini".length());
+        }
+        return name.isEmpty() ? "mini" : name.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 清理旧格式小程序接口键（mini:&lt;方法名&gt; 单冒号），避免与新的
+     * mini:&lt;模块&gt;:&lt;方法名&gt; 双冒号键并存导致网关路径匹配与角色授权歧义。
+     * 幂等：仅删除旧格式键；角色授权随后由 backfillRoleApis 按新键补齐。
+     */
+    private void cleanupLegacyMiniKeys() {
+        List<ApiPermission> perms = apiPermissionMapper.selectList(null);
+        for (ApiPermission p : perms) {
+            if (isLegacyMiniKey(p.getApiKey())) {
+                apiPermissionMapper.deleteById(p.getId());
+            }
+        }
+        List<RoleApi> roleApis = roleApiMapper.selectList(null);
+        for (RoleApi ra : roleApis) {
+            if (isLegacyMiniKey(ra.getApiKey())) {
+                roleApiMapper.deleteById(ra.getId());
+            }
+        }
+    }
+
+    /** 旧格式判断：mini: 后仅单个方法名（无第二个冒号），如 mini:mine。 */
+    private boolean isLegacyMiniKey(String key) {
+        return key != null && key.startsWith("mini:") && key.indexOf(':', 5) < 0;
     }
 
     /**

@@ -43,9 +43,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/auth/code-login",
             "/api/auth/password-login",
             "/api/auth/reset-password",
+            "/api/auth/channel-login",
             "/api/sms/send-code",
+            "/api/sms/verify-code",
             "/api/dict/all",
+            "/internal/api-perm/rules",
             "/api/mini/auth/login"
+            , "/api/mini/auth/phone-login"
     );
 
     /** 开发态角色模拟请求头 */
@@ -72,6 +76,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path = path.substring(contextPath.length());
             }
 
+            // CORS 预检不携带 JWT；交给 CORS 处理器，不把浏览器预检误判成未登录。
+            if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             // 白名单直接放行
             if (isWhiteListed(path)) {
                 filterChain.doFilter(request, response);
@@ -92,6 +102,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         authService.renewSession(userType, userId);
                     }
                 }
+            }
+
+            // 非公开接口没有有效会话时必须在服务层拒绝，避免绕过网关直连业务端口。
+            if (UserContext.getUser() == null) {
+                rejectUnauthorized(response);
+                return;
             }
 
             filterChain.doFilter(request, response);
@@ -202,5 +218,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return bearer.substring(7);
         }
         return null;
+    }
+
+    /** 服务层直连鉴权失败时返回统一 HTTP 401；不把请求继续交给 Controller。 */
+    private void rejectUnauthorized(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"code\":2000,\"message\":\"未登录或会话已过期\",\"data\":null}");
     }
 }
