@@ -116,7 +116,7 @@ public class MiniClientService {
         m.put("clientCode", c.getClientCode());
         m.put("entName", c.getEnterpriseName());
         m.put("contactName", c.getContactName());
-        m.put("contactPhone", maskPhone(c.getPhone()));
+        m.put("contactPhone", maskPhone(com.loan.infrastructure.security.AesUtils.decrypt(c.getPhone())));
         m.put("ownerStaffCode", c.getOwnerStaffCode());
         m.put("ownerStaffName", staffName(c.getOwnerStaffCode()));
         m.put("hasOwner", StringUtils.hasText(c.getOwnerStaffCode()));

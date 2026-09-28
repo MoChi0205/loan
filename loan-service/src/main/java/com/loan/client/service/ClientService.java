@@ -105,7 +105,7 @@ public class ClientService {
                                                     int page, int size, String orderBy, String orderDir, String ownerDeptCode) {
         return pageLite(keyword, name, phone, enterpriseName, creditCode, ownerStaffCode,
                 createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd, page, size, orderBy, orderDir,
-                ownerDeptCode, null, null, null, null, null, null);
+                ownerDeptCode, null, null, null, null, null, null, null);
     }
 
     /** 客户视图查询：在既有范围条件上增加全司已分配/公司公海/团队公海过滤。 */
@@ -117,7 +117,7 @@ public class ClientService {
                                                     String ownershipScope) {
         return pageLite(keyword, name, phone, enterpriseName, creditCode, ownerStaffCode,
                 createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd, page, size, orderBy, orderDir,
-                ownerDeptCode, ownershipScope, null, null, null, null, null);
+                ownerDeptCode, ownershipScope, null, null, null, null, null, null);
     }
 
     /** 客户列表扩展筛选：客群、来源、状态、跟进时效、成交状态均由数据库真实过滤。 */
@@ -126,7 +126,7 @@ public class ClientService {
                                                     java.time.LocalDateTime createdAtStart, java.time.LocalDateTime createdAtEnd,
                                                     java.time.LocalDateTime dealTimeStart, java.time.LocalDateTime dealTimeEnd,
                                                     int page, int size, String orderBy, String orderDir, String ownerDeptCode,
-                                                    String ownershipScope, String customerGroup, String source, String status,
+                                                    String ownershipScope, String customerGroup, String source, String customerTag, String status,
                                                     String followState, Boolean hasDeal) {
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
         if ("ASSIGNED".equalsIgnoreCase(ownershipScope)) {
@@ -174,6 +174,9 @@ public class ClientService {
         if (StringUtils.hasText(source)) {
             wrapper.eq(ClientProfile::getSource, source.trim());
         }
+        if (StringUtils.hasText(customerTag)) {
+            wrapper.eq(ClientProfile::getCustomerTag, customerTag.trim().toUpperCase());
+        }
         if (StringUtils.hasText(status)) {
             wrapper.eq(ClientProfile::getStatus, status.trim().toUpperCase());
         }
@@ -213,6 +216,7 @@ public class ClientService {
             m.put("enterpriseName", c.getEnterpriseName());
             m.put("customerGroup", c.getCustomerGroup());
             m.put("source", c.getSource());
+            m.put("customerTag", c.getCustomerTag());
             m.put("phone", DesensitizeUtils.phone(decryptPlain(c.getPhone())));
             m.put("ownerStaffCode", c.getOwnerStaffCode());
             m.put("ownerStaffName", ownerNames.get(c.getOwnerStaffCode()));
@@ -300,6 +304,10 @@ public class ClientService {
         }
         if (StringUtils.hasText(req.getSource()) && !req.getSource().equals(client.getSource())) {
             client.setSource(req.getSource().trim());
+            changed = true;
+        }
+        if (StringUtils.hasText(req.getCustomerTag()) && !req.getCustomerTag().equals(client.getCustomerTag())) {
+            client.setCustomerTag(req.getCustomerTag().trim().toUpperCase());
             changed = true;
         }
         if (StringUtils.hasText(req.getPhone())) {

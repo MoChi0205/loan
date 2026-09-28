@@ -1067,7 +1067,7 @@ public class ReportService {
             m.put("customerGroup", profile == null ? null : profile.getCustomerGroup());
             m.put("contactName", profile == null ? null : profile.getContactName());
             m.put("enterpriseName", profile == null ? null : profile.getEnterpriseName());
-            m.put("contactPhoneMasked", profile == null ? null : com.loan.utils.DesensitizeUtils.phone(profile.getPhone()));
+            m.put("contactPhoneMasked", profile == null ? null : com.loan.utils.DesensitizeUtils.phone(com.loan.infrastructure.security.AesUtils.decrypt(profile.getPhone())));
             m.put("grade", s.getGrade());
             m.put("bankCount", s.getBankCount());
             m.put("productCount", s.getProductCount());

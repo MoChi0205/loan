@@ -72,8 +72,8 @@
           </template>
         </el-table-column>
         <el-table-column v-if="activeTab !== 'clients'" prop="contactName" label="联系人" width="110" />
-        <el-table-column label="联系方式" width="150">
-          <template #default="{ row }">{{ desensitizePhone(row.phone) || '未绑定' }}</template>
+        <el-table-column label="联系方式" width="190">
+          <template #default="{ row }"><span>{{ revealedPhones.get(row.leadNo) || desensitizePhone(row.phone) || '未绑定' }}</span><el-button v-if="row.leadNo && !revealedPhones.has(row.leadNo)" link type="primary" size="small" @click.stop="requestLeadPhoneView(row)">申请查看</el-button><span v-else-if="revealedPhones.has(row.leadNo)" class="phone-revealed">已授权查看</span></template>
         </el-table-column>
         <el-table-column label="客群" width="90">
           <template #default="{ row }">
@@ -192,6 +192,7 @@ import { staffPage } from '@/api/org';
 import { pageUnassignedClients, claimUnassignedClient, assignClient } from '@/api/client';
 import { useUserStore } from '@/store/user';
 import { ACTION_PERMISSION } from '@/utils/access';
+import { applyLeadPhoneView } from '@/api/sensitive';
 
 const route = useRoute();
 const activeTab = ref(String(route.meta.leadView || 'mine'));
@@ -211,6 +212,14 @@ const rowKey = (row) => row.leadNo || row.clientCode;
 // ============================================================
 const tableRef = ref();
 const selectedRows = ref([]);
+const revealedPhones = reactive(new Map());
+async function requestLeadPhoneView(row) {
+  try {
+    const data = (await applyLeadPhoneView(row.leadNo)).data || {};
+    if (data.phonePlain) { revealedPhones.set(row.leadNo, data.phonePlain); ElMessage.success(`已授权查看，本日剩余 ${data.remaining ?? '—'} 次`); }
+    else if (data.approvalNo) ElMessage.warning(data.message || '已提交审批，审批通过后可再次查看');
+  } catch (e) { /* 拦截器已提示 */ }
+}
 
 function onSelectionChange(rows) {
   selectedRows.value = rows;
@@ -559,7 +568,7 @@ function sourceTag(code) {
 /** 认证状态（线索卡片展示，后端未下发时整列隐藏） */
 const authStatusMap = { VERIFIED: '已认证', SUCCESS: '已认证', ACTIVE: '已认证', PENDING: '待复核', FAIL: '认证失败', UNVERIFIED: '未认证' };
 function authStatusText(code) {
-  return authStatusMap[code] || (code ? code : '-');
+  return authStatusMap[code] || ({ ENTERPRISE_AUTHED: '企业已认证', PERSONAL_AUTHED: '个人已认证' }[code] || (code ? '状态待确认' : '-'));
 }
 function authStatusTag(code) {
   const m = { VERIFIED: 'loan-tag-success', SUCCESS: 'loan-tag-success', ACTIVE: 'loan-tag-success', PENDING: 'loan-tag-warning', FAIL: 'loan-tag-danger', UNVERIFIED: 'loan-tag-muted' };

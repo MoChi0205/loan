@@ -74,6 +74,9 @@ public class ClientProfile implements Serializable {
     /** 来源（线索转正 / 渠道等） */
     private String source;
 
+    /** 客户经营标签（NO_NEED/INTENTION/DEAL/VISITED/NO_ANSWER 等）。 */
+    private String customerTag;
+
     /** 状态（ACTIVE 有效 / 等） */
     private String status;
 

@@ -7,6 +7,7 @@ import com.loan.approval.entity.MaterialReview;
 import com.loan.approval.mapper.MaterialReviewMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.infrastructure.security.AesUtils;
 import com.loan.common.service.BusinessNameService;
 import com.loan.context.LoanUser;
 import com.loan.mini.service.MiniMatchService;
@@ -96,7 +97,7 @@ public class StaffReportAggregationService {
         target.setClientCode(source.getClientCode());
         target.setCustomerGroup(source.getCustomerGroup());
         target.setContactName(source.getContactName());
-        target.setContactPhoneMasked(maskPhone(source.getPhone()));
+        target.setContactPhoneMasked(maskPhone(AesUtils.decrypt(source.getPhone())));
         target.setEnterpriseName(source.getEnterpriseName());
         target.setCreditCodeMasked(maskCreditCode(source.getCreditCode()));
         if ("ENTERPRISE".equals(source.getCustomerGroup())) {

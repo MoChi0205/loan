@@ -29,6 +29,7 @@
         <el-select v-model="clientQuery.hasDeal" placeholder="成交情况" clearable style="width: 130px"><el-option label="已成交" :value="true" /><el-option label="未成交" :value="false" /></el-select>
         <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerDeptCode" placeholder="归属部门" clearable filterable style="width: 160px"><el-option v-for="item in filterDepartments" :key="item.code" :label="item.name" :value="item.code" /></el-select>
         <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerStaffCode" placeholder="归属顾问" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" style="width: 180px"><el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="item.staffName" :value="item.staffCode" /></el-select>
+        <el-select v-model="clientQuery.customerTag" placeholder="客户标签" clearable style="width: 140px"><el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" /></el-select>
         <el-button text type="primary" @click="moreFiltersVisible = !moreFiltersVisible">{{ moreFiltersVisible ? '收起筛选' : '更多筛选' }}</el-button>
         <template v-if="moreFiltersVisible">
           <el-input v-model="clientQuery.name" placeholder="联系人姓名" clearable style="width: 160px" @keyup.enter="searchClients" />
@@ -81,6 +82,7 @@
         </el-table-column>
         <el-table-column label="类型" width="100"><template #default="{ row }">{{ row.customerGroup === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
         <el-table-column label="来源" width="130"><template #default="{ row }">{{ sourceText(row.source) }}</template></el-table-column>
+        <el-table-column label="客户标签" width="110"><template #default="{ row }"><span class="loan-tag loan-tag-info">{{ customerTagText(row.customerTag) }}</span></template></el-table-column>
         <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
         <el-table-column label="最近跟进" width="190">
           <template #default="{ row }">
@@ -210,6 +212,7 @@
               <el-option label="否" :value="0" />
             </el-select>
           </el-form-item>
+          <el-form-item label="客户标签"><el-select v-model="editForm.customerTag" clearable placeholder="请选择客户标签" style="width: 100%"><el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" /></el-select></el-form-item>
         </div>
       </el-form>
     </AppDialog>
@@ -317,6 +320,7 @@ const {
   creditCode: '',
   customerGroup: '',
   source: '',
+  customerTag: '',
   status: '',
   followState: '',
   hasDeal: '',
@@ -516,6 +520,7 @@ const detail = reactive({
   name: '',
   phone: '',
   source: '',
+  customerTag: '',
   ownerStaffCode: '',
   ownerStaffName: '',
   authStatus: '',
@@ -580,6 +585,7 @@ async function loadDetail(code) {
       name: d.name || per.realName || ent.enterpriseName || '',
       phone: d.phone,
       source: d.source,
+      customerTag: d.customerTag,
       ownerStaffCode: d.ownerStaffCode,
       ownerStaffName: d.ownerStaffName,
       authStatus: d.authStatus ?? d.certStatus ?? d.verificationStatus,
@@ -611,7 +617,9 @@ async function loadDetail(code) {
 // ============================================================
 // 枚举映射与脱敏兜底（后端已脱敏则原样展示）
 // ============================================================
-const sourceMap = { MINI: '小程序注册', INVITE: '小程序·邀请', WEB: 'Web 录入', BOSS: '老板', ADVISER: '顾问', CHANNEL: '渠道', VIP: 'VIP 客户' };
+const sourceMap = { MINI: '小程序注册', INVITE: '小程序·邀请', WEB: 'Web 录入', BOSS: '老板', ADVISER: '顾问', CHANNEL: '渠道', VIP: 'VIP 客户', MINI_STAFF_CREATE: '员工移动端录入', SENSITIVE_VIEW_TEST: '测试数据' };
+const customerTagMap = { NEW: '待跟进', INTENTION: '意向客户', POTENTIAL: '潜在客户', DEAL: '已成交', VISITED: '已来访', NO_ANSWER: '无人接听', NO_NEED: '无需求' };
+function customerTagText(code) { return customerTagMap[code] || (code ? '待标注' : '未标注'); }
 function sourceText(code) {
   return sourceMap[code] || code || '-';
 }
@@ -622,7 +630,7 @@ function sourceTag(code) {
 
 const authStatusMap = { VERIFIED: '已认证', SUCCESS: '已认证', ACTIVE: '已认证', PENDING: '待复核', FAIL: '认证失败', UNVERIFIED: '未认证', NONE: '未认证' };
 function authStatusText(code) {
-  return authStatusMap[code] || (code ? code : '未认证');
+  return authStatusMap[code] || ({ ENTERPRISE_AUTHED: '企业已认证', PERSONAL_AUTHED: '个人已认证' }[code] || (code ? '状态待确认' : '未认证'));
 }
 function authStatusTag(code) {
   const m = { VERIFIED: 'loan-tag-success', SUCCESS: 'loan-tag-success', ACTIVE: 'loan-tag-success', PENDING: 'loan-tag-warning', FAIL: 'loan-tag-danger', UNVERIFIED: 'loan-tag-muted', NONE: 'loan-tag-muted' };
@@ -681,6 +689,7 @@ const editFormRef = ref();
 const editForm = reactive({
   contactName: '',
   source: '',
+  customerTag: '',
   realName: '',
   idCardNo: '',
   city: '',
@@ -702,6 +711,7 @@ function openEdit() {
   Object.assign(editForm, {
     contactName: detail.name,
     source: detail.source,
+    customerTag: detail.customerTag,
     realName: detail.realName,
     idCardNo: detail.idCardNo,
     city: detail.city,

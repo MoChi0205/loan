@@ -10,7 +10,7 @@
       <el-empty v-if="searched && !result" description="未查询到已存在用户" />
       <el-descriptions v-if="result" :column="2" border class="result">
         <el-descriptions-item label="客户">{{ result.entName || result.contactName || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="联系电话">{{ result.contactPhone || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="联系电话"><span>{{ desensitizePhone(result.contactPhone) }}</span><el-button v-if="!phoneRevealed" link type="primary" size="small" @click="requestPhoneView">申请查看</el-button><span v-else class="phone-revealed">已授权查看</span></el-descriptions-item>
         <el-descriptions-item label="当前归属">{{ result.hasOwner ? (result.ownerStaffName || '已有顾问') : '未分配' }}</el-descriptions-item>
         <el-descriptions-item label="处理方式">{{ result.ownedByMe ? '已归属本人，无需重复认领' : (result.hasOwner ? '提交转移申请' : '直接认领，无需审批') }}</el-descriptions-item>
       </el-descriptions>
@@ -26,12 +26,20 @@
 import { ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { lookupClient, claimUnassignedClient } from '@/api/client';
-const keyword = ref(''); const loading = ref(false); const searched = ref(false); const result = ref(null);
+import { desensitizePhone } from '@/utils/format';
+import { applyClientPhoneView } from '@/api/sensitive';
+const keyword = ref(''); const loading = ref(false); const searched = ref(false); const result = ref(null); const phoneRevealed = ref(false);
 async function search() {
   if (keyword.value.trim().length < 2) return ElMessage.warning('请输入至少 2 个字符');
   loading.value = true;
-  try { const res = await lookupClient(keyword.value.trim()); result.value = res.data || null; searched.value = true; }
+  try { const res = await lookupClient(keyword.value.trim()); result.value = res.data || null; phoneRevealed.value = false; searched.value = true; }
   finally { loading.value = false; }
+}
+async function requestPhoneView() {
+  if (!result.value?.clientCode) return;
+  const data = (await applyClientPhoneView(result.value.clientCode)).data || {};
+  if (data.phonePlain) { result.value.contactPhone = data.phonePlain; phoneRevealed.value = true; ElMessage.success(`已授权查看，本日剩余 ${data.remaining ?? '—'} 次`); }
+  else if (data.approvalNo) ElMessage.warning(data.message || '已提交审批，审批通过后可再次查看');
 }
 async function claim() {
   const direct = !result.value.hasOwner;
@@ -41,4 +49,4 @@ async function claim() {
   await search();
 }
 </script>
-<style scoped>.lookup-card{max-width:820px}.result{margin-top:20px}.actions{display:flex;justify-content:flex-end;margin-top:18px}</style>
+<style scoped>.lookup-card{max-width:820px}.result{margin-top:20px}.actions{display:flex;justify-content:flex-end;margin-top:18px}.phone-revealed{margin-left:8px;color:var(--loan-success-text,var(--loan-success));font-size:12px}</style>

@@ -245,6 +245,7 @@ public class ClientController {
             @RequestParam(required = false) String ownerDeptCode,
             @RequestParam(required = false) String customerGroup,
             @RequestParam(required = false) String source,
+            @RequestParam(required = false) String customerTag,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String followState,
             @RequestParam(required = false) Boolean hasDeal,
@@ -296,7 +297,7 @@ public class ClientController {
         return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
                 scopedOwner, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir, scopedDeptCode, ownershipScope,
-                customerGroup, source, status, followState, hasDeal));
+                customerGroup, source, customerTag, status, followState, hasDeal));
     }
 
     /**

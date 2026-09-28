@@ -23,6 +23,8 @@ public class ClientUpdateRequest implements Serializable {
     /** 客户来源（保留原有来源码，页面展示由字典翻译） */
     private String source;
 
+    private String customerTag;
+
     /** 手机号（明文，服务端 AES 加密 + hash 落库） */
     private String phone;
 
