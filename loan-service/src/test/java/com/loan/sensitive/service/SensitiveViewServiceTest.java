@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -53,6 +54,7 @@ class SensitiveViewServiceTest {
         adviser.setUserType(LoanUser.TYPE_STAFF);
         adviser.setRoleCode("ADVISER");
         adviser.setDeptCode("dept-1");
+        when(staffMapper.lockByStaffCode("staff-adviser")).thenReturn(1L);
         ClientProfile client = new ClientProfile();
         client.setClientCode("client-1");
         client.setOwnerStaffCode("staff-adviser");
@@ -76,6 +78,11 @@ class SensitiveViewServiceTest {
                 ArgumentCaptor.forClass(com.loan.sensitive.entity.SensitiveViewLog.class);
         verify(logMapper).insert(captor.capture());
         assertEquals("client-1", captor.getValue().getClientCode());
+        verify(staffMapper).lockByStaffCode("staff-adviser");
+        org.mockito.InOrder order = inOrder(staffMapper, clientProfileMapper, logMapper);
+        order.verify(staffMapper).lockByStaffCode("staff-adviser");
+        order.verify(clientProfileMapper).selectOne(any());
+        order.verify(logMapper).countTodayClientViews("staff-adviser", LocalDate.now());
     }
 
     @Test
@@ -89,5 +96,6 @@ class SensitiveViewServiceTest {
         assertEquals(1, response.getUsed());
         assertEquals(29, response.getRemaining());
         verify(logMapper, never()).insert(any());
+        verify(staffMapper).lockByStaffCode("staff-adviser");
     }
 }

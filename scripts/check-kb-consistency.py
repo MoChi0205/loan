@@ -7,6 +7,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 DOC_ROOTS = [ROOT / "README.md", ROOT / "docs", ROOT / "scripts" / "README-check-kb.md"]
+# docs/local-brain 是跨项目知识图谱的自动蒸馏快照，不是 loan 当前文档真值。
+# 其中允许保留其他项目的历史编号和跨仓库来源，因此必须与项目文档门禁隔离。
+EXCLUDED_DIRS = {ROOT / "docs" / "local-brain"}
 REQUIRED = [
     ROOT / "docs/knowledge-base/README.md",
     ROOT / "docs/knowledge-base/01-角色权限模型.md",
@@ -29,7 +32,11 @@ def text_files():
         if item.is_file():
             yield item
         elif item.is_dir():
-            yield from (p for p in item.rglob("*") if p.suffix.lower() in {".md", ".html", ".json"})
+            yield from (
+                p for p in item.rglob("*")
+                if p.suffix.lower() in {".md", ".html", ".json"}
+                and not any(excluded == p or excluded in p.parents for excluded in EXCLUDED_DIRS)
+            )
 
 
 def main():

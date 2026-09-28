@@ -234,6 +234,11 @@ public class SensitiveViewService {
         if (!StringUtils.hasText(userNo)) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "未登录");
         }
+        // MySQL 默认 REPEATABLE READ 下，必须在任何客户/日志一致性读之前取得员工行锁。
+        // 若先读客户再等待锁，后续额度查询可能仍沿用等待前建立的旧快照。
+        if (!isExemptRole(roleCode)) {
+            lockQuotaOwner(userNo);
+        }
         ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
                 .eq(ClientProfile::getClientCode, clientCode.trim()).last("limit 1"));
         if (client == null) {
@@ -289,6 +294,14 @@ public class SensitiveViewService {
         resp.setRevealed(true);
         applyQuota(resp, userNo);
         return resp;
+    }
+
+    /** 在当前事务内锁定额度所属员工，确保“计数 → 判断 → 留痕”原子串行。 */
+    private void lockQuotaOwner(String userNo) {
+        Long staffId = staffMapper.lockByStaffCode(userNo.trim());
+        if (staffId == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "当前员工账号不存在或已失效");
+        }
     }
 
     private SensitiveViewApproval ensureOverLimitApproval(String clientCode, com.loan.context.LoanUser user) {
