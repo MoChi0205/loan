@@ -512,14 +512,48 @@ public class ClientInsightService {
         List<String> result = new ArrayList<>();
         if (value instanceof Collection) {
             for (Object item : (Collection<?>) value) {
-                if (item != null && StringUtils.hasText(String.valueOf(item))) {
-                    result.add(String.valueOf(item));
+                String text = businessText(item);
+                if (StringUtils.hasText(text)) {
+                    result.add(text);
                 }
             }
-        } else if (value != null && StringUtils.hasText(String.valueOf(value))) {
-            result.add(String.valueOf(value));
+        } else {
+            String text = businessText(value);
+            if (StringUtils.hasText(text)) {
+                result.add(text);
+            }
         }
         return result;
+    }
+
+    /**
+     * 报告风险与建议可能是结构化 Map；快照只保存可读业务文案，禁止把
+     * {@code {level=..., content=...}} 这类 Java 内部结构直接输出到页面。
+     */
+    private String businessText(Object value) {
+        if (value instanceof Map) {
+            Map<?, ?> item = (Map<?, ?>) value;
+            Object content = item.containsKey("content") ? item.get("content")
+                    : item.containsKey("message") ? item.get("message") : item.get("summary");
+            if (content == null || !StringUtils.hasText(String.valueOf(content))) {
+                return null;
+            }
+            Object rawMeta = item.containsKey("level") ? item.get("level") : item.get("type");
+            String meta = chineseMeta(rawMeta);
+            return StringUtils.hasText(meta) ? meta + "：" + content : String.valueOf(content);
+        }
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String chineseMeta(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        if ("HIGH".equalsIgnoreCase(text) || "高".equals(text)) return "高风险";
+        if ("MIDDLE".equalsIgnoreCase(text) || "MEDIUM".equalsIgnoreCase(text) || "中".equals(text)) return "中风险";
+        if ("LOW".equalsIgnoreCase(text) || "低".equals(text)) return "低风险";
+        return text;
     }
 
     private int positive(Integer value) {

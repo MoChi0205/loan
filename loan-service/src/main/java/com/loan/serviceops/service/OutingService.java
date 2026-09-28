@@ -318,6 +318,10 @@ public class OutingService {
      * @return 分页结果
      */
     public PageResult<StaffOutingDTO> day(LocalDate date, String status, LoanUser user, int page, int size) {
+        return day(date, status, user, page, size, null);
+    }
+
+    public PageResult<StaffOutingDTO> day(LocalDate date, String status, LoanUser user, int page, int size, String requestedScope) {
         LocalDate day = date == null ? LocalDate.now() : date;
         LambdaQueryWrapper<StaffOuting> wrapper = new LambdaQueryWrapper<StaffOuting>()
                 .ge(StaffOuting::getPlannedStart, day.atStartOfDay())
@@ -331,7 +335,7 @@ public class OutingService {
             }
             wrapper.eq(StaffOuting::getStatus, value);
         }
-        scopeService.applyOutingListScope(wrapper, user);
+        scopeService.applyOutingListScope(wrapper, user, requestedScope);
         Page<StaffOuting> result = outingMapper.selectPage(new Page<>(page, size), wrapper);
         Map<String, Staff> staff = staffByCodes(result.getRecords().stream()
                 .map(StaffOuting::getStaffCode).collect(Collectors.toSet()));

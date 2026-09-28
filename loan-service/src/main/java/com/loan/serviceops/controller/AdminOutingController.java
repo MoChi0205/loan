@@ -68,9 +68,10 @@ public class AdminOutingController {
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String scope,
             @CurrentUser LoanUser user) {
         return Result.ok(outingService.day(date, status, user,
-                PageParams.page(page), PageParams.size(size)));
+                PageParams.page(page), PageParams.size(size), scope));
     }
 
     /** 外出待审批：经理按部门，运营/老板/超管按公司范围。 */

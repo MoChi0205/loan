@@ -140,11 +140,9 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
         }
         // 码级校验（T9/D28）：受保护管理前缀，校验角色是否拥有对应页面权限码
         if (path != null) {
-            for (java.util.Map.Entry<String, String> e : URI_PERMISSION.entrySet()) {
-                if (path.startsWith(e.getKey())) {
-                    checkPagePermission(role, e.getValue());
-                    break;
-                }
+            String pagePermission = pagePermissionForPath(path);
+            if (pagePermission != null) {
+                checkPagePermission(role, pagePermission);
             }
         }
         // 接口级权限（D30 接入）：第三方校验（BOSS 全放；STAFF 查 t_role_api；无授权保守放行）
@@ -153,6 +151,21 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
             throw new BusinessException(ResultCode.FORBIDDEN, "接口无权访问（" + apiCheck.reason + "）");
         }
         return true;
+    }
+
+    /**
+     * 客户回放接口复用了 /api/admin/client 前缀，但它的页面授权是 page:service-replay。
+     * 不能用宽泛的 page:client 覆盖，否则角色拥有“客户回放”菜单仍会被接口拦截为无客户档案权限。
+     */
+    private String pagePermissionForPath(String path) {
+        if (path.startsWith("/api/admin/client/")
+                && (path.contains("/activity-timeline") || path.contains("/insight"))) {
+            return "page:service-replay";
+        }
+        for (java.util.Map.Entry<String, String> e : URI_PERMISSION.entrySet()) {
+            if (path.startsWith(e.getKey())) return e.getValue();
+        }
+        return null;
     }
 
     /**

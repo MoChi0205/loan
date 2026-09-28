@@ -44,6 +44,7 @@ import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -546,6 +547,13 @@ public class ApprovalService {
 
     /** 当前员工发起的审批工单，所有员工均可查看，不授予审核权限。 */
     public List<Map<String, Object>> myApplications(LoanUser user) {
+        return myApplications(user, null, null, null, null, null, null);
+    }
+
+    /** 当前员工发起的审批工单；查询条件只作用于本人数据，不扩大任何角色的数据范围。 */
+    public List<Map<String, Object>> myApplications(LoanUser user, String type, String status,
+                                                     String approvalStage, String keyword,
+                                                     LocalDate startDate, LocalDate endDate) {
         if (user == null || !StringUtils.hasText(user.getUserNo())) return Collections.emptyList();
         List<Map<String, Object>> rows = new ArrayList<>();
         productApprovalMapper.selectList(new LambdaQueryWrapper<ProductApproval>()
@@ -623,7 +631,38 @@ public class ApprovalService {
             rows.add(m);
         });
         rows.sort(new CreatedAtDescComparator());
-        return rows.size() > 100 ? rows.subList(0, 100) : rows;
+        String normalizedType = normalizeFilter(type);
+        String normalizedStatus = normalizeFilter(status);
+        String normalizedStage = normalizeFilter(approvalStage);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim().toLowerCase() : null;
+        return rows.stream()
+                .filter(row -> normalizedType == null || normalizedType.equals(row.get("type")))
+                .filter(row -> normalizedStatus == null || normalizedStatus.equals(row.get("approveStatus")))
+                .filter(row -> normalizedStage == null || normalizedStage.equals(row.get("approvalStage")))
+                .filter(row -> inCreatedDateRange(row.get("createdAt"), startDate, endDate))
+                .filter(row -> matchesApplicationKeyword(row, normalizedKeyword))
+                .limit(100)
+                .collect(Collectors.toList());
+    }
+
+    private String normalizeFilter(String value) {
+        return StringUtils.hasText(value) ? value.trim().toUpperCase() : null;
+    }
+
+    private boolean inCreatedDateRange(Object value, LocalDate startDate, LocalDate endDate) {
+        if (startDate == null && endDate == null) return true;
+        if (!(value instanceof LocalDateTime)) return false;
+        LocalDate createdDate = ((LocalDateTime) value).toLocalDate();
+        return (startDate == null || !createdDate.isBefore(startDate))
+                && (endDate == null || !createdDate.isAfter(endDate));
+    }
+
+    private boolean matchesApplicationKeyword(Map<String, Object> row, String keyword) {
+        if (!StringUtils.hasText(keyword)) return true;
+        return Arrays.asList(row.get("subject"), row.get("opinion"))
+                .stream().filter(java.util.Objects::nonNull)
+                .map(String::valueOf).map(String::toLowerCase)
+                .anyMatch(text -> text.contains(keyword));
     }
 
     private String outingApprovalStatus(String status) {

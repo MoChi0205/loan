@@ -39,53 +39,53 @@ public class DailyServiceWorkbenchService {
             new TypeReference<DailyServiceWorkbenchDTO>() { };
 
     public DailyServiceWorkbenchDTO daily(LocalDate date, LoanUser user, int page, int size, boolean refresh) {
+        return daily(date, null, user, page, size, refresh);
+    }
+
+    public DailyServiceWorkbenchDTO daily(LocalDate date, String requestedScope, LoanUser user, int page, int size, boolean refresh) {
         scopeService.requireStaffListAccess(user);
         LocalDate day = date == null ? LocalDate.now() : date;
+        scopeService.resolveScope(user, requestedScope);
         // v2：列表 DTO 已强制装配客户/员工/部门展示名，隔离旧缓存中只有业务编码的数据。
-        String cacheKey = "service:workbench:daily:v2:" + scopeKey(user) + ":" + day + ":" + page + ":" + size;
+        String cacheKey = "service:workbench:daily:v3:" + scopeKey(user, requestedScope) + ":" + day + ":" + page + ":" + size;
         if (refresh) {
-            DailyServiceWorkbenchDTO current = loadDaily(day, user, page, size);
+            DailyServiceWorkbenchDTO current = loadDaily(day, requestedScope, user, page, size);
             cacheService.put(cacheKey, current);
             return current;
         }
         return cacheService.getOrLoad(cacheKey, WORKBENCH_TYPE,
-                () -> loadDaily(day, user, page, size));
+                () -> loadDaily(day, requestedScope, user, page, size));
     }
 
     /** 回源查询：四块名单仍保持原 DTO 和权限范围，缓存只包住读模型组装。 */
-    private DailyServiceWorkbenchDTO loadDaily(LocalDate day, LoanUser user, int page, int size) {
+    private DailyServiceWorkbenchDTO loadDaily(LocalDate day, String requestedScope, LoanUser user, int page, int size) {
         DailyServiceWorkbenchDTO dto = new DailyServiceWorkbenchDTO();
         dto.setDate(day);
         dto.setCompanyVisits(appointmentService.day(
-                day, "COMPANY_ON_SITE", null, user, page, size));
-        dto.setStaffOutings(outingService.day(day, null, user, page, size));
-        dto.setPendingFollows(pendingFollows(day, user, page, size));
-        dto.setActiveOrders(activeOrders(user, page, size));
+                day, "COMPANY_ON_SITE", null, user, page, size, requestedScope));
+        dto.setStaffOutings(outingService.day(day, null, user, page, size, requestedScope));
+        dto.setPendingFollows(pendingFollows(day, requestedScope, user, page, size));
+        dto.setActiveOrders(activeOrders(requestedScope, user, page, size));
         return dto;
     }
 
-    private String scopeKey(LoanUser user) {
+    private String scopeKey(LoanUser user, String requestedScope) {
         String role = user == null || user.getRoleCode() == null ? "UNKNOWN" : user.getRoleCode().toUpperCase();
-        if ("BOSS".equals(role) || "OPERATOR".equals(role) || "SUPER".equals(role)
-                || "SUPER_ADMIN".equals(role)) {
-            return "COMPANY:" + role;
-        }
-        if ("DEPT_MANAGER".equals(role)) {
-            return "DEPT:" + safe(user.getDeptCode());
-        }
-        return "SELF:" + safe(user == null ? null : user.getUserNo());
+        String effective = scopeService.resolveScope(user, requestedScope).name();
+        return effective + ":" + role + ":" + safe(user == null ? null : user.getDeptCode())
+                + ":" + safe(user == null ? null : user.getUserNo());
     }
 
     private String safe(String value) {
         return value == null ? "NONE" : value.replaceAll("[^A-Za-z0-9_-]", "_");
     }
 
-    private PageResult<DailyFollowDTO> pendingFollows(LocalDate day, LoanUser user, int page, int size) {
+    private PageResult<DailyFollowDTO> pendingFollows(LocalDate day, String requestedScope, LoanUser user, int page, int size) {
         LambdaQueryWrapper<ClientFollowRecord> wrapper = new LambdaQueryWrapper<ClientFollowRecord>()
                 .ge(ClientFollowRecord::getNextFollowAt, day.atStartOfDay())
                 .lt(ClientFollowRecord::getNextFollowAt, day.plusDays(1).atStartOfDay())
                 .orderByAsc(ClientFollowRecord::getNextFollowAt);
-        scopeService.applyFollowListScope(wrapper, user);
+        scopeService.applyFollowListScope(wrapper, user, requestedScope);
         Page<ClientFollowRecord> result = followMapper.selectPage(new Page<>(page, size), wrapper);
         Map<String, ClientProfile> clients = scopeService.clientsByCodes(result.getRecords().stream()
                 .map(ClientFollowRecord::getClientCode).collect(Collectors.toSet()));
@@ -102,12 +102,12 @@ public class DailyServiceWorkbenchService {
         }).collect(Collectors.toList()));
     }
 
-    private PageResult<DailyOrderDTO> activeOrders(LoanUser user, int page, int size) {
+    private PageResult<DailyOrderDTO> activeOrders(String requestedScope, LoanUser user, int page, int size) {
         LambdaQueryWrapper<ServiceOrder> wrapper = new LambdaQueryWrapper<ServiceOrder>()
                 .in(ServiceOrder::getStatus, Arrays.asList(ServiceOrder.STATUS_NEW, ServiceOrder.STATUS_IN_SERVICE))
                 .orderByDesc(ServiceOrder::getUpdatedAt)
                 .orderByDesc(ServiceOrder::getCreatedAt);
-        scopeService.applyOrderListScope(wrapper, user);
+        scopeService.applyOrderListScope(wrapper, user, requestedScope);
         Page<ServiceOrder> result = orderMapper.selectPage(new Page<>(page, size), wrapper);
         Map<String, ClientProfile> clients = scopeService.clientsByCodes(result.getRecords().stream()
                 .map(ServiceOrder::getClientProfileCode).collect(Collectors.toSet()));

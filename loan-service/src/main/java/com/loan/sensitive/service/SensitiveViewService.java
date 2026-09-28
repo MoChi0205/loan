@@ -46,7 +46,7 @@ import java.util.Set;
  *   <li>豁免角色（BOSS / SUPER_ADMIN / SUPER）：直接查看明文，不受日限额约束。</li>
  *   <li>顾问、运营、部门经理：额度内首次解锁直接查看；顾问/运营超限由本部门经理审批，
  *       部门经理超限由老板或超级管理员审批。</li>
- *   <li>授权持久化：同一线索已授权后再次查看不再消耗当日额度。</li>
+ *   <li>客户手机号按“员工 + 客户 + 日期”统计首次解锁；同日重复查看不扣次，跨日重新计数。</li>
  * </ul>
  *
  * @author loan-platform
@@ -256,8 +256,8 @@ public class SensitiveViewService {
             applyQuota(resp, userNo);
             return resp;
         }
-        // 已授权客户再次查看不重复消耗当天额度，但仍返回当前额度。
-        if (hasClientGrant(userNo, clientCode)) {
+        // 同一客户在“当天”已解锁才不重复计数；历史永久授权不能跨天绕过当日额度。
+        if (hasClientViewedToday(userNo, clientCode)) {
             resp.setPhonePlain(plain);
             resp.setRevealed(true);
             applyQuota(resp, userNo);
@@ -348,6 +348,12 @@ public class SensitiveViewService {
         return count == null ? 0L : count;
     }
 
+    private boolean hasClientViewedToday(String userNo, String clientCode) {
+        if (!StringUtils.hasText(userNo) || !StringUtils.hasText(clientCode)) return false;
+        Long count = logMapper.countTodayClientView(userNo.trim(), LocalDate.now(), clientCode.trim());
+        return count != null && count > 0L;
+    }
+
     private void insertClientGrant(String userNo, String clientCode) {
         SensitiveViewGrant grant = new SensitiveViewGrant();
         grant.setUserNo(userNo.trim());
@@ -362,7 +368,7 @@ public class SensitiveViewService {
         logPo.setClientCode(clientCode.trim());
         logPo.setViewDate(LocalDate.now());
         logPo.setCreatedAt(LocalDateTime.now());
-        logMapper.insert(logPo);
+        try { logMapper.insert(logPo); } catch (DuplicateKeyException ignored) { }
     }
 
     /** 填充额度字段。 */

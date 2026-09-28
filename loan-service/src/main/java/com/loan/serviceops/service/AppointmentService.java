@@ -308,6 +308,11 @@ public class AppointmentService {
 
     public PageResult<StaffAppointmentDTO> day(LocalDate date, String serviceMethod, String status,
                                                LoanUser user, int page, int size) {
+        return day(date, serviceMethod, status, user, page, size, null);
+    }
+
+    public PageResult<StaffAppointmentDTO> day(LocalDate date, String serviceMethod, String status,
+                                               LoanUser user, int page, int size, String requestedScope) {
         scopeService.requireStaffListAccess(user);
         LocalDate day = date == null ? LocalDate.now() : date;
         LambdaQueryWrapper<ClientAppointment> wrapper = new LambdaQueryWrapper<ClientAppointment>()
@@ -322,7 +327,7 @@ public class AppointmentService {
             parseStatus(status);
             wrapper.eq(ClientAppointment::getStatus, status.trim().toUpperCase());
         }
-        scopeService.applyAppointmentListScope(wrapper, user);
+        scopeService.applyAppointmentListScope(wrapper, user, requestedScope);
         Page<ClientAppointment> result = appointmentMapper.selectPage(new Page<>(page, size), wrapper);
         return PageResult.build(page, size, result.getTotal(), toStaffDtos(result.getRecords()));
     }

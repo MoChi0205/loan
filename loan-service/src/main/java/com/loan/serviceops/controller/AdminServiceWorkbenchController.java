@@ -29,8 +29,9 @@ public class AdminServiceWorkbenchController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "false") boolean refresh,
+            @RequestParam(required = false) String scope,
             @CurrentUser LoanUser user) {
-        return Result.ok(workbenchService.daily(date, user,
+        return Result.ok(workbenchService.daily(date, scope, user,
                 PageParams.page(page), PageParams.size(size), refresh));
     }
 }

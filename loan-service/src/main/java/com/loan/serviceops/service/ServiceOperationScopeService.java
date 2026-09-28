@@ -127,8 +127,13 @@ public class ServiceOperationScopeService {
 
     public void applyAppointmentListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientAppointment> wrapper,
                                           LoanUser user) {
+        applyAppointmentListScope(wrapper, user, null);
+    }
+
+    public void applyAppointmentListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientAppointment> wrapper,
+                                          LoanUser user, String requestedScope) {
         requireStaffListAccess(user);
-        ServiceListScope scope = ServiceOperationAccessPolicy.listScope(user);
+        ServiceListScope scope = resolveScope(user, requestedScope);
         if (scope == ServiceListScope.SELF) {
             wrapper.eq(com.loan.serviceops.entity.ClientAppointment::getHostStaffCode, user.getUserNo());
         } else if (scope == ServiceListScope.DEPARTMENT) {
@@ -140,8 +145,13 @@ public class ServiceOperationScopeService {
 
     public void applyOutingListScope(LambdaQueryWrapper<com.loan.serviceops.entity.StaffOuting> wrapper,
                                      LoanUser user) {
+        applyOutingListScope(wrapper, user, null);
+    }
+
+    public void applyOutingListScope(LambdaQueryWrapper<com.loan.serviceops.entity.StaffOuting> wrapper,
+                                     LoanUser user, String requestedScope) {
         requireStaffListAccess(user);
-        ServiceListScope scope = ServiceOperationAccessPolicy.listScope(user);
+        ServiceListScope scope = resolveScope(user, requestedScope);
         if (scope == ServiceListScope.SELF) {
             wrapper.eq(com.loan.serviceops.entity.StaffOuting::getStaffCode, user.getUserNo());
         } else if (scope == ServiceListScope.DEPARTMENT) {
@@ -153,8 +163,13 @@ public class ServiceOperationScopeService {
 
     public void applyFollowListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientFollowRecord> wrapper,
                                      LoanUser user) {
+        applyFollowListScope(wrapper, user, null);
+    }
+
+    public void applyFollowListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientFollowRecord> wrapper,
+                                     LoanUser user, String requestedScope) {
         requireStaffListAccess(user);
-        ServiceListScope scope = ServiceOperationAccessPolicy.listScope(user);
+        ServiceListScope scope = resolveScope(user, requestedScope);
         if (scope == ServiceListScope.SELF) {
             wrapper.eq(com.loan.serviceops.entity.ClientFollowRecord::getStaffCode, user.getUserNo());
         } else if (scope == ServiceListScope.DEPARTMENT) {
@@ -166,8 +181,13 @@ public class ServiceOperationScopeService {
 
     public void applyOrderListScope(LambdaQueryWrapper<com.loan.order.entity.ServiceOrder> wrapper,
                                     LoanUser user) {
+        applyOrderListScope(wrapper, user, null);
+    }
+
+    public void applyOrderListScope(LambdaQueryWrapper<com.loan.order.entity.ServiceOrder> wrapper,
+                                    LoanUser user, String requestedScope) {
         requireStaffListAccess(user);
-        ServiceListScope scope = ServiceOperationAccessPolicy.listScope(user);
+        ServiceListScope scope = resolveScope(user, requestedScope);
         if (scope == ServiceListScope.SELF) {
             wrapper.eq(com.loan.order.entity.ServiceOrder::getOwnerStaffCode, user.getUserNo());
         } else if (scope == ServiceListScope.DEPARTMENT) {
@@ -182,5 +202,32 @@ public class ServiceOperationScopeService {
             throw new BusinessException(ResultCode.FORBIDDEN, "部门数据范围无效");
         }
         return value;
+    }
+
+    /**
+     * 页面可请求更窄的数据范围，但不能突破角色上限：顾问只能本人，经理可本人/本部门，
+     * 公司管理角色可本人/本部门/全公司。非法或未授权范围直接拒绝，避免仅靠前端隐藏控件。
+     */
+    public ServiceListScope resolveScope(LoanUser user, String requestedScope) {
+        ServiceListScope maximum = ServiceOperationAccessPolicy.listScope(user);
+        if (!StringUtils.hasText(requestedScope)) return maximum;
+        String value = requestedScope.trim().toUpperCase();
+        ServiceListScope requested;
+        try {
+            requested = ServiceListScope.valueOf(value);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "数据范围不合法");
+        }
+        if (requested == ServiceListScope.NONE || !isAllowedScope(maximum, requested)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "当前角色无权查看该数据范围");
+        }
+        return requested;
+    }
+
+    private boolean isAllowedScope(ServiceListScope maximum, ServiceListScope requested) {
+        if (maximum == ServiceListScope.SELF) return requested == ServiceListScope.SELF;
+        if (maximum == ServiceListScope.DEPARTMENT) return requested == ServiceListScope.SELF || requested == ServiceListScope.DEPARTMENT;
+        return maximum == ServiceListScope.COMPANY
+                && (requested == ServiceListScope.SELF || requested == ServiceListScope.DEPARTMENT || requested == ServiceListScope.COMPANY);
     }
 }

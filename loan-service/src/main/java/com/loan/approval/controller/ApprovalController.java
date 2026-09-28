@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 /**
@@ -43,9 +45,16 @@ public class ApprovalController {
 
     /** 我的审批申请：所有公司员工可查看本人发起记录。 */
     @GetMapping("/mine")
-    public Result<java.util.List<Map<String, Object>>> mine(@CurrentUser LoanUser user) {
+    public Result<java.util.List<Map<String, Object>>> mine(
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String approvalStage,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
-        return Result.ok(approvalService.myApplications(user));
+        return Result.ok(approvalService.myApplications(user, type, status, approvalStage, keyword, startDate, endDate));
     }
 
     // ============================================================
