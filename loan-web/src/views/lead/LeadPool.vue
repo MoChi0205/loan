@@ -177,7 +177,7 @@
 
 <script setup>
 defineOptions({ name: '_lead' });
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
@@ -195,6 +195,10 @@ import { ACTION_PERMISSION } from '@/utils/access';
 
 const route = useRoute();
 const activeTab = ref(String(route.meta.leadView || 'mine'));
+watch(() => route.fullPath, () => {
+  const next = String(route.meta.leadView || route.query.view || 'mine');
+  if (next !== activeTab.value) activeTab.value = next;
+});
 const router = useRouter();
 const userStore = useUserStore();
 const roleCode = computed(() => (userStore.roleCode || '').toUpperCase());
@@ -271,6 +275,10 @@ const { loading, data, total, query, load, onSearch, onReset, handleSortChange }
     : pageLead({ ...q, pool: activeTab.value === 'pool' }),
   { leadType: '', source: '', followStatus: '', keyword: '' },
 );
+watch(activeTab, () => {
+  query.page = 1;
+  load();
+});
 
 /** 操作列 */
 function rowActions(row) {

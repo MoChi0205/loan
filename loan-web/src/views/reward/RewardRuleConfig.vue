@@ -100,6 +100,7 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
 import { listRewardRules, saveRewardRule, disableRewardRule } from '@/api/reward';
 
+
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

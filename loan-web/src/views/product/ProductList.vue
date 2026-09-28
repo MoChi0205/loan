@@ -250,7 +250,7 @@
 
 <script setup>
 defineOptions({ name: '_product' });
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
@@ -284,6 +284,10 @@ const canManageProduct = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].include
 
 const route = useRoute();
 const activeTab = ref(String(route.meta.productView || 'all'));
+watch(() => route.fullPath, () => {
+  const next = String(route.meta.productView || route.query.view || 'all');
+  if (next !== activeTab.value) activeTab.value = next;
+});
 
 // ============================================================
 // 全量库（原有逻辑，scope=all 保持不变）
@@ -306,6 +310,11 @@ const {
   (q) => pagePartnerProducts(q),
   { status: '', keyword: '' },
 );
+watch(activeTab, (tab) => {
+  if (isChannel.value) return;
+  if (tab === 'cooperate') loadCo();
+  else loadAll();
+});
 
 /** 合作状态枚举（本地映射，后端字典未覆盖前用；如后端下发字典可切 DictTag） */
 const partnerStatusMap = {

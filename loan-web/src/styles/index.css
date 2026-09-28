@@ -352,6 +352,18 @@ body {
   background: var(--loan-surface);
 }
 
+/*
+ * 主题切换时固定列不能沿用 Element Plus 的 250ms 白底过渡。
+ * 否则暗色变量已生效、固定列仍停在浅色帧，横向滚动内容会形成短暂叠影。
+ */
+.el-table__body td.el-table-fixed-column--left,
+.el-table__body td.el-table-fixed-column--right,
+.el-table__header th.el-table-fixed-column--left,
+.el-table__header th.el-table-fixed-column--right {
+  transition: none !important;
+  background-clip: padding-box !important;
+}
+
 /* 树组件（el-tree）暗色适配 */
 .el-tree {
   background: transparent;
@@ -545,7 +557,8 @@ body {
   .el-table__body-wrapper
   tr:hover
   td.el-table-fixed-column--right {
-  background-color: rgba(217, 164, 65, 0.14) !important;
+  /* 固定列必须保持完全不透明，否则会透出横向滚动到其下方的日期/手机号。 */
+  background-color: color-mix(in srgb, var(--loan-primary) 14%, var(--loan-card-bg)) !important;
 }
 
 /* 滚动状态阴影（增强固定列与内容的分隔感） */
@@ -693,7 +706,9 @@ body {
 
 /* 抽屉 Drawer */
 .el-drawer {
-  background: var(--loan-card-bg);
+  isolation: isolate;
+  contain: paint;
+  background: var(--loan-card-bg) !important;
   box-shadow: -8px 0 24px rgba(15, 23, 42, 0.1);
 }
 
@@ -708,6 +723,8 @@ body {
 .el-drawer__body {
   padding: 20px 24px;
   color: var(--loan-text);
+  background: var(--loan-card-bg);
+  overflow-x: hidden;
 }
 
 .el-drawer__footer {

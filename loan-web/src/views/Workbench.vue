@@ -19,10 +19,10 @@
     <section v-if="!isChannel && visibleServiceStats.length" class="service-overview loan-card">
       <div class="section-head">
         <div>
-          <h3 class="panel-title panel-title--plain">今日服务待办</h3>
-          <p>预约、来访、外出和跟进按当前角色数据范围实时统计</p>
+          <h3 class="panel-title panel-title--plain">{{ serviceOverviewTitle }}</h3>
+          <p>{{ serviceOverviewSubtitle }}</p>
         </div>
-        <router-link to="/service-operations/daily" class="panel-link">进入今日服务台 →</router-link>
+          <router-link :to="{ path: '/service-operations/daily', query: { date: serviceStatsDate, scope: defaultServiceScope } }" class="panel-link">进入服务台 →</router-link>
       </div>
       <div class="service-stat-grid" v-loading="serviceLoading">
         <router-link
@@ -186,6 +186,10 @@ import { useUserStore } from '@/store/user';
 const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 const roleCode = computed(() => userStore.roleCode || '');
+const serviceScopeName = computed(() => roleCode.value === 'ADVISER' ? '我的' : roleCode.value === 'DEPT_MANAGER' ? '团队' : ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value) ? '全公司' : '当前范围');
+const defaultServiceScope = computed(() => roleCode.value === 'ADVISER' ? 'SELF' : roleCode.value === 'DEPT_MANAGER' ? 'DEPARTMENT' : 'COMPANY');
+const serviceOverviewTitle = computed(() => `${serviceScopeName.value}服务待办`);
+const serviceOverviewSubtitle = computed(() => `${serviceScopeName.value}预约、来访、外出和回访按权限范围实时统计`);
 const allowedPaths = ref(new Set(['/workbench']));
 const canViewProduct = computed(() => allowedPaths.value.has('/product/all') || allowedPaths.value.has('/product'));
 const canViewAudit = computed(() => allowedPaths.value.has('/audit'));
@@ -275,15 +279,17 @@ async function loadDailyService() {
 
 const serviceStats = computed(() => {
   const d = dailyService.value || {};
-  const date = todayParam();
+  const date = serviceStatsDate;
+  const scope = serviceScopeName.value;
   return [
-    { key: 'appointment', label: '今日预约', value: appointmentTotal.value, hint: '点击查看客户、时间与地点', icon: 'clock', tone: 'primary', path: '/service-operations/appointments', query: { date } },
-    { key: 'visit', label: '客户到访我司', value: pageTotal(d.companyVisits), hint: '点击查看来访客户与安排', icon: 'client', tone: 'success', path: '/service-operations/appointments', query: { date, serviceMethod: 'COMPANY_ON_SITE' } },
-    { key: 'outing', label: '员工上门外出', value: pageTotal(d.staffOutings), hint: '点击查看员工、客户与打卡', icon: 'lead', tone: 'warning', path: '/service-operations/outings', query: { date } },
-    { key: 'follow', label: '今日待回访', value: pageTotal(d.pendingFollows), hint: '点击查看客户与回访时间', icon: 'clock', tone: 'info', path: '/service-operations/daily', query: { date, focus: 'pendingFollows' } },
-    { key: 'order', label: '活跃工单', value: pageTotal(d.activeOrders), hint: '点击查看客户与工单进度', icon: 'order', tone: 'accent', path: '/service-operations/daily', query: { date, focus: 'activeOrders' } },
+    { key: 'appointment', label: `${scope}预约`, value: appointmentTotal.value, hint: `查看${scope}客户的预约、时间与地点`, icon: 'clock', tone: 'primary', path: '/service-operations/appointments', query: { date, scope: defaultServiceScope.value } },
+    { key: 'visit', label: `${scope}来访`, value: pageTotal(d.companyVisits), hint: `查看${scope}客户到访我司的安排`, icon: 'client', tone: 'success', path: '/service-operations/appointments', query: { date, scope: defaultServiceScope.value, serviceMethod: 'COMPANY_ON_SITE' } },
+    { key: 'outing', label: `${scope}外出`, value: pageTotal(d.staffOutings), hint: `查看${scope}外出计划、客户与打卡`, icon: 'lead', tone: 'warning', path: '/service-operations/outings', query: { date, scope: defaultServiceScope.value } },
+    { key: 'follow', label: `${scope}待回访`, value: pageTotal(d.pendingFollows), hint: `查看${scope}客户与下一次跟进时间`, icon: 'clock', tone: 'info', path: '/service-operations/daily', query: { date, scope: defaultServiceScope.value, focus: 'pendingFollows' } },
+    { key: 'order', label: `${scope}活跃工单`, value: pageTotal(d.activeOrders), hint: `查看${scope}客户与工单进度`, icon: 'order', tone: 'accent', path: '/service-operations/daily', query: { date, scope: defaultServiceScope.value, focus: 'activeOrders' } },
   ];
 });
+const serviceStatsDate = todayParam();
 const visibleServiceStats = computed(() => serviceStats.value.filter((item) => {
   const path = item.path.split('?')[0];
   return allowedPaths.value.has(path) || (path.startsWith('/service-operations/') && allowedPaths.value.has('/service-operations'));

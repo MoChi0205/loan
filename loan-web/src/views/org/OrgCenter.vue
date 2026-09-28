@@ -223,7 +223,7 @@
 
 <script setup>
 defineOptions({ name: '_org' });
-import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
@@ -237,6 +237,10 @@ import { pageApiPerm, roleApiPerm, saveRoleApiPerm } from '@/api/apiperm';
 
 const route = useRoute();
 const activeTab = ref(String(route.meta.orgView || 'staff'));
+watch(() => route.fullPath, () => {
+  const next = String(route.meta.orgView || route.query.view || 'staff');
+  if (next !== activeTab.value) activeTab.value = next;
+});
 const deptTree = ref([]);
 const roles = ref([]);
 const menuTree = ref([]);
@@ -248,6 +252,10 @@ const { loading, data: staffs, total, query, load, onSearch, onReset, handleSort
   (q) => staffPage({ ...q, deptCode: currentDeptCode.value }),
   { roleCode: '', keyword: '' },
 );
+watch(activeTab, (tab) => {
+  if (tab === 'staff') load();
+  if (tab === 'api') loadApiPerms();
+});
 
 function onDeptClick(data) {
   currentDeptCode.value = data.code;

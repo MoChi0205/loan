@@ -5,8 +5,8 @@ import request from '@/utils/request';
  */
 
 /** 产品审核 */
-export function myApprovalApplications() {
-  return request({ url: '/api/admin/approval/mine', method: 'get' });
+export function myApprovalApplications(params = {}) {
+  return request({ url: '/api/admin/approval/mine', method: 'get', params });
 }
 export function pageProductApprovals(params) {
   return request({ url: '/api/admin/approval/product/page', method: 'get', params });

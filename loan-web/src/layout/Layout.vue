@@ -181,12 +181,12 @@
       <main id="main-content" class="content">
         <router-view v-slot="{ Component, route: r }">
           <!--
-            页面直接由最终路由驱动。不要在新增标签的同一更新周期动态修改 keep-alive
-            include：两者与 RouterView 同时 patch 时会出现 parentNode=null，表现为地址和
-            面包屑已变化但内容停留在旧页，刷新后才恢复。标签只保存导航记录，不缓存 DOM。
+            子菜单路由名是页面实例边界：同一业务组件承载多个子菜单时，切换 route.name
+            必须销毁旧实例，避免地址/菜单已变化但页面仍保留上一个 activeTab。
+            查询参数只由页面 watcher 刷新数据，不能因日期/筛选变化反复重建整页。
           -->
           <transition name="fold-screen" mode="out-in">
-            <component :is="Component" :key="`${r.fullPath}:${refreshKey}`" />
+            <component :is="Component" :key="`${String(r.name || r.path)}:${refreshKey}`" />
           </transition>
         </router-view>
       </main>
@@ -271,10 +271,10 @@ const BASE_MENU_GROUPS = [
     icon: 'order',
     items: [
       { title: '服务台', icon: 'client', isSection: true },
-      { path: '/service-operations/daily', title: '今日服务台', icon: 'workbench', indent: true },
-      { path: '/service-operations/appointments', title: '客户预约', icon: 'client', indent: true },
-      { path: '/service-operations/outings', title: '员工外出', icon: 'lead', indent: true },
-      { path: '/service-operations/replay', title: '客户回放', icon: 'clock', indent: true },
+      { path: '/service-operations/daily', title: '今日服务台', roleTitles: { ADVISER: '我的服务台', DEPT_MANAGER: '团队服务台', BOSS: '全公司服务台', OPERATOR: '全公司服务台', SUPER_ADMIN: '全公司服务台', SUPER: '全公司服务台' }, icon: 'workbench', indent: true },
+      { path: '/service-operations/appointments', title: '客户预约', roleTitles: { ADVISER: '我的预约', DEPT_MANAGER: '团队预约', BOSS: '全公司预约', OPERATOR: '全公司预约', SUPER_ADMIN: '全公司预约', SUPER: '全公司预约' }, icon: 'client', indent: true },
+      { path: '/service-operations/outings', title: '员工外出', roleTitles: { ADVISER: '我的外出', DEPT_MANAGER: '团队外出', BOSS: '全公司外出', OPERATOR: '全公司外出', SUPER_ADMIN: '全公司外出', SUPER: '全公司外出' }, icon: 'lead', indent: true },
+      { path: '/service-operations/replay', title: '客户回放', roleTitles: { ADVISER: '我的客户回放', DEPT_MANAGER: '团队客户回放', BOSS: '全公司客户回放', OPERATOR: '全公司客户回放', SUPER_ADMIN: '全公司客户回放', SUPER: '全公司客户回放' }, icon: 'clock', indent: true },
       { path: '/order', title: '服务工单', icon: 'order' },
     ],
   },

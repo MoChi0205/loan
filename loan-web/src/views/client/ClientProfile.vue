@@ -74,8 +74,9 @@
         </el-table-column>
         <el-table-column label="联系方式" width="190">
           <template #default="{ row }">
-            <span class="cell-main contact-phone">{{ desensitizePhone(row.phone) }}</span>
-            <el-button link type="primary" size="small" @click.stop="viewClientPhone(row)">申请查看</el-button>
+            <span class="cell-main contact-phone">{{ clientPhoneDisplay(row) }}</span>
+            <el-button v-if="!revealedClientPhones.has(row.clientCode)" link type="primary" size="small" @click.stop="viewClientPhone(row)">申请查看</el-button>
+            <span v-else class="phone-revealed-label">已授权查看</span>
           </template>
         </el-table-column>
         <el-table-column label="类型" width="100"><template #default="{ row }">{{ row.customerGroup === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
@@ -537,8 +538,16 @@ const detail = reactive({
   updatedAt: '',
 });
 const detailPhonePlain = ref('');
+/**
+ * 列表手机号的本次会话授权结果。
+ * 不写 localStorage、不进入查询参数，也不回填普通列表 DTO，页面刷新后自动清除。
+ */
+const revealedClientPhones = reactive(new Map());
 const phoneQuota = ref({ limit: 30, used: 0, remaining: 30 });
 const detailPhoneDisplay = computed(() => detailPhonePlain.value || desensitizePhone(detail.phone));
+function clientPhoneDisplay(row) {
+  return revealedClientPhones.get(row?.clientCode) || desensitizePhone(row?.phone);
+}
 async function viewClientPhone(row) {
   const code = row?.clientCode || clientCode.value;
   if (!code) return;
@@ -546,7 +555,7 @@ async function viewClientPhone(row) {
     const data = (await applyClientPhoneView(code)).data || {};
     if (data.phonePlain) {
       detailPhonePlain.value = data.phonePlain;
-      if (row && row !== detail) row.phone = data.phonePlain;
+      if (row && row !== detail) revealedClientPhones.set(code, data.phonePlain);
       phoneQuota.value = { limit: data.limit, used: data.used, remaining: data.remaining };
       ElMessage.success(`已授权查看，本日剩余 ${data.remaining} 次`);
     } else if (data.approvalNo) {
@@ -852,6 +861,11 @@ watch(
 .cell-sub {
   font-size: 12px;
   color: var(--loan-text-secondary, var(--loan-text-muted));
+}
+.phone-revealed-label {
+  margin-left: 8px;
+  color: var(--loan-success-text, var(--loan-success));
+  font-size: 12px;
 }
 .panel-sub {
   margin-left: 8px;

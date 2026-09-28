@@ -2,8 +2,8 @@
   <div class="approval-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">审批中心</h2>
-        <p class="loan-page-subtitle">查看本人申请；有审核权限时可处理当前数据范围内的待办</p>
+        <h2 class="loan-page-title">{{ approvalPageCopy.title }}</h2>
+        <p class="loan-page-subtitle">{{ approvalPageCopy.subtitle }}</p>
       </div>
       <div class="header-actions">
         <el-button v-if="canCreateAnyApplication" type="primary" @click="openApplicationChooser"><AppIcon name="plus" :size="15" /> 新增申请</el-button>
@@ -19,6 +19,20 @@
     </AppDialog>
 
     <div v-show="activeTab === 'mine'" class="loan-card">
+      <AppSearchBar :loading="mineLoading" @search="searchMine" @reset="resetMine">
+        <el-select v-model="mineQuery.type" placeholder="申请类型" clearable style="width: 160px">
+          <el-option v-for="item in mineTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-select v-model="mineQuery.status" placeholder="申请状态" clearable style="width: 130px">
+          <el-option v-for="(label, value) in statusText" :key="value" :label="label" :value="value" />
+        </el-select>
+        <el-select v-if="mineQuery.type === 'SENSITIVE_VIEW'" v-model="mineQuery.approvalStage" placeholder="审批层级" clearable style="width: 150px">
+          <el-option label="部门经理审批" value="MANAGER_REVIEW" />
+          <el-option label="老板/超管审批" value="BOSS_REVIEW" />
+        </el-select>
+        <el-date-picker v-model="mineQuery.dateRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="提交开始日期" end-placeholder="提交结束日期" range-separator="至" :clearable="true" style="width: 260px" />
+        <el-input v-model="mineQuery.keyword" placeholder="申请事项 / 审批意见" clearable style="width: 220px" @keyup.enter="searchMine" />
+      </AppSearchBar>
       <el-table :data="mineRows" v-loading="mineLoading" stripe row-key="approvalNo">
         <template #empty><AppEmpty title="暂无审批申请" desc="认领转移、产品新增或附件下载申请会显示在这里" /></template>
         <el-table-column label="审批类型" width="130"><template #default="{ row }">{{ typeText[row.type] || row.type }}</template></el-table-column>
@@ -332,7 +346,12 @@ const canCreateAppointment = computed(() => userStore.hasPerm(ACTION_PERMISSION.
 const canCreateOuting = computed(() => userStore.hasPerm(ACTION_PERMISSION.ORDER_CREATE));
 const canCreateAnyApplication = computed(() => canApplyDownload.value || canCreateAppointment.value || canCreateOuting.value);
 const applicationChooserVisible = ref(false);
-function openApplicationChooser() { applicationChooserVisible.value = true; }
+function openApplicationChooser() {
+  // 在具体审批子页面直接进入对应表单；“我的申请”仍保留类型选择器。
+  if (activeTab.value === 'download' && canApplyDownload.value) return openDownloadApplication();
+  if (activeTab.value === 'outing' && canCreateOuting.value) return goCreateOuting();
+  applicationChooserVisible.value = true;
+}
 function openDownloadApplication() { applicationChooserVisible.value = false; activeTab.value = 'download'; openApply(); }
 function goCreateAppointment() { applicationChooserVisible.value = false; router.push({ path: '/service-operations/appointments', query: { create: '1' } }); }
 function goCreateOuting() { applicationChooserVisible.value = false; router.push({ path: '/service-operations/outings', query: { create: '1' } }); }
@@ -341,10 +360,57 @@ const approvalView = String(route.path.split('/').pop() || 'mine');
 const approvalViewMap = Object.freeze({ 'channel-lead': 'channelLead', 'sms-template': 'smsTemplate', 'report-template': 'reportTemplate', 'sensitive-phone': 'sensitivePhone' });
 const requestedTab = approvalViewMap[approvalView] || String(approvalView || route.query.tab || 'mine');
 const activeTab = ref(['mine', 'download', 'allocation', 'outing', 'sensitivePhone', 'product', 'channelLead', 'smsTemplate', 'reportTemplate'].includes(requestedTab) ? requestedTab : 'mine');
+const approvalPageCopy = computed(() => ({
+  mine: { title: '我的申请', subtitle: '查看本人发起的全部申请与当前审批进度' },
+  product: { title: '产品审核', subtitle: '审核产品新增、变更与重复风险标记' },
+  download: { title: '附件下载审核', subtitle: '审核员工发起的无水印资料下载申请' },
+  allocation: { title: '客户分配审核', subtitle: '处理当前数据范围内的客户认领与归属流转' },
+  outing: { title: '外出审批', subtitle: '审核当前数据范围内的员工外出计划' },
+  sensitivePhone: { title: '手机号查看审批', subtitle: '处理顾问超出查看额度后的手机号解锁申请' },
+  channelLead: { title: '渠道线索审核', subtitle: '审核合作渠道提交的新线索' },
+  smsTemplate: { title: '短信模板审核', subtitle: '审核短信模板发布与变更申请' },
+  reportTemplate: { title: '报告模板审核', subtitle: '审核报告模板发布与变更申请' },
+}[activeTab.value] || { title: '审批中心', subtitle: '处理当前数据范围内的审批事项' }));
+function tabFromRoute() {
+  const view = String(route.path.split('/').pop() || 'mine');
+  return approvalViewMap[view] || (['mine', 'download', 'allocation', 'outing', 'sensitivePhone', 'product', 'channelLead', 'smsTemplate', 'reportTemplate'].includes(view) ? view : 'mine');
+}
+watch(() => route.fullPath, () => {
+  const next = tabFromRoute();
+  if (next !== activeTab.value) activeTab.value = next;
+});
 const loadedTabs = reactive({ mine: false, product: false, download: false, allocation: false, outing: false, sensitivePhone: false, channelLead: false, smsTemplate: false, reportTemplate: false });
 const mineRows = ref([]); const mineLoading = ref(false);
 const typeText = { PRODUCT: '产品审批', DOWNLOAD: '附件下载', ALLOCATION: '客户认领/转移', OUTING: '外出申请', MATERIAL_REVIEW: '材料复核', SENSITIVE_VIEW: '手机号查看', SMS_TEMPLATE: '短信模板', REPORT_TEMPLATE: '报告模板' };
-async function loadMine() { mineLoading.value = true; try { const res = await myApprovalApplications(); mineRows.value = res.data || []; } finally { mineLoading.value = false; } }
+const mineQuery = reactive({ type: '', status: '', approvalStage: '', dateRange: null, keyword: '' });
+const mineTypeOptions = computed(() => {
+  const role = userStore.roleCode;
+  const exempt = ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(role);
+  const contentManager = ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'].includes(role);
+  const values = ['PRODUCT', 'DOWNLOAD', 'ALLOCATION', 'OUTING', 'MATERIAL_REVIEW'];
+  if (!exempt) values.push('SENSITIVE_VIEW');
+  if (contentManager) values.push('SMS_TEMPLATE', 'REPORT_TEMPLATE');
+  return values.map((value) => ({ value, label: typeText[value] }));
+});
+function mineParams() {
+  const params = {
+    type: mineQuery.type || undefined,
+    status: mineQuery.status || undefined,
+    approvalStage: mineQuery.type === 'SENSITIVE_VIEW' ? (mineQuery.approvalStage || undefined) : undefined,
+    keyword: mineQuery.keyword.trim() || undefined,
+  };
+  if (Array.isArray(mineQuery.dateRange) && mineQuery.dateRange.length === 2) {
+    [params.startDate, params.endDate] = mineQuery.dateRange;
+  }
+  return params;
+}
+async function loadMine() { mineLoading.value = true; try { const res = await myApprovalApplications(mineParams()); mineRows.value = res.data || []; } finally { mineLoading.value = false; } }
+function searchMine() { loadMine(); }
+function resetMine() {
+  Object.assign(mineQuery, { type: '', status: '', approvalStage: '', dateRange: null, keyword: '' });
+  loadMine();
+}
+watch(() => mineQuery.type, (type) => { if (type !== 'SENSITIVE_VIEW') mineQuery.approvalStage = ''; });
 const contentRows = reactive({ smsTemplate: [], reportTemplate: [] });
 const contentLoading = reactive({ smsTemplate: false, reportTemplate: false });
 async function loadContent(kind) {

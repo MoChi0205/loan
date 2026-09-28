@@ -160,6 +160,10 @@ import {
 
 const route = useRoute();
 const activeTab = ref(String(route.meta.smsView || 'template'));
+watch(() => route.fullPath, () => {
+  const next = String(route.meta.smsView || route.query.view || 'template');
+  if (next !== activeTab.value) activeTab.value = next;
+});
 const loadedTabs = reactive({ template: false, record: false });
 const typeText = { LOGIN_VERIFY: '登录验证', NOTIFICATION: '通知', MARKETING: '业务营销' };
 const statusText = { PENDING: '待发送', SENT: '已发送', SUCCESS: '成功', FAIL: '失败' };

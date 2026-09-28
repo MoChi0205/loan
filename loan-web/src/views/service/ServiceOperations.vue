@@ -6,6 +6,9 @@
         <p class="loan-page-subtitle">{{ servicePageSubtitle }}</p>
       </div>
       <div class="header-actions">
+        <el-select v-if="scopeOptions.length > 1" v-model="selectedScope" class="scope-select" aria-label="数据范围" @change="onScopeChange">
+          <el-option v-for="item in scopeOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
         <el-date-picker v-model="selectedDate" type="date" value-format="YYYY-MM-DD" :clearable="false" aria-label="业务日期" />
         <el-button :loading="refreshing" @click="refreshCurrent">刷新</el-button>
         <el-button type="primary" @click="openCreateAppointment">创建预约</el-button>
@@ -29,7 +32,7 @@
         <div v-if="activeTab === 'daily'">
           <div class="list-grid" v-loading="workbenchLoading">
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'companyVisits' }">
-              <div class="panel-head"><h3>今日来访</h3><span>{{ totalOf(workbench.companyVisits) }} 人</span></div>
+              <div class="panel-head"><h3>{{ serviceLabels.visits }}</h3><span>{{ totalOf(workbench.companyVisits) }} 人</span></div>
               <button v-for="row in recordsOf(workbench.companyVisits)" :key="row.appointmentNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ timeOnly(row.scheduledStart) }} · {{ row.hostStaffName || '顾问姓名待补充' }}</small></span>
                 <el-tag size="small" :type="appointmentTag(row.status)">{{ appointmentStatusText[row.status] || row.status }}</el-tag>
@@ -37,7 +40,7 @@
               <el-empty v-if="!recordsOf(workbench.companyVisits).length" description="当日暂无到公司服务" :image-size="52" />
             </section>
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'staffOutings' }">
-              <div class="panel-head"><h3>外出服务</h3><span>{{ totalOf(workbench.staffOutings) }} 人</span></div>
+              <div class="panel-head"><h3>{{ serviceLabels.outings }}</h3><span>{{ totalOf(workbench.staffOutings) }} 人</span></div>
               <button v-for="row in recordsOf(workbench.staffOutings)" :key="row.outingNo" class="record-item" type="button" @click="row.clientCode && openClientReplay(row.clientCode)">
                 <span><strong>{{ row.staffName || '员工姓名待补充' }}</strong><small>{{ timeOnly(row.plannedStart) }} · {{ row.customerName || (row.clientCode ? '客户名称待补充' : '普通外出') }}</small></span>
                 <el-tag size="small" :type="outingTag(row.status)">{{ outingStatusText[row.status] || row.status }}</el-tag>
@@ -45,7 +48,7 @@
               <el-empty v-if="!recordsOf(workbench.staffOutings).length" description="当日暂无员工外出" :image-size="52" />
             </section>
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'pendingFollows' }">
-              <div class="panel-head"><h3>待回访</h3><span>{{ totalOf(workbench.pendingFollows) }} 项</span></div>
+              <div class="panel-head"><h3>{{ serviceLabels.follows }}</h3><span>{{ totalOf(workbench.pendingFollows) }} 项</span></div>
               <button v-for="row in recordsOf(workbench.pendingFollows)" :key="row.followNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ formatDateTime(row.nextFollowAt) }}</small></span>
                 <span class="record-note">{{ row.nextAction || '待跟进' }}</span>
@@ -53,7 +56,7 @@
               <el-empty v-if="!recordsOf(workbench.pendingFollows).length" description="当日暂无待回访" :image-size="52" />
             </section>
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'activeOrders' }">
-              <div class="panel-head"><h3>活跃工单</h3><span>{{ totalOf(workbench.activeOrders) }} 单</span></div>
+              <div class="panel-head"><h3>{{ serviceLabels.orders }}</h3><span>{{ totalOf(workbench.activeOrders) }} 单</span></div>
               <button v-for="row in recordsOf(workbench.activeOrders)" :key="row.orderNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ formatDateTime(row.updatedAt) }}</small></span>
                 <el-tag size="small" type="info">{{ row.status }}</el-tag>
@@ -138,11 +141,11 @@
                 <div class="insight-head">
                   <div>
                     <h4>客户画像</h4>
-                    <span v-if="insight">第 {{ insight.snapshotVersion }} 版 · {{ generatedByText[insight.generatedBy] || insight.generatedBy }} · {{ formatDateTime(insight.generatedAt) }}</span>
+                    <span v-if="insight">第 {{ insight.snapshotVersion }} 版 · {{ generatedByText[insight.generatedBy] || '系统生成' }} · {{ formatDateTime(insight.generatedAt) }}</span>
                     <span v-else>尚未生成画像快照</span>
                   </div>
                   <div class="insight-actions">
-                    <el-tag v-if="insight" :type="insightStatusTag[insight.status]" size="small">{{ insightStatusText[insight.status] || insight.status }}</el-tag>
+                    <el-tag v-if="insight" :type="insightStatusTag[insight.status]" size="small">{{ insightStatusText[insight.status] || '状态待确认' }}</el-tag>
                     <el-button v-if="canGenerateInsight" link type="primary" @click="onGenerateInsight">生成新版本</el-button>
                     <template v-if="canReviewInsight">
                       <el-button link type="success" @click="onReviewInsight('APPROVE')">复核通过</el-button>
@@ -159,12 +162,12 @@
                     </div>
                     <div class="insight-block">
                       <strong>风险提示</strong>
-                      <ul v-if="insight.riskFlags?.length" class="insight-risk"><li v-for="(item, idx) in insight.riskFlags" :key="idx">{{ item }}</li></ul>
+                      <ul v-if="insight.riskFlags?.length" class="insight-risk"><li v-for="(item, idx) in insight.riskFlags" :key="idx">{{ insightItemText(item, '风险事项') }}</li></ul>
                       <p v-else class="cell-sub">暂无风险提示</p>
                     </div>
                     <div class="insight-block">
                       <strong>经营建议</strong>
-                      <ul v-if="insight.advice?.length"><li v-for="(item, idx) in insight.advice" :key="idx">{{ item }}</li></ul>
+                      <ul v-if="insight.advice?.length"><li v-for="(item, idx) in insight.advice" :key="idx">{{ insightItemText(item, '经营建议') }}</li></ul>
                       <p v-else class="cell-sub">暂无建议</p>
                     </div>
                     <div class="insight-block">
@@ -177,7 +180,7 @@
                   </div>
                   <div v-if="insightHistory.length" class="insight-versions">
                     <strong>版本链</strong>
-                    <span v-for="item in insightHistory" :key="item.snapshotNo" class="version-chip" :class="{ active: item.current }">第 {{ item.snapshotVersion }} 版 · {{ insightStatusText[item.status] || item.status }}</span>
+                    <span v-for="item in insightHistory" :key="item.snapshotNo" class="version-chip" :class="{ active: item.current }">第 {{ item.snapshotVersion }} 版 · {{ insightStatusText[item.status] || '状态待确认' }}</span>
                   </div>
                 </template>
                 <p v-else class="cell-sub">尚未生成画像快照；生成后由主管复核生效，客户端只看到脱敏摘要。</p>
@@ -185,7 +188,7 @@
 
               <el-timeline v-if="timeline.length" v-loading="timelineLoading">
                 <el-timeline-item v-for="item in timeline" :key="item.eventNo" :timestamp="formatDateTime(item.happenedAt)" placement="top">
-                  <div class="timeline-card"><strong>{{ eventText[item.eventType] || item.eventType }}</strong><p>{{ item.summary || '—' }}</p><span>{{ actorText[item.actorType] || item.actorType }} · {{ item.visibility === 'CUSTOMER' ? '客户可见' : '仅员工可见' }}</span></div>
+                  <div class="timeline-card"><strong>{{ eventTypeText(item.eventType) }}</strong><p>{{ item.summary || '—' }}</p><span>{{ actorTypeText(item.actorType) }} · {{ visibilityText(item.visibility) }}</span></div>
                 </el-timeline-item>
               </el-timeline>
               <el-empty v-else :description="selectedClient ? '暂无活动记录' : '请先查询并选择客户'" />
@@ -310,7 +313,24 @@ const today = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 const selectedDate = ref(today());
-const activeTab = ref('daily');
+/**
+ * 页面类型直接以路由元数据为唯一真值。
+ * 四个子菜单复用同一组件，不能再维护一份可能滞后的本地 activeTab。
+ */
+const activeTab = computed(() => {
+  const view = String(route.meta.serviceView || route.query.tab || 'daily');
+  return ['daily', 'appointments', 'outings', 'replay'].includes(view) ? view : 'daily';
+});
+const roleMaximumScope = computed(() => ({ ADVISER: 'SELF', DEPT_MANAGER: 'DEPARTMENT', BOSS: 'COMPANY', OPERATOR: 'COMPANY', SUPER_ADMIN: 'COMPANY', SUPER: 'COMPANY' }[userStore.roleCode] || 'NONE'));
+const scopeOptions = computed(() => {
+  const max = roleMaximumScope.value;
+  if (max === 'SELF') return [{ value: 'SELF', label: '我的数据' }];
+  if (max === 'DEPARTMENT') return [{ value: 'SELF', label: '我的数据' }, { value: 'DEPARTMENT', label: '团队数据' }];
+  if (max === 'COMPANY') return [{ value: 'SELF', label: '我的数据' }, { value: 'DEPARTMENT', label: '团队数据' }, { value: 'COMPANY', label: '全公司数据' }];
+  return [];
+});
+const selectedScope = ref(roleMaximumScope.value === 'NONE' ? 'SELF' : roleMaximumScope.value);
+const clientScope = computed(() => ({ SELF: 'MY', DEPARTMENT: 'TEAM', COMPANY: 'ALL' }[selectedScope.value] || 'MY'));
 const focus = ref('');
 const refreshing = ref(false);
 const saving = ref(false);
@@ -319,20 +339,35 @@ const methodText = Object.freeze({ COMPANY_ON_SITE: '客户到访我司', HOME_V
 const appointmentStatusText = Object.freeze({ REQUESTED: '待顾问确认', CONFIRMED: '已预约', ARRIVED: '已到店', SERVING: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', NO_SHOW: '未到场', RESCHEDULED: '已改期' });
 const outingStatusText = Object.freeze({ DRAFT: '草稿', PENDING_REVIEW: '待审核', REJECTED: '已驳回', READY: '待出发', IN_PROGRESS: '外出中', COMPLETED: '已返回', CANCELLED: '已取消' });
 const followChannelText = Object.freeze({ PHONE: '电话咨询', COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', WECOM: '企业微信', OTHER: '其他' });
-const servicePageTitle = computed(() => ({ daily: '今日服务台', appointments: '客户预约', outings: '员工外出', replay: '客户回放' }[activeTab.value] || '服务台'));
+const serviceLabels = computed(() => {
+  const prefix = ({ SELF: '我的', DEPARTMENT: '团队', COMPANY: '全公司' })[selectedScope.value] || '';
+  return {
+    visits: prefix ? `${prefix}来访` : '今日来访',
+    outings: prefix ? `${prefix}外出` : '外出服务',
+    follows: prefix ? `${prefix}待回访` : '待回访',
+    orders: prefix ? `${prefix}活跃工单` : '活跃工单',
+  };
+});
+const servicePageTitle = computed(() => {
+  const title = { daily: `${serviceLabels.value.visits.replace('来访', '') || '今日'}服务台`, appointments: `${serviceLabels.value.visits.replace('来访', '') || ''}客户预约`, outings: serviceLabels.value.outings, replay: `${serviceLabels.value.visits.replace('来访', '') || ''}客户回放` };
+  return title[activeTab.value] || '服务台';
+});
 const servicePageSubtitle = computed(() => ({
-  daily: `${scopeLabel.value} · 今日来访、外出、待回访与活跃工单`,
-  appointments: '客户到访我司、员工上门拜访客户、视频会议与电话咨询预约',
-  outings: '员工上门拜访客户的计划、单点位置打卡与结果记录',
-  replay: '按客户查看画像、预约、外出、工单和跟进时间线',
+  daily: `${scopeLabel.value} · ${serviceLabels.value.visits}、${serviceLabels.value.outings}、${serviceLabels.value.follows}与${serviceLabels.value.orders}`,
+  appointments: `${scopeLabel.value}客户到访我司、员工上门拜访客户、视频会议与电话咨询预约`,
+  outings: `${serviceLabels.value.outings}的计划、单点位置打卡与结果记录`,
+  replay: `按${scopeLabel.value}客户查看画像、预约、外出、工单和跟进时间线`,
 }[activeTab.value] || '服务过程协同'));
 const scopeLabel = computed(() => ({
-  BOSS: '全公司', OPERATOR: '全公司', SUPER_ADMIN: '全公司', SUPER: '全公司',
-  DEPT_MANAGER: '本部门', ADVISER: '本人',
-}[userStore.roleCode] || '当前范围'));
-const scopeNotice = computed(() => `${scopeLabel.value}数据 · “待回访”是员工为客户设置下一次跟进时间后，在所选日期需要处理的跟进事项`);
-const eventText = Object.freeze({ APPOINTMENT_CREATED: '创建预约', CUSTOMER_CONFIRMED: '客户确认', APPOINTMENT_CONFIRMED: '预约确认', CUSTOMER_ARRIVED: '客户到店', SERVICE_STARTED: '开始服务', SERVICE_COMPLETED: '服务完成', APPOINTMENT_CANCELLED: '取消预约', APPOINTMENT_NO_SHOW: '客户未到场', APPOINTMENT_RESCHEDULED: '预约改期', OUTING_SUBMITTED: '提交外出申请', OUTING_APPROVED: '外出审核通过', OUTING_REJECTED: '外出申请驳回', OUTING_DEPARTED: '出发打卡', OUTING_RETURNED: '返回打卡', FOLLOW_RECORDED: '客户跟进' });
+  SELF: '本人', DEPARTMENT: '本团队', COMPANY: '全公司',
+}[selectedScope.value] || '当前范围'));
+const scopeNotice = computed(() => `${scopeLabel.value}数据 · “${serviceLabels.value.follows}”是顾问为客户设置下一次跟进时间后，在所选日期需要处理的跟进事项`);
+const eventText = Object.freeze({ APPOINTMENT_CREATED: '创建预约', CUSTOMER_CONFIRMED: '客户确认', APPOINTMENT_CONFIRMED: '预约确认', CUSTOMER_ARRIVED: '客户到店', CUSTOMER_CHECKED_IN: '客户到店签到', SERVICE_STARTED: '开始服务', SERVICE_COMPLETED: '服务完成', APPOINTMENT_CANCELLED: '取消预约', APPOINTMENT_NO_SHOW: '客户未到场', APPOINTMENT_RESCHEDULED: '预约改期', OUTING_SUBMITTED: '提交外出申请', OUTING_APPROVED: '外出审核通过', OUTING_REJECTED: '外出申请驳回', OUTING_DEPARTED: '出发打卡', OUTING_RETURNED: '返回打卡', FOLLOW_RECORDED: '客户跟进', FOLLOW_UP: '客户跟进', INSIGHT_GENERATED: '生成客户画像', INSIGHT_REVIEWED: '复核客户画像' });
 const actorText = Object.freeze({ STAFF: '员工', CUSTOMER: '客户', SYSTEM: '系统' });
+const visibilityLabels = Object.freeze({ CUSTOMER: '客户可见', STAFF_ONLY: '仅员工可见', INTERNAL: '仅员工可见' });
+function eventTypeText(value) { return eventText[value] || '客户服务记录'; }
+function actorTypeText(value) { return actorText[value] || '系统记录'; }
+function visibilityText(value) { return visibilityLabels[value] || '仅员工可见'; }
 function recordsOf(page) { return Array.isArray(page?.records) ? page.records : []; }
 function totalOf(page) { return Number(page?.total || 0); }
 function timeOnly(value) { const text = formatDateTime(value); return text === '-' ? text : text.slice(11, 16); }
@@ -342,17 +377,26 @@ function outingTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', 
 const workbench = ref({});
 const workbenchLoading = ref(false);
 const metrics = computed(() => [
-  { key: 'visits', label: '今日来访', value: totalOf(workbench.value.companyVisits), hint: '客户到访我司', tab: 'appointments', method: 'COMPANY_ON_SITE' },
-  { key: 'outings', label: '员工外出', value: totalOf(workbench.value.staffOutings), hint: '上门拜访或普通外出', tab: 'outings' },
-  { key: 'follows', label: '待回访', value: totalOf(workbench.value.pendingFollows), hint: '按计划处理跟进事项', tab: 'daily' },
-  { key: 'orders', label: '活跃工单', value: totalOf(workbench.value.activeOrders), hint: '进行中的服务工单', tab: 'daily' },
+  { key: 'visits', label: serviceLabels.value.visits, value: totalOf(workbench.value.companyVisits), hint: '客户到访我司', tab: 'appointments', method: 'COMPANY_ON_SITE' },
+  { key: 'outings', label: serviceLabels.value.outings, value: totalOf(workbench.value.staffOutings), hint: '上门拜访或普通外出', tab: 'outings' },
+  { key: 'follows', label: serviceLabels.value.follows, value: totalOf(workbench.value.pendingFollows), hint: '按计划处理跟进事项', tab: 'daily' },
+  { key: 'orders', label: serviceLabels.value.orders, value: totalOf(workbench.value.activeOrders), hint: '进行中的服务工单', tab: 'daily' },
 ]);
 async function loadWorkbench(refresh = false) {
   workbenchLoading.value = true;
-  try { workbench.value = (await getDailyServiceLists({ date: selectedDate.value, page: 1, size: 20, refresh })).data || {}; }
+  try { workbench.value = (await getDailyServiceLists({ date: selectedDate.value, scope: selectedScope.value, page: 1, size: 20, refresh })).data || {}; }
   finally { workbenchLoading.value = false; }
 }
-function goMetric(item) { router.push({ path: `/service-operations/${item.tab}`, query: item.method ? { serviceMethod: item.method } : {} }); }
+/**
+ * 工作台指标跳转必须携带当前筛选上下文。
+ * 之前只传服务方式，导致用户在指定日期查看统计后跳转到列表又回到今天。
+ */
+function goMetric(item) {
+  const query = { date: selectedDate.value };
+  if (item.method) query.serviceMethod = item.method;
+  if (item.tab === 'daily' && item.key) query.focus = item.key === 'follows' ? 'pendingFollows' : item.key === 'orders' ? 'activeOrders' : item.key;
+  router.push({ path: `/service-operations/${item.tab}`, query });
+}
 
 const appointments = ref([]);
 const appointmentTotal = ref(0);
@@ -360,7 +404,7 @@ const appointmentLoading = ref(false);
 const appointmentQuery = reactive({ page: 1, size: 20, serviceMethod: '', status: '' });
 async function loadAppointments() {
   appointmentLoading.value = true;
-  try { const page = (await pageAppointments({ ...appointmentQuery, date: selectedDate.value })).data || {}; appointments.value = recordsOf(page); appointmentTotal.value = totalOf(page); }
+  try { const page = (await pageAppointments({ ...appointmentQuery, date: selectedDate.value, scope: selectedScope.value })).data || {}; appointments.value = recordsOf(page); appointmentTotal.value = totalOf(page); }
   finally { appointmentLoading.value = false; }
 }
 function canOperate(row) { return !!userNo.value && row.hostStaffCode === userNo.value; }
@@ -387,7 +431,7 @@ const outingLoading = ref(false);
 const outingQuery = reactive({ page: 1, size: 20, status: '' });
 async function loadOutings() {
   outingLoading.value = true;
-  try { const page = (await pageOutings({ ...outingQuery, date: selectedDate.value })).data || {}; outings.value = recordsOf(page); outingTotal.value = totalOf(page); }
+  try { const page = (await pageOutings({ ...outingQuery, date: selectedDate.value, scope: selectedScope.value })).data || {}; outings.value = recordsOf(page); outingTotal.value = totalOf(page); }
   finally { outingLoading.value = false; }
 }
 function isOwnOuting(row) { return !!userNo.value && row.staffCode === userNo.value; }
@@ -421,7 +465,7 @@ function loadClientOptions(keyword) {
   clientOptionTimer = setTimeout(async () => {
     clientSelectLoading.value = true;
     try {
-      const page = (await pageClients({ keyword: keyword || '', page: 1, size: 20, scope: userStore.roleCode === 'ADVISER' ? 'MY' : 'ALL' })).data || {};
+      const page = (await pageClients({ keyword: keyword || '', page: 1, size: 20, scope: clientScope.value })).data || {};
       if (seq === clientOptionSequence) appointmentClientOptions.value = recordsOf(page);
     } finally { if (seq === clientOptionSequence) clientSelectLoading.value = false; }
   }, 220);
@@ -513,10 +557,16 @@ function resetCheckInPhotos() {
   checkInPhotoFiles.value = [];
   checkInForm.photoFileKey = '';
 }
+function localDateTime(timestamp) {
+  const d = new Date(timestamp || Date.now());
+  const pad = (v) => String(v).padStart(2, '0');
+  // 后端字段是 LocalDateTime，不能传 toISOString() 的 UTC 时间；否则中国时区会相差 8 小时。
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
 function locate() {
   if (!navigator.geolocation) return ElMessage.error('当前浏览器不支持定位');
   locating.value = true;
-  navigator.geolocation.getCurrentPosition((position) => { Object.assign(checkInForm, { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracyMeters: position.coords.accuracy, locationText: `经度 ${position.coords.longitude.toFixed(6)}，纬度 ${position.coords.latitude.toFixed(6)}`, collectedAt: new Date(position.timestamp).toISOString().slice(0, 19) }); locating.value = false; }, (error) => { locating.value = false; ElMessage.error(error.code === 1 ? '定位权限未开启，请允许浏览器访问位置' : '定位失败，请重试'); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+  navigator.geolocation.getCurrentPosition((position) => { Object.assign(checkInForm, { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracyMeters: position.coords.accuracy, locationText: `经度 ${position.coords.longitude.toFixed(6)}，纬度 ${position.coords.latitude.toFixed(6)}`, collectedAt: localDateTime(position.timestamp) }); locating.value = false; }, (error) => { locating.value = false; ElMessage.error(error.code === 1 ? '定位权限未开启，请允许浏览器访问位置' : '定位失败，请重试'); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 }
 async function submitCheckIn() {
   if (checkInForm.latitude == null) return ElMessage.warning('请先获取当前位置');
@@ -618,14 +668,14 @@ function searchClients() {
   replaySearchTimer = setTimeout(async () => {
     clientLoading.value = true;
     try {
-      const page = (await pageClients({ keyword: clientKeyword.value.trim(), page: 1, size: 20, scope: userStore.roleCode === 'ADVISER' ? 'MY' : 'ALL' })).data || {};
+      const page = (await pageClients({ keyword: clientKeyword.value.trim(), page: 1, size: 20, scope: clientScope.value })).data || {};
       if (seq === replaySearchSequence) clientOptions.value = recordsOf(page);
     } finally { if (seq === replaySearchSequence) clientLoading.value = false; }
   }, 220);
 }
-function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ path: '/service-operations/replay', query: { clientCode: row.clientCode } }); loadInsight(); loadTimeline(); }
+function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ path: '/service-operations/replay', query: { clientCode: row.clientCode, scope: selectedScope.value } }); loadInsight(); loadTimeline(); }
 function openClientReplay(clientCode) {
-  if (activeTab.value !== 'replay') return router.push({ path: '/service-operations/replay', query: { clientCode } });
+  if (activeTab.value !== 'replay') return router.push({ path: '/service-operations/replay', query: { clientCode, scope: selectedScope.value } });
   clientKeyword.value = '';
   return getClientDetail(clientCode).then((res) => {
     const row = res.data || { clientCode, contactName: '未命名客户' };
@@ -663,18 +713,74 @@ async function loadInsight() {
   } finally { insightLoading.value = false; }
 }
 
-/** 维度对象按「键：值」展开，未知结构不渲染，避免页面出现 [object Object]。 */
-function dimensionPairs(source) {
-  if (!source || typeof source !== 'object') return [];
-  return Object.entries(source)
-    .filter(([, value]) => value !== null && value !== undefined && typeof value !== 'object')
-    .map(([key, value]) => ({ key: dimensionLabels[key] || key, value: String(value) }));
-}
 const dimensionLabels = {
   reportAvailable: '经营分析报告', customerGroup: '客群', source: '客户来源',
   appointmentTotal: '预约总数', arrivedCount: '实际到店', noShowCount: '未到场',
   outingTotal: '外出服务', outingCompleted: '已完成外出', followTotal: '跟进记录', pendingFollows: '待回访',
+  serviceRecords: '服务记录', materialCompleteness: '材料完整度', business: '经营分析', kpi: '经营指标',
 };
+const hiddenDimensionKeys = new Set(['reportNo', 'snapshotNo', 'submissionNo', 'clientCode', 'staffCode', 'ownerStaffCode']);
+const dimensionValueLabels = Object.freeze({
+  ENTERPRISE: '企业客户', PERSONAL: '个人客户',
+  OURS: '我司录入', CHANNEL: '渠道录入', MINI: '小程序录入', MINI_STAFF_CREATE: '员工移动端录入', MINI_WECHAT_PHONE: '微信手机号建档',
+  LEAD: '线索转化', BOSS: '老板录入', ADVISER: '顾问录入', VIP: '客户自主录入', WEB: 'Web 端录入', H5: 'H5 端录入',
+  COMPLETE: '资料完整', INCOMPLETE: '资料待补充', PENDING: '待处理', VERIFIED: '已核验',
+  true: '已生成', false: '未生成',
+});
+const insightMetaLabels = Object.freeze({
+  HIGH: '高风险', MIDDLE: '中风险', MEDIUM: '中风险', LOW: '低风险',
+  high: '高风险', middle: '中风险', medium: '中风险', low: '低风险',
+  高: '高风险', 中: '中风险', 低: '低风险',
+});
+
+function dimensionValueText(value) {
+  const mapped = dimensionValueLabels[String(value)];
+  if (mapped) return mapped;
+  if (typeof value === 'boolean') return value ? '是' : '否';
+  return String(value);
+}
+
+/**
+ * 画像维度仅展示有明确中文业务含义的字段；内部编号及未知技术字段不得直出页面。
+ * 对服务记录等嵌套对象递归展开，避免对象被渲染为 [object Object] 或英文键值。
+ */
+function dimensionPairs(source, parentLabel = '') {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return [];
+  return Object.entries(source).flatMap(([key, value]) => {
+    if (hiddenDimensionKeys.has(key) || value === null || value === undefined || value === '') return [];
+    const label = dimensionLabels[key];
+    if (!label) return [];
+    if (typeof value === 'object' && !Array.isArray(value)) return dimensionPairs(value, label);
+    if (Array.isArray(value)) return [];
+    return [{ key: parentLabel ? `${parentLabel}·${label}` : label, value: dimensionValueText(value) }];
+  });
+}
+
+/** 兼容历史快照中的字符串及结构化风险/建议，不向员工展示 level/type/tagType 等内部字段。 */
+function insightItemText(item, fallback) {
+  if (typeof item === 'string' && item.trim()) {
+    const text = item.trim();
+    // 兼容历史 Java Map 被 String.valueOf 后保存成“{level=..., content=...}”的快照。
+    if (text.startsWith('{') && text.endsWith('}')) {
+      try { return insightItemText(JSON.parse(text), fallback); } catch (_error) { /* 继续兼容旧 Map 文本 */ }
+      const contentAt = text.indexOf('content=');
+      if (contentAt >= 0) {
+        const content = text.slice(contentAt + 'content='.length, -1).trim();
+        const meta = text.match(/(?:level|type)=([^,}]+)/)?.[1]?.trim();
+        const prefix = insightMetaLabels[meta] || meta;
+        return content ? `${prefix ? `${prefix}：` : ''}${content}` : fallback;
+      }
+      return fallback;
+    }
+    return text;
+  }
+  if (!item || typeof item !== 'object') return fallback;
+  const content = item.content || item.message || item.summary || item.description;
+  if (typeof content !== 'string' || !content.trim()) return fallback;
+  const meta = item.level || item.type;
+  const prefix = insightMetaLabels[meta] || meta;
+  return `${prefix ? `${prefix}：` : ''}${content.trim()}`;
+}
 
 async function onGenerateInsight() {
   saving.value = true;
@@ -706,12 +812,28 @@ async function submitFollow() {
   finally { saving.value = false; }
 }
 
-onMounted(async () => {
-  const tab = String(route.meta.serviceView || route.query.tab || 'daily');
-  if (['daily', 'appointments', 'outings', 'replay'].includes(tab)) activeTab.value = tab;
+function applyRouteQuery() {
   if (route.query.date) selectedDate.value = String(route.query.date);
+  if (route.query.scope && scopeOptions.value.some((item) => item.value === String(route.query.scope).toUpperCase())) selectedScope.value = String(route.query.scope).toUpperCase();
   if (route.query.focus) focus.value = String(route.query.focus);
   if (route.query.serviceMethod) appointmentQuery.serviceMethod = String(route.query.serviceMethod);
+  if (route.query.status) {
+    appointmentQuery.status = String(route.query.status);
+    outingQuery.status = String(route.query.status);
+  }
+}
+
+function onScopeChange(value) {
+  router.replace({ path: route.path, query: { ...route.query, scope: value, date: selectedDate.value } });
+}
+
+watch(() => route.fullPath, async () => {
+  applyRouteQuery();
+  await onTabChange(activeTab.value);
+});
+
+onMounted(async () => {
+  applyRouteQuery();
   await loadWorkbench();
   if (activeTab.value !== 'daily') onTabChange(activeTab.value);
   if (route.query.clientCode) openClientReplay(String(route.query.clientCode));
