@@ -65,7 +65,10 @@ public class SubmissionService {
         submission.setClientProfileCode(clientCode);
         submission.setCustomerGroup(StringUtils.hasText(customerGroup) ? customerGroup : "ENTERPRISE");
         submission.setDataJson(toJson(facts));
-        submission.setClientSubmitId(clientSubmitId);
+        // 数据库对 client_submit_id 设为 NOT NULL；Web 初筛未传幂等键时由服务端补发。
+        String effectiveSubmitId = StringUtils.hasText(clientSubmitId)
+                ? clientSubmitId.trim() : BizIdGenerator.generate("csubmit");
+        submission.setClientSubmitId(effectiveSubmitId);
         submission.setStatus("SUBMITTED");
         submission.setCreatedBy(StringUtils.hasText(operator) ? operator : "system");
         submission.setCreatedAt(LocalDateTime.now());

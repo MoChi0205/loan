@@ -35,12 +35,18 @@
       </AppSearchBar>
       <el-table :data="mineRows" v-loading="mineLoading" stripe row-key="approvalNo">
         <template #empty><AppEmpty title="暂无审批申请" desc="认领转移、产品新增或附件下载申请会显示在这里" /></template>
-        <el-table-column label="审批类型" width="130"><template #default="{ row }">{{ typeText[row.type] || row.type }}</template></el-table-column>
+        <el-table-column label="审批类型" width="130"><template #default="{ row }">{{ typeText[row.type] || '其他申请' }}</template></el-table-column>
         <el-table-column label="申请事项" min-width="220"><template #default="{ row }">{{ row.subject || row.clientName || row.enterpriseName || '审批申请' }}</template></el-table-column>
-        <el-table-column label="状态" width="110"><template #default="{ row }"><span class="loan-tag" :class="statusTag(row.approveStatus)">{{ statusText[row.approveStatus] || row.approveStatus }}</span></template></el-table-column>
+        <el-table-column label="状态" width="110"><template #default="{ row }"><span class="loan-tag" :class="statusTag(row.approveStatus)">{{ statusText[row.approveStatus] || '状态待确认' }}</span></template></el-table-column>
         <el-table-column label="审批进度" width="150"><template #default="{ row }">{{ row.approvalStage === 'BOSS_REVIEW' ? '等待老板/超管终审' : (row.approveStatus === 'PENDING' ? '审批中' : '已完成') }}</template></el-table-column>
         <el-table-column label="审批意见" min-width="180"><template #default="{ row }">{{ row.opinion || '—' }}</template></el-table-column>
         <el-table-column label="提交时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+        <el-table-column label="关联业务" width="120" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="row.targetPath" link type="primary" @click="openRelated(row)">查看详情</el-button>
+            <span v-else class="muted">—</span>
+          </template>
+        </el-table-column>
       </el-table>
     </div>
 
@@ -409,6 +415,10 @@ function searchMine() { loadMine(); }
 function resetMine() {
   Object.assign(mineQuery, { type: '', status: '', approvalStage: '', dateRange: null, keyword: '' });
   loadMine();
+}
+function openRelated(row) {
+  if (!row?.targetPath) return;
+  router.push({ path: row.targetPath, query: row.targetQuery || undefined });
 }
 watch(() => mineQuery.type, (type) => { if (type !== 'SENSITIVE_VIEW') mineQuery.approvalStage = ''; });
 const contentRows = reactive({ smsTemplate: [], reportTemplate: [] });

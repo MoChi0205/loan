@@ -59,7 +59,7 @@
               <div class="panel-head"><h3>{{ serviceLabels.orders }}</h3><span>{{ totalOf(workbench.activeOrders) }} 单</span></div>
               <button v-for="row in recordsOf(workbench.activeOrders)" :key="row.orderNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ formatDateTime(row.updatedAt) }}</small></span>
-                <el-tag size="small" type="info">{{ row.status }}</el-tag>
+                <el-tag size="small" type="info">{{ orderStatusText[row.status] || row.status || '待处理' }}</el-tag>
               </button>
               <el-empty v-if="!recordsOf(workbench.activeOrders).length" description="暂无活跃工单" :image-size="52" />
             </section>
@@ -338,6 +338,7 @@ const saving = ref(false);
 const methodText = Object.freeze({ COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', PHONE_CONSULT: '电话咨询' });
 const appointmentStatusText = Object.freeze({ REQUESTED: '待顾问确认', CONFIRMED: '已预约', ARRIVED: '已到店', SERVING: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', NO_SHOW: '未到场', RESCHEDULED: '已改期' });
 const outingStatusText = Object.freeze({ DRAFT: '草稿', PENDING_REVIEW: '待审核', REJECTED: '已驳回', READY: '待出发', IN_PROGRESS: '外出中', COMPLETED: '已返回', CANCELLED: '已取消' });
+const orderStatusText = Object.freeze({ PENDING: '待处理', PROCESSING: '处理中', IN_PROGRESS: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', CLOSED: '已关闭', REJECTED: '已驳回' });
 const followChannelText = Object.freeze({ PHONE: '电话咨询', COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', WECOM: '企业微信', OTHER: '其他' });
 const serviceLabels = computed(() => {
   const prefix = ({ SELF: '我的', DEPARTMENT: '团队', COMPANY: '全公司' })[selectedScope.value] || '';
@@ -484,6 +485,11 @@ async function submitAppointment() {
     createVisible.value = false;
     ElMessage.success('预约已创建并确认');
     await router.push('/service-operations/appointments');
+  } catch (e) {
+    const message = e?.message || '';
+    if (/已存在外出记录/.test(message)) {
+      ElMessage.warning('该预约已经提交过外出申请，请在“我的外出”中查看审批进度');
+    }
   } finally { saving.value = false; }
 }
 
@@ -649,6 +655,11 @@ async function submitOuting() {
     outingCreateVisible.value = false;
     ElMessage.success('外出申请已提交，待主管审核通过后可打卡');
     await Promise.all([loadAppointments(), loadWorkbench(true)]);
+  } catch (e) {
+    const message = e?.message || '';
+    if (message.includes('已经提交过外出申请') || message.includes('已有外出申请')) {
+      ElMessage.warning('该预约已经提交过外出申请，请在“我的外出”中查看审批进度');
+    }
   } finally { saving.value = false; }
 }
 

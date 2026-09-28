@@ -182,8 +182,8 @@
     <AppDialog v-model:visible="editVisible" title="编辑客户档案" width="640px" :loading="saving" @confirm="onSave">
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="110px" label-position="right">
         <el-divider content-position="left">基础信息</el-divider>
-        <el-form-item label="客户姓名" prop="name">
-          <el-input v-model="editForm.name" placeholder="客户姓名" />
+        <el-form-item label="客户姓名" prop="contactName">
+          <el-input v-model="editForm.contactName" placeholder="客户姓名" />
         </el-form-item>
         <el-form-item label="来源" prop="source">
           <el-select v-model="editForm.source" clearable placeholder="来源" style="width: 100%">
@@ -679,7 +679,7 @@ const editVisible = ref(false);
 const saving = ref(false);
 const editFormRef = ref();
 const editForm = reactive({
-  name: '',
+  contactName: '',
   source: '',
   realName: '',
   idCardNo: '',
@@ -700,7 +700,7 @@ const editRules = {};
 
 function openEdit() {
   Object.assign(editForm, {
-    name: detail.name,
+    contactName: detail.name,
     source: detail.source,
     realName: detail.realName,
     idCardNo: detail.idCardNo,
@@ -881,6 +881,9 @@ watch(
   grid-template-columns: 1fr 1fr;
   gap: 0 16px;
 }
+.flag-grid .el-form-item { min-width: 0; }
+.flag-grid .el-select,
+.flag-grid .el-input { width: 100%; }
 .assign-dialog-hint {
   margin: 0 0 18px;
   padding: 10px 12px;

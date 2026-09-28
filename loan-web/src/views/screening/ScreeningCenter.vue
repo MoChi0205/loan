@@ -281,7 +281,8 @@ async function onRun() {
   }
   running.value = true;
   try {
-    const res = await runScreening({ clientCode: form.clientCode, facts: form.facts });
+    const clientSubmitId = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const res = await runScreening({ clientCode: form.clientCode, facts: form.facts, clientSubmitId });
     const detail = await screeningDetail(res.data);
     if (!detail.data) throw new Error('报告详情为空');
     result.value = detail.data;

@@ -562,12 +562,14 @@ public class ApprovalService {
             Map<String,Object> m=new LinkedHashMap<>(); m.put("type",TYPE_PRODUCT); m.put("approvalNo",a.getApprovalNo());
             m.put("subject", businessNameService.productNames(Collections.singleton(a.getBankProductCode())).get(a.getBankProductCode()));
             m.put("approveStatus",a.getApproveStatus()); m.put("opinion",a.getApproveOpinion()); m.put("createdAt",a.getCreatedAt()); rows.add(m);
+            m.put("targetPath", "/product/all");
         });
         downloadApprovalMapper.selectList(new LambdaQueryWrapper<AttachmentDownloadApproval>()
                 .eq(AttachmentDownloadApproval::getApplicantStaffCode, user.getUserNo()).orderByDesc(AttachmentDownloadApproval::getCreatedAt)
                 .last("LIMIT 100")).forEach(a -> {
             Map<String,Object> m=new LinkedHashMap<>(); m.put("type",TYPE_DOWNLOAD); m.put("approvalNo",a.getApprovalNo());
             m.put("subject",a.getPurpose()); m.put("approveStatus",a.getApproveStatus()); m.put("opinion",a.getApproveOpinion()); m.put("createdAt",a.getCreatedAt()); rows.add(m);
+            if (StringUtils.hasText(a.getClientProfileCode())) { m.put("targetPath", "/client"); m.put("targetQuery", Collections.singletonMap("clientCode", a.getClientProfileCode())); }
         });
         miniClientService.myAllocationApplications(user.getUserNo()).forEach(a -> rows.add(a));
 
@@ -581,6 +583,7 @@ public class ApprovalService {
             m.put("approveStatus", outingApprovalStatus(a.getStatus()));
             m.put("opinion", a.getReviewRemark());
             m.put("createdAt", a.getCreatedAt());
+            m.put("targetPath", "/service-operations/outings");
             rows.add(m);
         });
 
@@ -597,6 +600,7 @@ public class ApprovalService {
             m.put("approveStatus", a.getStatus());
             m.put("opinion", a.getOpinion());
             m.put("createdAt", a.getCreatedAt());
+            m.put("targetPath", "/approval/" + (TYPE_SMS_TEMPLATE.equals(a.getApprovalType()) ? "sms-template" : "report-template"));
             rows.add(m);
         });
 
@@ -614,6 +618,7 @@ public class ApprovalService {
             m.put("approveStatus", "PENDING_REVIEW".equals(a.getReviewStatus()) ? "PENDING" : a.getReviewStatus());
             m.put("opinion", a.getReviewOpinion());
             m.put("createdAt", a.getCreatedAt());
+            if (StringUtils.hasText(a.getClientProfileCode())) { m.put("targetPath", "/client"); m.put("targetQuery", Collections.singletonMap("clientCode", a.getClientProfileCode())); }
             rows.add(m);
         });
 
@@ -628,6 +633,8 @@ public class ApprovalService {
             m.put("approvalStage", a.getApprovalStage());
             m.put("opinion", a.getApproveOpinion());
             m.put("createdAt", a.getCreatedAt());
+            m.put("targetPath", "/client");
+            m.put("targetQuery", Collections.singletonMap("clientCode", a.getClientCode()));
             rows.add(m);
         });
         rows.sort(new CreatedAtDescComparator());

@@ -298,6 +298,10 @@ public class ClientService {
             client.setContactName(req.getContactName());
             changed = true;
         }
+        if (StringUtils.hasText(req.getSource()) && !req.getSource().equals(client.getSource())) {
+            client.setSource(req.getSource().trim());
+            changed = true;
+        }
         if (StringUtils.hasText(req.getPhone())) {
             String phone = req.getPhone().trim();
             client.setPhone(phone);                      // AesTypeHandler 落库加密

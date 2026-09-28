@@ -30,7 +30,7 @@
         <el-descriptions-item label="联系电话">{{ profile.contactPhoneMasked || '—' }}</el-descriptions-item>
         <el-descriptions-item :label="profile.identityType || '唯一身份标识'">{{ profile.identityMasked || profile.creditCodeMasked || '—' }}</el-descriptions-item>
         <el-descriptions-item label="归属顾问">{{ profile.ownerStaffName || '待分配' }}</el-descriptions-item>
-        <el-descriptions-item label="客户状态">{{ profile.status || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="客户状态">{{ clientStatusText(profile.status) }}</el-descriptions-item>
         <el-descriptions-item label="VIP 等级">{{ profile.vipLevel || '普通客户' }}</el-descriptions-item>
       </el-descriptions>
     </section>
@@ -38,7 +38,7 @@
     <section class="report-section">
       <h3>2. 材料状态</h3>
       <div class="material-grid">
-        <div><span>提交状态</span><strong>{{ material.submissionStatus || '暂无提交单' }}</strong></div>
+        <div><span>提交状态</span><strong>{{ submissionStatusText(material.submissionStatus) }}</strong></div>
         <div><span>材料版本</span><strong>{{ material.materialVersion || 'v1' }}</strong></div>
         <div><span>待复核</span><strong>{{ material.pendingReviewCount || 0 }}</strong></div>
         <div><span>已通过</span><strong>{{ material.approvedCount || 0 }}</strong></div>
@@ -71,7 +71,7 @@
         <div class="analysis-block">
           <h4>风险关注</h4>
           <div v-for="(item, index) in analysis.risks || []" :key="index" class="text-item risk-item">
-            <el-tag size="small" type="warning">{{ item.level || '提示' }}</el-tag>
+            <el-tag size="small" type="warning">{{ riskLevelText(item.level) }}</el-tag>
             <span>{{ item.content }}</span>
           </div>
           <div v-if="!(analysis.risks || []).length" class="empty-text">暂无风险提示</div>
@@ -79,7 +79,7 @@
         <div class="analysis-block">
           <h4>咨询建议</h4>
           <div v-for="(item, index) in analysis.suggestions || []" :key="index" class="text-item">
-            <el-tag size="small" :type="tagType(item.tagType)">{{ item.type || '建议' }}</el-tag>
+            <el-tag size="small" :type="tagType(item.tagType)">{{ adviceTypeText(item.type) }}</el-tag>
             <span>{{ item.content }}</span>
           </div>
           <div v-if="!(analysis.suggestions || []).length" class="empty-text">暂无咨询建议</div>
@@ -130,6 +130,10 @@ const gradeText = { HIGH: '高', MIDDLE: '中', LOW: '低' };
 const gradeClass = computed(() => ({ HIGH: 'high', MIDDLE: 'middle', LOW: 'low' }[summary.value.grade] || 'low'));
 
 const customerGroupText = (value) => ({ ENTERPRISE: '企业客户', PERSONAL: '个人客户' }[value] || value || '—');
+const clientStatusText = (value) => ({ ACTIVE: '有效', DISABLED: '已停用', PENDING: '待完善', DELETED: '已删除' }[value] || (value ? '状态待确认' : '—'));
+const submissionStatusText = (value) => ({ SUBMITTED: '已提交', MATCHING: '分析中', MATCHED: '已完成分析', APPROVED: '已核验', REJECTED: '需补充' }[value] || (value ? '状态待确认' : '暂无提交单'));
+const riskLevelText = (value) => ({ HIGH: '重点关注', MEDIUM: '需要关注', LOW: '一般提示', INFO: '提示' }[String(value || '').toUpperCase()] || '提示');
+const adviceTypeText = (value) => ({ DATA: '数据完善', MATERIAL: '材料准备', OPERATION: '经营建议', RISK: '风险提示' }[String(value || '').toUpperCase()] || (value || '建议'));
 const resultText = (value) => ({ PASS: '通过', CONDITION: '有条件', REJECT: '未匹配' }[value] || value || '—');
 const resultTag = (value) => ({ PASS: 'success', CONDITION: 'warning', REJECT: 'info' }[value] || 'info');
 const tagType = (value) => ({ success: 'success', warning: 'warning', danger: 'danger', info: 'info' }[value] || 'info');
