@@ -237,8 +237,16 @@ async function onLogin() {
     } else {
       removeStorage(KEYS.REMEMBER_USERNAME);
     }
+    // 在进入 Layout 前先把当前角色菜单准备好。路由守卫和 Layout 会复用
+    // 该请求，避免首次登录时侧栏先按“仅工作台”渲染而无法展开。
+    try {
+      await userStore.ensureMenuPaths(true);
+    } catch (menuError) {
+      // 菜单接口暂时不可用不阻断登录；Layout 会再次请求并按 fail-closed 处理。
+      console.warn('[menu] 登录后预加载失败，进入页面后重试', menuError);
+    }
     ElMessage.success('登录成功');
-    router.push('/');
+    await router.push('/');
   } catch (e) {
     // 登录类请求已标记 __loanSilent，提示统一在这里弹一次，并立即换一张验证码。
     ElMessage.error(loginErrorMessage(e));

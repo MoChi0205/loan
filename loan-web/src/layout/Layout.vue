@@ -505,8 +505,10 @@ function isGroupExpanded(title) {
 function toggleGroup(title) {
   const nextExpanded = !isGroupExpanded(title);
   // 侧栏采用手风琴：同一时刻只展开一个业务域，避免菜单过长且层级混淆。
-  Object.keys(groupExpanded.value).forEach((key) => { groupExpanded.value[key] = false; });
-  groupExpanded.value[title] = nextExpanded;
+  const nextState = Object.fromEntries(
+    Object.keys(groupExpanded.value).map((key) => [key, false]),
+  );
+  groupExpanded.value = { ...nextState, [title]: nextExpanded };
   setStorageJSON(KEYS.LAYOUT_GROUP, groupExpanded.value);
 }
 
@@ -517,9 +519,11 @@ function activeGroupTitle() {
 function ensureActiveGroupExpanded() {
   const title = activeGroupTitle();
   if (!title) return;
+  const nextState = { ...groupExpanded.value };
   menuGroups.value.forEach((group) => {
-    if (group.title) groupExpanded.value[group.title] = group.title === title;
+    if (group.title) nextState[group.title] = group.title === title;
   });
+  groupExpanded.value = nextState;
   setStorageJSON(KEYS.LAYOUT_GROUP, groupExpanded.value);
 }
 
@@ -618,11 +622,16 @@ function onMenuClick(ev, item) {
   router.push(item.path);
 }
 
-onMounted(() => {
+async function initializeLayout() {
+  // 菜单树完成后再读取标签和初始化分组，避免首次登录的临时菜单状态
+  // 覆盖用户的展开状态或把当前页面误判成“无所属分组”。
+  await loadRoleMenu();
   loadTabs();
   ensureTab(route.fullPath);
-  // 按当前角色加载后端菜单树，驱动动态菜单
-  loadRoleMenu();
+}
+
+onMounted(() => {
+  initializeLayout();
 });
 
 // 角色切换（如登录态刷新）后重新拉取菜单树

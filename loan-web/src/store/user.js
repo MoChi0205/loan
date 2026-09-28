@@ -5,6 +5,11 @@ import { KEYS, getStorage, getStorageJSON, setStorage, setStorageJSON, removeSto
 import { defaultPermissionsForRole, hasActionPermission } from '@/utils/access';
 import { flattenMenuPaths } from '@/utils/routeAccess';
 
+// 路由守卫、登录页和 Layout 可能在同一次登录导航中同时读取菜单。
+// 复用同一请求，避免首次登录时某一调用先看到“仅工作台”的临时状态。
+let menuRequest = null;
+let menuRequestRole = '';
+
 /**
  * 用户状态 Store：token + 用户信息（持久化到 localStorage）。
  *
@@ -90,11 +95,29 @@ export const useUserStore = defineStore('user', {
       if (!force && this.menuPaths instanceof Set && this.menuRoleCode === roleCode) {
         return this.menuPaths;
       }
-      const res = await menuTree(roleCode);
-      const set = flattenMenuPaths(res?.data || []);
-      this.menuPaths = set;
-      this.menuRoleCode = roleCode;
-      return this.menuPaths;
+      if (!force && menuRequest && menuRequestRole === roleCode) {
+        return menuRequest;
+      }
+      const requestRole = roleCode;
+      const request = menuTree(requestRole)
+        .then((res) => {
+          const set = flattenMenuPaths(res?.data || []);
+          // 登录切换期间，旧角色请求不能覆盖新角色的权限状态。
+          if (this.roleCode === requestRole) {
+            this.menuPaths = set;
+            this.menuRoleCode = requestRole;
+          }
+          return set;
+        })
+        .finally(() => {
+          if (menuRequestRole === requestRole) {
+            menuRequest = null;
+            menuRequestRole = '';
+          }
+        });
+      menuRequest = request;
+      menuRequestRole = requestRole;
+      return request;
     },
 
     /**
