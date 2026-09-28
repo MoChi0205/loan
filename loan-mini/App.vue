@@ -1,8 +1,8 @@
 <script>
 /**
  * 小程序根组件。
- * 全局样式：墨蓝 · 皇家蓝 · 香槟金（唯一视觉真源 = 原型
- * docs/prototypes/redesign-all-roles-v1.html，2026-09-10 用户确认），明暗双主题。
+ * 全局样式：墨蓝 · 皇家蓝 · 香槟金，明暗双主题。
+ * 当前视觉规范见 docs/design-system/，实际令牌以本文件为准。
  */
 import { useUserStore } from './store/user';
 import { initWxJsSdk } from './utils/wx-jssdk';

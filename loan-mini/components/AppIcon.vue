@@ -109,8 +109,8 @@ const SVGS = {
 };
 
 /**
- * 多元素字形（含 <circle>/<rect>/<path> 组合）—— 取自唯一参考原型
- * docs/prototypes/redesign-all-roles-v1.html 的 ICON 表，与单 path 的 SVGS 并存（RAWS 优先）。
+ * 多元素字形（含 <circle>/<rect>/<path> 组合）—— 当前组件内置图标注册表，
+ * 与单 path 的 SVGS 并存（RAWS 优先）。
  * 24×24 网格；stroke / stroke-width / cap / join 由外层 SVG 统一注入，此处只放内部元素。
  */
 const RAWS = {

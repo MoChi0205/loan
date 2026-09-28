@@ -1,52 +1,32 @@
-# ComponentSpec · 墨金 Ink & Gold
+# 公共组件规范
 
-> 可复用组件清单与状态规范。所有组件遵循 `DesignSystemManifest.md` 的令牌与图标规范。状态缩写：default(d) / hover(h) / active(a) / focus(f) / disabled(di) / loading(lo) / error(e)。
+## 按钮与输入
 
-## 1. Button 按钮
-- 变体：`primary`（暖金填充，墨蓝文字）/ `ghost`（透明 + 墨蓝描边）/ `text`（纯文字链接）。
-- 尺寸：sm(28h) / md(36h) / lg(44h)。圆角 `--r-sm`。
-- 状态：
-  - primary：d `#D9A441` → h 提亮 `#E0AE4E` → a 压暗 `#B8861A` → f 外环 `0 0 0 3px rgba(217,164,65,.35)` → di 降透明度 40% 禁点击 → lo 前置 spinner。
-  - ghost：d 描边 `--border`，文字 `--ink-700` → h 底 `--surface-2`。
+- 按钮提供主按钮、次按钮、文字按钮和危险操作；均包含默认、悬停、按下、焦点、禁用和加载状态。
+- 输入框包含标题、提示、校验错误和清除操作。验证码输入必须接受字母和数字；手机号只在手机号字段使用数字键盘。
+- 自动搜索使用防抖、取消过期请求、限制下拉高度并保持在可视区域内。
 
-## 2. Card 卡片
-- d：底 `--surface`(亮)/`--ink-800`(暗)，描边 `--border`，圆角 `--r-md`，阴影 `--sh-sm`。
-- h（可点击卡）：描边变 `--gold-300`，阴影 `--sh-md`，`translateY(-3px)`。
-- 内部间距统一 `--sp-4`~`--sp-6`。
+## 表格与卡片
 
-## 3. Table 表格
-- 行高 44–52；表头 `--text-muted` 12px；分隔线 `--border`。
-- 状态列用 `Tag` 呈现，状态与颜色双编码（色 + 图标/文字）。
-- 行 h：底 `--surface-2`；a：底暖金 8% 透明。
+- 表格列优先显示名称和中文释义，不显示物理主键或业务编码。
+- 手机号列默认显示前三位、星号、后四位；明文查看使用统一受控组件。
+- 卡片可点击时提供明确悬停、焦点和按下反馈；统计卡跳转必须带入当前日期、范围和筛选条件。
+- 状态标签同时使用文字和颜色，枚举值不直接显示英文代码。
 
-## 4. Input / Search 输入
-- d：底 `--surface`，描边 `--border`，圆角 `--r-sm`；f：描边 `--gold-500` + 外环。
-- 错误 e：描边 `--danger` + 下方 `--danger` 提示文字。
-- 搜索框前置 `AppIcon name="search"`，右置清除 `close`。
+## 导航与页签
 
-## 5. Tag / Pill 状态标签
-- 语义映射：success(`--success` 绿底绿字) / warning(`--gold` 金底金字) / danger(`--danger` 红底红字) / info(`--info` 蓝底蓝字) / neutral(灰底灰字)。
-- 圆角 `--r-pill`，内联小图标（如 check / warning）与文字并存，状态不只靠颜色。
+- Web 一级与二级菜单层级必须明显；二级菜单是独立路由，不与页面内页签重复。
+- 顶部区域保留页面标题、上下文操作、通知和用户入口，不能挤压为一行不可读内容。
+- 客户端底部导航由角色配置生成，最多 5 项；无权限入口不占位置。
 
-## 6. Nav / Sidebar 侧栏（Web）
-- 项高 40，图标 `AppIcon` 18px（墨蓝-次），文字 `--text-muted`。
-- active：底暖金 14% 透明，文字/图标 `--gold-300`(暗) 或 `--gold-600`(亮)，左侧 3px 暖金指示条。
-- h：底 `--ink-700`(暗)/`--surface-2`(亮)。
+## 弹窗、抽屉与表单
 
-## 7. TopBar 顶栏（Web）
-- 含页面标题、搜索、通知 `bell`、用户 `user` 头像入口；底描边 `--border`。
+- 抽屉与弹窗使用当前主题的实色表面和独立遮罩，深色模式下不得出现叠影。
+- 日期与时间选择应在同一流程内完成；表单提交防重复，错误定位到具体字段。
+- 预约、外出、审批等表单复用公共字段组件，但根据业务状态展示不同必填项。
 
-## 8. TabBar 标签栏（Mini）
-- 5 主 Tab：home / match / report / order / user；图标 `AppIcon` 22px。
-- active：图标与文字 `--gold-500`，**颜色由主题对象注入真实值**（不再写死 `#2443C2`），见 DeveloperGuide。
+## 空态、加载与反馈
 
-## 9. Empty / 空态
-- 居中 `AppIcon`（如 `document`/`search`）+ 文案 + 可选操作按钮。
-
-## 10. Dialog / Toast
-- Dialog：遮罩 `rgba(14,22,38,.5)`，卡片 `--surface` 圆角 `--r-lg` 阴影 `--sh-lg`；Toast 底部 2.5s 自动消失，暖金勾 `check` 表示成功。
-
-## 11. Icon 图标原子
-- 唯一入口 `AppIcon`（Web: `code/AppIcon.web.vue`；Mini: `code/AppIcon.mini.vue`）。
-- 禁止：内联 `<svg>` 散落、Element Plus 内置图标、`emoji`。
-- 36 枚见 `icons.js`；新增须同几何规范并入 `ICON_PATHS`。
+- 首屏与列表加载使用骨架或局部加载，不用全页白屏。
+- 空结果说明当前筛选条件，并提供清除筛选或创建入口。
+- 成功提示只显示一次；错误提示包含可执行修复动作，不泄露内部异常。

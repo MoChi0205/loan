@@ -160,7 +160,7 @@ import { consumePendingInvitation, buildInviteSharePath } from '../../utils/invi
 import { uploadAvatar } from '../../utils/avatar';
 
 /**
- * 首页（角色化，唯一视觉真源 = docs/prototypes/redesign-all-roles-v1.html）。
+ * 角色化首页；视觉规范以 docs/design-system/ 与当前主题源码为准。
  * 结构：深色墨蓝 Hero（头像 + 问候 + 角色化业务说明 + 消息铃铛）→ 统计行 → 角色化快捷宫格 → 角色化信息卡。
  */
 const store = useUserStore();

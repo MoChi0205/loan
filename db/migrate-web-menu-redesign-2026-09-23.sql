@@ -1,5 +1,5 @@
 -- Web 菜单产品视角重构（幂等）
--- 真值：docs/plans/web-menu-redesign-产品视角-2026-09-22.md
+-- 当前菜单与权限真值：docs/knowledge-base/01-角色权限模型.md 与实际菜单种子数据
 -- 仅调整菜单层级/名称/角色页面权限；渠道业务与接口实现不变。
 SET NAMES utf8mb4;
 
