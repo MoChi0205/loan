@@ -8,8 +8,10 @@ import com.loan.api.dto.PageResult;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.client.model.ClientUpdateRequest;
+import com.loan.client.security.ClientAccessGuard;
 import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
+import com.loan.context.LoanUser;
 import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.invitation.entity.Invitation;
@@ -64,6 +66,7 @@ public class ClientService {
     private final PersonalProfileService personalProfileService;
     private final InvitationMapper invitationMapper;
     private final BusinessNameService businessNameService;
+    private final ClientAccessGuard clientAccessGuard;
 
     /**
      * 客户轻量分页（建单下拉 / 客户列表多维筛选）。
@@ -282,11 +285,12 @@ public class ClientService {
      * @return 更新后的档案合并视图
      */
     @Transactional(rollbackFor = Exception.class)
-    public Map<String, Object> updateClientDetail(String clientCode, ClientUpdateRequest req) {
+    public Map<String, Object> updateClientDetail(String clientCode, ClientUpdateRequest req, LoanUser user) {
         if (req == null) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "编辑内容不能为空");
         }
-        ClientProfile client = requireClient(clientCode);
+        // 事务内锁定客户行，防止校验通过后归属并发变化造成写越权。
+        ClientProfile client = clientAccessGuard.requireWritable(user, clientCode);
         boolean changed = false;
         // —— 基础信息合并更新 ——
         if (StringUtils.hasText(req.getContactName())

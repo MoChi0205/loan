@@ -5,6 +5,7 @@ import com.loan.common.Result;
 import com.loan.client.model.ClientUpdateRequest;
 import com.loan.client.service.ClientService;
 import com.loan.client.service.ClientAllocationService;
+import com.loan.client.security.ClientAccessGuard;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.mini.service.MiniRoleGuard;
@@ -38,6 +39,7 @@ public class ClientController {
     private final ClientAllocationService clientAllocationService;
     private final MiniRoleGuard miniRoleGuard;
     private final MiniClientService miniClientService;
+    private final ClientAccessGuard clientAccessGuard;
 
     /** 用户查询：姓名/企业/手机号/证件号查重，并返回当前归属供前端分流。 */
     @GetMapping("/lookup")
@@ -209,7 +211,9 @@ public class ClientController {
     @GetMapping("/{clientCode}/history")
     public Result<Map<String, Object>> history(@PathVariable String clientCode,
                                                 @RequestParam(defaultValue = "1") int page,
-                                                @RequestParam(defaultValue = "50") int size) {
+                                                @RequestParam(defaultValue = "50") int size,
+                                                @CurrentUser LoanUser user) {
+        clientAccessGuard.requireReadable(user, clientCode);
         return Result.ok(clientAllocationService.history(clientCode, PageParams.page(page), PageParams.size(size)));
     }
 
@@ -302,7 +306,9 @@ public class ClientController {
      * @return 档案合并视图
      */
     @GetMapping("/{clientCode}")
-    public Result<Map<String, Object>> detail(@PathVariable String clientCode) {
+    public Result<Map<String, Object>> detail(@PathVariable String clientCode,
+                                              @CurrentUser LoanUser user) {
+        clientAccessGuard.requireReadable(user, clientCode);
         return Result.ok(clientService.getClientDetail(clientCode));
     }
 
@@ -315,7 +321,8 @@ public class ClientController {
      */
     @PutMapping("/{clientCode}")
     public Result<Map<String, Object>> update(@PathVariable String clientCode,
-                                              @RequestBody ClientUpdateRequest req) {
-        return Result.ok(clientService.updateClientDetail(clientCode, req));
+                                              @RequestBody ClientUpdateRequest req,
+                                              @CurrentUser LoanUser user) {
+        return Result.ok(clientService.updateClientDetail(clientCode, req, user));
     }
 }

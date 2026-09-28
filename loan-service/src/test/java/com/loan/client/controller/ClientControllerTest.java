@@ -3,6 +3,7 @@ package com.loan.client.controller;
 import com.loan.api.dto.PageResult;
 import com.loan.client.service.ClientAllocationService;
 import com.loan.client.service.ClientService;
+import com.loan.client.security.ClientAccessGuard;
 import com.loan.context.LoanUser;
 import com.loan.context.UserContext;
 import com.loan.exception.GlobalExceptionHandler;
@@ -27,6 +28,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,13 +38,16 @@ class ClientControllerTest {
     private MockMvc mvc;
     private ClientAllocationService allocationService;
     private MiniRoleGuard roleGuard;
+    private ClientAccessGuard accessGuard;
+    private ClientService clientService;
 
     @BeforeEach
     void setUp() {
-        ClientService clientService = mock(ClientService.class);
+        clientService = mock(ClientService.class);
         allocationService = mock(ClientAllocationService.class);
         roleGuard = mock(MiniRoleGuard.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null);
+        accessGuard = mock(ClientAccessGuard.class);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard);
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
@@ -130,7 +135,7 @@ class ClientControllerTest {
     @DisplayName("老板查看全司已分配客户时强制排除公海")
     void allScopeMeansCompanyAssignedOnly() throws Exception {
         ClientService clientService = mock(ClientService.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard);
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
@@ -154,7 +159,7 @@ class ClientControllerTest {
     @DisplayName("公司公海统一使用 ENTERPRISE 枚举")
     void companySeaUsesEnterpriseLevel() throws Exception {
         ClientService clientService = mock(ClientService.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard);
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
@@ -172,6 +177,54 @@ class ClientControllerTest {
         verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
                 eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    @DisplayName("客户详情读取前执行对象级权限校验")
+    void detailRequiresObjectReadAccess() throws Exception {
+        LoanUser adviser = staff("ADVISER", "S001");
+        UserContext.setUser(adviser);
+        when(clientService.getClientDetail("client001")).thenReturn(Collections.singletonMap("name", "张三"));
+
+        mvc.perform(get("/api/admin/client/client001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        verify(accessGuard).requireReadable(adviser, "client001");
+        verify(clientService).getClientDetail("client001");
+    }
+
+    @Test
+    @DisplayName("客户历史读取前执行对象级权限校验")
+    void historyRequiresObjectReadAccess() throws Exception {
+        LoanUser manager = staff("DEPT_MANAGER", "M001");
+        UserContext.setUser(manager);
+        when(allocationService.history("client001", 1, 50))
+                .thenReturn(Collections.singletonMap("total", 0));
+
+        mvc.perform(get("/api/admin/client/client001/history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        verify(accessGuard).requireReadable(manager, "client001");
+        verify(allocationService).history("client001", 1, 50);
+    }
+
+    @Test
+    @DisplayName("客户编辑前执行对象级写权限校验")
+    void updateRequiresObjectWriteAccess() throws Exception {
+        LoanUser adviser = staff("ADVISER", "S001");
+        UserContext.setUser(adviser);
+        when(clientService.updateClientDetail(eq("client001"), org.mockito.ArgumentMatchers.any(), eq(adviser)))
+                .thenReturn(Collections.singletonMap("name", "张三"));
+
+        mvc.perform(put("/api/admin/client/client001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contactName\":\"张三\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        verify(clientService).updateClientDetail(eq("client001"), org.mockito.ArgumentMatchers.any(), eq(adviser));
     }
 
     private LoanUser staff(String roleCode, String staffCode) {
