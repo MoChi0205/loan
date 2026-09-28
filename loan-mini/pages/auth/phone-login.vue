@@ -17,7 +17,8 @@
       </view>
       <view class="field">
         <AppIcon name="shield" size="sm" />
-        <input v-model="captchaCode" type="number" maxlength="4" placeholder="图片验证码" />
+        <!-- 验证码为随机字母+数字，不能使用 type=number，否则 H5 会拒绝字母输入。 -->
+        <input v-model="captchaCode" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" maxlength="4" placeholder="请输入4位字母/数字验证码" />
         <button class="captcha-btn" @click="refreshCaptcha">
           <image v-if="captcha.imageBase64" class="captcha-image" :src="captchaSrc" mode="aspectFit" />
           <text v-else class="captcha-text">刷新</text>
