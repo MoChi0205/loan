@@ -235,6 +235,34 @@ body {
   margin-bottom: 16px;
 }
 
+/*
+ * 日期范围控件统一尺寸：范围选择器至少需要展示两端日期、分隔符和清除按钮。
+ * 页面仍可通过更大的显式 width 覆盖；窄屏在下方媒体查询中恢复为容器宽度。
+ */
+.el-date-editor.el-range-editor {
+  width: 260px;
+  min-width: 260px;
+}
+
+.el-date-editor.el-input:not(.el-range-editor) {
+  min-width: 180px;
+}
+
+.el-date-editor.el-range-editor .el-range-input {
+  min-width: 92px;
+}
+
+@media (max-width: 760px) {
+  .el-date-editor.el-range-editor {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .el-date-editor.el-input:not(.el-range-editor) {
+    min-width: 0;
+  }
+}
+
 /* ============================================================
  * 状态徽标（语义色 + 图标 + 文字，不止靠颜色区分）
  * ============================================================ */

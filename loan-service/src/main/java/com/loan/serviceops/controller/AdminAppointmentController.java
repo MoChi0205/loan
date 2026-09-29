@@ -41,9 +41,12 @@ public class AdminAppointmentController {
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String deptCode,
             @RequestParam(required = false) String staffCode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(defaultValue = "false") boolean includeUnfinished,
             @CurrentUser LoanUser user) {
         return Result.ok(appointmentService.day(date, serviceMethod, status, user,
-                PageParams.page(page), PageParams.size(size), scope, deptCode, staffCode));
+                PageParams.page(page), PageParams.size(size), scope, deptCode, staffCode, dateFrom, dateTo, includeUnfinished));
     }
 
     @PostMapping

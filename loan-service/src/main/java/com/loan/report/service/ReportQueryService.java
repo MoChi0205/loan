@@ -71,6 +71,8 @@ public class ReportQueryService {
         detail.setRejectCount(s.getRejectCount());
         detail.setAdviceJson(s.getAdviceJson());
         detail.setVipFlag(s.getVipFlag());
+        detail.setStaffPdfKey(s.getStaffPdfKey());
+        detail.setCustomerPdfKey(s.getCustomerPdfKey());
         detail.setRuleLogs(ruleLogs(s.getMatchTraceUuid()));
         return detail;
     }

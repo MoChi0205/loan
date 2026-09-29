@@ -71,13 +71,13 @@ class OutingServiceSecurityTest {
         StaffOuting outing = outing("outing01", "staff01", "READY");
         when(outingMapper.selectOne(any())).thenReturn(outing);
         when(ossStorageService.objectExists(anyString())).thenReturn(true);
-        when(outingMapper.depart(eq("outing01"), any(), any(), any(), eq("员工"))).thenReturn(1);
+        when(outingMapper.update(any(), any())).thenReturn(1);
 
         service.depart("outing01", location(PHOTO_KEY), staff("staff01", "ADVISER"));
 
-        ArgumentCaptor<String> ciphertext = ArgumentCaptor.forClass(String.class);
-        verify(outingMapper).depart(eq("outing01"), any(), ciphertext.capture(), eq(PHOTO_KEY), eq("员工"));
-        String stored = ciphertext.getValue();
+        ArgumentCaptor<StaffOuting> patch = ArgumentCaptor.forClass(StaffOuting.class);
+        verify(outingMapper).update(patch.capture(), any());
+        String stored = patch.getValue().getDepartedLocationCiphertext();
         assertFalse(stored.contains("121.4737"));
         String decrypted = AesUtils.decrypt(stored);
         assertTrue(decrypted.contains("121.4737"));
@@ -93,7 +93,7 @@ class OutingServiceSecurityTest {
         BusinessException e = assertThrows(BusinessException.class,
                 () -> service.depart("outing01", location(null), staff("staff01", "ADVISER")));
         assertTrue(e.getMessage().contains("现场照片"));
-        verify(outingMapper, never()).depart(anyString(), any(), any(), any(), anyString());
+        verify(outingMapper, never()).update(any(), any());
     }
 
     @Test
@@ -105,7 +105,7 @@ class OutingServiceSecurityTest {
         BusinessException e = assertThrows(BusinessException.class,
                 () -> service.depart("outing01", location(PHOTO_KEY), staff("staff01", "ADVISER")));
         assertTrue(e.getMessage().contains("打卡照片不存在"));
-        verify(outingMapper, never()).depart(anyString(), any(), any(), any(), anyString());
+        verify(outingMapper, never()).update(any(), any());
     }
 
     @Test
@@ -194,7 +194,7 @@ class OutingServiceSecurityTest {
         BusinessException e = assertThrows(BusinessException.class,
                 () -> service.approve("outing01", "ok", staff("staff01", "DEPT_MANAGER")));
         assertTrue(e.getMessage().contains("不能审核本人提交的申请"));
-        verify(outingMapper, never()).approve(anyString(), anyString(), anyString(), any(), any());
+        verify(outingMapper, never()).update(any(), any());
     }
 
     @Test
@@ -205,18 +205,18 @@ class OutingServiceSecurityTest {
         BusinessException e = assertThrows(BusinessException.class,
                 () -> service.approve("outing01", "ok", managerOf("staff09", "D2")));
         assertTrue(e.getMessage().contains("仅可审核本部门"));
-        verify(outingMapper, never()).approve(anyString(), anyString(), anyString(), any(), any());
+        verify(outingMapper, never()).update(any(), any());
     }
 
     @Test
     void reviewPassesForManagerOfSameDepartment() {
         when(outingMapper.selectOne(any())).thenReturn(outing("outing01", "staff01", "PENDING_REVIEW"));
         when(scopeService.findStaff("staff01")).thenReturn(staffEntity("staff01", "D1"));
-        when(outingMapper.approve(eq("outing01"), eq("staff09"), anyString(), any(), any())).thenReturn(1);
+        when(outingMapper.update(any(), any())).thenReturn(1);
 
         service.approve("outing01", "同意", managerOf("staff09", "D1"));
 
-        verify(outingMapper).approve(eq("outing01"), eq("staff09"), eq("主管"), eq("同意"), any());
+        verify(outingMapper).update(any(), any());
     }
 
     @Test

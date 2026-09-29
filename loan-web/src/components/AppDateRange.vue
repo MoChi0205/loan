@@ -2,6 +2,7 @@
   <div class="date-range-filter">
     <el-date-picker
       v-model="dateRange"
+      class="app-date-range-picker"
       type="daterange"
       :start-placeholder="startPlaceholder || '开始日期'"
       :end-placeholder="endPlaceholder || '结束日期'"
@@ -99,5 +100,17 @@ function onChange(val) {
 .date-range-filter {
   display: inline-flex;
   align-items: center;
+}
+
+.app-date-range-picker {
+  min-width: 260px;
+}
+
+@media (max-width: 760px) {
+  .date-range-filter,
+  .app-date-range-picker {
+    width: 100%;
+    min-width: 0;
+  }
 }
 </style>

@@ -142,7 +142,7 @@ class AppointmentServiceSecurityTest {
 
         service.complete("appt01", employee);
 
-        verify(appointmentMapper, never()).transition(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(appointmentMapper, never()).update(any(), any());
         verify(activityService, never()).append(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 

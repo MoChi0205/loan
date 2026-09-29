@@ -1,8 +1,8 @@
 # 风险 Risk
 
-> 由本地大脑自动蒸馏，生成时间 2026-09-29T03:00:05。
+> 由本地大脑自动蒸馏，生成时间 2026-09-29T16:35:49。
 
-条目数：**201**
+条目数：**188**
 
 
 ## 项目：abs
@@ -63,11 +63,6 @@
   - 重点风险是全量 selectList、内存统计、重复名称查询、深分页和缺少组合索引。
   - 关联：loan-main · 企融通后端、loan-main 避坑
 
-### Loan 业务服务直连鉴权缺口
-  - *域:authorization · 类型:risk*
-  - Spring Security anyRequest permitAll，管理拦截器仅覆盖admin/channel/debug；业务服务端口暴露时可绕过网关鉴权。
-  - 关联：Loan 性能与权限审计报告
-
 ### Loan 核心性能热点
   - *域:performance · 类型:risk*
   - 主要热点为上传同步等待60秒VLM、报表按维度和月份串行SQL、回收任务无界扫描、每请求多次Redis往返及文件目录扫描。
@@ -83,15 +78,10 @@
   - 聚合报告读取t_screening_product及现有reportDiagnosis/reportProducts，不重新执行匹配，不改变渠道合作、产品来源或规则。
   - 关联：P1员工报告按reportNo聚合
 
-### Web 团队客户页签缺失
-  - *域:client-lifecycle · 类型:bug*
-  - 后端 page-lite 支持 TEAM 与 TEAM_SEA，部门经理业务矩阵要求本团队范围，但 Web 客户页只渲染 MY/ALL/COMPANY_SEA，团队范围未在菜单/页签暴露。
-  - 关联：客户菜单三范围核查、loan-main · 企融通后端、loan-main 避坑
-
 ### loan-main 避坑
   - *类型:risk*
   - loan-main 项目已知问题与反模式索引
-  - 关联：避坑记录、顾问可切换公司客户风险、既有测试构造器过期、缓存故障降级、渠道公海服务层硬拒绝、Web 团队客户页签缺失、全司已分配角色范围缺口、公司客户与公海范围重叠
+  - 关联：避坑记录、顾问可切换公司客户风险、缓存故障降级、渠道公海服务层硬拒绝、诊断数据来源状态、沙箱批量删除守卫、参数日志安全控制、主原型顶部重叠：根因与修复
 
 ### 一次性算术验证码
   - *域:authentication · 类型:security-control*
@@ -122,16 +112,6 @@
   - *类型:bug*
   - 接口免费或信息公开不当然构成收集、关联、画像和对外提供的合法依据；接入前仍需核验来源许可、必要性、个人授权、准确性、保存期限和展示范围。
   - 关联：数据授权必要但非营销授权替代、loan-main · 企融通后端、loan-main 避坑
-
-### 全司已分配角色范围缺口
-  - *类型:bug*
-  - Web 全司已分配客户仅 BOSS、OPERATOR、SUPER_ADMIN、SUPER 可见；DEPT_MANAGER 后端虽支持 ALL/TEAM 范围但前端未开放全司已分配页签。
-  - 关联：客户菜单三范围核查、loan-main · 企融通后端、loan-main 避坑
-
-### 公司客户与公海范围重叠
-  - *域:client-lifecycle · 类型:bug*
-  - 当前 scope=ALL 未排除 owner_staff_code 为空的客户，因此公司客户总表包含公海客户；公司客户与公司公海不是互斥集合。若产品口径要求互斥，应将公司客户定义为已分配全司客户。
-  - 关联：客户档案三类归属视图、loan-main · 企融通后端、loan-main 避坑
 
 ### 公司经营报表仅员工访问
   - *域:operations-report · 类型:bug*
@@ -213,9 +193,9 @@
   - 行业对比仅在存在真实基准来源、样本量与统计期间时展示；无真实基准时显示暂无可比数据，不使用硬编码均值或模拟评分。
   - 关联：内部分析工具隔离条件、loan-main · 企融通后端、loan-main 避坑
 
-### 当前OCR为Mock未调用AI
+### 开发阶段 OCR/AI 使用 Mock
   - *域:material-ocr · 类型:risk*
-  - application.properties配置loan.ocr.provider=mock且VLM base-url/api-key为空；上传会分类存储，但MockOcrExtractor返回空facts，不产生材料复核数据或AI提取事实。
+  - 当前开发配置 loan.ocr.provider=mock，MockOcrExtractor 返回空 facts，不调用外部识别服务；切换 provider=vlm 且由 Nacos 提供地址与密钥后才启用真实识别。
   - 关联：loan-main · 企融通后端、复核事实进入内部匹配链路
 
 ### 打卡单点定位边界
@@ -228,20 +208,10 @@
   - 报告详情、产品明细、经营诊断必须在服务层复用 STAFF 本人/部门/全公司范围校验，禁止通过可枚举报告编号绕过授权。
   - 关联：本地知识大脑
 
-### 报告模板尚未实际渲染
-  - *域:operations-report · 类型:risk*
-  - 初筛生成只选择ACTIVE模板并保存templateCode；gradeRuleJson、disclaimerText、adviceRulesJson、watermarkConfig未参与客户/员工报告组装，reportFileKey也未生成。当前是DTO和页面动态展示，不是双模板快照或PDF。
-  - 关联：P1员工报告按reportNo聚合
-
 ### 无委托时应移除的对客数据
   - *域:compliance · 类型:bug*
   - 移除多银行产品匹配、可进件/需补料、匹配产品数、银行覆盖数、匹配度、具体额度利率咨询顾问等文案，避免构成产品适配或转接暗示。
   - 关联：隐藏产品不当然排除网络营销、经营建议四段式文案、资金快速周转中性表述、loan-main · 企融通后端、loan-main 避坑
-
-### 既有测试构造器过期
-  - *类型:bug*
-  - BusinessNameServiceTest 仍使用旧三参数构造器，当前生产类需要 UnifiedCacheService 四参数，导致 Maven 测试编译被阻断。
-  - 关联：企融通贷款系统重构、loan-main · 企融通后端、loan-main 避坑
 
 ### 旭荣画像证据边界
   - *域:loan-consult · 类型:bug*
@@ -558,14 +528,9 @@
 
 ## 项目：（未归类）
 
-### AES历史明文兼容
-  - *类型:risk*
-  - 远端历史手机号/短信记录存在明文，AesUtils 对合法手机号读取时原样兼容；新写入仍强制 AES。
-
 ### AES密钥缺失即失败
   - *类型:risk*
   - AesUtils移除可运行开发默认密钥，缺少aes.key直接启动失败，密钥必须来自Nacos。
-  - 关联：Loan系统反方综合审计
 
 ### Gateway Mono Void 空流二次拒绝陷阱
   - *类型:risk*
@@ -606,10 +571,6 @@
   - *类型:risk*
   - 统一待审聚合的下载、材料、短信模板和报告模板分支没有传当前用户或部门范围；部门经理可能看到跨部门待审数据。
 
-### Loan 客户对象级权限缺口
-  - *类型:risk*
-  - 2026-09-28 已修复：统一 ClientAccessGuard 覆盖客户详情、历史、编辑；顾问本人/公海只读、经理本部门、管理角色全司，编辑在事务内 FOR UPDATE 防止归属并发变化；loan-service 446 项测试通过，待 9088 真实角色验收。
-
 ### Loan 当前手机号解锁规则
   - *类型:risk*
   - 列表仅脱敏；首次解锁按员工、客户、日期计数；顾问超限由经理审批，经理超限由老板审批，老板和超管可直接查看并留审计。
@@ -628,11 +589,6 @@
   - *类型:risk*
   - 存在菜单可见但接口拒绝（非经理 TEAM）、菜单不可见但路由/API 放行（报告兜底、superRoles）、渠道快捷入口无真实叶子菜单等漂移。
   - 关联：Loan 网关权限矩阵待复测
-
-### Loan系统反方综合审计
-  - *类型:risk*
-  - 从业务、权限、合规、性能、Web、小程序和H5审查；结论为P0未清零前不满足安全上线条件。
-  - 关联：loan-main · 企融通后端、业务服务纵深鉴权缺口、外出无需审批与实现冲突、预约确认语义冲突、报告授权声明证据缺口、H5登录主操作冲突、工作台聚合与性能缺口、外出审批与照片硬门槛已确认
 
 ### Nacos数据源红线
   - *类型:risk*
@@ -678,11 +634,6 @@
   - 业务编码仅用于请求参数、路由和row-key；客户侧页面展示姓名、企业名、手机号脱敏和日期。
   - 关联：手机号列表统一脱敏
 
-### 业务服务纵深鉴权缺口
-  - *类型:risk*
-  - loan-service最终anyRequest permitAll且接口权限默认非严格，绕过网关直连时存在漏守卫风险。
-  - 关联：Loan系统反方综合审计
-
 ### 共享文件仍有未提交差异
   - *类型:risk*
   - ApiPermissionSyncService.java、Layout.vue、router/index.js同时出现在提交和工作区；提交内是服务运营接入，工作区差异仍未提交。
@@ -696,7 +647,6 @@
 ### 内部令牌改用请求头
   - *类型:risk*
   - 网关拉取接口权限规则使用X-Internal-Token，不再通过URL查询参数传递，避免进入访问日志。
-  - 关联：Loan系统反方综合审计
 
 ### 内部角色业务入口权限
   - *类型:risk*
@@ -728,29 +678,15 @@
   - 外出记录经部门经理审批后进入 READY；actual_departed_at/actual_returned_at及照片仍为空，必须由申请人真实会话完成双打卡，禁止代打卡或直接改库。
   - 关联：审批待办与已审批分离
 
-### 外出审核状态迁移未完成
-  - *类型:risk*
-  - t_staff_outing当前status默认DRAFT且CHECK仍为旧五态，虽有审核字段和idx_outing_status_time，说明审核状态SQL未完整执行。
-
 ### 外出打卡必须真实位置
   - *类型:risk*
   - 出发和返回打卡都必须同时提交现场照片与单点定位；定位不可用时不上传照片、不提交半条记录，需改用支持定位的浏览器或设备完成。
   - 关联：内置浏览器不提供定位能力、打卡定位时间按本地格式提交
 
-### 外出无需审批与实现冲突
+### 外出返回与预约完成幂等
   - *类型:risk*
-  - 用户要求无需审批、必须打卡、保存单点位置；实现仍强制PENDING_REVIEW和主管审批。
-  - 关联：Loan系统反方综合审计
-
-### 外出申请未进入我的申请
-  - *类型:risk*
-  - 统一审批 myApplications 目前未聚合 t_staff_outing，员工提交外出后在审批中心不可追踪。
-  - 关联：员工外出审核链路
-
-### 子菜单授权兼容
-  - *类型:risk*
-  - 新叶子上线时routeAccess兼容旧聚合菜单授权，迁移完成后以后端独立叶子为准。
-  - 关联：Web独立子菜单页
+  - 返回打卡先完成外出再联动完成预约；当预约已被人工完成时，AppointmentService.complete 必须幂等返回且不重复写活动事件，否则 COMPLETED→COMPLETED 会回滚外出打卡事务。前端打卡提交还需捕获业务异常，避免错误冒泡到全页异常边界。
+  - 关联：线索跟进同步客户、Web异常边界分类约定
 
 ### 审批禁止自审
   - *类型:risk*
@@ -787,9 +723,10 @@
   - /service-operations授权给ADVISER、DEPT_MANAGER、BOSS、OPERATOR、SUPER_ADMIN、SUPER；CHANNEL必须排除。
   - 关联：远程角色登录账号种子
 
-### 小程序手机号一键登录缺失
+### 客户标签范围统计
   - *类型:risk*
-  - 当前没有getPhoneNumber组件、phonenumber.getPhoneNumber服务调用或手机号绑定；现有“微信一键登录”是openid账号登录，不是手机号快速验证。
+  - 标签数量接口按本人、团队、全司角色范围收口，顾问看本人，经理看团队，老板及管理角色看全司。
+  - 关联：客户标签分段
 
 ### 工作台命中缓存仍有秒级延迟
   - *类型:risk*
@@ -805,6 +742,11 @@
   - *类型:risk*
   - Nacos dev 配置中 wechat.mock-enabled=true、loan.oss.mode=local、loan.oss.cos.enabled=false、OCR provider 默认 mock 且云密钥为空；当前不会调用真实微信、云 OSS 或 AI 识别。
   - 关联：项目免费 API 盘点、微信接口费用边界、OCR/VLM 费用边界、短信验证码当前模拟通道
+
+### 开发阶段不保留旧 SQL 兼容层
+  - *类型:risk*
+  - 项目处于开发阶段，状态流转仅保留 LambdaUpdateWrapper 实现；删除旧 Mapper default 方法、回退调用和旧测试验证。
+  - 关联：服务台 Wrapper 状态流转
 
 ### 微信接口费用边界
   - *类型:risk*
@@ -836,15 +778,18 @@
   - 额度统计使用 COUNT(DISTINCT client_code)，并在是否已查看判断中带 view_date；禁止使用永久授权记录判断当天是否应扣次，否则历史授权会导致剩余次数长期不变。
   - 关联：手机号额度按每日首次客户解锁统计
 
+### 批量导入角色守卫
+  - *类型:risk*
+  - 批量导入、模板下载和结果导出仅允许老板或超级管理员，前后端双重控制。
+  - 关联：Web批量导入入口
+
 ### 报告授权声明证据缺口
   - *类型:risk*
   - 数据来源声明当前为固定文案，返回前未核验报告对应的授权记录、范围和材料归属。
-  - 关联：Loan系统反方综合审计
 
 ### 接口权限默认fail-closed
   - *类型:risk*
   - loan.apiperm.strict默认改为true，未登记接口或角色未授权不再自动放行；测试放宽需显式隔离配置。
-  - 关联：Loan系统反方综合审计
 
 ### 敏感手机号查看留痕与日限额
   - *类型:risk*
@@ -860,11 +805,6 @@
   - *类型:risk*
   - information_schema.KEY_COLUMN_USAGE未发现REFERENCED_TABLE_NAME记录，当前表间关系全部是应用层逻辑关联。
   - 关联：服务运营业务编码关联、旧自增ID逻辑绑定仍存在
-
-### 文档门禁与本地大脑冲突
-  - *类型:risk*
-  - docs/local-brain 纳入版本控制后被 check-kb-consistency 全量扫描，历史编号和跨项目链接导致文档检查稳定失败。
-  - 关联：2026-09-28 构建测试基线、文档门禁隔离本地大脑快照
 
 ### 旧自增ID逻辑绑定仍存在
   - *类型:risk*
@@ -884,7 +824,6 @@
 ### 服务直连JWT拒绝
   - *类型:risk*
   - 非公开接口在loan-service过滤器无有效会话直接返回401，防止绕过网关直连业务端口。
-  - 关联：Loan系统反方综合审计
 
 ### 未提交改动需保留
   - *类型:risk*
@@ -1016,10 +955,4 @@
 ### 顾问预约客户范围实测
   - *类型:risk*
   - 真实页面验证顾问创建预约的客户下拉只返回owner_staff_code等于本人工号的客户；未分配客户不会出现在顾问下拉。
-  - 关联：首条真实客户预约
-
-### 预约确认语义冲突
-  - *类型:risk*
-  - 客户主动预约同时处于REQUESTED和客户已确认状态，三端对下一责任人表达不一致。
-  - 关联：Loan系统反方综合审计、员工代客预约创建即确认 · 
 

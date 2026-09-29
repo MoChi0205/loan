@@ -1,6 +1,7 @@
 package com.loan.serviceops.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -150,8 +151,13 @@ public class OutingService {
         requireReviewer(user, outing);
         requirePendingReview(outing);
         String reviewer = operatorName(user);
-        int changed = outingMapper.approve(outingNo, user.getUserNo(), reviewer,
-                trimToNull(remark), LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        StaffOuting patch = new StaffOuting();
+        patch.setStatus(OutingStatus.READY.name()); patch.setReviewerStaffCode(user.getUserNo());
+        patch.setReviewerName(reviewer); patch.setReviewedAt(now); patch.setReviewRemark(trimToNull(remark));
+        patch.setUpdatedBy(reviewer); patch.setUpdatedAt(now);
+        int changed = outingMapper.update(patch, new LambdaQueryWrapper<StaffOuting>()
+                .eq(StaffOuting::getOutingNo, outingNo).eq(StaffOuting::getStatus, OutingStatus.PENDING_REVIEW.name()));
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该申请已被处理，请刷新后重试");
         }
@@ -174,8 +180,13 @@ public class OutingService {
         requireReviewer(user, outing);
         requirePendingReview(outing);
         String reviewer = operatorName(user);
-        int changed = outingMapper.reject(outingNo, user.getUserNo(), reviewer,
-                remark.trim(), LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        StaffOuting patch = new StaffOuting();
+        patch.setStatus(OutingStatus.REJECTED.name()); patch.setReviewerStaffCode(user.getUserNo());
+        patch.setReviewerName(reviewer); patch.setReviewedAt(now); patch.setReviewRemark(remark.trim());
+        patch.setUpdatedBy(reviewer); patch.setUpdatedAt(now);
+        int changed = outingMapper.update(patch, new LambdaQueryWrapper<StaffOuting>()
+                .eq(StaffOuting::getOutingNo, outingNo).eq(StaffOuting::getStatus, OutingStatus.PENDING_REVIEW.name()));
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该申请已被处理，请刷新后重试");
         }
@@ -217,7 +228,19 @@ public class OutingService {
             patch.setUpdatedAt(now);
             outingMapper.updateById(patch);
         }
-        int changed = outingMapper.resubmit(outingNo, now, operatorName(user));
+        // Wrapper 显式 set null，确保清除上一轮审核痕迹（实体默认 NOT_NULL 策略不会更新 null）。
+        LambdaUpdateWrapper<StaffOuting> resubmit = new LambdaUpdateWrapper<StaffOuting>()
+                .eq(StaffOuting::getOutingNo, outingNo)
+                .eq(StaffOuting::getStatus, OutingStatus.REJECTED.name())
+                .set(StaffOuting::getStatus, OutingStatus.PENDING_REVIEW.name())
+                .set(StaffOuting::getSubmittedAt, now)
+                .set(StaffOuting::getReviewerStaffCode, null)
+                .set(StaffOuting::getReviewerName, null)
+                .set(StaffOuting::getReviewedAt, null)
+                .set(StaffOuting::getReviewRemark, null)
+                .set(StaffOuting::getUpdatedBy, operatorName(user))
+                .set(StaffOuting::getUpdatedAt, now);
+        int changed = outingMapper.update(null, resubmit);
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "该申请状态已变化，请刷新后重试");
         }
@@ -234,7 +257,13 @@ public class OutingService {
         LocalDateTime now = LocalDateTime.now();
         String ciphertext = encryptLocation(request, now);
         String photoKey = requireStoredPhoto(request);
-        int changed = outingMapper.depart(outingNo, now, ciphertext, photoKey, operatorName(user));
+        StaffOuting patch = new StaffOuting();
+        patch.setStatus(OutingStatus.IN_PROGRESS.name()); patch.setActualDepartedAt(now);
+        patch.setDepartedLocationCiphertext(ciphertext); patch.setDepartedPhotoKey(photoKey);
+        patch.setUpdatedBy(operatorName(user)); patch.setUpdatedAt(now);
+        int changed = outingMapper.update(patch, new LambdaQueryWrapper<StaffOuting>()
+                .eq(StaffOuting::getOutingNo, outingNo).eq(StaffOuting::getStatus, OutingStatus.READY.name())
+                .isNull(StaffOuting::getActualDepartedAt));
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "当前状态不能出发打卡（需审核通过），请刷新后重试");
         }
@@ -255,7 +284,13 @@ public class OutingService {
         LocalDateTime now = LocalDateTime.now();
         String ciphertext = encryptLocation(request, now);
         String photoKey = requireStoredPhoto(request);
-        int changed = outingMapper.returnFromOuting(outingNo, now, ciphertext, photoKey, operatorName(user));
+        StaffOuting patch = new StaffOuting();
+        patch.setStatus(OutingStatus.COMPLETED.name()); patch.setActualReturnedAt(now);
+        patch.setReturnedLocationCiphertext(ciphertext); patch.setReturnedPhotoKey(photoKey);
+        patch.setUpdatedBy(operatorName(user)); patch.setUpdatedAt(now);
+        int changed = outingMapper.update(patch, new LambdaQueryWrapper<StaffOuting>()
+                .eq(StaffOuting::getOutingNo, outingNo).eq(StaffOuting::getStatus, OutingStatus.IN_PROGRESS.name())
+                .isNotNull(StaffOuting::getActualDepartedAt).isNull(StaffOuting::getActualReturnedAt));
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "请先完成出发打卡，或刷新当前状态");
         }
@@ -327,10 +362,20 @@ public class OutingService {
 
     public PageResult<StaffOutingDTO> day(LocalDate date, String status, LoanUser user, int page, int size,
                                           String requestedScope, String requestedDeptCode, String requestedStaffCode) {
-        LocalDate day = date == null ? LocalDate.now() : date;
+        return day(date, status, user, page, size, requestedScope, requestedDeptCode, requestedStaffCode, null, null, false);
+    }
+
+    public PageResult<StaffOutingDTO> day(LocalDate date, String status, LoanUser user, int page, int size,
+                                          String requestedScope, String requestedDeptCode, String requestedStaffCode,
+                                          LocalDate dateFrom, LocalDate dateTo, boolean includeUnfinished) {
+        LocalDate from = dateFrom == null ? (date == null ? LocalDate.now() : date) : dateFrom;
+        LocalDate to = dateTo == null ? from : dateTo;
+        if (to.isBefore(from)) throw new BusinessException(ResultCode.PARAM_ERROR, "结束日期不能早于开始日期");
         LambdaQueryWrapper<StaffOuting> wrapper = new LambdaQueryWrapper<StaffOuting>()
-                .ge(StaffOuting::getPlannedStart, day.atStartOfDay())
-                .lt(StaffOuting::getPlannedStart, day.plusDays(1).atStartOfDay())
+                .and(w -> w.ge(StaffOuting::getPlannedStart, from.atStartOfDay())
+                        .lt(StaffOuting::getPlannedStart, to.plusDays(1).atStartOfDay())
+                        .or(includeUnfinished, x -> x.in(StaffOuting::getStatus, Arrays.asList("PENDING_REVIEW", "READY", "IN_PROGRESS"))
+                                .lt(StaffOuting::getPlannedStart, to.plusDays(1).atStartOfDay())))
                 .orderByAsc(StaffOuting::getPlannedStart);
         if (StringUtils.hasText(status)) {
             String value = status.trim().toUpperCase();

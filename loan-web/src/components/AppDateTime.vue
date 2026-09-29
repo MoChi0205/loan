@@ -1,6 +1,7 @@
 <template>
   <el-date-picker
     :model-value="modelValue"
+    :class="['app-date-time-picker', `app-date-time-picker--${type}`]"
     :type="type"
     :placeholder="placeholder"
     :start-placeholder="startPlaceholder"
@@ -66,3 +67,22 @@ const resolvedShortcuts = computed(() => {
   ];
 });
 </script>
+
+<style scoped>
+.app-date-time-picker {
+  min-width: 180px;
+}
+
+.app-date-time-picker--daterange,
+.app-date-time-picker--datetimerange {
+  min-width: 260px;
+}
+
+@media (max-width: 760px) {
+  .app-date-time-picker,
+  .app-date-time-picker--daterange,
+  .app-date-time-picker--datetimerange {
+    min-width: 0;
+  }
+}
+</style>

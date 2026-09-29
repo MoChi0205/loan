@@ -59,6 +59,12 @@ public class ClientScreening implements Serializable {
     /** 报告文件 key（水印版） */
     private String reportFileKey;
 
+    /** 客户视角不可变快照、员工视角不可变快照及对应 PDF。 */
+    private String customerSnapshotKey;
+    private String staffSnapshotKey;
+    private String customerPdfKey;
+    private String staffPdfKey;
+
     /** VIP 版标记 */
     private Integer vipFlag;
 

@@ -33,5 +33,14 @@ defineEmits(['update:modelValue', 'change']);
 </script>
 
 <style scoped>
-.service-date-time-range { width: 100%; }
+.service-date-time-range {
+  width: 100%;
+  min-width: 320px;
+}
+
+@media (max-width: 760px) {
+  .service-date-time-range {
+    min-width: 0;
+  }
+}
 </style>

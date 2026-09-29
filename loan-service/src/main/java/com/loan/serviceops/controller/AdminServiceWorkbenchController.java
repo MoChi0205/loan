@@ -32,8 +32,11 @@ public class AdminServiceWorkbenchController {
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String deptCode,
             @RequestParam(required = false) String staffCode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(defaultValue = "false") boolean includeUnfinished,
             @CurrentUser LoanUser user) {
         return Result.ok(workbenchService.daily(date, scope, deptCode, staffCode, user,
-                PageParams.page(page), PageParams.size(size), refresh));
+                PageParams.page(page), PageParams.size(size), refresh, dateFrom, dateTo, includeUnfinished));
     }
 }

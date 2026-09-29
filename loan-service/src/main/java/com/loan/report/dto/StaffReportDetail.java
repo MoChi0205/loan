@@ -31,5 +31,8 @@ public class StaffReportDetail implements Serializable {
     private Integer rejectCount;
     private String adviceJson;
     private Integer vipFlag;
+    /** 仅员工内部视角可见的 PDF 归档对象键。 */
+    private String staffPdfKey;
+    private String customerPdfKey;
     private List<ReportRuleLog> ruleLogs;
 }

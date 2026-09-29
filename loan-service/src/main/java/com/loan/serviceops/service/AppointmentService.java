@@ -260,8 +260,7 @@ public class AppointmentService {
         ValidatedAppointment validated = validateCreate(create);
         requireNoConflict(old.getHostStaffCode(), create.getScheduledStart(), create.getScheduledEnd(), old.getAppointmentNo());
 
-        int changed = appointmentMapper.transition(old.getAppointmentNo(), old.getStatus(),
-                AppointmentStatus.RESCHEDULED.name(), null, null,
+        int changed = transition(old.getAppointmentNo(), old.getStatus(), AppointmentStatus.RESCHEDULED.name(), null, null,
                 trimToNull(request == null ? null : request.getReason()), operatorName(user), LocalDateTime.now());
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "预约状态已变化，请刷新后重试");
@@ -324,11 +323,22 @@ public class AppointmentService {
     public PageResult<StaffAppointmentDTO> day(LocalDate date, String serviceMethod, String status,
                                                LoanUser user, int page, int size, String requestedScope,
                                                String requestedDeptCode, String requestedStaffCode) {
+        return day(date, serviceMethod, status, user, page, size, requestedScope, requestedDeptCode, requestedStaffCode, null, null, false);
+    }
+
+    public PageResult<StaffAppointmentDTO> day(LocalDate date, String serviceMethod, String status,
+                                               LoanUser user, int page, int size, String requestedScope,
+                                               String requestedDeptCode, String requestedStaffCode,
+                                               LocalDate dateFrom, LocalDate dateTo, boolean includeUnfinished) {
         scopeService.requireStaffListAccess(user);
-        LocalDate day = date == null ? LocalDate.now() : date;
+        LocalDate from = dateFrom == null ? (date == null ? LocalDate.now() : date) : dateFrom;
+        LocalDate to = dateTo == null ? from : dateTo;
+        if (to.isBefore(from)) throw new BusinessException(ResultCode.PARAM_ERROR, "结束日期不能早于开始日期");
         LambdaQueryWrapper<ClientAppointment> wrapper = new LambdaQueryWrapper<ClientAppointment>()
-                .ge(ClientAppointment::getScheduledStart, day.atStartOfDay())
-                .lt(ClientAppointment::getScheduledStart, day.plusDays(1).atStartOfDay())
+                .and(w -> w.ge(ClientAppointment::getScheduledStart, from.atStartOfDay())
+                        .lt(ClientAppointment::getScheduledStart, to.plusDays(1).atStartOfDay())
+                        .or(includeUnfinished, x -> x.in(ClientAppointment::getStatus, OPEN_STATUSES)
+                                .lt(ClientAppointment::getScheduledStart, to.plusDays(1).atStartOfDay())))
                 .orderByAsc(ClientAppointment::getScheduledStart);
         if (StringUtils.hasText(serviceMethod)) {
             parseMethod(serviceMethod);
@@ -366,14 +376,26 @@ public class AppointmentService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime arrivedAt = target == AppointmentStatus.ARRIVED ? now : null;
         LocalDateTime leftAt = target == AppointmentStatus.COMPLETED ? now : null;
-        int changed = appointmentMapper.transition(appointment.getAppointmentNo(), current.name(), target.name(),
-                arrivedAt, leftAt, reason, operatorName(user), now);
+        int changed = transition(appointment.getAppointmentNo(), current.name(), target.name(), arrivedAt, leftAt,
+                reason, operatorName(user), now);
         if (changed != 1) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "预约状态已变化，请刷新后重试");
         }
         activityService.append(appointment.getClientCode(), appointment.getHostStaffCode(),
                 eventType, "APPOINTMENT", appointment.getAppointmentNo(), summary,
                 ClientActivityService.VISIBILITY_CUSTOMER, user.getUserType(), user.getUserNo(), null);
+    }
+
+    /** 预约状态流转统一使用 Wrapper 条件更新，便于阅读并保留乐观并发条件。 */
+    private int transition(String appointmentNo, String expected, String target, LocalDateTime arrivedAt,
+                           LocalDateTime leftAt, String reason, String operator, LocalDateTime now) {
+        ClientAppointment patch = new ClientAppointment();
+        patch.setStatus(target); patch.setActualArrivedAt(arrivedAt); patch.setActualLeftAt(leftAt);
+        if (reason != null) patch.setCancelReason(reason);
+        patch.setUpdatedBy(operator); patch.setUpdatedAt(now);
+        LambdaQueryWrapper<ClientAppointment> condition = new LambdaQueryWrapper<ClientAppointment>()
+                .eq(ClientAppointment::getAppointmentNo, appointmentNo).eq(ClientAppointment::getStatus, expected);
+        return appointmentMapper.update(patch, condition);
     }
 
     private ValidatedAppointment validateCreate(AppointmentCreateRequest request) {

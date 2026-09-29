@@ -26,6 +26,7 @@ import com.loan.report.entity.ScreeningProduct;
 import com.loan.report.mapper.ClientScreeningMapper;
 import com.loan.report.mapper.ReportTemplateMapper;
 import com.loan.report.mapper.ScreeningProductMapper;
+import com.loan.report.service.ReportArtifactService;
 import com.loan.submission.entity.ClientSubmission;
 import com.loan.submission.service.SubmissionService;
 import com.loan.submission.mapper.ClientSubmissionMapper;
@@ -71,6 +72,7 @@ public class ScreeningService {
     private final ScreeningProductMapper screeningProductMapper;
     private final ClientSubmissionMapper submissionMapper;
     private final MaterialReviewMapper materialReviewMapper;
+    private final ReportArtifactService reportArtifactService;
 
     /**
      * 执行初筛并生成报告（无客户端幂等键的入口，兼容既有调用方）。
@@ -161,6 +163,17 @@ public class ScreeningService {
         screening.setStatus("GENERATED");
         screening.setCreatedAt(generatedAt);
         screeningMapper.insert(screening);
+
+        ReportArtifactService.ArtifactKeys artifacts = reportArtifactService.generate(
+                screening.getReportNo(), client.getClientCode(), template, screening.getGrade(),
+                screening.getBankCount(), screening.getProductCount(), screening.getPassCount(),
+                screening.getConditionCount(), screening.getRejectCount(), screening.getAdviceJson());
+        screening.setReportFileKey(artifacts.getCustomerPdfKey());
+        screening.setCustomerSnapshotKey(artifacts.getCustomerSnapshotKey());
+        screening.setStaffSnapshotKey(artifacts.getStaffSnapshotKey());
+        screening.setCustomerPdfKey(artifacts.getCustomerPdfKey());
+        screening.setStaffPdfKey(artifacts.getStaffPdfKey());
+        screeningMapper.updateById(screening);
 
         // C4：落报告命中产品明细（员工陪访可见；客户侧永不展示产品名）
         saveScreeningProducts(screening.getReportNo(), vo);
