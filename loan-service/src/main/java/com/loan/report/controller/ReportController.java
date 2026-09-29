@@ -46,9 +46,11 @@ public class ReportController {
     @GetMapping("/operations")
     public Result<Map<String, Object>> operations(
             @RequestParam(required = false) String scope,
+            @RequestParam(required = false) String deptCode,
+            @RequestParam(required = false) String staffCode,
             @RequestParam(defaultValue = "30") int days,
             @CurrentUser LoanUser user) {
-        return Result.ok(reportAnalyticsCacheService.operations(scope, days, user));
+        return Result.ok(reportAnalyticsCacheService.operations(scope, deptCode, staffCode, days, user));
     }
 
     /**

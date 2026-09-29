@@ -93,6 +93,7 @@ public class MiniLeadService {
         }
         lead.setExtJson(toJson(ext));
         lead.setFollowStatus(LoanUser.TYPE_CHANNEL.equals(user.getUserType()) ? "PENDING_APPROVAL" : "NEW");
+        lead.setCustomerTag(body.get("customerTag"));
 
         String phoneHash = HashUtils.sha256Hex(phone.trim());
         ClientProfile existingClient = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
@@ -201,6 +202,7 @@ public class MiniLeadService {
             String plain = AesUtils.decrypt(l.getPhone());
             m.put("phone", plain == null ? "" : DesensitizeUtils.phone(plain));
             m.put("followStatus", l.getFollowStatus());
+            m.put("customerTag", customerTagOf(l));
             m.put("clientCode", l.getClientProfileCode());
             m.put("ownerStaffCode", l.getOwnerStaffCode());
             m.put("createdBy", l.getCreatedBy());
@@ -208,6 +210,16 @@ public class MiniLeadService {
             records.add(m);
         }
         return PageResult.build(page, size, p.getTotal(), records);
+    }
+
+    private String customerTagOf(Lead lead) {
+        if (lead == null) return "NEW";
+        String status = lead.getFollowStatus();
+        if ("INTENTION".equals(status) || "POTENTIAL".equals(status)
+                || "VISITED".equals(status) || "NO_ANSWER".equals(status) || "NO_NEED".equals(status)) {
+            return status;
+        }
+        return StringUtils.hasText(lead.getCustomerTag()) ? lead.getCustomerTag() : "NEW";
     }
 
     /** 员工主动释放本人归属线索；渠道/客户没有员工归属，不允许调用。 */

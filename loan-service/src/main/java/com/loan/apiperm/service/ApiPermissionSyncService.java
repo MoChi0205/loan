@@ -75,8 +75,9 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     private static final String[] ADVISER_APIS = {
             "order:page", "order:create", "order:detail", "order:updateStatus",
             "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim",
+            "lead:detail", "lead:follow",
             "lead:applyView", "lead:applyClientView", "lead:quota",
-            "client:pageLite", "client:detail", "client:update", "client:release", "client:follow", "client:history",
+            "client:pageLite", "client:tagCounts", "client:detail", "client:update", "client:release", "client:follow", "client:history",
             "client:unassignedPage", "client:claim", "client:batchClaim", "client:lookup",
             "client:createFollow", "client:activityTimeline",
             // 客户画像快照（2026-09-21）：顾问可读本人客户画像并生成新版本；
@@ -119,7 +120,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     private static final String[] MANAGER_APIS = {
             "org:staffPage", "org:departmentTree", "org:roleList", "org:permissionList",
             "lead:assign", "lead:batchAssign", "lead:batchDelete",
-            "client:claim", "client:batchClaim", "client:lookup", "client:assign", "client:recycle", "client:unassignedPage",
+            "client:tagCounts", "client:claim", "client:batchClaim", "client:lookup", "client:assign", "client:recycle", "client:unassignedPage",
             "approval:downloadPage", "approval:downloadApply", "approval:downloadAudit",
             "approval:downloadVoid",
             "approval:allocationPending", "approval:allocationApprove", "approval:allocationReject",

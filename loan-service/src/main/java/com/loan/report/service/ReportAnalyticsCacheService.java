@@ -27,12 +27,16 @@ public class ReportAnalyticsCacheService {
     }
 
     public Map<String, Object> operations(String scope, int days, LoanUser user) {
+        return operations(scope, null, null, days, user);
+    }
+
+    public Map<String, Object> operations(String scope, String deptCode, String staffCode, int days, LoanUser user) {
         String normalizedScope = scope == null || scope.trim().isEmpty()
                 ? defaultScope(user) : scope.trim().toUpperCase();
         int normalizedDays = Math.max(7, Math.min(days, 365));
-        return cacheService.getOrLoad("report:operations:" + operationScopeKey(normalizedScope, user) + ":"
-                        + normalizedScope + ":" + normalizedDays, MAP_TYPE,
-                () -> reportService.operations(scope, normalizedDays, user));
+        return cacheService.getOrLoad("report:operations:v2:" + operationScopeKey(normalizedScope, user) + ":"
+                        + normalizedScope + ":" + safe(deptCode) + ":" + safe(staffCode) + ":" + normalizedDays, MAP_TYPE,
+                () -> reportService.operations(scope, deptCode, staffCode, normalizedDays, user));
     }
 
     public List<Map<String, Object>> orderTrend(int months, LoanUser user) {

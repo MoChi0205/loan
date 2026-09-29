@@ -11,6 +11,7 @@ import org.apache.ibatis.annotations.Update;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 客户档案 Mapper。
@@ -19,6 +20,42 @@ import java.util.List;
  */
 @Mapper
 public interface ClientProfileMapper extends BaseMapper<ClientProfile> {
+
+    /**
+     * 计算客户经营标签的真实业务状态。标签不写死在客户主表，预约/来访/成交随业务记录变化自动生效。
+     */
+    @Select({"<script>",
+            "SELECT cp.client_code AS clientCode,",
+            "CASE WHEN EXISTS (SELECT 1 FROM t_client_appointment a WHERE a.client_code = cp.client_code",
+            " AND a.status IN ('REQUESTED','CONFIRMED','ARRIVED','SERVING','COMPLETED')) THEN 1 ELSE 0 END AS appointed,",
+            "CASE WHEN EXISTS (SELECT 1 FROM t_client_appointment a WHERE a.client_code = cp.client_code",
+            " AND (a.actual_arrived_at IS NOT NULL OR a.status IN ('ARRIVED','SERVING','COMPLETED'))) THEN 1 ELSE 0 END AS visited,",
+            "CASE WHEN EXISTS (SELECT 1 FROM t_service_order o WHERE o.client_profile_code = cp.client_code",
+            " AND o.status = 'DEAL') THEN 1 ELSE 0 END AS deal",
+            "FROM t_client_profile cp WHERE cp.client_code IN",
+            "<foreach collection='clientCodes' item='code' open='(' separator=',' close=')'>#{code}</foreach>",
+            "</script>"})
+    List<Map<String, Object>> selectDynamicTags(@Param("clientCodes") Collection<String> clientCodes);
+
+    /** 按当前数据范围统计标签数量；动态业务标签与人工标签可重叠计数。 */
+    @Select({"<script>",
+            "SELECT COUNT(1) AS total,",
+            "SUM(CASE WHEN EXISTS (SELECT 1 FROM t_client_appointment a WHERE a.client_code=cp.client_code AND a.status IN ('REQUESTED','CONFIRMED','ARRIVED','SERVING','COMPLETED')) THEN 1 ELSE 0 END) AS appointedCount,",
+            "SUM(CASE WHEN EXISTS (SELECT 1 FROM t_client_appointment a WHERE a.client_code=cp.client_code AND (a.actual_arrived_at IS NOT NULL OR a.status IN ('ARRIVED','SERVING','COMPLETED'))) THEN 1 ELSE 0 END) AS visitedCount,",
+            "SUM(CASE WHEN EXISTS (SELECT 1 FROM t_service_order o WHERE o.client_profile_code=cp.client_code AND o.status='DEAL') THEN 1 ELSE 0 END) AS dealCount,",
+            "SUM(CASE WHEN cp.customer_tag='NEW' OR cp.customer_tag IS NULL OR cp.customer_tag='' THEN 1 ELSE 0 END) AS newCount,",
+            "SUM(CASE WHEN cp.customer_tag='INTENTION' THEN 1 ELSE 0 END) AS intentionCount,",
+            "SUM(CASE WHEN cp.customer_tag='POTENTIAL' THEN 1 ELSE 0 END) AS potentialCount,",
+            "SUM(CASE WHEN cp.customer_tag='NO_ANSWER' THEN 1 ELSE 0 END) AS noAnswerCount,",
+            "SUM(CASE WHEN cp.customer_tag='NO_NEED' THEN 1 ELSE 0 END) AS noNeedCount",
+            "FROM t_client_profile cp WHERE 1=1",
+            "<if test=\"ownerStaffCode != null and ownerStaffCode != ''\"> AND cp.owner_staff_code=#{ownerStaffCode}</if>",
+            "<if test=\"ownerDeptCode != null and ownerDeptCode != ''\"> AND cp.owner_staff_code IN (SELECT s.staff_code FROM t_staff s WHERE s.status='ACTIVE' AND s.dept_code=#{ownerDeptCode})</if>",
+            "<if test='assignedOnly'> AND cp.owner_staff_code IS NOT NULL</if>",
+            "</script>"})
+    Map<String, Object> selectTagCounts(@Param("ownerStaffCode") String ownerStaffCode,
+                                         @Param("ownerDeptCode") String ownerDeptCode,
+                                         @Param("assignedOnly") boolean assignedOnly);
 
     /** 受控手机号查看专用读取；普通查询不会选择 phone_plain。 */
     @Select("SELECT phone_plain FROM t_client_profile WHERE client_code = #{clientCode} LIMIT 1")

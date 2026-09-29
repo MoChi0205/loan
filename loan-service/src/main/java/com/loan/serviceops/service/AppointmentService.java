@@ -194,6 +194,11 @@ public class AppointmentService {
     public void complete(String appointmentNo, LoanUser user) {
         ClientAppointment appointment = requireAppointment(appointmentNo);
         requireHost(user, appointment);
+        // 外出返回打卡会联动完成预约；若员工已在预约页先完成服务，
+        // 此处按幂等成功处理，避免 COMPLETED -> COMPLETED 导致整个返回打卡事务回滚。
+        if (AppointmentStatus.COMPLETED.name().equals(appointment.getStatus())) {
+            return;
+        }
         transition(appointment, AppointmentStatus.COMPLETED, user, null,
                 "SERVICE_COMPLETED", "本次服务已完成");
     }
@@ -313,6 +318,12 @@ public class AppointmentService {
 
     public PageResult<StaffAppointmentDTO> day(LocalDate date, String serviceMethod, String status,
                                                LoanUser user, int page, int size, String requestedScope) {
+        return day(date, serviceMethod, status, user, page, size, requestedScope, null, null);
+    }
+
+    public PageResult<StaffAppointmentDTO> day(LocalDate date, String serviceMethod, String status,
+                                               LoanUser user, int page, int size, String requestedScope,
+                                               String requestedDeptCode, String requestedStaffCode) {
         scopeService.requireStaffListAccess(user);
         LocalDate day = date == null ? LocalDate.now() : date;
         LambdaQueryWrapper<ClientAppointment> wrapper = new LambdaQueryWrapper<ClientAppointment>()
@@ -327,7 +338,7 @@ public class AppointmentService {
             parseStatus(status);
             wrapper.eq(ClientAppointment::getStatus, status.trim().toUpperCase());
         }
-        scopeService.applyAppointmentListScope(wrapper, user, requestedScope);
+        scopeService.applyAppointmentListScope(wrapper, user, requestedScope, requestedDeptCode, requestedStaffCode);
         Page<ClientAppointment> result = appointmentMapper.selectPage(new Page<>(page, size), wrapper);
         return PageResult.build(page, size, result.getTotal(), toStaffDtos(result.getRecords()));
     }

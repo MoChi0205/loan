@@ -26,6 +26,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import { useDictStore } from '@/store/dict';
 import AppContextMenu from '@/components/AppContextMenu.vue';
 import router from '@/router';
+import { isHandledRequestError } from '@/utils/request';
 
 /**
  * 根组件：应用启动时预加载枚举字典（后端统一定义枚举值），
@@ -35,6 +36,11 @@ const dictStore = useDictStore();
 const renderError = ref(false);
 
 onErrorCaptured((error, instance, info) => {
+  // 请求层已经展示业务提示、登录跳转或网络提示时，不得将整个页面替换成系统异常页。
+  // 这里只兜底真正的 Vue 组件渲染、生命周期和前端脚本异常。
+  if (isHandledRequestError(error)) {
+    return false;
+  }
   console.error('[loan-web] 页面渲染异常', { error, info, component: instance?.$?.type?.name });
   renderError.value = true;
   return false;

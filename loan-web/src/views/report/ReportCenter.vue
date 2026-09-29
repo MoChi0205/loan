@@ -28,6 +28,12 @@
               {{ item.label }}
             </el-radio-button>
           </el-radio-group>
+          <el-select v-if="showDepartmentFilter" v-model="operationQuery.deptCode" clearable filterable size="small" placeholder="全部团队" style="width: 160px" @change="onReportDepartmentChange">
+            <el-option v-for="item in departmentOptions" :key="item.code" :label="item.name" :value="item.code" />
+          </el-select>
+          <el-select v-if="operationQuery.scope !== 'MY'" v-model="operationQuery.staffCode" clearable filterable remote :remote-method="searchReportStaff" :loading="staffFilterLoading" size="small" placeholder="全部员工" style="width: 180px" @change="loadOperations">
+            <el-option v-for="item in staffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || item.roleCode || '员工'}）`" :value="item.staffCode" />
+          </el-select>
           <el-select v-model="operationQuery.days" size="small" style="width: 112px" @change="loadOperations">
             <el-option label="近 30 天" :value="30" />
             <el-option label="近 90 天" :value="90" />
@@ -96,6 +102,45 @@
             <div class="funnel-copy"><span>{{ item.label }}</span><strong class="mono">{{ item.value }}</strong></div>
             <div v-if="index < conversionMetrics.length - 1" class="funnel-arrow">→</div>
           </div>
+        </div>
+      </div>
+
+      <div class="ranking-grid">
+        <div class="loan-card ranking-panel">
+          <div class="ranking-head">
+            <div><div class="visual-title"><span>员工经营榜</span></div><small>按所选指标独立排序，避免综合分掩盖具体表现</small></div>
+            <el-radio-group v-model="staffRankMetric" size="small">
+              <el-radio-button v-for="item in rankMetricOptions" :key="item.value" :value="item.value">{{ item.label }}</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div v-if="staffRankingRows.length" class="podium-list">
+            <article v-for="row in staffRankingRows.slice(0, 3)" :key="row.staffName + row.metricRank" class="podium-card" :class="`rank-${row.metricRank}`">
+              <span class="rank-medal">{{ row.metricRank }}</span>
+              <div class="rank-avatar">{{ row.staffName?.slice(0, 1) || '员' }}</div>
+              <div class="rank-person"><strong>{{ row.staffName }}</strong><span>{{ row.deptName }}</span></div>
+              <div class="rank-result"><strong>{{ fmtInt(row[staffRankMetric]) }}</strong><span>{{ activeRankMetric.unit }}</span></div>
+            </article>
+          </div>
+          <el-table :data="staffRankingRows" size="small" stripe max-height="360" empty-text="所选周期暂无员工经营数据">
+            <el-table-column prop="metricRank" label="排名" width="68"><template #default="{ row }"><span class="table-rank" :class="`rank-${row.metricRank}`">{{ row.metricRank }}</span></template></el-table-column>
+            <el-table-column prop="staffName" label="员工" min-width="110" />
+            <el-table-column prop="deptName" label="团队" min-width="120" />
+            <el-table-column :prop="staffRankMetric" :label="activeRankMetric.label" width="110" align="right"><template #default="{ row }"><strong>{{ fmtInt(row[staffRankMetric]) }}</strong></template></el-table-column>
+            <el-table-column label="经营明细" min-width="260"><template #default="{ row }"><span class="rank-detail">线索 {{ row.leadCount }} · 意向 {{ row.intentionClientCount }} · 成交 {{ row.dealCount }} · 外出 {{ row.outingCount }} · 审批 {{ row.approvalCount }} · 产品 {{ row.productCount }}</span></template></el-table-column>
+          </el-table>
+        </div>
+        <div v-if="(operations.performance?.teamRanking || []).length > 1" class="loan-card ranking-panel">
+          <div class="visual-title"><span>团队经营排名</span><small>按当前周期汇总</small></div>
+          <el-table :data="operations.performance?.teamRanking || []" size="small" stripe max-height="420">
+            <el-table-column prop="rank" label="排名" width="68" />
+            <el-table-column prop="deptName" label="团队" min-width="130" />
+            <el-table-column prop="memberCount" label="人数" width="72" />
+            <el-table-column prop="leadCount" label="新增线索" width="92" />
+            <el-table-column prop="intentionClientCount" label="意向客户" width="92" />
+            <el-table-column prop="dealCount" label="成交客户" width="92" />
+            <el-table-column prop="outingCount" label="外出" width="72" />
+            <el-table-column prop="productCount" label="录入产品" width="92" />
+          </el-table>
         </div>
       </div>
     </div>
@@ -185,7 +230,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
@@ -198,6 +243,7 @@ import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { reportDisplayTitle } from '@/utils/display';
 import { reportOverview, reportOperations, pageScreenings, screeningAggregate } from '@/api/report';
 import { useUserStore } from '@/store/user';
+import { departmentTree, staffPage } from '@/api/org';
 
 const userStore = useUserStore();
 const executiveRoles = ['BOSS', 'SUPER_ADMIN', 'SUPER'];
@@ -222,6 +268,7 @@ const sourceTag = (s) => ({ MINI: 'loan-tag-info', CHANNEL: 'loan-tag-success', 
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function fmtInt(v) { return Number(v || 0).toLocaleString('zh-CN'); }
 /** 元转万元：纯字符串移位，保留全部有效小数，不做四舍五入。 */
 function fmtWan(v) {
   const raw = String(v ?? 0).trim();
@@ -243,23 +290,76 @@ function prettyJson(s) {
 // ============================================================
 const loadingOv = ref(false);
 const overview = ref({});
-const statCards = computed(() => [
-  { label: '客户数', value: overview.value.clientCount ?? '-', icon: 'client', tone: 'blue' },
-  { label: '线索数', value: overview.value.leadCount ?? '-', icon: 'lead', tone: 'cyan' },
-  { label: '工单数', value: overview.value.orderCount ?? '-', icon: 'order', tone: 'violet' },
-  { label: '成交单数', value: overview.value.dealOrderCount ?? '-', icon: 'success', tone: 'green' },
-  { label: '成交金额', value: fmtWan(overview.value.dealAmountSum) + '万', icon: 'trend', tone: 'orange' },
-  { label: '奖励单数', value: overview.value.rewardCount ?? '-', icon: 'reward', tone: 'red' },
-  { label: '奖励金额', value: fmtWan(overview.value.rewardAmountSum) + '万', icon: 'reward', tone: 'orange' },
-  { label: '初筛报告', value: overview.value.screeningCount ?? '-', icon: 'reportDoc', tone: 'blue' },
-]);
+const statCards = computed(() => {
+  const conversion = operations.value.conversion || {};
+  const assets = operations.value.clientAssets || {};
+  return [
+    { label: '当前客户', value: assets.assigned ?? '-', icon: 'client', tone: 'blue' },
+    { label: '新增线索', value: conversion.leads ?? '-', icon: 'lead', tone: 'cyan' },
+    { label: '新增客户', value: conversion.clients ?? '-', icon: 'client', tone: 'violet' },
+    { label: '新增工单', value: conversion.orders ?? '-', icon: 'order', tone: 'violet' },
+    { label: '成交客户', value: conversion.deals ?? '-', icon: 'success', tone: 'green' },
+    { label: '成交金额', value: fmtWan(conversion.dealAmount) + '万', icon: 'trend', tone: 'orange' },
+    { label: '初筛报告', value: conversion.screenings ?? '-', icon: 'reportDoc', tone: 'blue' },
+    { label: '公司公海', value: assets.companySea ?? '-', icon: 'sea', tone: 'red' },
+  ];
+});
 
 const loadingOperations = ref(false);
 const operations = ref({});
-const operationQuery = reactive({ scope: '', days: 30 });
+const operationQuery = reactive({ scope: '', deptCode: '', staffCode: '', days: 30 });
+const rankMetricOptions = [
+  { value: 'dealCount', label: '成交', unit: '位客户' },
+  { value: 'intentionClientCount', label: '意向', unit: '位客户' },
+  { value: 'leadCount', label: '线索', unit: '条' },
+  { value: 'outingCount', label: '外出', unit: '次' },
+  { value: 'approvalCount', label: '审批', unit: '项' },
+  { value: 'productCount', label: '产品', unit: '项' },
+];
+const staffRankMetric = ref('dealCount');
+const activeRankMetric = computed(() => rankMetricOptions.find((item) => item.value === staffRankMetric.value) || rankMetricOptions[0]);
+const staffRankingRows = computed(() => [...(operations.value.performance?.staffRanking || [])]
+  .sort((a, b) => Number(b[staffRankMetric.value] || 0) - Number(a[staffRankMetric.value] || 0)
+    || Number(b.dealCount || 0) - Number(a.dealCount || 0)
+    || String(a.staffName || '').localeCompare(String(b.staffName || ''), 'zh-CN'))
+  .map((row, index) => ({ ...row, metricRank: index + 1 })));
 const scopeText = { MY: '我的', TEAM: '本团队', ALL: '全司' };
 const scopeOptions = computed(() => (operations.value.availableScopes || [])
   .map((value) => ({ value, label: scopeText[value] || value })));
+const companyRoles = ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'];
+const showDepartmentFilter = computed(() => companyRoles.includes(userStore.roleCode)
+  && ['TEAM', 'ALL'].includes(operationQuery.scope));
+const departmentOptions = ref([]);
+const staffOptions = ref([]);
+const staffFilterLoading = ref(false);
+function flattenDepartments(nodes, output = []) {
+  (nodes || []).forEach((item) => {
+    output.push({ code: item.code || item.deptCode, name: item.name || item.deptName });
+    flattenDepartments(item.children, output);
+  });
+  return output;
+}
+async function loadReportDepartments() {
+  if (!companyRoles.includes(userStore.roleCode) || departmentOptions.value.length) return;
+  const res = await departmentTree();
+  departmentOptions.value = flattenDepartments(res.data || []);
+}
+async function searchReportStaff(keyword = '') {
+  if (operationQuery.scope === 'MY') return;
+  staffFilterLoading.value = true;
+  try {
+    const role = userStore.roleCode;
+    const deptCode = role === 'DEPT_MANAGER' ? userStore.user?.deptCode : operationQuery.deptCode;
+    const res = await staffPage({ page: 1, size: 50, keyword, deptCode: deptCode || undefined });
+    const rows = res.data?.records || [];
+    staffOptions.value = rows.filter((row) => role !== 'DEPT_MANAGER' || row.deptCode === userStore.user?.deptCode);
+  } finally { staffFilterLoading.value = false; }
+}
+function onReportDepartmentChange() {
+  operationQuery.staffCode = '';
+  searchReportStaff('');
+  loadOperations();
+}
 const showTeamSea = computed(() => operations.value.clientAssets?.teamSeaVisible === true);
 const assetMetrics = computed(() => {
   const data = operations.value.clientAssets || {};
@@ -342,7 +442,8 @@ const flowChartOption = computed(() => {
 async function loadOperations() {
   loadingOperations.value = true;
   try {
-    const params = { days: operationQuery.days };
+    const params = { days: operationQuery.days, deptCode: operationQuery.deptCode || undefined,
+      staffCode: operationQuery.staffCode || undefined };
     if (operationQuery.scope) params.scope = operationQuery.scope;
     const res = await reportOperations(params);
     operations.value = res.data || {};
@@ -351,6 +452,12 @@ async function loadOperations() {
     loadingOperations.value = false;
   }
 }
+watch(() => operationQuery.scope, async () => {
+  operationQuery.deptCode = '';
+  operationQuery.staffCode = '';
+  await loadReportDepartments();
+  await searchReportStaff('');
+});
 
 // ============================================================
 // 初筛报告
@@ -371,6 +478,7 @@ async function openDetail(row) {
 
 onMounted(async () => {
   loadS();
+  await loadReportDepartments();
   loadingOv.value = true;
   try {
     const [ov] = await Promise.all([reportOverview(), loadOperations()]);
@@ -447,6 +555,23 @@ onMounted(async () => {
 .mini-stat.is-warning strong { color: var(--loan-warning); }
 .mini-stat.is-danger strong { color: var(--loan-danger); }
 .conversion-panel { margin-top: 12px; padding: 16px; }
+.ranking-grid { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(360px,1fr); gap:12px; margin-top:12px; }
+.ranking-panel { min-width:0; padding:16px; overflow:hidden; }
+.ranking-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px; }
+.ranking-head small { display:block; margin-top:5px; color:var(--loan-text-secondary,var(--loan-text-muted)); font-size:12px; }
+.ranking-head :deep(.el-radio-group) { display:flex; flex-wrap:wrap; justify-content:flex-end; }
+.podium-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+.podium-card { position:relative; display:grid; grid-template-columns:38px minmax(0,1fr) auto; align-items:center; gap:10px; min-width:0; padding:13px 14px; border:1px solid var(--loan-border); border-radius:12px; background:var(--loan-surface); }
+.podium-card.rank-1 { border-color:color-mix(in srgb,var(--loan-warning) 55%,var(--loan-border)); background:color-mix(in srgb,var(--loan-warning) 8%,var(--loan-surface)); }
+.podium-card.rank-2 { border-color:color-mix(in srgb,#94a3b8 55%,var(--loan-border)); }
+.podium-card.rank-3 { border-color:color-mix(in srgb,#b7791f 45%,var(--loan-border)); }
+.rank-medal { position:absolute; left:7px; top:5px; z-index:1; display:grid; place-items:center; width:19px; height:19px; border-radius:50%; color:#fff; background:#64748b; font-size:10px; font-weight:800; }
+.rank-1 .rank-medal { background:#d99a16; }.rank-2 .rank-medal { background:#7b8799; }.rank-3 .rank-medal { background:#a96b2c; }
+.rank-avatar { display:grid; place-items:center; width:38px; height:38px; border-radius:11px; color:var(--loan-primary); background:color-mix(in srgb,var(--loan-primary) 11%,transparent); font-weight:750; }
+.rank-person { min-width:0; }.rank-person strong,.rank-person span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.rank-person span { margin-top:3px; color:var(--loan-text-secondary,var(--loan-text-muted)); font-size:11px; }
+.rank-result { text-align:right; }.rank-result strong { display:block; color:var(--loan-text); font-size:22px; line-height:1; }.rank-result span { display:block; margin-top:5px; color:var(--loan-text-secondary,var(--loan-text-muted)); font-size:10px; white-space:nowrap; }
+.table-rank { display:inline-grid; place-items:center; width:24px; height:24px; border-radius:50%; color:var(--loan-text-secondary); background:var(--loan-surface); font-weight:700; }.table-rank.rank-1 { color:#fff; background:#d99a16; }.table-rank.rank-2 { color:#fff; background:#7b8799; }.table-rank.rank-3 { color:#fff; background:#a96b2c; }
+.rank-detail { color:var(--loan-text-secondary,var(--loan-text-muted)); font-size:12px; white-space:nowrap; }
 .conversion-head { align-items: center; }
 .deal-total { color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; white-space: nowrap; }
 .deal-total strong { color: var(--loan-text); font-size: 16px; margin-left: 8px; }
@@ -466,6 +591,8 @@ onMounted(async () => {
   .funnel-grid { grid-template-columns: 1fr; }
   .funnel-arrow { display: none; }
   .report-filters { width: 100%; flex-wrap: wrap; }
+  .ranking-grid { grid-template-columns: 1fr; }
+  .ranking-head { flex-direction:column; }.ranking-head :deep(.el-radio-group) { justify-content:flex-start; }.podium-list { grid-template-columns:1fr; }
 }
 .panel-title {
   font-size: 14px;

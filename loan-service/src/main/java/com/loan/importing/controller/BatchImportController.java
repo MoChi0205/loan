@@ -124,6 +124,7 @@ public class BatchImportController {
                     lead.put("contactName", row.get("联系人*")); lead.put("phone", row.get("手机号*"));
                     lead.put("leadType", row.get("客群*")); lead.put("entName", row.get("企业名称"));
                     lead.put("creditCode", row.get("统一社会信用代码")); lead.put("idCardNo", row.get("身份证号"));
+                    lead.put("customerTag", row.get("客户标签"));
                     lead.put("remark", row.get("备注"));
                     String identity = String.valueOf(lead.get("phone")).trim();
                     if (identity.isEmpty() || "null".equals(identity)) identity = String.valueOf(lead.get("idCardNo")).trim();

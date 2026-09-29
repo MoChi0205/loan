@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -110,6 +111,25 @@ public class LeadController {
         leadService.release(leadNo, user == null ? null : user.getUserNo(),
                 user == null ? "system" : user.getName());
         return Result.ok("ok");
+    }
+
+    /** 本人线索档案（含流转/跟进记录，不对外暴露人员业务编码）。 */
+    @GetMapping("/{leadNo}")
+    public Result<Map<String, Object>> detail(@PathVariable String leadNo, @CurrentUser LoanUser user) {
+        return Result.ok(leadService.detail(leadNo, user == null ? null : user.getUserNo()));
+    }
+
+    /** 本人填写线索跟进；已关联客户时同步客户最近跟进时间和客户标签。 */
+    @PostMapping("/{leadNo}/follow")
+    @OpLog(bizType = "线索跟进", action = "FOLLOW_UP")
+    public Result<Map<String, Object>> follow(@PathVariable String leadNo,
+                                              @RequestBody Map<String, String> body,
+                                              @CurrentUser LoanUser user) {
+        return Result.ok(leadService.follow(leadNo,
+                user == null ? null : user.getUserNo(),
+                user == null ? "system" : user.getName(),
+                body == null ? null : body.get("followStatus"),
+                body == null ? null : body.get("content")));
     }
 
     /**

@@ -53,6 +53,10 @@ public class Lead implements Serializable {
     /** 跟进状态（NEW/INTENTION/POTENTIAL/VISITED/NO_ANSWER/NO_NEED） */
     private String followStatus;
 
+    /** 录入时可选的客户经营标签；线索转为客户时复制到客户档案，不单独落在线索表。 */
+    @TableField(exist = false)
+    private String customerTag;
+
     /** 最后跟进时间（回收扫描依据） */
     private LocalDateTime lastFollowedAt;
 

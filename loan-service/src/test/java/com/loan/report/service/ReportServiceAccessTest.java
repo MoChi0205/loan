@@ -15,6 +15,8 @@ import com.loan.report.entity.ClientScreening;
 import com.loan.report.mapper.ClientScreeningMapper;
 import com.loan.reward.mapper.RewardRecordMapper;
 import com.loan.staff.mapper.StaffMapper;
+import com.loan.org.mapper.DepartmentMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,8 @@ class ReportServiceAccessTest {
                 screeningMapper,
                 mock(BankProductMapper.class),
                 mock(StaffMapper.class),
+                mock(DepartmentMapper.class),
+                mock(JdbcTemplate.class),
                 reportQueryService);
     }
 

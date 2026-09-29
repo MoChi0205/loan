@@ -2,6 +2,7 @@ package com.loan.lead.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.loan.allocation.service.ClaimQuotaService;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
@@ -10,6 +11,7 @@ import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.util.PageOrder;
 import com.loan.exception.BusinessException;
+import com.loan.infrastructure.security.AesUtils;
 import com.loan.lead.entity.Lead;
 import com.loan.lead.entity.LeadAllocationRecord;
 import com.loan.lead.mapper.LeadAllocationRecordMapper;
@@ -34,6 +36,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
+import java.util.Arrays;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 线索服务：新增（谁录入归谁，渠道终审通过/VIP 进公海）/ 分页（我的/公海）/ 认领 / 指派。
@@ -47,6 +51,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class LeadService {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private static final int MAX_BATCH_SIZE = 100;
 
@@ -65,6 +71,9 @@ public class LeadService {
     private final NotificationService notificationService;
     private final SensitiveViewService sensitiveViewService;
     private final ClaimQuotaService claimQuotaService;
+
+    private static final List<String> FOLLOW_STATUSES = Arrays.asList(
+            "NEW", "INTENTION", "POTENTIAL", "VISITED", "NO_ANSWER", "NO_NEED");
 
     /**
      * 新增线索（公司员工谁录入归谁；渠道/客户录入不建立员工归属）。
@@ -89,6 +98,19 @@ public class LeadService {
                 || "VIP".equalsIgnoreCase(lead.getSource());
         lead.setOwnerStaffCode(toPool ? null : recorderCode);
         lead.setCreatedBy(recorderName);
+        // 线索标签属于业务数据：主表暂不扩列，统一写入 ext_json，保证渠道录入/员工录入均可追溯。
+        if (StringUtils.hasText(lead.getCustomerTag())) {
+            try {
+                Map<String, Object> ext = StringUtils.hasText(lead.getExtJson())
+                        ? JSON.readValue(lead.getExtJson(), Map.class) : new LinkedHashMap<>();
+                ext.put("customerTag", normalizeCustomerTag(lead.getCustomerTag()));
+                lead.setExtJson(JSON.writeValueAsString(ext));
+            } catch (Exception ignored) {
+                Map<String, Object> ext = new LinkedHashMap<>();
+                ext.put("customerTag", normalizeCustomerTag(lead.getCustomerTag()));
+                lead.setExtJson(toJson(ext));
+            }
+        }
         leadMapper.insert(lead);
 
         // 公司员工录入的线索同时进入“我的客户”。渠道/VIP 仍保持原审批、公海链路不变。
@@ -108,6 +130,7 @@ public class LeadService {
                 profile.setOwnerStaffCode(recorderCode);
                 profile.setSource("LEAD");
                 profile.setLeadNo(lead.getLeadNo());
+                profile.setCustomerTag(normalizeCustomerTag(lead.getCustomerTag()));
                 profile.setStatus("ACTIVE");
                 profile.setInvitedFlag(0);
                 profile.setWecomAdded(0);
@@ -124,6 +147,20 @@ public class LeadService {
         allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "MANUAL", null, lead.getOwnerStaffCode(),
                 recorderName, "录入线索"));
         return lead.getLeadNo();
+    }
+
+    private String normalizeCustomerTag(String tag) {
+        if (!StringUtils.hasText(tag)) return "NEW";
+        String value = tag.trim().toUpperCase();
+        return java.util.Arrays.asList("NEW", "INTENTION", "POTENTIAL", "NO_ANSWER", "NO_NEED").contains(value) ? value : "NEW";
+    }
+
+    private String toJson(Object value) {
+        try {
+            return JSON.writeValueAsString(value);
+        } catch (Exception ignored) {
+            return "{}";
+        }
     }
 
     /**
@@ -177,6 +214,7 @@ public class LeadService {
         result.getRecords().forEach(lead -> {
             String plain = com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone());
             lead.setPhone(DesensitizeUtils.phone(plain));
+            lead.setCustomerTag(customerTagOf(lead));
         });
         return PageResult.build(page, size, result.getTotal(), result.getRecords());
     }
@@ -197,10 +235,28 @@ public class LeadService {
         result.getRecords().forEach(lead -> {
             String plain = com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone());
             lead.setPhone(DesensitizeUtils.phone(plain));
+            lead.setCustomerTag(customerTagOf(lead));
             lead.setRecorderStaffCode(null);
             lead.setOwnerStaffCode(null);
         });
         return PageResult.build(page, size, result.getTotal(), result.getRecords());
+    }
+
+    private String customerTagOf(Lead lead) {
+        if (lead == null) return "NEW";
+        String status = lead.getFollowStatus();
+        if ("INTENTION".equals(status) || "POTENTIAL".equals(status)
+                || "VISITED".equals(status) || "NO_ANSWER".equals(status) || "NO_NEED".equals(status)) {
+            return status;
+        }
+        if (StringUtils.hasText(lead.getCustomerTag())) return lead.getCustomerTag();
+        if (StringUtils.hasText(lead.getExtJson())) {
+            try {
+                Object value = JSON.readValue(lead.getExtJson(), Map.class).get("customerTag");
+                if (value != null && StringUtils.hasText(String.valueOf(value))) return String.valueOf(value);
+            } catch (Exception ignored) { /* 历史脏 JSON 回退新用户 */ }
+        }
+        return "NEW";
     }
 
     /** 公司终审人查看渠道新增线索待审列表。 */
@@ -337,6 +393,96 @@ public class LeadService {
         }
         allocationRecordMapper.insert(buildRecord(leadNo.trim(), "RELEASE", staffCode, null,
                 staffName, "本人主动释放到公司公海"));
+    }
+
+    /**
+     * 查询本人线索档案。出参只包含页面所需中文可解释字段，不暴露物理主键或人员业务编码。
+     */
+    public Map<String, Object> detail(String leadNo, String staffCode) {
+        Lead lead = requireOwnedLead(leadNo, staffCode);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("contactName", lead.getContactName());
+        result.put("phone", DesensitizeUtils.phone(AesUtils.decrypt(lead.getPhone())));
+        result.put("leadType", lead.getLeadType());
+        result.put("source", lead.getSource());
+        result.put("followStatus", lead.getFollowStatus());
+        result.put("createdBy", lead.getCreatedBy());
+        result.put("createdAt", lead.getCreatedAt());
+        result.put("lastFollowedAt", lead.getLastFollowedAt());
+        result.put("hasClientProfile", StringUtils.hasText(lead.getClientProfileCode()));
+        result.put("history", allocationRecordMapper.selectList(
+                new LambdaQueryWrapper<LeadAllocationRecord>()
+                        .eq(LeadAllocationRecord::getLeadNo, lead.getLeadNo())
+                        .orderByDesc(LeadAllocationRecord::getCreatedAt)).stream()
+                .map(this::safeHistoryRow).collect(Collectors.toList()));
+        return result;
+    }
+
+    /**
+     * 本人填写线索跟进；同步已关联客户的最后跟进时间，保持线索与客户回收依据一致。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> follow(String leadNo, String staffCode, String staffName,
+                                      String followStatus, String content) {
+        Lead lead = requireOwnedLead(leadNo, staffCode);
+        String status = StringUtils.hasText(followStatus) ? followStatus.trim().toUpperCase() : "NEW";
+        if (!FOLLOW_STATUSES.contains(status)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "跟进结果不合法");
+        }
+        if (!StringUtils.hasText(content)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请填写跟进内容");
+        }
+        String remark = content.trim();
+        if (remark.length() > 240) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "跟进内容最多 240 个字");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String operator = StringUtils.hasText(staffName) ? staffName : staffCode;
+        if (leadMapper.followOwned(lead.getLeadNo(), staffCode, status, now, operator) == 0) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "线索归属已变化，请刷新后重试");
+        }
+        allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "FOLLOW_UP",
+                staffCode, staffCode, operator, remark));
+
+        if (StringUtils.hasText(lead.getClientProfileCode())) {
+            clientProfileMapper.update(null, new LambdaUpdateWrapper<ClientProfile>()
+                    .eq(ClientProfile::getClientCode, lead.getClientProfileCode())
+                    .eq(ClientProfile::getOwnerStaffCode, staffCode)
+                    .set(ClientProfile::getLastFollowedAt, now)
+                    .set(ClientProfile::getCustomerTag, status)
+                    .set(ClientProfile::getUpdatedBy, operator)
+                    .set(ClientProfile::getUpdatedAt, now));
+            allocationRecordMapper.insert(buildRecord(lead.getClientProfileCode(), "FOLLOW_UP",
+                    staffCode, staffCode, operator, remark));
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("followStatus", status);
+        result.put("followedAt", now);
+        return result;
+    }
+
+    private Lead requireOwnedLead(String leadNo, String staffCode) {
+        if (!StringUtils.hasText(leadNo) || !StringUtils.hasText(staffCode)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "线索与当前员工不能为空");
+        }
+        Lead lead = leadMapper.selectOne(new LambdaQueryWrapper<Lead>()
+                .eq(Lead::getLeadNo, leadNo.trim()).last("limit 1"));
+        if (lead == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "线索不存在");
+        }
+        if (!staffCode.equals(lead.getOwnerStaffCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "只能查看或跟进归属自己的线索");
+        }
+        return lead;
+    }
+
+    private Map<String, Object> safeHistoryRow(LeadAllocationRecord record) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("actionType", record.getActionType());
+        row.put("operator", record.getOperator());
+        row.put("remark", record.getRemark());
+        row.put("createdAt", record.getCreatedAt());
+        return row;
     }
 
     /**

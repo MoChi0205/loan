@@ -1,6 +1,4 @@
-import axios from 'axios';
 import request from '@/utils/request';
-import { KEYS, getStorage } from '@/utils/storage';
 
 /** 今日服务台（来访、外出、待回访、活跃工单）。 */
 export function getDailyServiceLists(params) {
@@ -87,18 +85,15 @@ export function uploadOutingPhoto(no, file) {
 /**
  * 取打卡照片 Blob（受控预览）。
  *
- * <p>刻意绕过统一封装：它的响应拦截按 JSON 解包并判 `code`，二进制流会被误判为失败。
- * 因此这里直接用原始 axios，并显式带上与封装一致的鉴权头与端标识。
+ * <p>统一请求层已支持 Blob；继续复用鉴权、超时、业务错误标记，避免预览失败击穿页面异常边界。
  */
 export function fetchOutingPhoto(no, phase) {
-  const token = getStorage(KEYS.TOKEN);
-  return axios
-    .get(`/api/admin/outing/${no}/photo`, {
-      params: { phase },
-      responseType: 'blob',
-      headers: { Authorization: `Bearer ${token}`, 'X-Client-Type': 'WEB' },
-    })
-    .then((res) => res.data);
+  return request({
+    url: `/api/admin/outing/${no}/photo`,
+    method: 'get',
+    params: { phase },
+    responseType: 'blob',
+  });
 }
 
 /** 客户跟进与活动回放。 */

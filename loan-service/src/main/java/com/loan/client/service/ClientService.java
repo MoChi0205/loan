@@ -175,7 +175,18 @@ public class ClientService {
             wrapper.eq(ClientProfile::getSource, source.trim());
         }
         if (StringUtils.hasText(customerTag)) {
-            wrapper.eq(ClientProfile::getCustomerTag, customerTag.trim().toUpperCase());
+            String tag = customerTag.trim().toUpperCase();
+            if ("DEAL".equals(tag)) {
+                wrapper.exists(DEAL_EXISTS_SQL);
+            } else if ("APPOINTED".equals(tag)) {
+                wrapper.exists("SELECT 1 FROM t_client_appointment a WHERE a.client_code = t_client_profile.client_code"
+                        + " AND a.status IN ('REQUESTED','CONFIRMED','ARRIVED','SERVING','COMPLETED')");
+            } else if ("VISITED".equals(tag)) {
+                wrapper.exists("SELECT 1 FROM t_client_appointment a WHERE a.client_code = t_client_profile.client_code"
+                        + " AND (a.actual_arrived_at IS NOT NULL OR a.status IN ('ARRIVED','SERVING','COMPLETED'))");
+            } else {
+                wrapper.eq(ClientProfile::getCustomerTag, tag);
+            }
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(ClientProfile::getStatus, status.trim().toUpperCase());
@@ -208,6 +219,12 @@ public class ClientService {
         List<String> ownerCodes = result.getRecords().stream().map(ClientProfile::getOwnerStaffCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
         Map<String, String> ownerNames = businessNameService.staffNames(ownerCodes);
+        List<String> clientCodes = result.getRecords().stream().map(ClientProfile::getClientCode)
+                .filter(StringUtils::hasText).collect(Collectors.toList());
+        Map<String, Map<String, Object>> dynamicTags = clientCodes.isEmpty()
+                ? java.util.Collections.emptyMap()
+                : clientProfileMapper.selectDynamicTags(clientCodes).stream().collect(Collectors.toMap(
+                        row -> String.valueOf(row.get("clientCode")), row -> row, (left, right) -> left));
         List<Map<String, Object>> records = result.getRecords().stream().map(c -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("clientCode", c.getClientCode());
@@ -216,7 +233,9 @@ public class ClientService {
             m.put("enterpriseName", c.getEnterpriseName());
             m.put("customerGroup", c.getCustomerGroup());
             m.put("source", c.getSource());
-            m.put("customerTag", c.getCustomerTag());
+            Map<String, Object> tag = dynamicTags.get(c.getClientCode());
+            m.put("customerTag", resolveDisplayTag(c, tag));
+            m.put("customerTags", resolveDisplayTags(c, tag));
             m.put("phone", DesensitizeUtils.phone(decryptPlain(c.getPhone())));
             m.put("ownerStaffCode", c.getOwnerStaffCode());
             m.put("ownerStaffName", ownerNames.get(c.getOwnerStaffCode()));
@@ -226,6 +245,43 @@ public class ClientService {
             return m;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    /** 动态标签优先级：成交 > 已来访 > 已预约 > 人工经营标签。 */
+    private String resolveDisplayTag(ClientProfile client, Map<String, Object> dynamic) {
+        if (dynamic != null && number(dynamic.get("deal")) > 0) return "DEAL";
+        if (dynamic != null && number(dynamic.get("visited")) > 0) return "VISITED";
+        if (dynamic != null && number(dynamic.get("appointed")) > 0) return "APPOINTED";
+        return StringUtils.hasText(client.getCustomerTag()) ? client.getCustomerTag() : "NEW";
+    }
+
+    private List<String> resolveDisplayTags(ClientProfile client, Map<String, Object> dynamic) {
+        java.util.LinkedHashSet<String> tags = new java.util.LinkedHashSet<>();
+        if (dynamic != null && number(dynamic.get("appointed")) > 0) tags.add("APPOINTED");
+        if (dynamic != null && number(dynamic.get("visited")) > 0) tags.add("VISITED");
+        if (dynamic != null && number(dynamic.get("deal")) > 0) tags.add("DEAL");
+        if (StringUtils.hasText(client.getCustomerTag())) tags.add(client.getCustomerTag());
+        if (tags.isEmpty()) tags.add("NEW");
+        return new java.util.ArrayList<>(tags);
+    }
+
+    private int number(Object value) {
+        return value == null ? 0 : Integer.parseInt(String.valueOf(value));
+    }
+
+    public Map<String, Object> tagCounts(String ownerStaffCode, String ownerDeptCode, boolean assignedOnly) {
+        Map<String, Object> source = clientProfileMapper.selectTagCounts(ownerStaffCode, ownerDeptCode, assignedOnly);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("total", number(source == null ? null : source.get("total")));
+        result.put("NEW", number(source == null ? null : source.get("newCount")));
+        result.put("APPOINTED", number(source == null ? null : source.get("appointedCount")));
+        result.put("VISITED", number(source == null ? null : source.get("visitedCount")));
+        result.put("INTENTION", number(source == null ? null : source.get("intentionCount")));
+        result.put("POTENTIAL", number(source == null ? null : source.get("potentialCount")));
+        result.put("DEAL", number(source == null ? null : source.get("dealCount")));
+        result.put("NO_ANSWER", number(source == null ? null : source.get("noAnswerCount")));
+        result.put("NO_NEED", number(source == null ? null : source.get("noNeedCount")));
+        return result;
     }
 
     private String safeSqlLiteral(String value) {

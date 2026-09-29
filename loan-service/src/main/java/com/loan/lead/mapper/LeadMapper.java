@@ -48,6 +48,16 @@ public interface LeadMapper extends BaseMapper<Lead> {
                      @Param("staffName") String staffName,
                      @Param("blockedUntil") LocalDateTime blockedUntil);
 
+    /** 本人记录线索跟进；条件更新同时校验归属，避免并发转移后越权写入。 */
+    @Update("UPDATE t_lead SET follow_status = #{followStatus}, last_followed_at = #{followedAt}, "
+            + "updated_by = #{operator}, updated_at = #{followedAt} "
+            + "WHERE lead_no = #{leadNo} AND owner_staff_code = #{staffCode}")
+    int followOwned(@Param("leadNo") String leadNo,
+                    @Param("staffCode") String staffCode,
+                    @Param("followStatus") String followStatus,
+                    @Param("followedAt") LocalDateTime followedAt,
+                    @Param("operator") String operator);
+
     /** 按业务编码批量删除，调用方须先完成权限与审计校验。 */
     @Delete({"<script>DELETE FROM t_lead WHERE lead_no IN ",
             "<foreach collection='leadNos' item='no' open='(' separator=',' close=')'>#{no}</foreach>",

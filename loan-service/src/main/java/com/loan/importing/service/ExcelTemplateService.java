@@ -20,7 +20,7 @@ public class ExcelTemplateService {
     public byte[] template(String type) {
         String[] headers = "PRODUCT".equalsIgnoreCase(type)
                 ? new String[]{"产品名称*", "银行名称*", "客群*", "额度下限", "额度上限", "利率下限", "利率上限", "期限下限(月)", "期限上限(月)"}
-                : new String[]{"客群*", "联系人*", "手机号*", "企业名称", "统一社会信用代码", "身份证号", "备注"};
+                : new String[]{"客群*", "联系人*", "手机号*", "企业名称", "统一社会信用代码", "身份证号", "客户标签", "备注"};
         try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("导入模板");
             Row row = sheet.createRow(0);

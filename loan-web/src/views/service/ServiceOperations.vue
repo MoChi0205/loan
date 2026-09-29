@@ -9,6 +9,12 @@
         <el-select v-if="scopeOptions.length > 1" v-model="selectedScope" class="scope-select" aria-label="数据范围" @change="onScopeChange">
           <el-option v-for="item in scopeOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
+        <el-select v-if="selectedScope === 'COMPANY'" v-model="filterDeptCode" clearable filterable placeholder="全部团队" class="scope-select" @change="onDepartmentFilterChange">
+          <el-option v-for="item in departmentOptions" :key="item.code" :label="item.name" :value="item.code" />
+        </el-select>
+        <el-select v-if="selectedScope !== 'SELF'" v-model="filterStaffCode" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" placeholder="全部员工" class="scope-select" @change="onStaffFilterChange">
+          <el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || item.roleCode || '员工'}）`" :value="item.staffCode" />
+        </el-select>
         <el-date-picker v-model="selectedDate" type="date" value-format="YYYY-MM-DD" :clearable="false" aria-label="业务日期" />
         <el-button :loading="refreshing" @click="refreshCurrent">刷新</el-button>
         <el-button type="primary" @click="openCreateAppointment">创建预约</el-button>
@@ -290,7 +296,7 @@ import AppPagination from '@/components/AppPagination.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import ServiceDateTimeRange from '@/components/ServiceDateTimeRange.vue';
 import { pageClients, getClientDetail } from '@/api/client';
-import { staffPage } from '@/api/org';
+import { staffPage, departmentTree } from '@/api/org';
 import {
   getDailyServiceLists, pageAppointments, createAppointment, confirmAppointment,
   arriveAppointment, startAppointment, completeAppointment, noShowAppointment,
@@ -330,6 +336,37 @@ const scopeOptions = computed(() => {
   return [];
 });
 const selectedScope = ref(roleMaximumScope.value === 'NONE' ? 'SELF' : roleMaximumScope.value);
+const filterDeptCode = ref('');
+const filterStaffCode = ref('');
+const departmentOptions = ref([]);
+const filterStaffOptions = ref([]);
+const filterStaffLoading = ref(false);
+function flattenDepartments(nodes, output = []) {
+  (nodes || []).forEach((item) => {
+    output.push({ code: item.code || item.deptCode, name: item.name || item.deptName });
+    flattenDepartments(item.children, output);
+  });
+  return output;
+}
+async function loadScopeFilters() {
+  if (selectedScope.value === 'COMPANY' && !departmentOptions.value.length) {
+    const res = await departmentTree();
+    departmentOptions.value = flattenDepartments(res.data || []);
+  }
+  if (selectedScope.value !== 'SELF') await searchFilterStaff('');
+}
+async function searchFilterStaff(keyword = '') {
+  filterStaffLoading.value = true;
+  try {
+    const deptCode = selectedScope.value === 'DEPARTMENT' ? userStore.user?.deptCode : filterDeptCode.value;
+    const res = await staffPage({ page: 1, size: 50, keyword, deptCode: deptCode || undefined });
+    filterStaffOptions.value = recordsOf(res.data || {}).filter((row) => !row.status || row.status === 'ACTIVE');
+  } finally { filterStaffLoading.value = false; }
+}
+const staffFilterParams = computed(() => ({
+  deptCode: selectedScope.value === 'COMPANY' ? (filterDeptCode.value || undefined) : undefined,
+  staffCode: selectedScope.value !== 'SELF' ? (filterStaffCode.value || undefined) : undefined,
+}));
 const clientScope = computed(() => ({ SELF: 'MY', DEPARTMENT: 'TEAM', COMPANY: 'ALL' }[selectedScope.value] || 'MY'));
 const focus = ref('');
 const refreshing = ref(false);
@@ -350,7 +387,7 @@ const serviceLabels = computed(() => {
   };
 });
 const servicePageTitle = computed(() => {
-  const title = { daily: `${serviceLabels.value.visits.replace('来访', '') || '今日'}服务台`, appointments: `${serviceLabels.value.visits.replace('来访', '') || ''}客户预约`, outings: serviceLabels.value.outings, replay: `${serviceLabels.value.visits.replace('来访', '') || ''}客户回放` };
+  const title = { daily: '服务总览', appointments: '预约管理', outings: '外出管理', replay: '客户服务记录' };
   return title[activeTab.value] || '服务台';
 });
 const servicePageSubtitle = computed(() => ({
@@ -385,7 +422,7 @@ const metrics = computed(() => [
 ]);
 async function loadWorkbench(refresh = false) {
   workbenchLoading.value = true;
-  try { workbench.value = (await getDailyServiceLists({ date: selectedDate.value, scope: selectedScope.value, page: 1, size: 20, refresh })).data || {}; }
+  try { workbench.value = (await getDailyServiceLists({ date: selectedDate.value, scope: selectedScope.value, ...staffFilterParams.value, page: 1, size: 20, refresh })).data || {}; }
   finally { workbenchLoading.value = false; }
 }
 /**
@@ -393,7 +430,8 @@ async function loadWorkbench(refresh = false) {
  * 之前只传服务方式，导致用户在指定日期查看统计后跳转到列表又回到今天。
  */
 function goMetric(item) {
-  const query = { date: selectedDate.value };
+  const query = { date: selectedDate.value, scope: selectedScope.value,
+    deptCode: filterDeptCode.value || undefined, staffCode: filterStaffCode.value || undefined };
   if (item.method) query.serviceMethod = item.method;
   if (item.tab === 'daily' && item.key) query.focus = item.key === 'follows' ? 'pendingFollows' : item.key === 'orders' ? 'activeOrders' : item.key;
   router.push({ path: `/service-operations/${item.tab}`, query });
@@ -405,7 +443,7 @@ const appointmentLoading = ref(false);
 const appointmentQuery = reactive({ page: 1, size: 20, serviceMethod: '', status: '' });
 async function loadAppointments() {
   appointmentLoading.value = true;
-  try { const page = (await pageAppointments({ ...appointmentQuery, date: selectedDate.value, scope: selectedScope.value })).data || {}; appointments.value = recordsOf(page); appointmentTotal.value = totalOf(page); }
+  try { const page = (await pageAppointments({ ...appointmentQuery, date: selectedDate.value, scope: selectedScope.value, ...staffFilterParams.value })).data || {}; appointments.value = recordsOf(page); appointmentTotal.value = totalOf(page); }
   finally { appointmentLoading.value = false; }
 }
 function canOperate(row) { return !!userNo.value && row.hostStaffCode === userNo.value; }
@@ -432,7 +470,7 @@ const outingLoading = ref(false);
 const outingQuery = reactive({ page: 1, size: 20, status: '' });
 async function loadOutings() {
   outingLoading.value = true;
-  try { const page = (await pageOutings({ ...outingQuery, date: selectedDate.value, scope: selectedScope.value })).data || {}; outings.value = recordsOf(page); outingTotal.value = totalOf(page); }
+  try { const page = (await pageOutings({ ...outingQuery, date: selectedDate.value, scope: selectedScope.value, ...staffFilterParams.value })).data || {}; outings.value = recordsOf(page); outingTotal.value = totalOf(page); }
   finally { outingLoading.value = false; }
 }
 function isOwnOuting(row) { return !!userNo.value && row.staffCode === userNo.value; }
@@ -471,7 +509,18 @@ function loadClientOptions(keyword) {
     } finally { if (seq === clientOptionSequence) clientSelectLoading.value = false; }
   }, 220);
 }
-async function loadStaffOptions(keyword) { staffLoading.value = true; try { const params = { keyword, page: 1, size: 50 }; if (userStore.roleCode === 'DEPT_MANAGER') params.deptCode = userStore.user?.deptCode; const page = (await staffPage(params)).data || {}; staffOptions.value = recordsOf(page).filter((row) => !row.status || row.status === 'ACTIVE'); } finally { staffLoading.value = false; } }
+async function loadStaffOptions(keyword) {
+  staffLoading.value = true;
+  try {
+    const role = userStore.roleCode;
+    const params = { keyword, page: 1, size: 50 };
+    if (role === 'DEPT_MANAGER') params.deptCode = userStore.user?.deptCode;
+    const page = (await staffPage(params)).data || {};
+    staffOptions.value = recordsOf(page).filter((row) => (!row.status || row.status === 'ACTIVE')
+      && (role !== 'DEPT_MANAGER' || row.deptCode === userStore.user?.deptCode)
+      && (role !== 'ADVISER' || row.staffCode === userStore.user?.userNo));
+  } finally { staffLoading.value = false; }
+}
 async function submitAppointment() {
   const valid = await appointmentFormRef.value?.validate().catch(() => false);
   if (!valid) return;
@@ -579,6 +628,7 @@ async function submitCheckIn() {
   if (!checkInForm.photoFileKey) return ElMessage.warning('请先上传现场照片');
   saving.value = true;
   try { const fn = checkInMode.value === 'depart' ? departOuting : returnOuting; await fn(checkInTarget.value.outingNo, { ...checkInForm }); checkInVisible.value = false; ElMessage.success(`${checkInMode.value === 'depart' ? '出发' : '返回'}打卡成功`); await Promise.all([loadOutings(), loadWorkbench(true)]); }
+  catch (e) { /* 请求拦截器已展示业务错误；保留弹窗，禁止异常冒泡击穿当前页面。 */ }
   finally { saving.value = false; }
 }
 
@@ -679,14 +729,16 @@ function searchClients() {
   replaySearchTimer = setTimeout(async () => {
     clientLoading.value = true;
     try {
-      const page = (await pageClients({ keyword: clientKeyword.value.trim(), page: 1, size: 20, scope: clientScope.value })).data || {};
+      const page = (await pageClients({ keyword: clientKeyword.value.trim(), page: 1, size: 20,
+        scope: clientScope.value, ownerDeptCode: staffFilterParams.value.deptCode,
+        ownerStaffCode: staffFilterParams.value.staffCode })).data || {};
       if (seq === replaySearchSequence) clientOptions.value = recordsOf(page);
     } finally { if (seq === replaySearchSequence) clientLoading.value = false; }
   }, 220);
 }
-function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ path: '/service-operations/replay', query: { clientCode: row.clientCode, scope: selectedScope.value } }); loadInsight(); loadTimeline(); }
+function selectClient(row) { selectedClient.value = row; timelineQuery.page = 1; router.replace({ path: '/service-operations/replay', query: { clientCode: row.clientCode, scope: selectedScope.value, deptCode: filterDeptCode.value || undefined, staffCode: filterStaffCode.value || undefined } }); loadInsight(); loadTimeline(); }
 function openClientReplay(clientCode) {
-  if (activeTab.value !== 'replay') return router.push({ path: '/service-operations/replay', query: { clientCode, scope: selectedScope.value } });
+  if (activeTab.value !== 'replay') return router.push({ path: '/service-operations/replay', query: { clientCode, scope: selectedScope.value, deptCode: filterDeptCode.value || undefined, staffCode: filterStaffCode.value || undefined } });
   clientKeyword.value = '';
   return getClientDetail(clientCode).then((res) => {
     const row = res.data || { clientCode, contactName: '未命名客户' };
@@ -826,6 +878,8 @@ async function submitFollow() {
 function applyRouteQuery() {
   if (route.query.date) selectedDate.value = String(route.query.date);
   if (route.query.scope && scopeOptions.value.some((item) => item.value === String(route.query.scope).toUpperCase())) selectedScope.value = String(route.query.scope).toUpperCase();
+  filterDeptCode.value = route.query.deptCode ? String(route.query.deptCode) : '';
+  filterStaffCode.value = route.query.staffCode ? String(route.query.staffCode) : '';
   if (route.query.focus) focus.value = String(route.query.focus);
   if (route.query.serviceMethod) appointmentQuery.serviceMethod = String(route.query.serviceMethod);
   if (route.query.status) {
@@ -835,7 +889,18 @@ function applyRouteQuery() {
 }
 
 function onScopeChange(value) {
-  router.replace({ path: route.path, query: { ...route.query, scope: value, date: selectedDate.value } });
+  filterDeptCode.value = '';
+  filterStaffCode.value = '';
+  router.replace({ path: route.path, query: { ...route.query, scope: value, date: selectedDate.value, deptCode: undefined, staffCode: undefined } });
+  loadScopeFilters();
+}
+function onDepartmentFilterChange() {
+  filterStaffCode.value = '';
+  searchFilterStaff('');
+  router.replace({ path: route.path, query: { ...route.query, deptCode: filterDeptCode.value || undefined, staffCode: undefined } });
+}
+function onStaffFilterChange() {
+  router.replace({ path: route.path, query: { ...route.query, staffCode: filterStaffCode.value || undefined } });
 }
 
 watch(() => route.fullPath, async () => {
@@ -845,6 +910,7 @@ watch(() => route.fullPath, async () => {
 
 onMounted(async () => {
   applyRouteQuery();
+  await loadScopeFilters();
   await loadWorkbench();
   if (activeTab.value !== 'daily') onTabChange(activeTab.value);
   if (route.query.clientCode) openClientReplay(String(route.query.clientCode));
@@ -857,9 +923,13 @@ onMounted(async () => {
 
 <style scoped>
 .service-operations { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.service-header { align-items: center; }
-.header-actions, .filter-row, .action-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.header-actions :deep(.el-date-editor) { width: 150px; }
+.service-header { align-items: flex-start; }
+.header-actions, .filter-row, .action-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.header-actions { flex: 0 1 auto; justify-content: flex-end; max-width: min(100%, 760px); }
+.header-actions .scope-select { width: 142px; }
+.header-actions :deep(.el-date-editor) { width: 142px; }
+.header-actions :deep(.el-select__wrapper),
+.header-actions :deep(.el-input__wrapper) { min-height: 34px; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .metric-card { border: 1px solid var(--loan-border); padding: 18px; text-align: left; cursor: pointer; transition: transform var(--loan-transition), border-color var(--loan-transition); }
 .metric-card:hover { transform: translateY(-2px); border-color: var(--loan-primary); }
@@ -916,5 +986,6 @@ onMounted(async () => {
 /* 表格内的「照片」按钮紧跟在打卡时间后面，留一点间距 */
 .cell-sub .text-link, td .text-link { margin-left: 6px; }
 @media (max-width: 1100px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } .replay-layout { grid-template-columns: 240px minmax(0, 1fr); } }
-@media (max-width: 760px) { .service-header { align-items: flex-start; } .header-actions { width: 100%; } .metric-grid, .list-grid, .replay-layout { grid-template-columns: 1fr; } .client-picker { padding-right: 0; padding-bottom: 14px; border-right: 0; border-bottom: 1px solid var(--loan-border); } }
+@media (max-width: 980px) { .header-actions { width: 100%; justify-content: flex-start; max-width: none; } }
+@media (max-width: 760px) { .service-header { align-items: flex-start; } .header-actions .scope-select, .header-actions :deep(.el-date-editor) { width: calc(50% - 4px); } .metric-grid, .list-grid, .replay-layout { grid-template-columns: 1fr; } .client-picker { padding-right: 0; padding-bottom: 14px; border-right: 0; border-bottom: 1px solid var(--loan-border); } }
 </style>

@@ -132,6 +132,12 @@ public class ServiceOperationScopeService {
 
     public void applyAppointmentListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientAppointment> wrapper,
                                           LoanUser user, String requestedScope) {
+        applyAppointmentListScope(wrapper, user, requestedScope, null, null);
+    }
+
+    public void applyAppointmentListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientAppointment> wrapper,
+                                          LoanUser user, String requestedScope,
+                                          String requestedDeptCode, String requestedStaffCode) {
         requireStaffListAccess(user);
         ServiceListScope scope = resolveScope(user, requestedScope);
         if (scope == ServiceListScope.SELF) {
@@ -141,6 +147,8 @@ public class ServiceOperationScopeService {
                     "SELECT staff_code FROM t_staff WHERE dept_code='"
                             + safeSqlLiteral(user.getDeptCode()) + "'");
         }
+        applyStaffFilter(wrapper, com.loan.serviceops.entity.ClientAppointment::getHostStaffCode,
+                user, scope, requestedDeptCode, requestedStaffCode);
     }
 
     public void applyOutingListScope(LambdaQueryWrapper<com.loan.serviceops.entity.StaffOuting> wrapper,
@@ -150,6 +158,12 @@ public class ServiceOperationScopeService {
 
     public void applyOutingListScope(LambdaQueryWrapper<com.loan.serviceops.entity.StaffOuting> wrapper,
                                      LoanUser user, String requestedScope) {
+        applyOutingListScope(wrapper, user, requestedScope, null, null);
+    }
+
+    public void applyOutingListScope(LambdaQueryWrapper<com.loan.serviceops.entity.StaffOuting> wrapper,
+                                     LoanUser user, String requestedScope,
+                                     String requestedDeptCode, String requestedStaffCode) {
         requireStaffListAccess(user);
         ServiceListScope scope = resolveScope(user, requestedScope);
         if (scope == ServiceListScope.SELF) {
@@ -159,6 +173,8 @@ public class ServiceOperationScopeService {
                     "SELECT staff_code FROM t_staff WHERE dept_code='"
                             + safeSqlLiteral(user.getDeptCode()) + "'");
         }
+        applyStaffFilter(wrapper, com.loan.serviceops.entity.StaffOuting::getStaffCode,
+                user, scope, requestedDeptCode, requestedStaffCode);
     }
 
     public void applyFollowListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientFollowRecord> wrapper,
@@ -168,6 +184,12 @@ public class ServiceOperationScopeService {
 
     public void applyFollowListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientFollowRecord> wrapper,
                                      LoanUser user, String requestedScope) {
+        applyFollowListScope(wrapper, user, requestedScope, null, null);
+    }
+
+    public void applyFollowListScope(LambdaQueryWrapper<com.loan.serviceops.entity.ClientFollowRecord> wrapper,
+                                     LoanUser user, String requestedScope,
+                                     String requestedDeptCode, String requestedStaffCode) {
         requireStaffListAccess(user);
         ServiceListScope scope = resolveScope(user, requestedScope);
         if (scope == ServiceListScope.SELF) {
@@ -177,6 +199,8 @@ public class ServiceOperationScopeService {
                     "SELECT staff_code FROM t_staff WHERE dept_code='"
                             + safeSqlLiteral(user.getDeptCode()) + "'");
         }
+        applyStaffFilter(wrapper, com.loan.serviceops.entity.ClientFollowRecord::getStaffCode,
+                user, scope, requestedDeptCode, requestedStaffCode);
     }
 
     public void applyOrderListScope(LambdaQueryWrapper<com.loan.order.entity.ServiceOrder> wrapper,
@@ -186,6 +210,12 @@ public class ServiceOperationScopeService {
 
     public void applyOrderListScope(LambdaQueryWrapper<com.loan.order.entity.ServiceOrder> wrapper,
                                     LoanUser user, String requestedScope) {
+        applyOrderListScope(wrapper, user, requestedScope, null, null);
+    }
+
+    public void applyOrderListScope(LambdaQueryWrapper<com.loan.order.entity.ServiceOrder> wrapper,
+                                    LoanUser user, String requestedScope,
+                                    String requestedDeptCode, String requestedStaffCode) {
         requireStaffListAccess(user);
         ServiceListScope scope = resolveScope(user, requestedScope);
         if (scope == ServiceListScope.SELF) {
@@ -194,6 +224,39 @@ public class ServiceOperationScopeService {
             wrapper.inSql(com.loan.order.entity.ServiceOrder::getOwnerStaffCode,
                     "SELECT staff_code FROM t_staff WHERE dept_code='"
                             + safeSqlLiteral(user.getDeptCode()) + "'");
+        }
+        applyStaffFilter(wrapper, com.loan.order.entity.ServiceOrder::getOwnerStaffCode,
+                user, scope, requestedDeptCode, requestedStaffCode);
+    }
+
+    /** 管理列表的部门/员工下钻筛选；服务端再次校验，禁止用查询参数越权。 */
+    private <T> void applyStaffFilter(LambdaQueryWrapper<T> wrapper,
+                                      com.baomidou.mybatisplus.core.toolkit.support.SFunction<T, String> staffColumn,
+                                      LoanUser user, ServiceListScope scope,
+                                      String requestedDeptCode, String requestedStaffCode) {
+        String deptCode = StringUtils.hasText(requestedDeptCode) ? requestedDeptCode.trim() : null;
+        String staffCode = StringUtils.hasText(requestedStaffCode) ? requestedStaffCode.trim() : null;
+        if (scope == ServiceListScope.SELF) {
+            if ((staffCode != null && !staffCode.equals(user.getUserNo())) || deptCode != null) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "本人数据范围不能筛选其他员工或团队");
+            }
+            return;
+        }
+        if (scope == ServiceListScope.DEPARTMENT) {
+            if (deptCode != null && !deptCode.equals(user.getDeptCode())) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "只能筛选本人所在团队");
+            }
+            deptCode = user.getDeptCode();
+        }
+        if (staffCode != null) {
+            Staff staff = requireActiveStaff(staffCode);
+            if (deptCode != null && !deptCode.equals(staff.getDeptCode())) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "所选员工不属于所选团队");
+            }
+            wrapper.eq(staffColumn, staffCode);
+        } else if (deptCode != null) {
+            wrapper.inSql(staffColumn, "SELECT staff_code FROM t_staff WHERE dept_code='"
+                    + safeSqlLiteral(deptCode) + "'");
         }
     }
 

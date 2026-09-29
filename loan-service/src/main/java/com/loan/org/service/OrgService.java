@@ -14,6 +14,7 @@ import com.loan.org.mapper.MenuMapper;
 import com.loan.org.mapper.RoleMapper;
 import com.loan.org.mapper.RolePermissionMapper;
 import com.loan.org.vo.MenuNodeVO;
+import com.loan.context.LoanUser;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import com.loan.utils.DesensitizeUtils;
@@ -179,9 +180,26 @@ public class OrgService {
      * @param size      每页大小
      * @return 员工分页结果
      */
-    public PageResult<Map<String, Object>> pageStaff(String deptCode, String roleCode, String keyword, int page, int size, String orderBy, String orderDir) {
+    public PageResult<Map<String, Object>> pageStaff(String deptCode, String roleCode, String keyword, int page, int size, String orderBy, String orderDir, LoanUser user) {
         LambdaQueryWrapper<Staff> wrapper = new LambdaQueryWrapper<>();
-        if (deptCode != null && !deptCode.isEmpty()) {
+        String role = user == null || user.getRoleCode() == null ? "" : user.getRoleCode().trim().toUpperCase();
+        boolean companyWide = "BOSS".equals(role) || "OPERATOR".equals(role)
+                || "SUPER_ADMIN".equals(role) || "SUPER".equals(role);
+        if ("DEPT_MANAGER".equals(role)) {
+            // 经理的员工选择器只能落在本人团队；忽略前端伪造的其他部门参数。
+            if (!StringUtils.hasText(user.getDeptCode())) {
+                return PageResult.build(page, size, 0L, Collections.emptyList());
+            }
+            wrapper.eq(Staff::getDeptCode, user.getDeptCode());
+        } else if ("ADVISER".equals(role)) {
+            // 顾问不应通过员工分页接口枚举其他员工；仅返回本人，便于兼容旧页面调用。
+            if (!StringUtils.hasText(user.getUserNo())) {
+                return PageResult.build(page, size, 0L, Collections.emptyList());
+            }
+            wrapper.eq(Staff::getStaffCode, user.getUserNo());
+        } else if (!companyWide && LoanUser.TYPE_CHANNEL.equals(user == null ? null : user.getUserType())) {
+            return PageResult.build(page, size, 0L, Collections.emptyList());
+        } else if (StringUtils.hasText(deptCode)) {
             wrapper.eq(Staff::getDeptCode, deptCode);
         }
         if (roleCode != null && !roleCode.isEmpty()) {

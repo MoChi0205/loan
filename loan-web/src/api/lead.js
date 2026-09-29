@@ -24,6 +24,16 @@ export function releaseLead(leadNo) {
   return request({ url: `/api/admin/lead/${leadNo}/release`, method: 'post' });
 }
 
+/** 本人线索档案；后端强制校验当前归属。 */
+export function getLeadDetail(leadNo) {
+  return request({ url: `/api/admin/lead/${leadNo}`, method: 'get' });
+}
+
+/** 填写线索跟进；已关联客户时由后端同步客户跟进时间与标签。 */
+export function followLead(leadNo, data) {
+  return request({ url: `/api/admin/lead/${leadNo}/follow`, method: 'post', data });
+}
+
 export function assignLead(leadNo, toStaffCode) {
   return request({ url: '/api/admin/lead/assign', method: 'post', data: { leadNo, toStaffCode } });
 }

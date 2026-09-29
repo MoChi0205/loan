@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
-import request, { setAppRouter } from '@/utils/request';
+import request, { isHandledRequestError, setAppRouter } from '@/utils/request';
 import router from '@/router';
 
 // ---- 外部依赖 mock ----
@@ -83,6 +83,20 @@ describe('loan-web request 拦截器', () => {
     expect(res.data.id).toBe(1);
   });
 
+  it('Blob 响应直接返回且仍使用统一请求实例', async () => {
+    const blob = new Blob(['photo'], { type: 'image/png' });
+    adapterImpl = (config) => Promise.resolve({
+      data: blob,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+      request: {},
+    });
+    const result = await request.get('/photo', { responseType: 'blob' });
+    expect(result).toBe(blob);
+  });
+
   it('业务错误码（非0非2000）拒绝并提示', async () => {
     adapterImpl = () =>
       Promise.resolve({
@@ -93,7 +107,11 @@ describe('loan-web request 拦截器', () => {
         config: {},
         request: {},
       });
-    await expect(request.get('/demo')).rejects.toThrow('参数错误');
+    let rejected;
+    try { await request.get('/demo'); } catch (error) { rejected = error; }
+    expect(rejected?.message).toBe('参数错误');
+    expect(isHandledRequestError(rejected)).toBe(true);
+    expect(rejected?.loanErrorKind).toBe('business');
     expect(ElMessage.error).toHaveBeenCalledWith('参数错误');
   });
 
@@ -181,7 +199,10 @@ describe('loan-web request 拦截器', () => {
   it('网络异常默认提示', async () => {
     adapterImpl = () =>
       Promise.reject({ message: 'Network Error', config: {} });
-    await expect(request.get('/demo')).rejects.toBeDefined();
+    let rejected;
+    try { await request.get('/demo'); } catch (error) { rejected = error; }
+    expect(isHandledRequestError(rejected)).toBe(true);
+    expect(rejected?.loanErrorKind).toBe('network');
     expect(ElMessage.error).toHaveBeenCalledWith('网络异常，请稍后重试');
   });
 });

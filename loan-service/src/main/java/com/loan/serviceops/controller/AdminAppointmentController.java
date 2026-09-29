@@ -39,9 +39,11 @@ public class AdminAppointmentController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String scope,
+            @RequestParam(required = false) String deptCode,
+            @RequestParam(required = false) String staffCode,
             @CurrentUser LoanUser user) {
         return Result.ok(appointmentService.day(date, serviceMethod, status, user,
-                PageParams.page(page), PageParams.size(size), scope));
+                PageParams.page(page), PageParams.size(size), scope, deptCode, staffCode));
     }
 
     @PostMapping

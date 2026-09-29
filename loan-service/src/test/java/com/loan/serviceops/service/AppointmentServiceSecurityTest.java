@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -123,6 +124,26 @@ class AppointmentServiceSecurityTest {
         when(staffMapper.selectList(any())).thenReturn(Collections.singletonList(staff));
 
         assertEquals("顾问张老师", service.mine(user, 1, 20).getRecords().get(0).getAdviserName());
+    }
+
+    @Test
+    void completingAlreadyCompletedAppointmentIsIdempotentForOutingReturn() {
+        ClientAppointment appointment = new ClientAppointment();
+        appointment.setAppointmentNo("appt01");
+        appointment.setHostStaffCode("staff-owner");
+        appointment.setAppointmentType("HOME_VISIT");
+        appointment.setStatus("COMPLETED");
+        when(appointmentMapper.selectOne(any())).thenReturn(appointment);
+
+        LoanUser employee = new LoanUser();
+        employee.setUserNo("staff-owner");
+        employee.setUserType("STAFF");
+        employee.setRoleCode("ADVISER");
+
+        service.complete("appt01", employee);
+
+        verify(appointmentMapper, never()).transition(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(activityService, never()).append(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     private AppointmentCreateRequest validRequest() {

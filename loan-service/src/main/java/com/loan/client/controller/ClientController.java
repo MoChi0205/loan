@@ -6,6 +6,9 @@ import com.loan.client.model.ClientUpdateRequest;
 import com.loan.client.service.ClientService;
 import com.loan.client.service.ClientAllocationService;
 import com.loan.client.security.ClientAccessGuard;
+import com.loan.staff.entity.Staff;
+import com.loan.staff.mapper.StaffMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
 import com.loan.mini.service.MiniRoleGuard;
@@ -40,6 +43,7 @@ public class ClientController {
     private final MiniRoleGuard miniRoleGuard;
     private final MiniClientService miniClientService;
     private final ClientAccessGuard clientAccessGuard;
+    private final StaffMapper staffMapper;
 
     /** 用户查询：姓名/企业/手机号/证件号查重，并返回当前归属供前端分流。 */
     @GetMapping("/lookup")
@@ -271,7 +275,17 @@ public class ClientController {
                 throw new com.loan.exception.BusinessException(
                         com.loan.common.ResultCode.FORBIDDEN, "仅部门经理可查看团队客户");
             }
-            scopedOwner = null;
+            if (org.springframework.util.StringUtils.hasText(ownerStaffCode)) {
+                Staff target = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                        .eq(Staff::getStaffCode, ownerStaffCode).last("limit 1"));
+                if (target == null || !user.getDeptCode().equals(target.getDeptCode())) {
+                    throw new com.loan.exception.BusinessException(
+                            com.loan.common.ResultCode.FORBIDDEN, "只能筛选本团队员工");
+                }
+                scopedOwner = ownerStaffCode;
+            } else {
+                scopedOwner = null;
+            }
             scopedDeptCode = user.getDeptCode();
         } else if ("COMPANY_SEA".equals(normalizedScope)) {
             scopedOwner = null;
@@ -298,6 +312,30 @@ public class ClientController {
                 scopedOwner, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir, scopedDeptCode, ownershipScope,
                 customerGroup, source, customerTag, status, followState, hasDeal));
+    }
+
+    /** 我的客户标签计数，与列表使用同一数据范围。 */
+    @GetMapping("/tag-counts")
+    public Result<Map<String, Object>> tagCounts(@RequestParam(defaultValue = "MY") String scope,
+                                                  @RequestParam(required = false) String ownerStaffCode,
+                                                  @RequestParam(required = false) String ownerDeptCode,
+                                                  @CurrentUser LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
+        String normalized = scope == null ? "MY" : scope.trim().toUpperCase();
+        String scopedOwner = user.getUserNo();
+        String scopedDept = null;
+        boolean assignedOnly = false;
+        if ("TEAM".equals(normalized)) {
+            if (!"DEPT_MANAGER".equals(role)) throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.FORBIDDEN, "仅部门经理可查看团队标签统计");
+            scopedOwner = null; scopedDept = user.getDeptCode();
+        } else if ("ALL".equals(normalized)) {
+            if (!java.util.Arrays.asList("BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER").contains(role)) throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.FORBIDDEN, "当前角色无权查看全司标签统计");
+            scopedOwner = ownerStaffCode; scopedDept = ownerDeptCode; assignedOnly = true;
+        } else if (!"MY".equals(normalized)) {
+            throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.PARAM_ERROR, "不支持的客户统计范围");
+        }
+        return Result.ok(clientService.tagCounts(scopedOwner, scopedDept, assignedOnly));
     }
 
     /**

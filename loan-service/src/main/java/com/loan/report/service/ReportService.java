@@ -33,8 +33,11 @@ import com.loan.reward.entity.RewardRecord;
 import com.loan.reward.mapper.RewardRecordMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
+import com.loan.org.entity.Department;
+import com.loan.org.mapper.DepartmentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -78,6 +81,8 @@ public class ReportService {
     private final ClientScreeningMapper screeningMapper;
     private final BankProductMapper bankProductMapper;
     private final StaffMapper staffMapper;
+    private final DepartmentMapper departmentMapper;
+    private final JdbcTemplate jdbcTemplate;
     private final ReportQueryService reportQueryService;
 
     /** 报表全量可见角色（运营/超管/老板/超级管理员）：跨全部数据范围。 */
@@ -250,9 +255,14 @@ public class ReportService {
      * scope 由后端按角色强制校验，不能依赖前端隐藏实现权限隔离。</p>
      */
     public Map<String, Object> operations(String requestedScope, int requestedDays, LoanUser user) {
+        return operations(requestedScope, null, null, requestedDays, user);
+    }
+
+    public Map<String, Object> operations(String requestedScope, String requestedDeptCode,
+                                           String requestedStaffCode, int requestedDays, LoanUser user) {
         int days = Math.max(7, Math.min(requestedDays, 365));
         String scopeName = resolveOperationsScope(requestedScope, user);
-        Set<String> ownerScope = ownerScopeFor(scopeName, user);
+        Set<String> ownerScope = ownerScopeFor(scopeName, requestedDeptCode, requestedStaffCode, user);
         LocalDateTime to = LocalDateTime.now();
         LocalDateTime from = to.minusDays(days);
 
@@ -263,6 +273,8 @@ public class ReportService {
         result.put("periodStart", from);
         result.put("periodEnd", to);
         result.put("availableScopes", availableOperationScopes(user));
+        result.put("selectedDeptCode", StringUtils.hasText(requestedDeptCode) ? requestedDeptCode : null);
+        result.put("selectedStaffCode", StringUtils.hasText(requestedStaffCode) ? requestedStaffCode : null);
 
         Map<String, Object> assets = new LinkedHashMap<>();
         assets.put("assigned", scopedClientCount(ownerScope));
@@ -334,6 +346,7 @@ public class ReportService {
         conversion.put("dealAmount", scopedSumDealAmount(new LocalDateTime[]{from, to}, ownerScope));
         conversion.put("timeBasis", "线索/客户/初筛/工单按创建时间，成交按成交时间");
         result.put("conversion", conversion);
+        result.put("performance", performanceRanking(ownerScope, from, to));
         return result;
     }
 
@@ -347,18 +360,178 @@ public class ReportService {
     }
 
     private List<String> availableOperationScopes(LoanUser user) {
-        return Collections.singletonList(fixedReportScope(user));
+        String role = requireReportRole(user);
+        if ("ADVISER".equals(role)) return Collections.singletonList("MY");
+        if ("DEPT_MANAGER".equals(role)) return java.util.Arrays.asList("MY", "TEAM");
+        return java.util.Arrays.asList("MY", "TEAM", "ALL");
     }
 
     private Set<String> ownerScopeFor(String scope, LoanUser user) {
-        if ("ALL".equals(scope)) return null;
-        if ("MY".equals(scope)) return Collections.singleton(user.getUserNo());
+        return ownerScopeFor(scope, null, null, user);
+    }
+
+    private Set<String> ownerScopeFor(String scope, String requestedDeptCode,
+                                      String requestedStaffCode, LoanUser user) {
+        if ("ALL".equals(scope)) {
+            Set<String> visible = null;
+            if (StringUtils.hasText(requestedDeptCode)) {
+                visible = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                                .eq(Staff::getDeptCode, requestedDeptCode.trim()).eq(Staff::getStatus, "ACTIVE"))
+                        .stream().map(Staff::getStaffCode).filter(StringUtils::hasText).collect(Collectors.toSet());
+            }
+            if (StringUtils.hasText(requestedStaffCode)) {
+                Staff target = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                        .eq(Staff::getStaffCode, requestedStaffCode.trim()).eq(Staff::getStatus, "ACTIVE").last("limit 1"));
+                if (target == null || (StringUtils.hasText(requestedDeptCode)
+                        && !requestedDeptCode.trim().equals(target.getDeptCode()))) {
+                    throw new BusinessException(ResultCode.PARAM_ERROR, "所选员工不属于所选团队");
+                }
+                return Collections.singleton(requestedStaffCode.trim());
+            }
+            return visible;
+        }
+        if ("MY".equals(scope)) {
+            if (StringUtils.hasText(requestedDeptCode)
+                    || (StringUtils.hasText(requestedStaffCode) && !requestedStaffCode.equals(user.getUserNo()))) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "我的数据不能筛选其他团队或员工");
+            }
+            return Collections.singleton(user.getUserNo());
+        }
         if ("TEAM".equals(scope)) {
-            return staffMapper.selectList(new LambdaQueryWrapper<Staff>()
-                            .eq(Staff::getDeptCode, user.getDeptCode()))
+            String role = requireReportRole(user);
+            String dept = "DEPT_MANAGER".equals(role) ? user.getDeptCode()
+                    : (StringUtils.hasText(requestedDeptCode) ? requestedDeptCode : user.getDeptCode());
+            if (!StringUtils.hasText(dept)) return Collections.emptySet();
+            if ("DEPT_MANAGER".equals(role) && StringUtils.hasText(requestedDeptCode)
+                    && !requestedDeptCode.equals(user.getDeptCode())) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "只能查看本人团队经营数据");
+            }
+            Set<String> team = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                            .eq(Staff::getDeptCode, dept).eq(Staff::getStatus, "ACTIVE"))
                     .stream().map(Staff::getStaffCode).filter(StringUtils::hasText).collect(Collectors.toSet());
+            return narrowToStaff(team, requestedStaffCode);
         }
         return Collections.emptySet();
+    }
+
+    private Set<String> narrowToStaff(Set<String> visible, String requestedStaffCode) {
+        if (!StringUtils.hasText(requestedStaffCode)) return visible;
+        if (visible == null || !visible.contains(requestedStaffCode)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "所选员工不在当前数据范围内");
+        }
+        return Collections.singleton(requestedStaffCode);
+    }
+
+    /** 当前范围员工/团队经营排名；只返回姓名和组织名称，不向页面暴露业务编码。 */
+    private Map<String, Object> performanceRanking(Set<String> ownerScope, LocalDateTime from, LocalDateTime to) {
+        LambdaQueryWrapper<Staff> staffQuery = new LambdaQueryWrapper<Staff>().eq(Staff::getStatus, "ACTIVE");
+        if (ownerScope != null) {
+            if (ownerScope.isEmpty()) return emptyPerformance();
+            staffQuery.in(Staff::getStaffCode, ownerScope);
+        }
+        List<Staff> staffRows = staffMapper.selectList(staffQuery);
+        if (staffRows.isEmpty()) return emptyPerformance();
+        Set<String> codes = staffRows.stream().map(Staff::getStaffCode).collect(Collectors.toSet());
+        Map<String, String> names = staffRows.stream().collect(Collectors.toMap(
+                Staff::getStaffCode, Staff::getStaffName, (a, b) -> a));
+        Set<String> deptCodes = staffRows.stream().map(Staff::getDeptCode)
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, String> deptNames = deptCodes.isEmpty() ? Collections.emptyMap()
+                : departmentMapper.selectList(new LambdaQueryWrapper<Department>().in(Department::getDeptCode, deptCodes))
+                .stream().collect(Collectors.toMap(Department::getDeptCode, Department::getDeptName, (a, b) -> a));
+
+        Map<String, Long> leads = groupedCount("t_lead", "owner_staff_code", "created_at", from, to, codes, null);
+        Map<String, Long> intentions = groupedCount("t_client_profile", "owner_staff_code", null, from, to, codes,
+                "customer_tag IN ('INTENTION','POTENTIAL')");
+        Map<String, Long> deals = groupedCount("t_service_order", "owner_staff_code", "deal_time", from, to, codes,
+                "status='DEAL'");
+        Map<String, Long> outings = groupedCount("t_staff_outing", "staff_code", "created_at", from, to, codes, null);
+        Map<String, Long> approvals = groupedCount("t_client_allocation_approval", "applicant_staff_code", "created_at", from, to, codes, null);
+        Map<String, Long> products = groupedCount("t_bank_product", "created_by", "created_at", from, to,
+                new HashSet<>(names.values()), null);
+
+        List<Map<String, Object>> staffRanking = new ArrayList<>();
+        for (Staff member : staffRows) {
+            String code = member.getStaffCode();
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("staffName", names.getOrDefault(code, "员工姓名待补充"));
+            row.put("deptName", deptNames.getOrDefault(member.getDeptCode(), "未设置团队"));
+            row.put("leadCount", leads.getOrDefault(code, 0L));
+            row.put("intentionClientCount", intentions.getOrDefault(code, 0L));
+            row.put("dealCount", deals.getOrDefault(code, 0L));
+            row.put("outingCount", outings.getOrDefault(code, 0L));
+            row.put("approvalCount", approvals.getOrDefault(code, 0L));
+            row.put("productCount", products.getOrDefault(names.get(code), 0L));
+            long score = deals.getOrDefault(code, 0L) * 100L
+                    + intentions.getOrDefault(code, 0L) * 10L + leads.getOrDefault(code, 0L);
+            row.put("score", score);
+            staffRanking.add(row);
+        }
+        staffRanking.sort((a, b) -> Long.compare(((Number) b.get("score")).longValue(), ((Number) a.get("score")).longValue()));
+        for (int i = 0; i < staffRanking.size(); i++) staffRanking.get(i).put("rank", i + 1);
+
+        Map<String, Map<String, Object>> teams = new LinkedHashMap<>();
+        for (Map<String, Object> member : staffRanking) {
+            String deptName = String.valueOf(member.get("deptName"));
+            Map<String, Object> team = teams.computeIfAbsent(deptName, key -> {
+                Map<String, Object> value = new LinkedHashMap<>();
+                value.put("deptName", key); value.put("memberCount", 0L); value.put("leadCount", 0L);
+                value.put("intentionClientCount", 0L); value.put("dealCount", 0L);
+                value.put("outingCount", 0L); value.put("approvalCount", 0L); value.put("productCount", 0L); value.put("score", 0L);
+                return value;
+            });
+            increment(team, "memberCount", 1L);
+            for (String key : java.util.Arrays.asList("leadCount", "intentionClientCount", "dealCount", "outingCount", "approvalCount", "productCount", "score")) {
+                increment(team, key, ((Number) member.get(key)).longValue());
+            }
+        }
+        List<Map<String, Object>> teamRanking = new ArrayList<>(teams.values());
+        teamRanking.sort((a, b) -> Long.compare(((Number) b.get("score")).longValue(), ((Number) a.get("score")).longValue()));
+        for (int i = 0; i < teamRanking.size(); i++) teamRanking.get(i).put("rank", i + 1);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("staffRanking", staffRanking);
+        result.put("teamRanking", teamRanking);
+        result.put("scoreRule", "成交×100 + 意向客户×10 + 新增线索；仅用于经营排序，不代表绩效结算");
+        result.put("approvalMetric", "客户归属申请数");
+        return result;
+    }
+
+    private Map<String, Object> emptyPerformance() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("staffRanking", Collections.emptyList());
+        result.put("teamRanking", Collections.emptyList());
+        result.put("scoreRule", "成交×100 + 意向客户×10 + 新增线索；仅用于经营排序，不代表绩效结算");
+        result.put("approvalMetric", "客户归属申请数");
+        return result;
+    }
+
+    private Map<String, Long> groupedCount(String table, String ownerColumn, String timeColumn,
+                                            LocalDateTime from, LocalDateTime to, Set<String> codes,
+                                            String extraCondition) {
+        if (codes.isEmpty()) return Collections.emptyMap();
+        StringBuilder sql = new StringBuilder("SELECT ").append(ownerColumn)
+                .append(" AS ownerCode, COUNT(*) AS value FROM ").append(table)
+                .append(" WHERE ").append(ownerColumn).append(" IN (").append(sqlQuoted(codes)).append(")");
+        if (timeColumn != null) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            sql.append(" AND ").append(timeColumn).append(">='").append(from.format(formatter))
+                    .append("' AND ").append(timeColumn).append("<'").append(to.format(formatter)).append("'");
+        }
+        if (StringUtils.hasText(extraCondition)) sql.append(" AND ").append(extraCondition);
+        sql.append(" GROUP BY ").append(ownerColumn);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString());
+        Map<String, Long> result = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object owner = row.get("ownerCode");
+            if (owner == null) owner = row.get("ownercode");
+            Object value = row.get("value");
+            if (owner != null && value instanceof Number) result.put(owner.toString(), ((Number) value).longValue());
+        }
+        return result;
+    }
+
+    private void increment(Map<String, Object> target, String key, long value) {
+        target.put(key, ((Number) target.getOrDefault(key, 0L)).longValue() + value);
     }
 
     private String normalizeRole(LoanUser user) {

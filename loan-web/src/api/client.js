@@ -34,6 +34,11 @@ export function pageClients(params) {
   return request({ url, method: 'get', params: payload });
 }
 
+/** 我的客户标签计数：后端按本人/团队/公司范围返回真实预约、来访、成交及人工标签数量。 */
+export function getClientTagCounts(params) {
+  return request({ url: '/api/admin/client/tag-counts', method: 'get', params });
+}
+
 /** 档案编辑（基础信息 + 个人档案合并，含操作留痕） */
 export function updateClientDetail(clientCode, data) {
   return request({ url: `/api/admin/client/${clientCode}`, method: 'put', data });

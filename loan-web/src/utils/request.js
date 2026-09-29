@@ -19,6 +19,30 @@ import { KEYS, getStorage, removeStorage } from '@/utils/storage';
  * 未注入时（极早期 401）降级为整页跳转，保证一定能回到登录页。
  */
 let appRouter = null;
+const HANDLED_REQUEST_ERROR = '__loanHandledRequestError';
+
+/**
+ * 标记已由请求层完成提示/跳转的接口错误。
+ * Vue 的异步事件处理器仍会收到 rejected Promise，根异常边界必须据此区分：
+ * 接口业务失败只保留 toast，真正的组件渲染/脚本异常才进入系统异常页。
+ */
+function markHandledRequestError(error, kind = 'request') {
+  const target = error instanceof Error ? error : Object.assign(new Error(error?.message || '请求失败'), { cause: error });
+  target[HANDLED_REQUEST_ERROR] = true;
+  target.loanErrorKind = kind;
+  return target;
+}
+
+export function isHandledRequestError(error) {
+  return Boolean(error?.[HANDLED_REQUEST_ERROR]);
+}
+
+function businessError(message, code) {
+  const error = markHandledRequestError(new Error(message || '请求失败'), 'business');
+  error.code = code;
+  return error;
+}
+
 export function setAppRouter(router) {
   appRouter = router;
 }
@@ -106,41 +130,47 @@ request.interceptors.request.use(
     config.__loanRoute = window.location.pathname + window.location.search;
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => {
+    showThrottled('请求初始化失败，请稍后重试');
+    return Promise.reject(markHandledRequestError(error, 'request-config'));
+  },
 );
 
 // 响应拦截：只看 code，非 0 统一提示；401/2000 清 token 走 SPA 跳转（避免与路由守卫互相踢皮球死循环）
 request.interceptors.response.use(
   (response) => {
     const res = response.data;
+    // 文件/图片等二进制响应不使用 Result JSON 信封，仍复用本实例的鉴权、超时和错误分类。
+    if (response.config?.responseType === 'blob' || response.config?.responseType === 'arraybuffer') {
+      return res;
+    }
     if (res && res.code !== 0) {
       if (res.code === 2000) {
         redirectToLogin();
-        return Promise.reject(new Error(res.message || '未登录或会话已过期'));
+        return Promise.reject(businessError(res.message || '未登录或会话已过期', res.code));
       }
       // 登录类请求由页面自行提示（__loanSilent），避免重复弹窗。
       if (!response.config?.__loanSilent) {
         showThrottled(res.message || '请求失败');
       }
-      return Promise.reject(new Error(res.message));
+      return Promise.reject(businessError(res.message, res.code));
     }
     return res;
   },
   (error) => {
     // 1) 路由切换/组件卸载时主动取消的请求：静默，不弹错
     if (axios.isCancel(error)) {
-      return Promise.reject(error);
+      return Promise.reject(markHandledRequestError(error, 'cancelled'));
     }
     // 2) HTTP 401（网关或后端强校验返回）：与业务 2000 同路处理
     if (error.response && error.response.status === 401) {
       redirectToLogin();
-      return Promise.reject(error);
+      return Promise.reject(markHandledRequestError(error, 'authentication'));
     }
     // 2.5) HTTP 403：操作/子请求仅提示；显式页面访问探测才允许跳无权限页。
     // 同时校验发起路由，防止 keep-alive/旧请求延迟返回后把用户从新页面踢走。
     if (error.response && error.response.status === 403) {
       showThrottled(error.response?.data?.message || '当前角色无权执行该操作', 'warning');
-      const routeAtRequest = error.config?.__loanRoute;
       if (shouldRedirectForbidden(error.config)) {
         const routeAtRequest = error.config?.__loanRoute;
         const current = window.location.pathname + window.location.search;
@@ -148,21 +178,21 @@ request.interceptors.response.use(
           navigateForbidden(current);
         }
       }
-      return Promise.reject(error);
+      return Promise.reject(markHandledRequestError(error, 'forbidden'));
     }
     // 3) 超时：友好提示（节流）
     if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
       if (!error.config?.__loanSilent) {
         showThrottled('请求超时，请稍后重试', 'warning');
       }
-      return Promise.reject(error);
+      return Promise.reject(markHandledRequestError(error, 'timeout'));
     }
     // 4) 其余网络/服务端错误：后端有 message 用后端，否则网络异常（节流）
     const serverMsg = error.response?.data?.message;
     if (!error.config?.__loanSilent) {
       showThrottled(serverMsg || '网络异常，请稍后重试');
     }
-    return Promise.reject(error);
+    return Promise.reject(markHandledRequestError(error, error.response ? 'server' : 'network'));
   },
 );
 

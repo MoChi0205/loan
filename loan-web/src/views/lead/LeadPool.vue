@@ -5,10 +5,13 @@
         <h2 class="loan-page-title">{{ activeTab === 'pool' ? '线索公海' : '我的线索' }}</h2>
         <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审核通过后进入公海' : '我的线索＝当前归属我的线索；线索公海＝未分配线索；客户公海＝未分配客户；创建人始终单独展示' }}</p>
       </div>
+      <div class="header-actions">
+      <el-button v-if="canImport" plain @click="openImport">批量导入</el-button>
       <el-button v-permission="ACTION_PERMISSION.LEAD_CREATE" type="primary" @click="openCreate">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
         新增线索
       </el-button>
+      </div>
     </div>
 
     <div class="loan-card">
@@ -103,12 +106,15 @@
             <span class="loan-tag" :class="followStatusTag(row.followStatus)">{{ followStatusText(row.followStatus) }}</span>
           </template>
         </el-table-column>
+        <el-table-column v-if="activeTab !== 'clients'" label="客户标签" width="110">
+          <template #default="{ row }"><span class="loan-tag loan-tag-info">{{ customerTagMap[row.customerTag] || '新用户' }}</span></template>
+        </el-table-column>
         <el-table-column :prop="activeTab === 'clients' ? 'registeredAt' : 'createdAt'" :label="activeTab === 'clients' ? '注册时间' : '录入时间'" width="170" sortable>
           <template #default="{ row }">{{ formatDateTime(row.registeredAt || row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" min-width="120" fixed="right">
+        <el-table-column label="操作" min-width="260" fixed="right">
           <template #default="{ row }">
-            <AppTableActions :actions="rowActions(row)" />
+            <AppTableActions :actions="rowActions(row)" :max-inline="3" />
           </template>
         </el-table-column>
       </el-table>
@@ -137,10 +143,40 @@
             <el-option label="个人" value="PERSONAL" />
           </el-select>
         </el-form-item>
+        <el-form-item label="客户标签">
+          <el-select v-model="form.customerTag" clearable placeholder="可选，默认新用户" style="width: 100%">
+            <el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" />
+          </el-select>
+        </el-form-item>
         <el-form-item v-if="!isChannel" label="归属">
           <el-input model-value="创建后自动归属本人" disabled />
         </el-form-item>
       </el-form>
+    </AppDialog>
+
+    <AppDialog v-model:visible="importVisible" title="批量导入" width="760px" :show-footer="false">
+      <div class="import-toolbar">
+        <el-radio-group v-model="importType" :disabled="importing">
+          <el-radio-button value="LEAD">客户/线索</el-radio-button>
+          <el-radio-button value="PRODUCT">产品</el-radio-button>
+        </el-radio-group>
+        <el-button link type="primary" @click="downloadTemplate">下载{{ importType === 'LEAD' ? '客户线索' : '产品' }}模板</el-button>
+        <input ref="importFileRef" type="file" accept=".xlsx" hidden @change="onImportFileChange" />
+        <el-button type="primary" :loading="importing" @click="importFileRef?.click()">选择 Excel</el-button>
+      </div>
+      <div v-if="importFile" class="import-file">已选择：{{ importFile.name }}（{{ previewRows.length }} 行预览）</div>
+      <el-table v-if="previewRows.length" :data="previewRows.slice(0, 8)" size="small" border max-height="300">
+        <el-table-column v-for="column in previewColumns" :key="column" :prop="column" :label="column" min-width="120" show-overflow-tooltip />
+      </el-table>
+      <el-empty v-else description="请选择按模板填写的 .xlsx 文件，先预览再导入" :image-size="72" />
+      <div v-if="importResult" class="import-result">
+        <el-alert :title="`导入完成：成功 ${importResult.success} 条，失败 ${importResult.failed} 条`" :type="importResult.failed ? 'warning' : 'success'" :closable="false" />
+        <el-button v-if="importResult.failed" link type="primary" @click="downloadFailures">下载失败明细</el-button>
+      </div>
+      <div class="import-footer">
+        <el-button @click="importVisible = false">关闭</el-button>
+        <el-button type="primary" :disabled="!importFile || !previewRows.length" :loading="importing" @click="executeCurrentImport">确认导入</el-button>
+      </div>
     </AppDialog>
 
     <!-- 指派弹窗（单条 / 批量共用） -->
@@ -172,6 +208,43 @@
         <el-option v-for="s in adviserOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
     </AppDialog>
+
+    <AppDialog v-model:visible="leadProfileVisible" title="线索档案" width="680px" :show-footer="false">
+      <div v-loading="leadProfileLoading" class="lead-profile">
+        <el-descriptions v-if="leadProfile" :column="2" border>
+          <el-descriptions-item label="联系人">{{ leadProfile.contactName || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="联系方式">{{ desensitizePhone(leadProfile.phone) }}</el-descriptions-item>
+          <el-descriptions-item label="客群">{{ leadTypeText(leadProfile.leadType) }}</el-descriptions-item>
+          <el-descriptions-item label="来源">{{ sourceText(leadProfile.source) }}</el-descriptions-item>
+          <el-descriptions-item label="跟进状态">{{ followStatusText(leadProfile.followStatus) }}</el-descriptions-item>
+          <el-descriptions-item label="创建人">{{ leadProfile.createdBy || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="录入时间">{{ formatDateTime(leadProfile.createdAt) }}</el-descriptions-item>
+          <el-descriptions-item label="最近跟进">{{ formatDateTime(leadProfile.lastFollowedAt) }}</el-descriptions-item>
+        </el-descriptions>
+        <div class="profile-section-title">跟进与流转记录</div>
+        <el-timeline v-if="leadProfile?.history?.length">
+          <el-timeline-item v-for="(item, index) in leadProfile.history" :key="`${item.createdAt}-${index}`" :timestamp="formatDateTime(item.createdAt)" placement="top">
+            <strong>{{ historyActionText(item.actionType) }}</strong>
+            <span class="history-operator">{{ item.operator || '系统' }}</span>
+            <p>{{ item.remark || '—' }}</p>
+          </el-timeline-item>
+        </el-timeline>
+        <el-empty v-else description="暂无跟进记录" :image-size="72" />
+      </div>
+    </AppDialog>
+
+    <AppDialog v-model:visible="followVisible" title="填写线索跟进" width="520px" :loading="following" @confirm="onFollowSubmit">
+      <el-form ref="followFormRef" :model="followForm" :rules="followRules" label-width="86px">
+        <el-form-item label="跟进结果" prop="followStatus">
+          <el-select v-model="followForm.followStatus" style="width: 100%">
+            <el-option v-for="(item, code) in followEditableStatusMap" :key="code" :label="item.label" :value="code" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="跟进内容" prop="content">
+          <el-input v-model="followForm.content" type="textarea" :rows="4" maxlength="240" show-word-limit placeholder="填写沟通结果、客户需求及下一步安排" />
+        </el-form-item>
+      </el-form>
+    </AppDialog>
   </div>
 </template>
 
@@ -187,12 +260,13 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { pageLead, createLead, claimLead, releaseLead, assignLead, batchClaimLead, batchAssignLead, batchDeleteLead } from '@/api/lead';
+import { pageLead, createLead, claimLead, releaseLead, assignLead, batchClaimLead, batchAssignLead, batchDeleteLead, getLeadDetail, followLead } from '@/api/lead';
 import { staffPage } from '@/api/org';
 import { pageUnassignedClients, claimUnassignedClient, assignClient } from '@/api/client';
 import { useUserStore } from '@/store/user';
 import { ACTION_PERMISSION } from '@/utils/access';
 import { applyLeadPhoneView } from '@/api/sensitive';
+import { previewImport, executeImport, downloadImportTemplate, exportImportFailures } from '@/api/importing';
 
 const route = useRoute();
 const activeTab = ref(String(route.meta.leadView || 'mine'));
@@ -204,8 +278,57 @@ const router = useRouter();
 const userStore = useUserStore();
 const roleCode = computed(() => (userStore.roleCode || '').toUpperCase());
 const isChannel = computed(() => roleCode.value === 'CHANNEL');
+const canImport = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value));
 const canClaimClient = computed(() => roleCode.value === 'ADVISER');
 const rowKey = (row) => row.leadNo || row.clientCode;
+
+const importVisible = ref(false);
+const importing = ref(false);
+const importType = ref('LEAD');
+const importFile = ref(null);
+const importFileRef = ref();
+const previewRows = ref([]);
+const importResult = ref(null);
+const previewColumns = computed(() => previewRows.value.length ? Object.keys(previewRows.value[0]) : []);
+function openImport() {
+  importType.value = 'LEAD'; importFile.value = null; previewRows.value = []; importResult.value = null; importVisible.value = true;
+}
+async function onImportFileChange(event) {
+  const file = event.target.files?.[0]; event.target.value = '';
+  if (!file) return;
+  importFile.value = file; importResult.value = null; importing.value = true;
+  try {
+    const result = await previewImport(importType.value, file);
+    previewRows.value = result.data?.rows || [];
+    ElMessage.success(`已预览 ${previewRows.value.length} 行，可确认导入`);
+  } catch { previewRows.value = []; }
+  finally { importing.value = false; }
+}
+async function executeCurrentImport() {
+  if (!importFile.value) return;
+  importing.value = true;
+  try {
+    const result = await executeImport(importType.value, importFile.value);
+    importResult.value = result.data || {};
+    ElMessage.success('批量导入处理完成');
+    await load();
+  } catch { /* 请求层已提示 */ }
+  finally { importing.value = false; }
+}
+async function downloadTemplate() {
+  try {
+    const blob = await downloadImportTemplate(importType.value);
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = `${importType.value === 'LEAD' ? '客户线索' : '产品'}-导入模板.xlsx`; a.click(); URL.revokeObjectURL(url);
+  } catch { /* 请求层已提示 */ }
+}
+async function downloadFailures() {
+  try {
+    const blob = await exportImportFailures(importResult.value.failures || []);
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = '导入失败明细.xlsx'; a.click(); URL.revokeObjectURL(url);
+  } catch { /* 请求层已提示 */ }
+}
 
 // ============================================================
 // 批量选择
@@ -310,14 +433,15 @@ function rowActions(row) {
     }
     return actions;
   }
-  // 邀请绑定生成的小程序客户：可从线索直接进入客户档案
-  if (row.clientCode) {
-    actions.push({ key: 'profile', label: '档案', onClick: () => goProfile(row.clientCode) });
+  // 已转客户进入完整客户档案；历史未转客户使用线索档案，保证每条“我的线索”都有档案入口。
+  if (activeTab.value === 'mine' && !isChannel.value) {
+    actions.push({ key: 'profile', label: '查看档案', onClick: () => openLeadProfile(row) });
   }
   if (activeTab.value === 'pool' && userStore.hasPerm(ACTION_PERMISSION.LEAD_CLAIM)) {
     actions.push({ key: 'claim', label: '认领', type: 'success', confirm: `确认认领「${row.contactName}」？`, onClick: () => onClaim(row) });
   } else if (activeTab.value === 'mine') {
     if (!isChannel.value && row.ownerStaffCode === userStore.user?.userNo) {
+      actions.push({ key: 'follow', label: '填写跟进', type: 'primary', onClick: () => openFollow(row) });
       actions.push({
         key: 'release',
         label: '释放到公海',
@@ -404,6 +528,64 @@ function goProfile(clientCode) {
   router.push({ path: '/client/my', query: { clientCode } });
 }
 
+function clientCodeOf(row) {
+  return row?.clientProfileCode || row?.clientCode || '';
+}
+
+const leadProfileVisible = ref(false);
+const leadProfileLoading = ref(false);
+const leadProfile = ref(null);
+async function openLeadProfile(row) {
+  const clientCode = clientCodeOf(row);
+  if (clientCode) {
+    goProfile(clientCode);
+    return;
+  }
+  leadProfile.value = null;
+  leadProfileVisible.value = true;
+  leadProfileLoading.value = true;
+  try {
+    const res = await getLeadDetail(row.leadNo);
+    leadProfile.value = res.data || null;
+  } catch (e) {
+    leadProfileVisible.value = false;
+  } finally {
+    leadProfileLoading.value = false;
+  }
+}
+
+const followVisible = ref(false);
+const following = ref(false);
+const followFormRef = ref();
+const currentFollowLead = ref(null);
+const followForm = reactive({ followStatus: 'INTENTION', content: '' });
+const followRules = {
+  followStatus: [{ required: true, message: '请选择跟进结果', trigger: 'change' }],
+  content: [{ required: true, message: '请填写跟进内容', trigger: 'blur' }],
+};
+function openFollow(row) {
+  currentFollowLead.value = row;
+  Object.assign(followForm, {
+    followStatus: followEditableStatusMap[row.followStatus] ? row.followStatus : 'INTENTION',
+    content: '',
+  });
+  followVisible.value = true;
+}
+async function onFollowSubmit() {
+  await followFormRef.value?.validate();
+  following.value = true;
+  try {
+    await followLead(currentFollowLead.value.leadNo, { ...followForm });
+    ElMessage.success('跟进信息已保存');
+    followVisible.value = false;
+    await load();
+  } catch (e) {
+    // 拦截器已提示
+  } finally {
+    following.value = false;
+  }
+}
+
 async function onClaim(row) {
   try {
     await claimLead(row.leadNo);
@@ -430,14 +612,15 @@ async function onRelease(row) {
 const createVisible = ref(false);
 const creating = ref(false);
 const formRef = ref();
-const form = reactive({ contactName: '', phone: '', leadType: 'ENTERPRISE' });
+const customerTagMap = { NEW: '新用户', INTENTION: '意向客户', POTENTIAL: '潜在客户', NO_ANSWER: '无人接听', NO_NEED: '无需求' };
+const form = reactive({ contactName: '', phone: '', leadType: 'ENTERPRISE', customerTag: 'NEW' });
 const formRules = {
   contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
   phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
 };
 
 function openCreate() {
-  Object.assign(form, { contactName: '', phone: '', leadType: 'ENTERPRISE' });
+  Object.assign(form, { contactName: '', phone: '', leadType: 'ENTERPRISE', customerTag: 'NEW' });
   createVisible.value = true;
 }
 
@@ -536,12 +719,21 @@ async function onAssign() {
 const followStatusMap = {
   PENDING_APPROVAL: { label: '待公司审核', type: 'warning' },
   NEW: { label: '新线索', type: 'info' },
+  FOLLOWING: { label: '跟进中', type: 'primary' },
   INTENTION: { label: '有意向', type: 'primary' },
   POTENTIAL: { label: '潜力客户', type: 'success' },
   VISITED: { label: '已到访', type: 'warning' },
   NO_ANSWER: { label: '未接通', type: 'muted' },
   NO_NEED: { label: '无需求', type: 'muted' },
   REJECTED: { label: '已驳回', type: 'muted' },
+};
+const followEditableStatusMap = {
+  NEW: followStatusMap.NEW,
+  INTENTION: followStatusMap.INTENTION,
+  POTENTIAL: followStatusMap.POTENTIAL,
+  VISITED: followStatusMap.VISITED,
+  NO_ANSWER: followStatusMap.NO_ANSWER,
+  NO_NEED: followStatusMap.NO_NEED,
 };
 /** 邀请绑定 / 小程序注册来源的引荐人与认证状态列：仅当列表数据含对应字段时展示 */
 const hasReferrer = computed(() => (data.value || []).some((r) => r.referrerName || r.inviterName || r.referrer));
@@ -563,6 +755,15 @@ function sourceText(code) {
 function sourceTag(code) {
   const m = { BOSS: 'loan-tag-muted', ADVISER: 'loan-tag-primary', CHANNEL: 'loan-tag-info', VIP: 'loan-tag-warning', INVITE: 'loan-tag-primary', MINI: 'loan-tag-info' };
   return m[code] || 'loan-tag-muted';
+}
+function leadTypeText(code) {
+  return ({ ENTERPRISE: '企业', PERSONAL: '个人' }[code] || '—');
+}
+function historyActionText(code) {
+  return ({
+    MANUAL: '录入或指派', CLAIM: '认领线索', RELEASE: '释放到公海', RECYCLE: '回收到公海',
+    TRANSFER: '转移归属', CONVERT: '转为客户', FOLLOW_UP: '跟进记录', APPROVE: '审核通过', REJECT: '审核驳回',
+  }[code] || '线索动态');
 }
 
 /** 认证状态（线索卡片展示，后端未下发时整列隐藏） */
@@ -586,6 +787,12 @@ onMounted(load);
   color: var(--loan-text-secondary);
 }
 
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.import-toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.import-file { padding: 10px 12px; margin-bottom: 12px; color: var(--loan-text-secondary); background: var(--loan-bg-elevated, var(--loan-surface)); border-radius: 6px; }
+.import-result { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.import-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
 /* 批量操作栏 */
 .batch-bar {
   display: flex;
@@ -605,5 +812,24 @@ onMounted(load);
 .batch-count b {
   color: var(--loan-primary);
   font-size: 14px;
+}
+
+.lead-profile {
+  min-height: 180px;
+}
+.profile-section-title {
+  margin: 22px 0 16px;
+  color: var(--loan-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+.history-operator {
+  margin-left: 10px;
+  color: var(--loan-text-secondary);
+  font-size: 12px;
+}
+.lead-profile :deep(.el-timeline-item__content p) {
+  margin: 6px 0 0;
+  color: var(--loan-text-secondary);
 }
 </style>

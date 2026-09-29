@@ -123,8 +123,9 @@ public class OrgController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
-            @RequestParam(required = false) String orderDir) {
-        return Result.ok(orgService.pageStaff(deptCode, roleCode, keyword, page, size, orderBy, orderDir));
+            @RequestParam(required = false) String orderDir,
+            @CurrentUser LoanUser user) {
+        return Result.ok(orgService.pageStaff(deptCode, roleCode, keyword, page, size, orderBy, orderDir, user));
     }
 
     // ============================================================

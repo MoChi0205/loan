@@ -56,6 +56,7 @@
 import { computed, h, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { appConfirm } from '@/utils/confirm';
+import { isHandledRequestError } from '@/utils/request';
 
 /** 已展开的更多下拉集合（key → 展开态），用于 aria-expanded 实时同步 */
 const expanded = ref(new Set());
@@ -148,8 +149,8 @@ async function onAction(a) {
       });
     }
   } catch (e) {
-    // 业务异常一般由 axios 拦截器统一处理，这里兜底
-    if (e?.message) ElMessage.error(e.message);
+    // 接口业务错误已由请求拦截器提示，避免操作组件重复弹窗；仅兜底本地脚本错误。
+    if (!isHandledRequestError(e) && e?.message) ElMessage.error(e.message);
   }
 }
 

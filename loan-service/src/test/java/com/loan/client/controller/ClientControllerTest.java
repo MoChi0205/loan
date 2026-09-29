@@ -47,7 +47,7 @@ class ClientControllerTest {
         allocationService = mock(ClientAllocationService.class);
         roleGuard = mock(MiniRoleGuard.class);
         accessGuard = mock(ClientAccessGuard.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard, mock(com.loan.staff.mapper.StaffMapper.class));
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
@@ -78,6 +78,26 @@ class ClientControllerTest {
 
         verify(roleGuard).requireStaff(adviser);
         verify(allocationService).pageUnassigned("张三", 1, 100);
+    }
+
+    @Test
+    @DisplayName("顾问标签统计固定在本人范围")
+    void adviserTagCountsUseSelfScope() throws Exception {
+        LoanUser adviser = staff("ADVISER", "S001");
+        UserContext.setUser(adviser);
+        Map<String, Object> counts = new LinkedHashMap<>();
+        counts.put("total", 2);
+        counts.put("NEW", 1);
+        counts.put("APPOINTED", 1);
+        when(clientService.tagCounts("S001", null, false)).thenReturn(counts);
+
+        mvc.perform(get("/api/admin/client/tag-counts").param("scope", "MY"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.APPOINTED").value(1));
+
+        verify(roleGuard).requireStaff(adviser);
+        verify(clientService).tagCounts("S001", null, false);
     }
 
     @Test
@@ -135,7 +155,7 @@ class ClientControllerTest {
     @DisplayName("老板查看全司已分配客户时强制排除公海")
     void allScopeMeansCompanyAssignedOnly() throws Exception {
         ClientService clientService = mock(ClientService.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard, mock(com.loan.staff.mapper.StaffMapper.class));
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
@@ -143,7 +163,7 @@ class ClientControllerTest {
         UserContext.setUser(staff("BOSS", "B001"));
         when(clientService.pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ASSIGNED"), isNull(), isNull(), isNull(), isNull(), isNull()))
+                eq("ASSIGNED"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
 
         mvc.perform(get("/api/admin/client/page-lite").param("scope", "ALL"))
@@ -152,14 +172,14 @@ class ClientControllerTest {
 
         verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ASSIGNED"), isNull(), isNull(), isNull(), isNull(), isNull());
+                eq("ASSIGNED"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
     }
 
     @Test
     @DisplayName("公司公海统一使用 ENTERPRISE 枚举")
     void companySeaUsesEnterpriseLevel() throws Exception {
         ClientService clientService = mock(ClientService.class);
-        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard);
+        ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard, mock(com.loan.staff.mapper.StaffMapper.class));
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentUserArgumentResolver())
@@ -167,7 +187,7 @@ class ClientControllerTest {
         UserContext.setUser(staff("ADVISER", "S001"));
         when(clientService.pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull()))
+                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
 
         mvc.perform(get("/api/admin/client/page-lite").param("scope", "COMPANY_SEA"))
@@ -176,7 +196,7 @@ class ClientControllerTest {
 
         verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull());
+                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
     }
 
     @Test

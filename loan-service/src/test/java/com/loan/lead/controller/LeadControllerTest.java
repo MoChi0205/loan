@@ -98,6 +98,34 @@ class LeadControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/admin/lead/{leadNo} returns owned lead profile")
+    void get_api_admin_lead_detail() throws Exception {
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(get("/api/admin/lead/lead-test-1"))
+                    .andExpect(status().isOk());
+            Mockito.verify(leadService).detail("lead-test-1", "T001");
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("POST /api/admin/lead/{leadNo}/follow records follow-up")
+    void post_api_admin_lead_follow() throws Exception {
+        try {
+            UserContext.setUser(TestUsers.staffUser());
+            mvc.perform(post("/api/admin/lead/lead-test-1/follow")
+                            .content("{\"followStatus\":\"INTENTION\",\"content\":\"客户有意向\"}")
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk());
+            Mockito.verify(leadService).follow("lead-test-1", "T001", "tester", "INTENTION", "客户有意向");
+        } finally {
+            UserContext.clear();
+        }
+    }
+
+    @Test
     @DisplayName("POST /api/admin/lead/assign [auth]")
     void post_api_admin_lead_assign() throws Exception {
         try {

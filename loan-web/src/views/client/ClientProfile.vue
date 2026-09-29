@@ -21,14 +21,21 @@
     </div>
 
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
+      <div class="customer-segment-bar" role="tablist" aria-label="我的客户标签">
+        <button v-for="item in customerTagSegments" :key="item.value" type="button" class="customer-segment"
+          :class="{ active: clientQuery.customerTag === item.value }" @click="selectCustomerTag(item.value)">
+          <span class="segment-dot" :class="`segment-dot--${item.tone}`"></span>{{ item.label }}
+        </button>
+        <span class="segment-hint">标签随预约、来访、服务工单实时更新</span>
+      </div>
       <AppSearchBar :loading="listLoading" @search="searchClients" @reset="resetClients">
         <el-input v-model="clientQuery.keyword" placeholder="企业名 / 姓名 / 手机号 / 证件号码" clearable style="width: 320px" @keyup.enter="searchClients" />
         <el-select v-model="clientQuery.customerGroup" placeholder="客户类型" clearable style="width: 130px"><el-option label="企业客户" value="ENTERPRISE" /><el-option label="个人客户" value="PERSONAL" /></el-select>
         <el-select v-model="clientQuery.status" placeholder="客户状态" clearable style="width: 130px"><el-option label="有效" value="ACTIVE" /><el-option label="已停用" value="DISABLED" /></el-select>
         <el-select v-model="clientQuery.followState" placeholder="跟进情况" clearable style="width: 150px"><el-option label="从未跟进" value="NEVER" /><el-option label="30天未跟进" value="OVERDUE" /><el-option label="7天内已跟进" value="RECENT" /></el-select>
         <el-select v-model="clientQuery.hasDeal" placeholder="成交情况" clearable style="width: 130px"><el-option label="已成交" :value="true" /><el-option label="未成交" :value="false" /></el-select>
-        <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerDeptCode" placeholder="归属部门" clearable filterable style="width: 160px"><el-option v-for="item in filterDepartments" :key="item.code" :label="item.name" :value="item.code" /></el-select>
-        <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerStaffCode" placeholder="归属顾问" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" style="width: 180px"><el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="item.staffName" :value="item.staffCode" /></el-select>
+        <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerDeptCode" placeholder="归属团队" clearable filterable style="width: 160px" @change="onOwnerDepartmentChange"><el-option v-for="item in filterDepartments" :key="item.code" :label="item.name" :value="item.code" /></el-select>
+        <el-select v-if="['TEAM', 'ALL'].includes(clientScope)" v-model="clientQuery.ownerStaffCode" placeholder="归属员工" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" style="width: 180px"><el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || item.roleCode || '员工'}）`" :value="item.staffCode" /></el-select>
         <el-select v-model="clientQuery.customerTag" placeholder="客户标签" clearable style="width: 140px"><el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" /></el-select>
         <el-button text type="primary" @click="moreFiltersVisible = !moreFiltersVisible">{{ moreFiltersVisible ? '收起筛选' : '更多筛选' }}</el-button>
         <template v-if="moreFiltersVisible">
@@ -82,7 +89,7 @@
         </el-table-column>
         <el-table-column label="类型" width="100"><template #default="{ row }">{{ row.customerGroup === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
         <el-table-column label="来源" width="130"><template #default="{ row }">{{ sourceText(row.source) }}</template></el-table-column>
-        <el-table-column label="客户标签" width="110"><template #default="{ row }"><span class="loan-tag loan-tag-info">{{ customerTagText(row.customerTag) }}</span></template></el-table-column>
+        <el-table-column label="客户标签" min-width="180"><template #default="{ row }"><span v-for="tag in row.customerTags || [row.customerTag]" :key="tag" class="loan-tag loan-tag-info customer-row-tag">{{ customerTagText(tag) }}</span></template></el-table-column>
         <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
         <el-table-column label="最近跟进" width="190">
           <template #default="{ row }">
@@ -267,7 +274,7 @@ import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
-import { getClientDetail, pageClients, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory, claimUnassignedClient, batchClaimClients } from '@/api/client';
+import { getClientDetail, pageClients, getClientTagCounts, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory, claimUnassignedClient, batchClaimClients } from '@/api/client';
 import { staffPage, departmentTree } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { useTable } from '@/composables/useTable';
@@ -292,9 +299,10 @@ const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
 const moreFiltersVisible = ref(false);
-const scopeTitle = Object.freeze({ MY: '我的客户', TEAM: '团队客户', ALL: '全司客户', COMPANY_SEA: '客户公海', TEAM_SEA: '团队公海' });
+const scopeTitle = Object.freeze({ MY: '我的客户', TEAM: '部门客户', ALL: '公司客户', COMPANY_SEA: '客户公海', TEAM_SEA: '团队公海' });
 const listPageTitle = computed(() => scopeTitle[clientScope.value] || '客户档案');
 const selectedClientCodes = ref([]);
+const tagCounts = ref({});
 function onClientSelection(rows) { selectedClientCodes.value = rows.map((row) => row.clientCode); }
 async function onBatchClaim() {
   await ElMessageBox.confirm(`确认批量认领选中的 ${selectedClientCodes.value.length} 位客户？`, '批量认领');
@@ -340,13 +348,48 @@ function flattenDepartments(nodes, output = []) {
 }
 async function searchFilterStaff(keyword = '') {
   filterStaffLoading.value = true;
-  try { const res = await staffPage({ page: 1, size: 50, keyword, deptCode: clientQuery.ownerDeptCode || undefined }); filterStaffOptions.value = res.data?.records || []; }
+  try {
+    const role = userStore.roleCode;
+    const params = { page: 1, size: 50, keyword };
+    if (role === 'DEPT_MANAGER') params.deptCode = userStore.user?.deptCode || undefined;
+    else if (['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(role)) params.deptCode = clientQuery.ownerDeptCode || undefined;
+    else if (role === 'ADVISER') params.keyword = userStore.displayName || keyword;
+    const rows = (await staffPage(params)).data?.records || [];
+    filterStaffOptions.value = rows.filter((row) => {
+      if (role === 'ADVISER') return row.staffCode === userStore.user?.userNo;
+      if (role === 'DEPT_MANAGER') return row.deptCode === userStore.user?.deptCode;
+      return true;
+    });
+  }
   finally { filterStaffLoading.value = false; }
 }
-async function loadFilterDepartments() {
-  if (clientScope.value !== 'ALL' || filterDepartments.value.length) return;
-  const res = await departmentTree(); filterDepartments.value = flattenDepartments(res.data || []); await searchFilterStaff('');
+function onOwnerDepartmentChange() {
+  clientQuery.ownerStaffCode = '';
+  searchFilterStaff('');
+  loadClientTagCounts();
 }
+async function loadFilterDepartments() {
+  if (!['TEAM', 'ALL'].includes(clientScope.value)) return;
+  if (clientScope.value === 'ALL' && !filterDepartments.value.length) {
+    const res = await departmentTree(); filterDepartments.value = flattenDepartments(res.data || []);
+  }
+  await searchFilterStaff('');
+}
+
+async function loadClientTagCounts() {
+  if (clientCode.value) return;
+  try {
+    const params = { scope: clientScope.value };
+    if (clientScope.value === 'ALL') {
+      params.ownerDeptCode = clientQuery.ownerDeptCode || undefined;
+      params.ownerStaffCode = clientQuery.ownerStaffCode || undefined;
+    }
+    tagCounts.value = (await getClientTagCounts(params)).data || {};
+  } catch (e) {
+    tagCounts.value = {};
+  }
+}
+watch(() => [clientScope.value, clientQuery.ownerDeptCode, clientQuery.ownerStaffCode], loadClientTagCounts);
 
 /** 独立子菜单固定列表范围；旧 query 链接只作兼容，不再渲染页内范围 Tab。 */
 function resolveRouteScope() {
@@ -618,7 +661,26 @@ async function loadDetail(code) {
 // 枚举映射与脱敏兜底（后端已脱敏则原样展示）
 // ============================================================
 const sourceMap = { MINI: '小程序注册', INVITE: '小程序·邀请', WEB: 'Web 录入', BOSS: '老板', ADVISER: '顾问', CHANNEL: '渠道', VIP: 'VIP 客户', MINI_STAFF_CREATE: '员工移动端录入', SENSITIVE_VIEW_TEST: '测试数据' };
-const customerTagMap = { NEW: '待跟进', INTENTION: '意向客户', POTENTIAL: '潜在客户', DEAL: '已成交', VISITED: '已来访', NO_ANSWER: '无人接听', NO_NEED: '无需求' };
+const customerTagMap = { NEW: '新用户', APPOINTED: '已预约', INTENTION: '意向客户', POTENTIAL: '潜在客户', VISITED: '已来访', DEAL: '已成交', NO_ANSWER: '无人接听', NO_NEED: '无需求' };
+const customerTagSegmentSpecs = [
+  { value: '', label: '全部客户', tone: 'all' },
+  { value: 'APPOINTED', label: '已预约', tone: 'info' },
+  { value: 'VISITED', label: '已来访', tone: 'visit' },
+  { value: 'INTENTION', label: '意向客户', tone: 'intent' },
+  { value: 'DEAL', label: '已成交', tone: 'deal' },
+  { value: 'NO_ANSWER', label: '无人接听', tone: 'muted' },
+  { value: 'NO_NEED', label: '无需求', tone: 'muted' },
+];
+const customerTagSegments = computed(() => customerTagSegmentSpecs.map((item) => ({
+  ...item,
+  count: item.value ? Number(tagCounts.value[item.value] || 0) : Number(tagCounts.value.total || 0),
+  label: `${item.label}（${item.value ? Number(tagCounts.value[item.value] || 0) : Number(tagCounts.value.total || 0)}）`,
+})));
+function selectCustomerTag(tag) {
+  clientQuery.customerTag = tag;
+  clientQuery.page = 1;
+  searchClients();
+}
 function customerTagText(code) { return customerTagMap[code] || (code ? '待标注' : '未标注'); }
 function sourceText(code) {
   return sourceMap[code] || code || '-';
@@ -847,6 +909,7 @@ watch(
       clientScope.value = resolveRouteScope();
       clientQuery.scope = clientScope.value;
       loadFilterDepartments();
+      loadClientTagCounts();
     loadHistory('');
     loadClients();
   },
@@ -859,6 +922,13 @@ watch(
   display: flex;
   gap: 10px;
 }
+.customer-segment-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 0 14px; border-bottom:1px solid var(--loan-border); margin-bottom:14px; }
+.customer-segment { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border:1px solid var(--loan-border); border-radius:999px; background:var(--loan-surface); color:var(--loan-text-secondary); cursor:pointer; transition:all .18s ease; }
+.customer-segment:hover, .customer-segment.active { border-color:var(--loan-primary); background:var(--loan-primary-soft); color:var(--loan-primary); }
+.segment-dot { width:7px; height:7px; border-radius:50%; background:var(--loan-text-muted); }
+.segment-dot--info { background:#4f7cff; }.segment-dot--visit { background:#7c5cff; }.segment-dot--intent { background:#e6a23c; }.segment-dot--deal { background:#21a366; }.segment-dot--muted { background:#9aa4b2; }.segment-dot--all { background:var(--loan-primary); }
+.segment-hint { margin-left:auto; color:var(--loan-text-muted); font-size:12px; }
+.customer-row-tag { margin:2px 4px 2px 0; display:inline-block; }
 .profile-body {
   display: flex;
   flex-direction: column;

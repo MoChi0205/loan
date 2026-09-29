@@ -194,6 +194,38 @@ class LeadServiceChannelApprovalTest {
         verify(leadMapper, never()).releaseOwned(any(), any(), any(), any());
     }
 
+    @Test
+    void ownerCanFollowLeadAndWritesHistory() {
+        Lead lead = channelLead("NEW");
+        lead.setLeadNo("lead-1");
+        lead.setOwnerStaffCode("ADV001");
+        when(leadMapper.selectOne(any())).thenReturn(lead);
+        when(leadMapper.followOwned(org.mockito.ArgumentMatchers.eq("lead-1"),
+                org.mockito.ArgumentMatchers.eq("ADV001"), org.mockito.ArgumentMatchers.eq("INTENTION"),
+                any(), org.mockito.ArgumentMatchers.eq("张顾问"))).thenReturn(1);
+
+        service.follow("lead-1", "ADV001", "张顾问", "INTENTION", "客户有意向");
+
+        verify(leadMapper).followOwned(org.mockito.ArgumentMatchers.eq("lead-1"),
+                org.mockito.ArgumentMatchers.eq("ADV001"), org.mockito.ArgumentMatchers.eq("INTENTION"),
+                any(), org.mockito.ArgumentMatchers.eq("张顾问"));
+        verify(recordMapper).insert(any());
+    }
+
+    @Test
+    void nonOwnerCannotFollowLead() {
+        Lead lead = channelLead("NEW");
+        lead.setLeadNo("lead-1");
+        lead.setOwnerStaffCode("ADV002");
+        when(leadMapper.selectOne(any())).thenReturn(lead);
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.follow("lead-1", "ADV001", "张顾问", "INTENTION", "越权跟进"));
+
+        assertEquals(ResultCode.FORBIDDEN.getCode(), error.getCode());
+        verify(leadMapper, never()).followOwned(any(), any(), any(), any(), any());
+    }
+
     private Lead channelLead(String status) {
         Lead lead = new Lead();
         lead.setLeadNo("lead-own");
