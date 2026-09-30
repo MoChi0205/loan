@@ -28,6 +28,8 @@ import com.loan.notification.service.NotificationService;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import com.loan.utils.DesensitizeUtils;
+import com.loan.resourcepool.entity.ResourcePoolConfig;
+import com.loan.resourcepool.service.ResourcePoolConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -88,6 +90,7 @@ public class ClientAllocationService {
     private final ClientLifecycleEventMapper lifecycleEventMapper;
     private final NotificationService notificationService;
     private final BusinessNameService businessNameService;
+    private final ResourcePoolConfigService resourcePoolConfigService;
 
     /**
      * 分页查询未分配客户池。
@@ -122,7 +125,7 @@ public class ClientAllocationService {
             row.put("customerName", client.getContactName());
             row.put("enterpriseName", client.getEnterpriseName());
             row.put("customerGroup", client.getCustomerGroup());
-            row.put("phone", DesensitizeUtils.phone(AesUtils.decrypt(client.getPhone())));
+            row.put("phone", DesensitizeUtils.phone(client.getPhone()));
             row.put("registeredAt", client.getCreatedAt());
             ClientAllocationApproval pending = pendingMap.get(client.getClientCode());
             row.put("allocationPending", pending != null);
@@ -467,7 +470,7 @@ public class ClientAllocationService {
             if (client != null) {
                 row.put("entName", client.getEnterpriseName());
                 row.put("contactName", client.getContactName());
-                row.put("contactPhone", DesensitizeUtils.phone(AesUtils.decrypt(client.getPhone())));
+                row.put("contactPhone", DesensitizeUtils.phone(client.getPhone()));
             }
             rows.add(row);
         }
@@ -772,19 +775,24 @@ public class ClientAllocationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int recycleOverdue() {
-        ClientRecycleConfig cfg = recycleConfig();
-        if (cfg == null || !cfg.isRecycleEnabled() || cfg.getRecycleDays() == null || cfg.getRecycleDays() <= 0) {
-            return 0;
-        }
-        LocalDateTime threshold = LocalDateTime.now().minusDays(cfg.getRecycleDays());
-        List<ClientProfile> overdue = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
-                .isNotNull(ClientProfile::getOwnerStaffCode)
-                .and(w -> w.isNull(ClientProfile::getLastFollowedAt)
-                        .or().lt(ClientProfile::getLastFollowedAt, threshold)));
         int n = 0;
-        for (ClientProfile client : overdue) {
-            recycleClient(client, "因超期未跟进已回收进公海", "system");
-            n++;
+        long cursor = 0L;
+        while (true) {
+            List<ClientProfile> batch = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+                    .isNotNull(ClientProfile::getOwnerStaffCode)
+                    .gt(ClientProfile::getId, cursor)
+                    .orderByAsc(ClientProfile::getId).last("LIMIT 500"));
+            if (batch == null || batch.isEmpty()) break;
+            for (ClientProfile client : batch) {
+                if (client.getId() != null) cursor = client.getId();
+                Staff owner = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                        .eq(Staff::getStaffCode, client.getOwnerStaffCode()).last("LIMIT 1"));
+                ResourcePoolConfig cfg = resourcePoolConfigService.resolve(client.getOwnerStaffCode(), owner == null ? null : owner.getDeptCode());
+                int days = recycleDays(cfg, client.getCustomerTag());
+                if (days <= 0 || !inactiveBefore(client, LocalDateTime.now().minusDays(days))) continue;
+                recycleClient(client, "因超期未跟进已回收进公海", "system");
+                n++;
+            }
         }
         return n;
     }
@@ -796,23 +804,23 @@ public class ClientAllocationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int warnRecycle() {
-        ClientRecycleConfig cfg = recycleConfig();
-        if (cfg == null || !cfg.isRecycleEnabled() || cfg.getRecycleDays() == null || cfg.getRecycleDays() <= 0) {
-            return 0;
-        }
-        int warnDays = cfg.getWarnDays() != null && cfg.getWarnDays() > 0 ? cfg.getWarnDays() : 3;
-        LocalDateTime warnStart = LocalDateTime.now().minusDays(cfg.getRecycleDays());
-        LocalDateTime warnEnd = LocalDateTime.now().minusDays(Math.max(0, cfg.getRecycleDays() - warnDays));
-        List<ClientProfile> warns = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
-                .isNotNull(ClientProfile::getOwnerStaffCode)
-                .and(w -> w.isNull(ClientProfile::getLastFollowedAt)
-                        .or().between(ClientProfile::getLastFollowedAt, warnStart, warnEnd)));
         int sent = 0;
+        List<ClientProfile> warns = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+                .isNotNull(ClientProfile::getOwnerStaffCode).orderByAsc(ClientProfile::getId).last("LIMIT 500"));
         for (ClientProfile client : warns) {
             String ownerNo = client.getOwnerStaffCode();
             if (ownerNo == null) {
                 continue;
             }
+            Staff owner = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, ownerNo).last("LIMIT 1"));
+            ResourcePoolConfig cfg = resourcePoolConfigService.resolve(ownerNo, owner == null ? null : owner.getDeptCode());
+            int recycleDays = recycleDays(cfg, client.getCustomerTag());
+            int warnDays = cfg == null || cfg.getWarnDays() == null ? 3 : cfg.getWarnDays();
+            if (recycleDays <= 0 || warnDays <= 0) continue;
+            LocalDateTime threshold = LocalDateTime.now().minusDays(recycleDays);
+            LocalDateTime warnThreshold = LocalDateTime.now().minusDays(Math.max(0, recycleDays - warnDays));
+            LocalDateTime active = activeAt(client);
+            if (active != null && (active.isBefore(threshold) || active.isAfter(warnThreshold))) continue;
             if (notificationService.existsByTypeAndRelatedId(
                     Notification.TYPE_CLIENT_RECYCLE_WARN, client.getClientCode())) {
                 continue;
@@ -825,6 +833,25 @@ public class ClientAllocationService {
             sent++;
         }
         return sent;
+    }
+
+    private int recycleDays(ResourcePoolConfig cfg, String tag) {
+        if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1) return 0;
+        String normalized = StringUtils.hasText(tag) ? tag.trim().toUpperCase() : "NEW";
+        if ("DEAL".equals(normalized) || "SIGNED".equals(normalized) || "NO_NEED".equals(normalized)) return 0;
+        Integer days = resourcePoolConfigService.parseStatusDays(cfg).get(normalized);
+        return days == null ? (cfg.getRecycleDays() == null ? 0 : cfg.getRecycleDays()) : days;
+    }
+
+    private LocalDateTime activeAt(ClientProfile client) {
+        if (client.getLastFollowedAt() != null) return client.getLastFollowedAt();
+        if (client.getUpdatedAt() != null) return client.getUpdatedAt();
+        return client.getCreatedAt();
+    }
+
+    private boolean inactiveBefore(ClientProfile client, LocalDateTime threshold) {
+        LocalDateTime active = activeAt(client);
+        return active == null || active.isBefore(threshold);
     }
 
     /**
@@ -982,9 +1009,11 @@ public class ClientAllocationService {
     private void recycleClient(ClientProfile client, String reason, String operatorName,
                                String seaLevel, String seaDeptCode, LoanUser operator, String reasonCode) {
         String from = client.getOwnerStaffCode();
-        ClientRecycleConfig cfg = recycleConfig();
-        int cooldown = (cfg != null && cfg.getCooldownDays() != null && cfg.getCooldownDays() > 0)
-                ? cfg.getCooldownDays() : 7;
+        Staff owner = StringUtils.hasText(from) ? staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                .eq(Staff::getStaffCode, from).last("LIMIT 1")) : null;
+        ResourcePoolConfig poolCfg = resourcePoolConfigService.resolve(from, owner == null ? null : owner.getDeptCode());
+        int cooldown = (poolCfg != null && poolCfg.getCooldownDays() != null && poolCfg.getCooldownDays() >= 0)
+                ? poolCfg.getCooldownDays() : 7;
         clientProfileMapper.update(null, new LambdaUpdateWrapper<ClientProfile>()
                 .eq(ClientProfile::getClientCode, client.getClientCode())
                 .set(ClientProfile::getOwnerStaffCode, (String) null)

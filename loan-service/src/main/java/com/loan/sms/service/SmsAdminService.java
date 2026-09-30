@@ -180,7 +180,8 @@ public class SmsAdminService {
         List<Map<String, Object>> records = result.getRecords().stream().map(r -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", r.getId());
-            m.put("phone", com.loan.infrastructure.security.AesUtils.decrypt(r.getPhone()));
+            // 短信记录手机号按记录表口径直接脱敏；该实体未使用 AesTypeHandler，禁止误走 AES 解密。
+            m.put("phone", com.loan.utils.DesensitizeUtils.phone(r.getPhone()));
             m.put("smsType", r.getSmsType());
             m.put("templateCode", r.getTemplateCode());
             m.put("content", r.getContent());

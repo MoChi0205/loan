@@ -178,6 +178,22 @@ public class OrgController {
         return Result.ok();
     }
 
+    @PostMapping("/staff/transfer-data")
+    @OpLog(bizType = "组织权限", action = "STAFF_DATA_TRANSFER")
+    public Result<Map<String, Object>> transferStaffData(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        AdminRoleGuard.requireSystemConfigAdmin(user);
+        return Result.ok(orgWriteService.transferStaffData((String) body.get("fromStaffCode"), (String) body.get("targetStaffCode"),
+                (String) body.get("mode"), (String) body.get("reason"), user.getUserNo()));
+    }
+
+    @PostMapping("/staff/transfer-team-data")
+    @OpLog(bizType = "组织权限", action = "TEAM_DATA_TRANSFER")
+    public Result<Map<String, Object>> transferTeamData(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        AdminRoleGuard.requireSystemConfigAdmin(user);
+        return Result.ok(orgWriteService.transferTeamData((String) body.get("deptCode"), (String) body.get("targetStaffCode"),
+                (String) body.get("mode"), (String) body.get("reason"), user.getUserNo()));
+    }
+
     /**
      * 保存角色权限（先删后插）。
      *

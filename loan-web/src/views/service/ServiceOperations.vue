@@ -50,7 +50,7 @@
               <div class="panel-head"><h3>{{ serviceLabels.outings }}</h3><span>{{ totalOf(workbench.staffOutings) }} 人</span></div>
               <button v-for="row in recordsOf(workbench.staffOutings)" :key="row.outingNo" class="record-item" type="button" @click="row.clientCode && openClientReplay(row.clientCode)">
                 <span><strong>{{ row.staffName || '员工姓名待补充' }}</strong><small>{{ timeOnly(row.plannedStart) }} · {{ row.customerName || (row.clientCode ? '客户名称待补充' : '普通外出') }}</small></span>
-                <el-tag size="small" :type="outingTag(row.status)">{{ outingStatusText[row.status] || row.status }}</el-tag>
+                <el-tag size="small" :type="outingTag(row.status)">{{ outingStatusLabel(row) }}</el-tag>
               </button>
               <el-empty v-if="!recordsOf(workbench.staffOutings).length" description="当日暂无员工外出" :image-size="52" />
             </section>
@@ -124,7 +124,7 @@
             <el-table-column label="目的地/目的" min-width="190"><template #default="{ row }"><div>{{ row.destination }}</div><div class="cell-sub">{{ row.purpose }}</div></template></el-table-column>
             <el-table-column label="打卡" min-width="210"><template #default="{ row }"><div>出发：{{ row.actualDepartedAt ? formatDateTime(row.actualDepartedAt) : '未打卡' }}<button v-if="row.departedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'DEPART', '出发打卡照片')">照片</button></div><div class="cell-sub">返回：{{ row.actualReturnedAt ? formatDateTime(row.actualReturnedAt) : '未打卡' }}<button v-if="row.returnedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'RETURN', '返回打卡照片')">照片</button></div></template></el-table-column>
             <el-table-column label="审核" min-width="170"><template #default="{ row }"><div>{{ row.reviewerName || (row.status === 'PENDING_REVIEW' ? '待审核' : '—') }}</div><div class="cell-sub" :title="row.reviewRemark || ''">{{ row.reviewedAt ? formatDateTime(row.reviewedAt) : '' }}<span v-if="row.reviewRemark"> · {{ row.reviewRemark }}</span></div></template></el-table-column>
-            <el-table-column label="状态" width="110"><template #default="{ row }"><el-tag :type="outingTag(row.status)" size="small">{{ outingStatusText[row.status] || row.status }}</el-tag></template></el-table-column>
+            <el-table-column label="状态" width="110"><template #default="{ row }"><el-tag :type="outingTag(row.status)" size="small">{{ outingStatusLabel(row) }}</el-tag></template></el-table-column>
             <el-table-column label="操作" width="170" fixed="right"><template #default="{ row }"><template v-if="isOwnOuting(row)"><el-button v-if="row.status === 'READY'" link type="primary" @click="checkIn(row, 'depart')">出发打卡</el-button><el-button v-if="row.status === 'IN_PROGRESS'" link type="success" @click="checkIn(row, 'return')">返回打卡</el-button><el-button v-if="row.status === 'REJECTED'" link type="warning" @click="openResubmit(row)">重新提交</el-button><span v-if="row.status === 'PENDING_REVIEW'" class="cell-sub">待主管审核</span></template><template v-else-if="canReviewOuting(row)"><el-button v-if="row.status === 'PENDING_REVIEW'" link type="success" @click="onApprove(row)">通过</el-button><el-button v-if="row.status === 'PENDING_REVIEW'" link type="danger" @click="openReject(row)">驳回</el-button><span v-if="row.status !== 'PENDING_REVIEW'" class="cell-sub">仅可查看</span></template><span v-else class="cell-sub">仅可查看</span></template></el-table-column>
           </el-table>
           <AppPagination v-model:page="outingQuery.page" v-model:size="outingQuery.size" :total="outingTotal" @change="loadOutings" />
@@ -416,6 +416,7 @@ function totalOf(page) { return Number(page?.total || 0); }
 function timeOnly(value) { const text = formatDateTime(value); return text === '-' ? text : text.slice(11, 16); }
 function appointmentTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', NO_SHOW: 'danger', SERVING: 'warning', ARRIVED: 'warning' })[status] || 'info'; }
 function outingTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', IN_PROGRESS: 'warning', PENDING_REVIEW: 'warning', REJECTED: 'danger' })[status] || 'info'; }
+function outingStatusLabel(row) { return row?.pendingReturnCheckIn ? '待返回打卡' : (outingStatusText[row?.status] || row?.status || '—'); }
 
 const workbench = ref({});
 const workbenchLoading = ref(false);

@@ -519,7 +519,7 @@ public class AppointmentService {
                 dto.setCustomerName(StringUtils.hasText(client.getEnterpriseName())
                         ? client.getEnterpriseName() : client.getContactName());
                 dto.setContactName(client.getContactName());
-                dto.setContactPhoneMasked(DesensitizeUtils.phone(AesUtils.decrypt(client.getPhone())));
+                dto.setContactPhoneMasked(DesensitizeUtils.phone(client.getPhone()));
             }
             dto.setHostStaffCode(item.getHostStaffCode());
             if (host != null) {

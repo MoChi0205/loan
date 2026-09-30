@@ -64,11 +64,14 @@ public class ApprovalController {
     @GetMapping("/channel-lead/page")
     public Result<PageResult<Map<String, Object>>> channelLeadPage(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String leadType,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
         miniRoleGuard.requireChannelFinalApprover(user);
-        return Result.ok(leadService.channelPendingPage(keyword, PageParams.page(page), PageParams.size(size)));
+        return Result.ok(leadService.channelPendingPage(keyword, leadType, startDate, endDate, PageParams.page(page), PageParams.size(size)));
     }
 
     @PostMapping("/channel-lead/{leadNo}/audit")

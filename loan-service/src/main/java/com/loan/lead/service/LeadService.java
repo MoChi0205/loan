@@ -16,6 +16,8 @@ import com.loan.lead.entity.Lead;
 import com.loan.lead.entity.LeadAllocationRecord;
 import com.loan.lead.mapper.LeadAllocationRecordMapper;
 import com.loan.lead.mapper.LeadMapper;
+import com.loan.lead.entity.LeadRecycleConfig;
+import com.loan.lead.mapper.LeadRecycleConfigMapper;
 import com.loan.notification.dto.NotificationReq;
 import com.loan.notification.entity.Notification;
 import com.loan.notification.service.NotificationService;
@@ -71,6 +73,7 @@ public class LeadService {
     private final NotificationService notificationService;
     private final SensitiveViewService sensitiveViewService;
     private final ClaimQuotaService claimQuotaService;
+    private final LeadRecycleConfigMapper leadRecycleConfigMapper;
 
     private static final List<String> FOLLOW_STATUSES = Arrays.asList(
             "NEW", "INTENTION", "POTENTIAL", "VISITED", "NO_ANSWER", "NO_NEED");
@@ -212,7 +215,7 @@ public class LeadService {
         Page<Lead> result = leadMapper.selectPage(new Page<>(page, size), wrapper);
         // 列表出参一律脱敏；明文仅允许通过敏感查看服务的授权、限额和审计链路读取。
         result.getRecords().forEach(lead -> {
-            String plain = com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone());
+            String plain = lead.getPhone();
             lead.setPhone(DesensitizeUtils.phone(plain));
             lead.setCustomerTag(customerTagOf(lead));
         });
@@ -233,7 +236,7 @@ public class LeadService {
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, Lead::getCreatedAt);
         Page<Lead> result = leadMapper.selectPage(new Page<>(page, size), wrapper);
         result.getRecords().forEach(lead -> {
-            String plain = com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone());
+            String plain = lead.getPhone();
             lead.setPhone(DesensitizeUtils.phone(plain));
             lead.setCustomerTag(customerTagOf(lead));
             lead.setRecorderStaffCode(null);
@@ -260,18 +263,22 @@ public class LeadService {
     }
 
     /** 公司终审人查看渠道新增线索待审列表。 */
-    public PageResult<Map<String, Object>> channelPendingPage(String keyword, int page, int size) {
+    public PageResult<Map<String, Object>> channelPendingPage(String keyword, String leadType,
+                                                              java.time.LocalDate startDate, java.time.LocalDate endDate,
+                                                              int page, int size) {
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<Lead>()
                 .eq(Lead::getSource, "CHANNEL")
                 .eq(Lead::getFollowStatus, "PENDING_APPROVAL");
-        applyLeadFilters(wrapper, null, null, keyword);
+        applyLeadFilters(wrapper, leadType, null, keyword);
+        if (startDate != null) wrapper.ge(Lead::getCreatedAt, startDate.atStartOfDay());
+        if (endDate != null) wrapper.lt(Lead::getCreatedAt, endDate.plusDays(1).atStartOfDay());
         wrapper.orderByAsc(Lead::getCreatedAt);
         Page<Lead> result = leadMapper.selectPage(new Page<>(page, size), wrapper);
         List<Map<String, Object>> records = result.getRecords().stream().map(lead -> {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("leadNo", lead.getLeadNo());
             row.put("contactName", lead.getContactName());
-            row.put("phone", DesensitizeUtils.phone(com.loan.infrastructure.security.AesUtils.decrypt(lead.getPhone())));
+            row.put("phone", DesensitizeUtils.phone(lead.getPhone()));
             row.put("leadType", lead.getLeadType());
             row.put("createdBy", lead.getCreatedBy());
             row.put("channelName", lead.getCreatedBy());
@@ -402,7 +409,7 @@ public class LeadService {
         Lead lead = requireOwnedLead(leadNo, staffCode);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("contactName", lead.getContactName());
-        result.put("phone", DesensitizeUtils.phone(AesUtils.decrypt(lead.getPhone())));
+        result.put("phone", DesensitizeUtils.phone(lead.getPhone()));
         result.put("leadType", lead.getLeadType());
         result.put("source", lead.getSource());
         result.put("followStatus", lead.getFollowStatus());
@@ -634,20 +641,29 @@ public class LeadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int recycleOverdue() {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(30);
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
-        wrapper.isNotNull(Lead::getOwnerStaffCode)
-                .and(w -> w.isNull(Lead::getLastFollowedAt)
-                        .or().lt(Lead::getLastFollowedAt, threshold));
+        wrapper.isNotNull(Lead::getOwnerStaffCode);
         List<Lead> overdue = leadMapper.selectList(wrapper);
-        List<Long> ids = new ArrayList<>();
         List<LeadAllocationRecord> records = new ArrayList<>();
+        int recycled = 0;
         for (Lead lead : overdue) {
+            LeadRecycleConfig cfg = leadRecycleConfigMapper.selectOne(new LambdaQueryWrapper<LeadRecycleConfig>()
+                    .eq(LeadRecycleConfig::getFollowStatus, lead.getFollowStatus()).last("LIMIT 1"));
+            if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1
+                    || cfg.getRecycleDays() == null || cfg.getRecycleDays() <= 0
+                    || "NO_NEED".equalsIgnoreCase(lead.getFollowStatus())) continue;
+            LocalDateTime active = lead.getLastFollowedAt() != null ? lead.getLastFollowedAt() : lead.getCreatedAt();
+            if (active != null && active.isAfter(LocalDateTime.now().minusDays(cfg.getRecycleDays()))) continue;
             String from = lead.getOwnerStaffCode();
             String ownerNo = lead.getOwnerStaffCode();
             // 回收后冷却 7 天、操作人 system（owner_staff_code 维持不变，与 updateById 原行为一致）
-            ids.add(lead.getId());
             records.add(buildRecord(lead.getLeadNo(), "RECYCLE", from, null, "system", "超期未跟进回收进公海"));
+            leadMapper.update(null, new LambdaUpdateWrapper<Lead>()
+                    .eq(Lead::getLeadNo, lead.getLeadNo()).eq(Lead::getOwnerStaffCode, from)
+                    .set(Lead::getOwnerStaffCode, (String) null)
+                    .set(Lead::getAssignBlockedUntil, LocalDateTime.now().plusDays(cfg.getCooldownDays() == null ? 7 : cfg.getCooldownDays()))
+                    .set(Lead::getUpdatedBy, "system"));
+            recycled++;
             // 站内通知：线索已回收进公海（非 DB 操作，保持逐条、顺序与位置不变）
             if (ownerNo != null) {
                 notificationService.send(buildNotice(ownerNo, Notification.TYPE_LEAD_RECYCLE_WARN,
@@ -657,13 +673,10 @@ public class LeadService {
             }
         }
         // 批量写：一次 UPDATE 回收全部过期线索 + 一次多值 INSERT 落流转记录（消除循环 UPDATE-INSERT 的 N+1）
-        if (!ids.isEmpty()) {
-            leadMapper.recycleToPool(ids, LocalDateTime.now().plusDays(7));
-        }
         if (!records.isEmpty()) {
             allocationRecordMapper.insertBatch(records);
         }
-        return overdue.size();
+        return recycled;
     }
 
     /**
@@ -673,13 +686,8 @@ public class LeadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int warnRecycle() {
-        // 3 天内到期：lastFollowedAt 在 27~30 天前（或为空且创建 27 天前）
-        LocalDateTime warnStart = LocalDateTime.now().minusDays(30);
-        LocalDateTime warnEnd = LocalDateTime.now().minusDays(27);
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
-        wrapper.isNotNull(Lead::getOwnerStaffCode)
-                .and(w -> w.isNull(Lead::getLastFollowedAt)
-                        .or().between(Lead::getLastFollowedAt, warnStart, warnEnd));
+        wrapper.isNotNull(Lead::getOwnerStaffCode);
         List<Lead> warns = leadMapper.selectList(wrapper);
         int sent = 0;
         for (Lead lead : warns) {
@@ -687,13 +695,23 @@ public class LeadService {
             if (ownerNo == null) {
                 continue;
             }
+            LeadRecycleConfig cfg = leadRecycleConfigMapper.selectOne(new LambdaQueryWrapper<LeadRecycleConfig>()
+                    .eq(LeadRecycleConfig::getFollowStatus, lead.getFollowStatus()).last("LIMIT 1"));
+            if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1
+                    || cfg.getRecycleDays() == null || cfg.getRecycleDays() <= 0) continue;
+            int warnDays = cfg.getWarnDays() == null ? 3 : cfg.getWarnDays();
+            LocalDateTime active = lead.getLastFollowedAt() != null ? lead.getLastFollowedAt() : lead.getCreatedAt();
+            if (active != null) {
+                LocalDateTime due = active.plusDays(cfg.getRecycleDays());
+                if (due.isBefore(LocalDateTime.now()) || due.isAfter(LocalDateTime.now().plusDays(warnDays))) continue;
+            }
             // 去重：同类型 + 同关联线索只发一次
             if (notificationService.existsByTypeAndRelatedId(Notification.TYPE_LEAD_RECYCLE_WARN, lead.getLeadNo())) {
                 continue;
             }
             notificationService.send(buildNotice(ownerNo, Notification.TYPE_LEAD_RECYCLE_WARN,
                     "线索即将回收预警",
-                    "线索【" + lead.getLeadNo() + "】将在 3 天内因超期未跟进被回收进公海，请及时跟进。",
+                    "线索【" + lead.getLeadNo() + "】将在 " + warnDays + " 天内因超期未跟进被回收进公海，请及时跟进。",
                     lead.getLeadNo()));
             sent++;
         }

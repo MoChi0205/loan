@@ -27,12 +27,15 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import com.loan.staff.entity.Staff;
+import com.loan.staff.mapper.StaffMapper;
 
 /**
  * 服务工单服务：建单（谁建单归谁）/ 分页 / 详情 / 状态流转。
@@ -51,6 +54,7 @@ public class OrderService {
     private final BankProductMapper bankProductMapper;
     private final RewardService rewardService;
     private final BusinessNameService businessNameService;
+    private final StaffMapper staffMapper;
 
     /** 合法状态集合 */
     private static final List<String> VALID_STATUS = Arrays.asList(
@@ -134,7 +138,8 @@ public class OrderService {
      * @param size       每页大小
      * @return 工单分页（含客户名 / 产品名）
      */
-    public PageResult<Map<String, Object>> page(String status, String keyword, boolean mineOnly,
+    public PageResult<Map<String, Object>> page(String status, String keyword, String ownerStaffCode,
+                                                LocalDate createdAtStart, LocalDate createdAtEnd, boolean mineOnly,
                                                 String roleCode, String userNo, int page, int size,
                                                 String orderBy, String orderDir) {
         LambdaQueryWrapper<ServiceOrder> wrapper = new LambdaQueryWrapper<>();
@@ -144,6 +149,26 @@ public class OrderService {
         if (mineOnly || !isManager(roleCode)) {
             wrapper.eq(ServiceOrder::getOwnerStaffCode, userNo);
         }
+        if ("DEPT_MANAGER".equalsIgnoreCase(roleCode)) {
+            Staff current = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, userNo));
+            List<String> teamCodes = current == null ? java.util.Collections.emptyList()
+                    : staffMapper.selectList(new LambdaQueryWrapper<Staff>().eq(Staff::getDeptCode, current.getDeptCode()))
+                    .stream().map(Staff::getStaffCode).collect(Collectors.toList());
+            wrapper.in(ServiceOrder::getOwnerStaffCode, teamCodes.isEmpty() ? java.util.Collections.singletonList("__NO_TEAM__") : teamCodes);
+        }
+        if (StringUtils.hasText(ownerStaffCode) && isManager(roleCode)) {
+            if ("DEPT_MANAGER".equalsIgnoreCase(roleCode)) {
+                Staff current = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, userNo));
+                Staff selected = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, ownerStaffCode));
+                if (current == null || selected == null || !StringUtils.hasText(current.getDeptCode())
+                        || !current.getDeptCode().equals(selected.getDeptCode())) {
+                    throw new BusinessException(ResultCode.FORBIDDEN, "归属顾问不在当前团队范围内");
+                }
+            }
+            wrapper.eq(ServiceOrder::getOwnerStaffCode, ownerStaffCode);
+        }
+        if (createdAtStart != null) wrapper.ge(ServiceOrder::getCreatedAt, createdAtStart.atStartOfDay());
+        if (createdAtEnd != null) wrapper.lt(ServiceOrder::getCreatedAt, createdAtEnd.plusDays(1).atStartOfDay());
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
             // 工单号模糊；客户姓名 / 企业名 / 手机号（SHA-256 哈希精确）命中则按客户编码追加匹配。
@@ -285,7 +310,7 @@ public class OrderService {
                 : clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
                         .in(ClientProfile::getClientCode, clientCodes)).stream()
                         .collect(Collectors.toMap(ClientProfile::getClientCode,
-                                c -> DesensitizeUtils.phone(AesUtils.decrypt(c.getPhone())), (a, b) -> a));
+                                c -> DesensitizeUtils.phone(c.getPhone()), (a, b) -> a));
 
         List<String> productCodes = orders.stream().map(ServiceOrder::getBankProductCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());

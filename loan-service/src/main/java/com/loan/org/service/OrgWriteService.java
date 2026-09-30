@@ -1,6 +1,7 @@
 package com.loan.org.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.loan.common.ResultCode;
 import com.loan.common.cache.UnifiedCacheService;
 import com.loan.exception.BusinessException;
@@ -13,6 +14,21 @@ import com.loan.org.mapper.RoleMapper;
 import com.loan.org.mapper.RolePermissionMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
+import com.loan.client.entity.ClientProfile;
+import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.lead.entity.Lead;
+import com.loan.lead.mapper.LeadMapper;
+import com.loan.order.entity.ServiceOrder;
+import com.loan.order.mapper.ServiceOrderMapper;
+import com.loan.serviceops.entity.ClientAppointment;
+import com.loan.serviceops.entity.ClientFollowRecord;
+import com.loan.serviceops.entity.StaffOuting;
+import com.loan.serviceops.mapper.ClientAppointmentMapper;
+import com.loan.serviceops.mapper.ClientFollowRecordMapper;
+import com.loan.serviceops.mapper.StaffOutingMapper;
+import com.loan.resourcepool.entity.StaffDataTransferRecord;
+import com.loan.resourcepool.mapper.StaffDataTransferRecordMapper;
+import com.loan.common.util.BizIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +56,13 @@ public class OrgWriteService {
     private final RoleMapper roleMapper;
     private final RolePermissionMapper rolePermissionMapper;
     private final UnifiedCacheService cacheService;
+    private final ClientProfileMapper clientProfileMapper;
+    private final LeadMapper leadMapper;
+    private final ServiceOrderMapper serviceOrderMapper;
+    private final ClientAppointmentMapper appointmentMapper;
+    private final ClientFollowRecordMapper followRecordMapper;
+    private final StaffOutingMapper outingMapper;
+    private final StaffDataTransferRecordMapper transferRecordMapper;
 
     // ============================================================
     // 部门管理
@@ -166,6 +189,92 @@ public class OrgWriteService {
         exist.setLeaveTime(LocalDateTime.now());
         exist.setUpdatedBy(operator);
         staffMapper.updateById(exist);
+    }
+
+    /** 离职员工数据交接：客户/线索进入公司公海或转给指定在职员工，服务历史保留并形成审计记录。 */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> transferStaffData(String fromStaffCode, String targetStaffCode, String mode,
+                                                  String reason, String operator) {
+        if (!StringUtils.hasText(fromStaffCode)) throw new BusinessException(ResultCode.PARAM_ERROR, "原员工工号必填");
+        Staff from = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, fromStaffCode).last("LIMIT 1"));
+        if (from == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "原员工不存在");
+        boolean toPool = "COMPANY_POOL".equalsIgnoreCase(mode) || !StringUtils.hasText(targetStaffCode);
+        if (!toPool) {
+            Staff target = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, targetStaffCode)
+                    .eq(Staff::getStatus, "ACTIVE").last("LIMIT 1"));
+            if (target == null) throw new BusinessException(ResultCode.PARAM_ERROR, "接收员工不存在或已离职");
+            if (fromStaffCode.equals(targetStaffCode)) throw new BusinessException(ResultCode.PARAM_ERROR, "接收员工不能与离职员工相同");
+        } else targetStaffCode = null;
+        int total = 0;
+        List<ClientProfile> clients = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>().eq(ClientProfile::getOwnerStaffCode, fromStaffCode));
+        for (ClientProfile row : clients) {
+            LambdaUpdateWrapper<ClientProfile> w = new LambdaUpdateWrapper<ClientProfile>().eq(ClientProfile::getClientCode, row.getClientCode()).eq(ClientProfile::getOwnerStaffCode, fromStaffCode)
+                    .set(ClientProfile::getOwnerStaffCode, targetStaffCode).set(ClientProfile::getUpdatedBy, operator);
+            if (toPool) w.set(ClientProfile::getSeaLevel, "COMPANY").set(ClientProfile::getSeaDeptCode, null);
+            else w.set(ClientProfile::getSeaLevel, null).set(ClientProfile::getSeaDeptCode, null);
+            total += clientProfileMapper.update(null, w);
+            audit(fromStaffCode, targetStaffCode, "CLIENT", row.getClientCode(), reason, operator);
+        }
+        List<Lead> leads = leadMapper.selectList(new LambdaQueryWrapper<Lead>().eq(Lead::getOwnerStaffCode, fromStaffCode));
+        for (Lead row : leads) {
+            total += leadMapper.update(null, new LambdaUpdateWrapper<Lead>().eq(Lead::getLeadNo, row.getLeadNo()).eq(Lead::getOwnerStaffCode, fromStaffCode)
+                    .set(Lead::getOwnerStaffCode, targetStaffCode).set(Lead::getUpdatedBy, operator));
+            audit(fromStaffCode, targetStaffCode, "LEAD", row.getLeadNo(), reason, operator);
+        }
+        transferOrders(fromStaffCode, targetStaffCode, reason, operator);
+        transferAppointments(fromStaffCode, targetStaffCode, reason, operator);
+        transferOutings(fromStaffCode, targetStaffCode, reason, operator);
+        transferFollowRecords(fromStaffCode, targetStaffCode, reason, operator);
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("fromStaffCode", fromStaffCode); result.put("toStaffCode", targetStaffCode); result.put("companyPool", toPool); result.put("clientCount", clients.size()); result.put("leadCount", leads.size());
+        return result;
+    }
+
+    /** 按团队批量执行离职/回收交接，团队内每名员工独立写入审计记录。 */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> transferTeamData(String deptCode, String targetStaffCode, String mode,
+                                                 String reason, String operator) {
+        if (!StringUtils.hasText(deptCode)) throw new BusinessException(ResultCode.PARAM_ERROR, "团队编码必填");
+        List<Staff> members = staffMapper.selectList(new LambdaQueryWrapper<Staff>().eq(Staff::getDeptCode, deptCode)
+                .ne(Staff::getStatus, "ACTIVE").or(w -> w.eq(Staff::getDeptCode, deptCode).eq(Staff::getStatus, "ACTIVE")));
+        int clients = 0, leads = 0;
+        for (Staff member : members) {
+            if (member.getStaffCode().equals(targetStaffCode)) continue;
+            Map<String, Object> one = transferStaffData(member.getStaffCode(), targetStaffCode, mode, reason, operator);
+            clients += ((Number) one.get("clientCount")).intValue();
+            leads += ((Number) one.get("leadCount")).intValue();
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("deptCode", deptCode); out.put("toStaffCode", targetStaffCode); out.put("clientCount", clients); out.put("leadCount", leads); out.put("staffCount", members.size());
+        return out;
+    }
+
+    private void transferOrders(String from, String to, String reason, String operator) {
+        for (ServiceOrder row : serviceOrderMapper.selectList(new LambdaQueryWrapper<ServiceOrder>().eq(ServiceOrder::getOwnerStaffCode, from))) {
+            if (StringUtils.hasText(to)) serviceOrderMapper.update(null, new LambdaUpdateWrapper<ServiceOrder>().eq(ServiceOrder::getOrderNo, row.getOrderNo()).eq(ServiceOrder::getOwnerStaffCode, from).set(ServiceOrder::getOwnerStaffCode, to).set(ServiceOrder::getUpdatedBy, operator));
+            audit(from, to, "ORDER", row.getOrderNo(), reason, operator);
+        }
+    }
+    private void transferAppointments(String from, String to, String reason, String operator) {
+        for (ClientAppointment row : appointmentMapper.selectList(new LambdaQueryWrapper<ClientAppointment>().eq(ClientAppointment::getHostStaffCode, from))) {
+            if (StringUtils.hasText(to)) appointmentMapper.update(null, new LambdaUpdateWrapper<ClientAppointment>().eq(ClientAppointment::getAppointmentNo, row.getAppointmentNo()).eq(ClientAppointment::getHostStaffCode, from).set(ClientAppointment::getHostStaffCode, to).set(ClientAppointment::getUpdatedBy, operator));
+            audit(from, to, "APPOINTMENT", row.getAppointmentNo(), reason, operator);
+        }
+    }
+    private void transferOutings(String from, String to, String reason, String operator) {
+        for (StaffOuting row : outingMapper.selectList(new LambdaQueryWrapper<StaffOuting>().eq(StaffOuting::getStaffCode, from))) {
+            if (StringUtils.hasText(to)) outingMapper.update(null, new LambdaUpdateWrapper<StaffOuting>().eq(StaffOuting::getOutingNo, row.getOutingNo()).eq(StaffOuting::getStaffCode, from).set(StaffOuting::getStaffCode, to).set(StaffOuting::getUpdatedBy, operator));
+            audit(from, to, "OUTING", row.getOutingNo(), reason, operator);
+        }
+    }
+    private void transferFollowRecords(String from, String to, String reason, String operator) {
+        for (ClientFollowRecord row : followRecordMapper.selectList(new LambdaQueryWrapper<ClientFollowRecord>().eq(ClientFollowRecord::getStaffCode, from))) {
+            if (StringUtils.hasText(to)) followRecordMapper.update(null, new LambdaUpdateWrapper<ClientFollowRecord>().eq(ClientFollowRecord::getFollowNo, row.getFollowNo()).eq(ClientFollowRecord::getStaffCode, from).set(ClientFollowRecord::getStaffCode, to).set(ClientFollowRecord::getCreatedBy, operator));
+            audit(from, to, "FOLLOW", row.getFollowNo(), reason, operator);
+        }
+    }
+    private void audit(String from, String to, String type, String code, String reason, String operator) {
+        StaffDataTransferRecord r = new StaffDataTransferRecord(); r.setTransferNo(BizIdGenerator.generate("transfer")); r.setFromStaffCode(from); r.setToStaffCode(to); r.setBusinessType(type); r.setBusinessCode(code); r.setReason(reason); r.setOperator(operator); r.setCreatedAt(LocalDateTime.now()); transferRecordMapper.insert(r);
     }
 
     // ============================================================

@@ -12,7 +12,6 @@ import com.loan.client.security.ClientAccessGuard;
 import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
 import com.loan.context.LoanUser;
-import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.invitation.entity.Invitation;
 import com.loan.invitation.mapper.InvitationMapper;
@@ -180,12 +179,19 @@ public class ClientService {
                 wrapper.exists(DEAL_EXISTS_SQL);
             } else if ("APPOINTED".equals(tag)) {
                 wrapper.exists("SELECT 1 FROM t_client_appointment a WHERE a.client_code = t_client_profile.client_code"
-                        + " AND a.status IN ('REQUESTED','CONFIRMED','ARRIVED','SERVING','COMPLETED')");
+                        + " AND a.status IN ('REQUESTED','CONFIRMED','ARRIVED','SERVING','COMPLETED')")
+                        .notExists("SELECT 1 FROM t_service_order o WHERE o.client_profile_code = t_client_profile.client_code AND o.status = 'DEAL'")
+                        .notExists("SELECT 1 FROM t_client_appointment v WHERE v.client_code = t_client_profile.client_code"
+                                + " AND (v.actual_arrived_at IS NOT NULL OR v.status IN ('ARRIVED','SERVING','COMPLETED'))");
             } else if ("VISITED".equals(tag)) {
                 wrapper.exists("SELECT 1 FROM t_client_appointment a WHERE a.client_code = t_client_profile.client_code"
-                        + " AND (a.actual_arrived_at IS NOT NULL OR a.status IN ('ARRIVED','SERVING','COMPLETED'))");
+                        + " AND (a.actual_arrived_at IS NOT NULL OR a.status IN ('ARRIVED','SERVING','COMPLETED'))")
+                        .notExists("SELECT 1 FROM t_service_order o WHERE o.client_profile_code = t_client_profile.client_code AND o.status = 'DEAL'");
             } else {
-                wrapper.eq(ClientProfile::getCustomerTag, tag);
+                wrapper.eq(ClientProfile::getCustomerTag, tag)
+                        .notExists(DEAL_EXISTS_SQL)
+                        .notExists("SELECT 1 FROM t_client_appointment a WHERE a.client_code = t_client_profile.client_code"
+                                + " AND (a.actual_arrived_at IS NOT NULL OR a.status IN ('REQUESTED','CONFIRMED','ARRIVED','SERVING','COMPLETED'))");
             }
         }
         if (StringUtils.hasText(status)) {
@@ -234,9 +240,12 @@ public class ClientService {
             m.put("customerGroup", c.getCustomerGroup());
             m.put("source", c.getSource());
             Map<String, Object> tag = dynamicTags.get(c.getClientCode());
-            m.put("customerTag", resolveDisplayTag(c, tag));
-            m.put("customerTags", resolveDisplayTags(c, tag));
-            m.put("phone", DesensitizeUtils.phone(decryptPlain(c.getPhone())));
+            String currentTag = resolveDisplayTag(c, tag);
+            m.put("customerTag", currentTag);
+            // 保留旧字段供历史客户端兼容，但始终只返回一个当前标签。
+            m.put("customerTags", java.util.Collections.singletonList(currentTag));
+            // ClientProfile.phone 已由 AesTypeHandler 在读取时解密，禁止再次解密造成误告警。
+            m.put("phone", DesensitizeUtils.phone(c.getPhone()));
             m.put("ownerStaffCode", c.getOwnerStaffCode());
             m.put("ownerStaffName", ownerNames.get(c.getOwnerStaffCode()));
             m.put("status", c.getStatus());
@@ -253,16 +262,6 @@ public class ClientService {
         if (dynamic != null && number(dynamic.get("visited")) > 0) return "VISITED";
         if (dynamic != null && number(dynamic.get("appointed")) > 0) return "APPOINTED";
         return StringUtils.hasText(client.getCustomerTag()) ? client.getCustomerTag() : "NEW";
-    }
-
-    private List<String> resolveDisplayTags(ClientProfile client, Map<String, Object> dynamic) {
-        java.util.LinkedHashSet<String> tags = new java.util.LinkedHashSet<>();
-        if (dynamic != null && number(dynamic.get("appointed")) > 0) tags.add("APPOINTED");
-        if (dynamic != null && number(dynamic.get("visited")) > 0) tags.add("VISITED");
-        if (dynamic != null && number(dynamic.get("deal")) > 0) tags.add("DEAL");
-        if (StringUtils.hasText(client.getCustomerTag())) tags.add(client.getCustomerTag());
-        if (tags.isEmpty()) tags.add("NEW");
-        return new java.util.ArrayList<>(tags);
     }
 
     private int number(Object value) {
@@ -303,7 +302,8 @@ public class ClientService {
         // —— 基础信息 ——
         detail.put("clientCode", client.getClientCode());
         detail.put("name", client.getContactName());
-        String phonePlain = decryptPlain(client.getPhone());
+        // ClientProfile.phone 已由 AesTypeHandler 在读取时解密。
+        String phonePlain = client.getPhone();
         detail.put("phone", StringUtils.hasText(phonePlain) ? DesensitizeUtils.phone(phonePlain) : "未绑定");
         detail.put("source", client.getSource());
         detail.put("ownerStaffCode", client.getOwnerStaffCode());
@@ -317,7 +317,8 @@ public class ClientService {
         // —— 企业信息 ——
         Map<String, Object> enterprise = new LinkedHashMap<>();
         enterprise.put("enterpriseName", client.getEnterpriseName());
-        enterprise.put("creditCode", DesensitizeUtils.creditCode(decryptPlain(client.getCreditCode())));
+        // ClientProfile.creditCode 同样由 AesTypeHandler 在读取时解密。
+        enterprise.put("creditCode", DesensitizeUtils.creditCode(client.getCreditCode()));
         detail.put("enterprise", enterprise);
         // —— 个人档案（复用 PersonalProfileService 脱敏读取） ——
         detail.put("personal", personalProfileService.getByClientCode(clientCode));
@@ -535,20 +536,6 @@ public class ClientService {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "客户档案不存在");
         }
         return client;
-    }
-
-    /**
-     * 密文转明文：AesTypeHandler 未介入的读取直接解密；已解密过的原样返回。
-     *
-     * @param stored 存储值（可能是密文或明文）
-     * @return 明文，空返回 null
-     */
-    private String decryptPlain(String stored) {
-        if (!StringUtils.hasText(stored)) {
-            return null;
-        }
-        String plain = AesUtils.decrypt(stored);
-        return plain != null ? plain : stored;
     }
 
     /**

@@ -227,7 +227,7 @@ public class OrgService {
             m.put("deptName", s.getDeptCode() == null ? null : deptMap.get(s.getDeptCode()));
             m.put("roleCode", s.getRoleCode());
             m.put("roleName", roleMap.get(s.getRoleCode()));
-            m.put("phone", DesensitizeUtils.phone(com.loan.infrastructure.security.AesUtils.decrypt(s.getPhone())));
+            m.put("phone", DesensitizeUtils.phone(s.getPhone()));
             return m;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);

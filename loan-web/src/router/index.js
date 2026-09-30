@@ -145,6 +145,18 @@ const routes = [
         redirect: '/client/my',
       },
       {
+        path: 'client/import-tasks',
+        name: 'ClientImportTasks',
+        component: () => import('@/views/client/ImportTasks.vue'),
+        meta: { title: '客户导入进度', permission: 'page:client' },
+      },
+      {
+        path: 'client/resource-pool-config',
+        name: 'ResourcePoolConfig',
+        component: () => import('@/views/client/ResourcePoolConfig.vue'),
+        meta: { title: '资源池回收规则', permission: 'page:client' },
+      },
+      {
         path: 'client/my',
         name: 'MyClients',
         component: () => import('@/views/client/ClientProfile.vue'),

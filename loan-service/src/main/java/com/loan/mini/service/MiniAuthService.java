@@ -319,7 +319,7 @@ public class MiniAuthService {
         m.put("customerGroup", client.getCustomerGroup());
         m.put("enterpriseName", client.getEnterpriseName());
         m.put("contactName", client.getContactName());
-        m.put("phone", DesensitizeUtils.phone(AesUtils.decrypt(client.getPhone())));
+        m.put("phone", DesensitizeUtils.phone(client.getPhone()));
         m.put("invitedFlag", client.getInvitedFlag());
         m.put("vipLevel", client.getVipLevel());
         m.put("vipExpireAt", client.getVipExpireAt());

@@ -500,6 +500,16 @@ public class OutingService {
         dto.setStatus(item.getStatus());
         dto.setDepartureCheckInCompleted(item.getActualDepartedAt() != null);
         dto.setReturnCheckInCompleted(item.getActualReturnedAt() != null);
+        boolean serviceCompleted = false;
+        if (StringUtils.hasText(item.getAppointmentNo())) {
+            try {
+                ClientAppointment appointment = appointmentService.requireAppointment(item.getAppointmentNo());
+                serviceCompleted = AppointmentStatus.COMPLETED.name().equals(appointment.getStatus());
+            } catch (Exception ignored) { /* 预约已归档时仍保留外出记录，按打卡状态展示 */ }
+        }
+        dto.setServiceCompleted(serviceCompleted);
+        dto.setPendingReturnCheckIn(OutingStatus.IN_PROGRESS.name().equals(item.getStatus()) && serviceCompleted
+                && item.getActualReturnedAt() == null);
         dto.setReviewerName(item.getReviewerName());
         dto.setReviewedAt(item.getReviewedAt());
         dto.setReviewRemark(item.getReviewRemark());

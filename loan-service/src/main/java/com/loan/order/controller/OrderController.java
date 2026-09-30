@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 
 /**
  * 服务工单 HTTP 接口（Web 管理端）。
@@ -62,13 +64,16 @@ public class OrderController {
     public Result<PageResult<Map<String, Object>>> page(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String ownerStaffCode,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtEnd,
             @RequestParam(defaultValue = "false") boolean mineOnly,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
             @CurrentUser LoanUser user) {
-        return Result.ok(orderService.page(status, keyword, mineOnly,
+        return Result.ok(orderService.page(status, keyword, ownerStaffCode, createdAtStart, createdAtEnd, mineOnly,
                 user == null ? null : user.getRoleCode(),
                 user == null ? null : user.getUserNo(),
                 PageParams.page(page), PageParams.size(size),

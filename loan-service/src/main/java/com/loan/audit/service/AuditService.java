@@ -185,7 +185,7 @@ public class AuditService {
         if (profile != null) {
             view.put("contactName", profile.getContactName());
             view.put("enterpriseName", profile.getEnterpriseName());
-            view.put("contactPhoneMasked", DesensitizeUtils.phone(AesUtils.decrypt(profile.getPhone())));
+            view.put("contactPhoneMasked", DesensitizeUtils.phone(profile.getPhone()));
             if ("ENTERPRISE".equals(profile.getCustomerGroup())) {
                 view.put("identityType", "统一社会信用代码");
                 view.put("identityMasked", maskCreditCode(profile.getCreditCode()));

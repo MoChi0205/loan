@@ -97,7 +97,7 @@ public class StaffReportAggregationService {
         target.setClientCode(source.getClientCode());
         target.setCustomerGroup(source.getCustomerGroup());
         target.setContactName(source.getContactName());
-        target.setContactPhoneMasked(maskPhone(AesUtils.decrypt(source.getPhone())));
+        target.setContactPhoneMasked(maskPhone(source.getPhone()));
         target.setEnterpriseName(source.getEnterpriseName());
         target.setCreditCodeMasked(maskCreditCode(source.getCreditCode()));
         if ("ENTERPRISE".equals(source.getCustomerGroup())) {

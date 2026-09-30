@@ -146,6 +146,8 @@
     <div v-show="activeTab === 'channelLead'" class="loan-card">
       <AppSearchBar :loading="loadingCL" @search="searchCL" @reset="resetCL">
         <el-input v-model="queryCL.keyword" placeholder="联系人 / 手机号 / 渠道名称" style="width: 260px" clearable @keyup.enter="searchCL" />
+        <el-select v-model="queryCL.leadType" placeholder="客群" clearable style="width: 120px"><el-option label="个人" value="PERSONAL" /><el-option label="企业" value="ENTERPRISE" /></el-select>
+        <el-date-picker v-model="queryCL.dateRange" type="daterange" value-format="YYYY-MM-DD" range-separator="至" start-placeholder="提交开始" end-placeholder="提交结束" style="width: 250px" @change="syncChannelDateRange" />
       </AppSearchBar>
       <AppTableState :error="errorCL" @retry="loadCL">
         <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo" style="height: calc(100vh - 320px); min-height: 360px">
@@ -447,7 +449,11 @@ const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: que
   useTable(pageAllocationApprovals, { keyword: '' });
 
 const { loading: loadingCL, error: errorCL, data: dataCL, total: totalCL, query: queryCL, load: loadCL, onSearch: searchCL, onReset: resetCL } =
-  useTable(pageChannelLeadApprovals, { keyword: '' });
+  useTable(pageChannelLeadApprovals, { keyword: '', leadType: '', dateRange: [] });
+function syncChannelDateRange(range) {
+  queryCL.startDate = range?.[0] || '';
+  queryCL.endDate = range?.[1] || '';
+}
 
 const outingRows = ref([]); const outingTotal = ref(0); const outingLoading = ref(false);
 const sensitiveRows = ref([]); const sensitiveLoading = ref(false);

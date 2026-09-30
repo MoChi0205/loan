@@ -35,6 +35,9 @@ public class StaffOutingDTO implements Serializable {
     private String status;
     private Boolean departureCheckInCompleted;
     private Boolean returnCheckInCompleted;
+    /** 关联服务已完成但尚未完成返回打卡，提醒员工补齐现场凭证。 */
+    private Boolean serviceCompleted;
+    private Boolean pendingReturnCheckIn;
     /** 审核人工号（未审核为空）。 */
     private String reviewerStaffCode;
     /** 审核人姓名（未审核为空）。 */

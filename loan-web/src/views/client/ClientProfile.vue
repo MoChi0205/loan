@@ -21,7 +21,7 @@
     </div>
 
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
-      <div class="customer-segment-bar" role="tablist" aria-label="我的客户标签">
+      <div v-if="clientScope === 'MY'" class="customer-segment-bar" role="tablist" aria-label="我的客户标签">
         <button v-for="item in customerTagSegments" :key="item.value" type="button" class="customer-segment"
           :class="{ active: clientQuery.customerTag === item.value }" @click="selectCustomerTag(item.value)">
           <span class="segment-dot" :class="`segment-dot--${item.tone}`"></span>{{ item.label }}
@@ -89,7 +89,7 @@
         </el-table-column>
         <el-table-column label="类型" width="100"><template #default="{ row }">{{ row.customerGroup === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
         <el-table-column label="来源" width="130"><template #default="{ row }">{{ sourceText(row.source) }}</template></el-table-column>
-        <el-table-column label="客户标签" min-width="180"><template #default="{ row }"><span v-for="tag in row.customerTags || [row.customerTag]" :key="tag" class="loan-tag loan-tag-info customer-row-tag">{{ customerTagText(tag) }}</span></template></el-table-column>
+        <el-table-column label="客户标签" min-width="180"><template #default="{ row }"><span class="loan-tag loan-tag-info customer-row-tag">{{ customerTagText(row.customerTag) }}</span></template></el-table-column>
         <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
         <el-table-column label="最近跟进" width="190">
           <template #default="{ row }">
@@ -377,14 +377,13 @@ async function loadFilterDepartments() {
 }
 
 async function loadClientTagCounts() {
-  if (clientCode.value) return;
+  // 标签分段只属于“我的客户”；公海仍保留搜索框下拉，但不请求不支持的统计范围。
+  if (clientCode.value || clientScope.value !== 'MY') {
+    tagCounts.value = {};
+    return;
+  }
   try {
-    const params = { scope: clientScope.value };
-    if (clientScope.value === 'ALL') {
-      params.ownerDeptCode = clientQuery.ownerDeptCode || undefined;
-      params.ownerStaffCode = clientQuery.ownerStaffCode || undefined;
-    }
-    tagCounts.value = (await getClientTagCounts(params)).data || {};
+    tagCounts.value = (await getClientTagCounts({ scope: 'MY' })).data || {};
   } catch (e) {
     tagCounts.value = {};
   }

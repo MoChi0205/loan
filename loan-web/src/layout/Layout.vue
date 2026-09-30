@@ -253,6 +253,8 @@ const BASE_MENU_GROUPS = [
       { path: '/client/company-sea', title: '客户公海', icon: 'sea', indent: true, roles: ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/client/team-sea', title: '团队公海', icon: 'sea', indent: true, roles: ['DEPT_MANAGER'] },
       { path: '/client-lookup', title: '客户检索', icon: 'search' },
+      { path: '/client/import-tasks', title: '客户导入进度', icon: 'clock', indent: true, roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/client/resource-pool-config', title: '资源池回收规则', icon: 'setting', indent: true, roles: ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
       { path: '/ocr', title: '客户材料', icon: 'ocr' },
     ],
   },

@@ -34,6 +34,8 @@ import com.loan.importing.entity.BatchImportTask;
 import com.loan.importing.mapper.BatchImportTaskMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import java.time.LocalDateTime;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.loan.api.dto.PageResult;
 
 /** 产品/客户线索批量导入公共入口。 */
 @RestController
@@ -45,6 +47,28 @@ public class BatchImportController {
     private final ProductService productService;
     private final MiniLeadService miniLeadService;
     private final BatchImportTaskMapper taskMapper;
+
+    @GetMapping("/tasks")
+    public Result<PageResult<Map<String, Object>>> tasks(@RequestParam(required = false) String importType,
+                                                         @RequestParam(defaultValue = "1") int page,
+                                                         @RequestParam(defaultValue = "20") int size,
+                                                         @CurrentUser LoanUser user) {
+        roleGuard.requireImportAdmin(user);
+        LambdaQueryWrapper<BatchImportTask> query = new LambdaQueryWrapper<BatchImportTask>()
+                .eq(BatchImportTask::getApplicantStaffCode, user.getUserNo())
+                .orderByDesc(BatchImportTask::getCreatedAt);
+        if (org.springframework.util.StringUtils.hasText(importType)) query.eq(BatchImportTask::getImportType, importType.toUpperCase());
+        Page<BatchImportTask> result = taskMapper.selectPage(new Page<>(page, size), query);
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (BatchImportTask task : result.getRecords()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("taskNo", task.getTaskNo()); row.put("importType", task.getImportType()); row.put("status", task.getStatus());
+            row.put("total", task.getTotalCount()); row.put("success", task.getSuccessCount()); row.put("failed", task.getFailedCount());
+            row.put("progress", task.getProgressPercent()); row.put("error", task.getErrorMessage());
+            row.put("createdAt", task.getCreatedAt()); row.put("updatedAt", task.getUpdatedAt()); rows.add(row);
+        }
+        return Result.ok(PageResult.build(page, size, result.getTotal(), rows));
+    }
 
     @PostMapping("/task")
     public Result<Map<String,Object>> createTask(@RequestParam String type, @RequestParam("file") MultipartFile file, @CurrentUser LoanUser user) {
@@ -102,6 +126,11 @@ public class BatchImportController {
         String normalized = "PRODUCT".equalsIgnoreCase(type) ? "PRODUCT" : "LEAD";
         @SuppressWarnings("unchecked") List<Map<String, String>> rows =
                 (List<Map<String, String>>) templateService.preview(normalized, file).get("rows");
+        BatchImportTask task = new BatchImportTask();
+        task.setTaskNo(BizIdGenerator.generate("imptask")); task.setImportType(normalized); task.setStatus("PROCESSING");
+        task.setTotalCount(rows.size()); task.setSuccessCount(0); task.setFailedCount(0); task.setProgressPercent(0);
+        task.setApplicantStaffCode(user.getUserNo()); task.setCreatedAt(LocalDateTime.now()); task.setUpdatedAt(LocalDateTime.now());
+        taskMapper.insert(task);
         List<Map<String, Object>> failures = new ArrayList<>();
         int success = 0;
         Set<String> naturalKeys = new HashSet<>();
@@ -137,9 +166,13 @@ public class BatchImportController {
                 Map<String, Object> failure = new LinkedHashMap<>(); failure.put("row", i + 2);
                 failure.put("message", ex.getMessage() == null ? "导入失败" : ex.getMessage()); failures.add(failure);
             }
+            task.setSuccessCount(success); task.setFailedCount(failures.size());
+            task.setProgressPercent(rows.isEmpty() ? 100 : (int) Math.round(((i + 1) * 100D) / rows.size()));
+            task.setUpdatedAt(LocalDateTime.now()); taskMapper.updateById(task);
         }
+        task.setStatus("COMPLETED"); task.setProgressPercent(100); task.setUpdatedAt(LocalDateTime.now()); taskMapper.updateById(task);
         Map<String, Object> result = new LinkedHashMap<>(); result.put("total", rows.size());
-        result.put("success", success); result.put("failed", failures.size()); result.put("failures", failures);
+        result.put("taskNo", task.getTaskNo()); result.put("success", success); result.put("failed", failures.size()); result.put("failures", failures);
         return Result.ok(result);
     }
 

@@ -199,7 +199,7 @@ public class MiniLeadService {
             m.put("contactName", DesensitizeUtils.name(l.getContactName()));
             m.put("entName", enterpriseNames.get(l.getId()));
             // phone 密文需手动解密（AesTypeHandler 仅写入生效）后掩码
-            String plain = AesUtils.decrypt(l.getPhone());
+            String plain = l.getPhone();
             m.put("phone", plain == null ? "" : DesensitizeUtils.phone(plain));
             m.put("followStatus", l.getFollowStatus());
             m.put("customerTag", customerTagOf(l));

@@ -413,7 +413,7 @@ public class AuthService {
         LoanUser user = new LoanUser();
         user.setUserId(staff.getId());
         user.setUserNo(staff.getStaffCode());
-        user.setPhone(AesUtils.decrypt(staff.getPhone()));
+        user.setPhone(staff.getPhone());
         user.setName(staff.getStaffName());
         user.setUserType(LoanUser.TYPE_STAFF);
         user.setRoleCode(staff.getRoleCode());
@@ -462,7 +462,7 @@ public class AuthService {
         LoanUser user = new LoanUser();
         user.setUserId(channelUser.getId());
         user.setUserNo(channelUser.getPhoneHash());
-        user.setPhone(AesUtils.decrypt(channelUser.getPhone()));
+        user.setPhone(channelUser.getPhone());
         user.setName(channelUser.getName());
         user.setUserType(LoanUser.TYPE_CHANNEL);
         user.setRegion(null);

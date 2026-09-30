@@ -179,7 +179,8 @@ public class SensitiveViewService {
         if (lead == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "线索不存在");
         }
-        String plain = AesUtils.decrypt(lead.getPhone());
+        // Lead.phone 由 AesTypeHandler 读取时解密，敏感查看只负责授权与审计。
+        String plain = lead.getPhone();
         String masked = DesensitizeUtils.phone(plain);
 
         SensitiveApplyViewResp resp = new SensitiveApplyViewResp();
@@ -247,7 +248,8 @@ public class SensitiveViewService {
         scopeService.requireClientVisibleToStaff(user, client);
         String plain = clientProfileMapper.selectPhonePlain(client.getClientCode());
         if (!StringUtils.hasText(plain)) {
-            plain = AesUtils.decrypt(client.getPhone());
+            // ClientProfile.phone 由 AesTypeHandler 读取时解密。
+            plain = client.getPhone();
             if (StringUtils.hasText(plain)) {
                 clientProfileMapper.backfillPhonePlain(client.getClientCode(), plain);
             }

@@ -22,3 +22,11 @@ export function downloadImportTemplate(type) {
 export function exportImportFailures(failures) {
   return request({ url: '/api/admin/import/result-export', method: 'post', data: { failures }, responseType: 'blob' });
 }
+
+export function pageImportTasks(params = {}) {
+  return request({ url: '/api/admin/import/tasks', method: 'get', params });
+}
+
+export function getImportTask(taskNo) {
+  return request({ url: '/api/admin/import/task', method: 'get', params: { taskNo } });
+}

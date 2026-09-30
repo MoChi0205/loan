@@ -315,7 +315,7 @@ const metrics = computed(() => {
   return [
     metric(scopeLabel + '客户', o.clientCount, '已归属客户', 'client', 'var(--loan-info)'),
     metric('公司公海客户', o.publicSeaClientCount, '尚未分配的客户', 'client', 'var(--loan-warning)'),
-    metric('客户转化率', `${Number(o.clientConversionRate ?? 0).toFixed(1)}%`, '客户数 ÷ 归属范围线索数', 'trend', 'var(--loan-primary)'),
+    metric('客户转化率', `${Number(o.clientConversionRate ?? 0).toFixed(1)}%`, '已转化线索数 ÷ 有效线索数', 'trend', 'var(--loan-primary)'),
     metric('成交金额', '¥' + fmtAmount(o.dealAmountSum), `${o.dealOrderCount ?? 0} 单已成交`, 'money', 'var(--loan-success)'),
   ];
 });

@@ -318,7 +318,7 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-divider content-position="left">步骤前置条件（自动继承所选规则的条件，无需手动配置）</el-divider>
+        <el-divider content-position="left">步骤前置条件（字段与运算符来自规则，条件值可按策略填写）</el-divider>
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item label="条件字段">
@@ -332,7 +332,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="条件值">
-              <el-input v-model="stepDialog.form.conditionValue" disabled placeholder="选择规则后自动带出" style="width: 100%" />
+              <el-input v-model="stepDialog.form.conditionValue" :disabled="noManualCondition" :placeholder="noManualCondition ? '该规则无需条件值' : '请输入条件值'" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -416,6 +416,13 @@ const strategies = ref([]);
 const selectedTemplate = ref(null);
 const loading = ref(false);
 const validateMap = ref({});
+const selectedRule = computed(() => (rules.value || []).find((r) => String(r.id) === String(stepDialog.form.ruleId)) || null);
+const noManualCondition = computed(() => {
+  const r = selectedRule.value;
+  return !r || ['is_null', 'not_null'].includes(String(r.operator || '').toLowerCase())
+    || String(r.valueType || '').toUpperCase() === 'BOOLEAN'
+    || /blacklist|dishonest|失信|黑名单/i.test(`${r.ruleCode || ''}${r.name || ''}`);
+});
 
 /** 规则 operator（==/!=/in/not_in/is_null/not_null）→ 步骤前置条件 conditionOperator 映射 */
 const OP_MAP = {

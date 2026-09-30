@@ -181,6 +181,7 @@ public class ReportService {
 
         long clientCount = scopedClientCount(scope);
         long leadCount = scopedLeadCount(scope);
+        long convertedLeadCount = scopedConvertedLeadCount(scope);
         long orderCount = scopedOrderCount(scope, false);
         long dealOrderCount = scopedOrderCount(scope, true);
         BigDecimal dealAmountSum = scopedDealAmountSum(scope);
@@ -188,10 +189,11 @@ public class ReportService {
         BigDecimal rewardAmountSum = scopedRewardAmountSum(scope, orderNos);
         long screeningCount = scopedScreeningCount(scope, clientCodes);
         long publicSeaCount = visiblePublicSeaCount(user, role, scope);
-        double clientConversionRate = leadCount == 0 ? 0D : round1((clientCount * 100D) / leadCount);
+        double clientConversionRate = leadCount == 0 ? 0D : Math.min(100D, round1((convertedLeadCount * 100D) / leadCount));
 
         m.put("clientCount", clientCount);
         m.put("leadCount", leadCount);
+        m.put("convertedLeadCount", convertedLeadCount);
         m.put("orderCount", orderCount);
         m.put("dealOrderCount", dealOrderCount);
         m.put("dealAmountSum", dealAmountSum);
@@ -201,7 +203,7 @@ public class ReportService {
         // 公海客户单独统计，避免管理角色只看到线索而忽略尚未分配的公司客户。
         m.put("publicSeaClientCount", publicSeaCount);
         m.put("clientConversionRate", clientConversionRate);
-        m.put("conversionBasis", "客户数 ÷ 归属范围线索数；仅作经营分析，不代表任何准入结论");
+        m.put("conversionBasis", "已转化线索数 ÷ 有效线索数；仅作经营分析，不代表任何准入结论");
 
         // 环比（本月新增 vs 上月新增，按同一角色范围过滤）
         LocalDateTime[] cur = monthBounds(0);
@@ -723,6 +725,15 @@ public class ReportService {
         return leadMapper.selectCount(w);
     }
 
+    /** 已转化线索数：以线索上的客户档案关联为准，避免客户总量重复计算导致转化率超过 100%。 */
+    private long scopedConvertedLeadCount(Set<String> scope) {
+        if (scope != null && scope.isEmpty()) return 0;
+        LambdaQueryWrapper<Lead> w = new LambdaQueryWrapper<Lead>().isNotNull(Lead::getClientProfileCode);
+        if (scope != null) w.in(Lead::getOwnerStaffCode, scope);
+        else w.isNotNull(Lead::getOwnerStaffCode);
+        return leadMapper.selectCount(w);
+    }
+
     /** 工单数：dealOnly=true 仅成交。 */
     private long scopedOrderCount(Set<String> scope, boolean dealOnly) {
         if (scope != null && scope.isEmpty()) {
@@ -1240,7 +1251,7 @@ public class ReportService {
             m.put("customerGroup", profile == null ? null : profile.getCustomerGroup());
             m.put("contactName", profile == null ? null : profile.getContactName());
             m.put("enterpriseName", profile == null ? null : profile.getEnterpriseName());
-            m.put("contactPhoneMasked", profile == null ? null : com.loan.utils.DesensitizeUtils.phone(com.loan.infrastructure.security.AesUtils.decrypt(profile.getPhone())));
+            m.put("contactPhoneMasked", profile == null ? null : com.loan.utils.DesensitizeUtils.phone(profile.getPhone()));
             m.put("grade", s.getGrade());
             m.put("bankCount", s.getBankCount());
             m.put("productCount", s.getProductCount());
