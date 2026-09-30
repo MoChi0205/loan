@@ -82,14 +82,15 @@
         </el-table-column>
         <el-table-column label="联系方式" width="190">
           <template #default="{ row }">
-            <span class="cell-main contact-phone">{{ clientPhoneDisplay(row) }}</span>
-            <el-button v-if="!revealedClientPhones.has(row.clientCode)" link type="primary" size="small" @click.stop="viewClientPhone(row)">申请查看</el-button>
-            <span v-else class="phone-revealed-label">已授权查看</span>
+            <span class="cell-main contact-phone">{{ desensitizePhone(row.phone) }}</span>
+            <el-button link type="primary" size="small" @click.stop="viewClientPhone(row)">查看原值</el-button>
           </template>
         </el-table-column>
         <el-table-column label="类型" width="100"><template #default="{ row }">{{ row.customerGroup === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
         <el-table-column label="来源" width="130"><template #default="{ row }">{{ sourceText(row.source) }}</template></el-table-column>
         <el-table-column label="客户标签" min-width="180"><template #default="{ row }"><span class="loan-tag loan-tag-info customer-row-tag">{{ customerTagText(row.customerTag) }}</span></template></el-table-column>
+        <el-table-column label="资源池" width="150"><template #default="{ row }">{{ row.poolName || '—' }}</template></el-table-column>
+        <el-table-column label="冷静期" width="130"><template #default="{ row }">{{ row.cooldownRemainingDays > 0 ? `剩余 ${row.cooldownRemainingDays} 天` : '可认领' }}</template></el-table-column>
         <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
         <el-table-column label="最近跟进" width="190">
           <template #default="{ row }">
@@ -114,7 +115,7 @@
           <el-descriptions-item label="客户姓名">{{ detail.name || '—' }}</el-descriptions-item>
           <el-descriptions-item label="手机号">
             <span>{{ detailPhoneDisplay }}</span>
-            <el-button v-if="!detailPhonePlain" link type="primary" size="small" @click="viewClientPhone(detail)">申请查看原值</el-button>
+            <el-button v-if="!detailPhonePlain" link type="primary" size="small" @click="viewClientPhone(detail)">查看原值</el-button>
           </el-descriptions-item>
           <el-descriptions-item label="来源">
             <span class="loan-tag" :class="sourceTag(detail.source)">{{ sourceText(detail.source) }}</span>
@@ -602,9 +603,9 @@ async function viewClientPhone(row) {
     const data = (await applyClientPhoneView(code)).data || {};
     if (data.phonePlain) {
       detailPhonePlain.value = data.phonePlain;
-      if (row && row !== detail) revealedClientPhones.set(code, data.phonePlain);
+      // 客户列表永远保持脱敏；原值只显示在当前档案详情。
       phoneQuota.value = { limit: data.limit, used: data.used, remaining: data.remaining };
-      ElMessage.success(`已授权查看，本日剩余 ${data.remaining} 次`);
+      ElMessage.success(data.unlimited ? '已授权查看，当前角色不受次数限制' : `已授权查看，本日剩余 ${data.remaining} 次`);
     } else if (data.approvalNo) {
       ElMessage.warning(data.message || '已提交审批，审批通过后可再次查看');
     }

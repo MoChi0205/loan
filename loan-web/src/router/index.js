@@ -151,6 +151,12 @@ const routes = [
         meta: { title: '客户导入进度', permission: 'page:client' },
       },
       {
+        path: 'client/import-export',
+        name: 'ClientImportExport',
+        component: () => import('@/views/client/ClientImportExport.vue'),
+        meta: { title: '客户导入与导出', permission: 'page:client' },
+      },
+      {
         path: 'client/resource-pool-config',
         name: 'ResourcePoolConfig',
         component: () => import('@/views/client/ResourcePoolConfig.vue'),

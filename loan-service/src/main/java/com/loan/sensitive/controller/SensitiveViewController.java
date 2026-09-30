@@ -53,7 +53,7 @@ public class SensitiveViewController {
      */
     @GetMapping("/quota")
     public Result<SensitiveQuotaVO> quota(@CurrentUser LoanUser user) {
-        return Result.ok(sensitiveViewService.getQuota(user == null ? null : user.getUserNo()));
+        return Result.ok(sensitiveViewService.getQuota(user == null ? null : user.getUserNo(), user == null ? null : user.getRoleCode()));
     }
 
     @PostMapping("/client/apply-view")

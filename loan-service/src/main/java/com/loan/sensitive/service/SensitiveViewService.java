@@ -116,6 +116,15 @@ public class SensitiveViewService {
      * @return 额度 VO
      */
     public SensitiveQuotaVO getQuota(String userNo) {
+        return getQuota(userNo, null);
+    }
+
+    public SensitiveQuotaVO getQuota(String userNo, String roleCode) {
+        if (isExemptRole(roleCode)) {
+            SensitiveQuotaVO unlimited = new SensitiveQuotaVO();
+            unlimited.setLimit(-1); unlimited.setUsed(0); unlimited.setRemaining(-1); unlimited.setUnlimited(true);
+            return unlimited;
+        }
         int limit = getDailyLimit();
         // 客户手机号额度按“首次客户解锁次数”独立统计，不混入旧线索手机号查看次数。
         long used = StringUtils.hasText(userNo)
@@ -191,7 +200,7 @@ public class SensitiveViewService {
         if (isExemptRole(roleCode)) {
             resp.setPhonePlain(plain);
             resp.setRevealed(true);
-            applyQuota(resp, userNo);
+            applyQuota(resp, userNo, roleCode);
             return resp;
         }
 
@@ -199,7 +208,7 @@ public class SensitiveViewService {
         if (hasGrant(userNo, leadNo)) {
             resp.setPhonePlain(plain);
             resp.setRevealed(true);
-            applyQuota(resp, userNo);
+            applyQuota(resp, userNo, roleCode);
             return resp;
         }
 
@@ -218,7 +227,7 @@ public class SensitiveViewService {
         if (usedAfter >= getDailyLimit()) {
             notifyOverLimit(userNo);
         }
-        applyQuota(resp, userNo);
+        applyQuota(resp, userNo, roleCode);
         return resp;
     }
 
@@ -260,14 +269,14 @@ public class SensitiveViewService {
         if (isExemptRole(roleCode)) {
             resp.setPhonePlain(plain);
             resp.setRevealed(true);
-            applyQuota(resp, userNo);
+            applyQuota(resp, userNo, roleCode);
             return resp;
         }
         // 同一客户在“当天”已解锁才不重复计数；历史永久授权不能跨天绕过当日额度。
         if (hasClientViewedToday(userNo, clientCode)) {
             resp.setPhonePlain(plain);
             resp.setRevealed(true);
-            applyQuota(resp, userNo);
+            applyQuota(resp, userNo, roleCode);
             return resp;
         }
         // 客户手机号额度只统计“当天首次解锁的不同客户”，不得混入旧线索查看日志。
@@ -281,20 +290,20 @@ public class SensitiveViewService {
                     .last("LIMIT 1"));
             if (approved != null) {
                 insertClientGrant(userNo, clientCode); insertClientViewLog(userNo, clientCode);
-                resp.setPhonePlain(plain); resp.setRevealed(true); applyQuota(resp, userNo); return resp;
+                resp.setPhonePlain(plain); resp.setRevealed(true); applyQuota(resp, userNo, roleCode); return resp;
             }
             SensitiveViewApproval approval = ensureOverLimitApproval(clientCode, user);
             resp.setApprovalNo(approval.getApprovalNo());
             resp.setApprovalStatus(approval.getApproveStatus());
             resp.setMessage("已超过今日查看额度，申请已提交审批；审批通过后再次点击查看");
-            applyQuota(resp, userNo);
+            applyQuota(resp, userNo, roleCode);
             return resp;
         }
         insertClientGrant(userNo, clientCode);
         insertClientViewLog(userNo, clientCode);
         resp.setPhonePlain(plain);
         resp.setRevealed(true);
-        applyQuota(resp, userNo);
+        applyQuota(resp, userNo, roleCode);
         return resp;
     }
 
@@ -388,7 +397,11 @@ public class SensitiveViewService {
 
     /** 填充额度字段。 */
     private void applyQuota(SensitiveApplyViewResp resp, String userNo) {
-        SensitiveQuotaVO quota = getQuota(userNo);
+        applyQuota(resp, userNo, null);
+    }
+
+    private void applyQuota(SensitiveApplyViewResp resp, String userNo, String roleCode) {
+        SensitiveQuotaVO quota = getQuota(userNo, roleCode);
         resp.setLimit(quota.getLimit());
         resp.setUsed(quota.getUsed());
         resp.setRemaining(quota.getRemaining());

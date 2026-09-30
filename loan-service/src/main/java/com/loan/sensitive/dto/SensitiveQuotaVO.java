@@ -22,4 +22,7 @@ public class SensitiveQuotaVO implements Serializable {
 
     /** 剩余 */
     private int remaining;
+
+    /** 老板/超级管理员不受每日次数限制。 */
+    private boolean unlimited;
 }

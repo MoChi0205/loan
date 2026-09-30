@@ -20,6 +20,10 @@ import com.loan.personal.entity.PersonalProfile;
 import com.loan.personal.mapper.PersonalProfileMapper;
 import com.loan.personal.service.PersonalProfileService;
 import com.loan.utils.DesensitizeUtils;
+import com.loan.resourcepool.entity.ResourcePoolConfig;
+import com.loan.resourcepool.service.ResourcePoolConfigService;
+import com.loan.staff.entity.Staff;
+import com.loan.staff.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +34,8 @@ import java.security.MessageDigest;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -66,6 +72,8 @@ public class ClientService {
     private final InvitationMapper invitationMapper;
     private final BusinessNameService businessNameService;
     private final ClientAccessGuard clientAccessGuard;
+    private final StaffMapper staffMapper;
+    private final ResourcePoolConfigService resourcePoolConfigService;
 
     /**
      * 客户轻量分页（建单下拉 / 客户列表多维筛选）。
@@ -246,6 +254,14 @@ public class ClientService {
             m.put("customerTags", java.util.Collections.singletonList(currentTag));
             // ClientProfile.phone 已由 AesTypeHandler 在读取时解密，禁止再次解密造成误告警。
             m.put("phone", DesensitizeUtils.phone(c.getPhone()));
+            Staff owner = StringUtils.hasText(c.getOwnerStaffCode()) ? staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                    .eq(Staff::getStaffCode, c.getOwnerStaffCode()).last("LIMIT 1")) : null;
+            ResourcePoolConfig pool = resourcePoolConfigService.resolve(c.getOwnerStaffCode(), owner == null ? null : owner.getDeptCode());
+            m.put("poolName", StringUtils.hasText(c.getSeaLevel()) && "TEAM".equalsIgnoreCase(c.getSeaLevel())
+                    ? "团队公海" : (StringUtils.hasText(c.getSeaLevel()) ? "公司公共资源池" : "—"));
+            if (pool != null && !StringUtils.hasText(c.getOwnerStaffCode())) m.put("poolName", pool.getPoolName());
+            long remain = c.getAssignBlockedUntil() == null ? 0 : Math.max(0, ChronoUnit.DAYS.between(LocalDateTime.now(), c.getAssignBlockedUntil()) + 1);
+            m.put("cooldownRemainingDays", remain);
             m.put("ownerStaffCode", c.getOwnerStaffCode());
             m.put("ownerStaffName", ownerNames.get(c.getOwnerStaffCode()));
             m.put("status", c.getStatus());
