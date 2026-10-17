@@ -37,4 +37,4 @@
 ## SQL 与 Mapper
 
 - 当前接口实现只使用 MyBatis-Plus Wrapper；禁止新增 SQL 注解 Mapper 和旧接口回退。
-- 数据库耗时由 Druid 慢 SQL 统计记录，业务日志只记录安全的调用标识与耗时。
+- 数据库耗时由 MyBatis `SqlDurationInterceptor` 记录；Druid/MyBatis 原始 SQL 参数日志关闭。
