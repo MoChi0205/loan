@@ -18,6 +18,7 @@ import com.loan.staff.mapper.StaffMapper;
 import com.loan.client.mapper.ClientRecycleConfigMapper;
 import com.loan.notification.service.NotificationService;
 import com.loan.common.service.BusinessNameService;
+import com.loan.resourcepool.service.ResourcePoolConfigService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.junit.jupiter.api.BeforeAll;
@@ -38,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 /** 客户未分配池与归属审批核心规则单测。 */
 @ExtendWith(MockitoExtension.class)
@@ -68,7 +70,7 @@ class ClientAllocationServiceTest {
     void setUp() {
         service = new ClientAllocationService(redisTemplate, claimQuotaService, clientMapper, approvalMapper,
                 staffMapper, recordMapper, clientRecycleConfigMapper, lifecycleEventMapper,
-                notificationService, businessNameService);
+                notificationService, businessNameService, mock(ResourcePoolConfigService.class));
     }
 
     @Test

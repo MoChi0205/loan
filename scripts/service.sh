@@ -67,13 +67,17 @@ launch_job() { # $1=label $2=log $3...=command
     printf '  <key>StandardOutPath</key><string>%s</string>\n' "$log_file"
     printf '  <key>StandardErrorPath</key><string>%s</string>\n' "$log_file"
     printf '  <key>RunAtLoad</key><true/>\n'
-    printf '  <key>KeepAlive</key><false/>\n'
+    # 本地开发服务需要跨命令持续运行；显式 stop 会先 bootout，因此 KeepAlive 不妨碍正常停止。
+    printf '  <key>KeepAlive</key><true/>\n'
     printf '</dict></plist>\n'
   } > "$plist"
   if ! launchctl bootstrap "gui/${UID}" "$plist" 2>/dev/null; then
     # 已注册过同名服务时先注销再重试
     launchctl bootout "gui/${UID}/${label}" >/dev/null 2>&1 || true
-    launchctl bootstrap "gui/${UID}" "$plist"
+    if ! launchctl bootstrap "gui/${UID}" "$plist" 2>/dev/null; then
+      # 某些终端会话无可用 gui bootstrap 域；保持同一参数和日志，以普通后台进程启动。
+      nohup "$@" >>"$log_file" 2>&1 </dev/null &
+    fi
   fi
 }
 
@@ -84,7 +88,8 @@ remove_job() { # $1=label
 
 # 端口探测：curl 同时支持 IPv4/IPv6（vite 只监听 ::1 时 nc 127.0.0.1 会误判）
 port_up() {
-  curl -s -o /dev/null -m 2 "http://localhost:$1/" && return 0
+  curl -g -s -o /dev/null -m 2 "http://[::1]:$1/" && return 0
+  curl -s -o /dev/null -m 2 "http://127.0.0.1:$1/" && return 0
   nc -z -w 2 127.0.0.1 "$1" 2>/dev/null
 }
 
@@ -181,7 +186,7 @@ stop_port() { # $1=port
 wait_port_down() { # $1=port，避免 restart 在旧进程关闭途中误判为仍在运行
   local attempts=20
   while [ "$attempts" -gt 0 ]; do
-    if ! nc -z -w 1 127.0.0.1 "$1" 2>/dev/null; then
+    if ! port_up "$1"; then
       return 0
     fi
     attempts=$((attempts - 1))

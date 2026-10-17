@@ -17,6 +17,7 @@ import com.loan.product.entity.BankChannel;
 import com.loan.product.mapper.BankChannelMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
+import com.loan.utils.DesensitizeUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
@@ -78,10 +79,11 @@ public class AuthService {
         if (!smsService.verifyCode(phone, code)) {
             throw new BusinessException(ResultCode.CAPTCHA_ERROR, "验证码错误或已过期");
         }
-        return customerLoginAfterSmsVerified(phone, inviteCode);
+        // 此入口仅供 /mini/auth/login 的 H5/小程序短信登录，不得签发 Web 端令牌。
+        return customerLoginAfterSmsVerified(phone, inviteCode, "MINI_APP");
     }
 
-    private LoginResponse customerLoginAfterSmsVerified(String phone, String inviteCode) {
+    private LoginResponse customerLoginAfterSmsVerified(String phone, String inviteCode, String clientType) {
         // 1. 按 phone_hash 查客户档案，不存在则创建
         String phoneHash = sha256(phone);
         com.loan.client.entity.ClientProfile client = clientProfileMapper.selectOne(
@@ -139,13 +141,13 @@ public class AuthService {
         user.setInvitedFlag(client.getInvitedFlag() != null && client.getInvitedFlag() == 1);
 
         String token = jwtService.generateToken(user.getUserId(), user.getUserType(),
-                user.getUserNo(), null);
+                user.getUserNo(), null, clientType);
         saveSession(user.getUserId(), user);
 
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         response.setExpireMillis(86400000L);
-        response.setUser(user);
+        response.setUser(externalUser(user));
         return response;
     }
 
@@ -181,6 +183,9 @@ public class AuthService {
         if (staff != null) {
             if (!"ACTIVE".equalsIgnoreCase(staff.getStatus())) throw new BusinessException(ResultCode.FORBIDDEN, "员工账号已停用");
             LoanUser user = buildStaffUser(staff);
+            // 当前请求已完成短信校验，使用请求中的手机号覆盖数据库密文字段，
+            // 避免登录响应误把 AES 密文当手机号返回；issue() 会统一脱敏出网。
+            user.setPhone(phone);
             return issue(user);
         }
         ChannelUser channel = "STAFF".equalsIgnoreCase(accountType) || "CUSTOMER".equalsIgnoreCase(accountType) ? null
@@ -192,7 +197,7 @@ public class AuthService {
             return issue(user);
         }
         if ("CUSTOMER".equalsIgnoreCase(accountType)) {
-            return customerLoginAfterSmsVerified(phone, null);
+            return customerLoginAfterSmsVerified(phone, null, "WEB");
         }
         throw new BusinessException(ResultCode.DATA_NOT_FOUND, "手机号未绑定对应账号");
     }
@@ -346,7 +351,8 @@ public class AuthService {
     private LoginResponse issue(LoanUser user) {
         String token = jwtService.generateToken(user.getUserId(), user.getUserType(), user.getUserNo(), user.getRoleCode());
         saveSession(user.getUserId(), user);
-        LoginResponse response = new LoginResponse(); response.setToken(token); response.setExpireMillis(86400000L); response.setUser(user); return response;
+        LoginResponse response = new LoginResponse(); response.setToken(token); response.setExpireMillis(86400000L);
+        response.setUser(externalUser(user)); return response;
     }
 
     /**
@@ -482,8 +488,30 @@ public class AuthService {
         LoginResponse response = new LoginResponse();
         response.setToken(token);
         response.setExpireMillis(86400000L);
-        response.setUser(user);
+        response.setUser(externalUser(user));
         return response;
+    }
+
+    /** 登录响应只返回脱敏手机号；会话内仍保留认证所需原值，禁止密文或明文出网。 */
+    /** 当前用户信息出网前统一脱敏，禁止 /me 或登录响应泄露明文/AES密文。 */
+    public LoanUser externalUser(LoanUser source) {
+        LoanUser target = new LoanUser();
+        target.setUserId(source.getUserId());
+        target.setUserNo(source.getUserNo());
+        String phone = source.getPhone();
+        target.setPhone(phone != null && phone.matches("1\\d{10}") ? DesensitizeUtils.phone(phone) : null);
+        target.setName(source.getName());
+        target.setUserType(source.getUserType());
+        target.setReferrerNo(source.getReferrerNo());
+        target.setReferrerName(source.getReferrerName());
+        target.setRegion(source.getRegion());
+        target.setAvatar(source.getAvatar());
+        target.setRoleCode(source.getRoleCode());
+        target.setDeptCode(source.getDeptCode());
+        target.setBankChannelId(source.getBankChannelId());
+        target.setBankChannelCode(source.getBankChannelCode());
+        target.setInvitedFlag(source.getInvitedFlag());
+        return target;
     }
 
     /**

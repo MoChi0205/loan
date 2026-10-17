@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.util.Map;
 
@@ -38,11 +39,11 @@ public class SensitiveViewController {
     @PostMapping("/apply-view")
     @OpLog(bizType = "敏感数据", action = "APPLY_VIEW")
     public Result<SensitiveApplyViewResp> applyView(@RequestBody Map<String, String> body,
-                                                    @CurrentUser LoanUser user) {
+                                                    @CurrentUser LoanUser user,
+                                                    @RequestHeader(value = "X-Client-Type", defaultValue = "WEB") String clientType) {
+        requireWeb(user, clientType);
         String leadNo = body == null ? null : body.get("leadNo");
-        return Result.ok(sensitiveViewService.applyView(leadNo,
-                user == null ? null : user.getUserNo(),
-                user == null ? null : user.getRoleCode()));
+        return Result.ok(sensitiveViewService.applyView(leadNo, user));
     }
 
     /**
@@ -59,9 +60,30 @@ public class SensitiveViewController {
     @PostMapping("/client/apply-view")
     @OpLog(bizType = "客户手机号查看", action = "APPLY_CLIENT_PHONE_VIEW")
     public Result<SensitiveApplyViewResp> applyClientView(@RequestBody Map<String, String> body,
-                                                           @CurrentUser LoanUser user) {
+                                                           @CurrentUser LoanUser user,
+                                                           @RequestHeader(value = "X-Client-Type", defaultValue = "WEB") String clientType) {
+        requireWeb(user, clientType);
         String clientCode = body == null ? null : body.get("clientCode");
         return Result.ok(sensitiveViewService.applyClientView(clientCode, user));
+    }
+
+    private void requireWeb(LoanUser user, String clientType) {
+        if (user == null || !"WEB".equalsIgnoreCase(user.getClientType()) || !"WEB".equalsIgnoreCase(clientType)) {
+            throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.FORBIDDEN, "手机号原值仅允许公司内部 Web 受控查看");
+        }
+    }
+
+    @GetMapping("/limit-config")
+    public Result<Integer> limitConfig(@CurrentUser LoanUser user) {
+        com.loan.infrastructure.security.AdminRoleGuard.requireSystemConfigAdmin(user);
+        return Result.ok(sensitiveViewService.getDailyLimit());
+    }
+
+    @PostMapping("/limit-config")
+    public Result<Void> saveLimitConfig(@RequestBody Map<String, Integer> body, @CurrentUser LoanUser user) {
+        if (body == null || body.get("dailyLimit") == null) throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.PARAM_ERROR, "每日额度必填");
+        sensitiveViewService.saveDailyLimit(body.get("dailyLimit"), user);
+        return Result.ok();
     }
 
     @GetMapping("/approval/pending")

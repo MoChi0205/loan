@@ -97,6 +97,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (userId != null && StringUtils.hasText(userType)) {
                     LoanUser user = authService.loadSession(userType, userId);
                     if (user != null) {
+                        user.setClientType(claims.get("clientType", String.class));
                         applyDevRoleOverride(request, user);
                         UserContext.setUser(user);
                         authService.renewSession(userType, userId);

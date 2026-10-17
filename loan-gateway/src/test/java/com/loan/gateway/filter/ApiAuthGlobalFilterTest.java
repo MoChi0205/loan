@@ -125,6 +125,33 @@ class ApiAuthGlobalFilterTest {
                 && exchange.getResponse().getStatusCode().is4xxClientError());
     }
 
+    @Test
+    void miniTokenCannotSpoofWebHeaderForSensitivePhoneApi() {
+        GatewayJwtUtil jwt = mock(GatewayJwtUtil.class);
+        ApiRuleService ruleService = mock(ApiRuleService.class);
+        filter = new ApiAuthGlobalFilter(jwt, ruleService);
+        Claims claims = Jwts.claims();
+        claims.put("userId", 1L); claims.put("userNo", "BOSS001");
+        claims.put("userType", "STAFF"); claims.put("roleCode", "BOSS");
+        claims.put("clientType", "MINI_APP");
+        when(jwt.parse("mini-token")).thenReturn(claims);
+        Map<String, Object> api = new LinkedHashMap<>();
+        api.put("apiKey", "lead:applyClientView"); api.put("method", "POST");
+        api.put("pathPattern", "/api/admin/lead/sensitive/client/apply-view");
+        api.put("status", "ACTIVE"); api.put("clientTypes", Collections.singletonList("WEB"));
+        Map<String, Object> rules = new LinkedHashMap<>();
+        rules.put("apis", Collections.singletonList(api)); rules.put("superRoles", Collections.singletonList("BOSS"));
+        when(ruleService.loadRules()).thenReturn(Mono.just(rules));
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
+                .post("/loan/api/admin/lead/sensitive/client/apply-view")
+                .header("Authorization", "Bearer mini-token").header("X-Client-Type", "WEB").build());
+        AtomicInteger forwarded = new AtomicInteger();
+        filter.filter(exchange, ignored -> { forwarded.incrementAndGet(); return Mono.empty(); }).block();
+        assertTrue(forwarded.get() == 0);
+        assertTrue(exchange.getResponse().getStatusCode() != null
+                && exchange.getResponse().getStatusCode().is4xxClientError());
+    }
+
     private Map<String, String> rule(String method, String pathPattern) {
         Map<String, String> rule = new LinkedHashMap<>();
         rule.put("method", method);

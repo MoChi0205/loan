@@ -11,7 +11,7 @@
 
   脱敏：文件型 appender 统一由 SensitiveRewritePolicy 包装，落盘前重写消息体，
         覆盖 token/密码/手机号/身份证/统一社会信用代码/银行卡号。
-        控制台不脱敏，便于本地调试（控制台不落盘）。
+        控制台同样脱敏；禁止 MyBatis SQL 参数日志，耗时由 SqlDurationInterceptor 单独记录。
 
   ⚠️ 两处硬约束（改动前必读）：
     1. packages="com.loan.infrastructure.logging" —— Log4j2 靠它扫描 @Plugin 注解的脱敏组件，
@@ -31,6 +31,7 @@
 
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
+            <RegexFilter regex=".*==&gt;.*(Preparing|Parameters):.*" useRawMsg="true" onMatch="DENY" onMismatch="NEUTRAL"/>
             <PatternLayout pattern="${LOG_PATTERN}"/>
         </Console>
 
@@ -117,6 +118,7 @@
 
         <!-- ============ 脱敏包装：重写消息后交给目标 appender ============ -->
         <Rewrite name="RewriteBiz">
+            <RegexFilter regex=".*==&gt;.*(Preparing|Parameters):.*" useRawMsg="true" onMatch="DENY" onMismatch="NEUTRAL"/>
             <SensitiveRewritePolicy/>
             <AppenderRef ref="BizFile"/>
         </Rewrite>
@@ -125,6 +127,7 @@
             <AppenderRef ref="ErrorFile"/>
         </Rewrite>
         <Rewrite name="RewriteIntegration">
+            <RegexFilter regex=".*==&gt;.*(Preparing|Parameters):.*" useRawMsg="true" onMatch="DENY" onMismatch="NEUTRAL"/>
             <SensitiveRewritePolicy/>
             <AppenderRef ref="IntegrationFile"/>
         </Rewrite>
@@ -133,9 +136,15 @@
             <SensitiveRewritePolicy/>
             <AppenderRef ref="AccessFile"/>
         </Rewrite>
+        <Rewrite name="RewriteConsole">
+            <SensitiveRewritePolicy/>
+            <AppenderRef ref="Console"/>
+        </Rewrite>
     </Appenders>
 
     <Loggers>
+        <!-- Druid 原始慢 SQL 包含绑定参数，关闭该源；安全耗时日志不记录 SQL/参数。 -->
+        <Logger name="com.alibaba.druid.filter.stat.StatFilter" level="off" additivity="false"/>
         <!-- 访问日志：独立 logger，不向父级传递，避免混入 biz.log -->
         <Logger name="ACCESS_LOG" level="info" additivity="false">
             <AppenderRef ref="RewriteAccess"/>
@@ -160,13 +169,13 @@
 
         <!-- 业务主包 -->
         <Logger name="com.loan" level="debug" additivity="false">
-            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RewriteConsole"/>
             <AppenderRef ref="RewriteBiz"/>
             <AppenderRef ref="RewriteError"/>
         </Logger>
 
         <Root level="info">
-            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RewriteConsole"/>
             <AppenderRef ref="RewriteBiz"/>
             <AppenderRef ref="RewriteError"/>
         </Root>

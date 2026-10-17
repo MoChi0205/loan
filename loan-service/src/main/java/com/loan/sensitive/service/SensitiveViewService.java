@@ -3,7 +3,11 @@ package com.loan.sensitive.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.common.ResultCode;
 import com.loan.exception.BusinessException;
-import com.loan.infrastructure.security.AesUtils;
+import com.loan.context.LoanUser;
+import com.loan.config.entity.ConfigItem;
+import com.loan.config.mapper.ConfigItemMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.loan.lead.entity.Lead;
 import com.loan.lead.mapper.LeadMapper;
 import com.loan.client.entity.ClientProfile;
@@ -39,7 +43,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 敏感数据查看授权服务（受限角色默认脱敏 → 申请 → 授权 → 日限额 30 → 留痕；豁免角色直看明文）。
+ * 敏感数据查看授权服务（受限角色默认脱敏 → 申请 → 审批 → 可配置日限额（初始 30） → 留痕；豁免角色直看明文）。
  *
  * <p>规则：
  * <ul>
@@ -71,6 +75,9 @@ public class SensitiveViewService {
     private final StaffMapper staffMapper;
     private final NotificationService notificationService;
     private final ServiceOperationScopeService scopeService;
+    @Autowired private ConfigItemMapper configItemMapper;
+    /** 当前环境每日首次客户解锁上限，管理员配置持久化到 t_config。 */
+    public static final String LIMIT_KEY = "daily-limit";
 
     /**
      * 是否豁免角色（老板/主管）。
@@ -91,7 +98,15 @@ public class SensitiveViewService {
      * @return 上限
      */
     public int getDailyLimit() {
-        return DEFAULT_DAILY_LIMIT;
+        ConfigItem item = configItemMapper == null ? null : configItemMapper.selectOne(
+                new LambdaQueryWrapper<ConfigItem>().eq(ConfigItem::getConfigGroup, "SENSITIVE_VIEW")
+                .eq(ConfigItem::getConfigKey, LIMIT_KEY).eq(ConfigItem::getEnabled, 1));
+        if (item == null) return DEFAULT_DAILY_LIMIT;
+        try {
+            int value = Integer.parseInt(item.getConfigValue());
+            if (value >= 1 && value <= 100000) return value;
+        } catch (NumberFormatException ignored) { }
+        throw new BusinessException(ResultCode.RULE_CONFIG_ERROR, "手机号查看额度配置无效，请联系管理员");
     }
 
     /**
@@ -136,99 +151,77 @@ public class SensitiveViewService {
         return vo;
     }
 
-    /**
-     * 是否已授权查看某线索。
-     *
-     * @param userNo 工号
-     * @param leadNo 线索业务 ID
-     * @return true 已授权
-     */
-    public boolean hasGrant(String userNo, String leadNo) {
-        if (!StringUtils.hasText(userNo) || !StringUtils.hasText(leadNo)) {
-            return false;
-        }
-        Long count = grantMapper.selectCount(new LambdaQueryWrapper<SensitiveViewGrant>()
-                .eq(SensitiveViewGrant::getUserNo, userNo.trim())
-                .eq(SensitiveViewGrant::getLeadNo, leadNo.trim())
-                .last("LIMIT 1"));
-        return count != null && count > 0;
-    }
-
-    /** 是否已授权查看某客户档案手机号。 */
-    public boolean hasClientGrant(String userNo, String clientCode) {
-        if (!StringUtils.hasText(userNo) || !StringUtils.hasText(clientCode)) {
-            return false;
-        }
-        Long count = grantMapper.selectCount(new LambdaQueryWrapper<SensitiveViewGrant>()
-                .eq(SensitiveViewGrant::getUserNo, userNo.trim())
-                .eq(SensitiveViewGrant::getClientCode, clientCode.trim())
-                .last("LIMIT 1"));
-        return count != null && count > 0;
-    }
-
-    /**
-     * 申请查看线索敏感手机号。
-     *
-     * <p>豁免角色直看明文；受限角色首次申请走授权 + 留痕 + 日限额校验；已授权直接看明文不再消耗额度。
-     *
-     * @param leadNo   线索业务 ID
-     * @param userNo   当前工号
-     * @param roleCode 当前角色
-     * @return 申请查看响应
-     */
+    /** 线索手机号查看统一走客户额度/审批链路，先校验范围，禁止历史授权绕过。 */
     @Transactional(rollbackFor = Exception.class)
-    public SensitiveApplyViewResp applyView(String leadNo, String userNo, String roleCode) {
-        if (!StringUtils.hasText(leadNo)) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "线索编号必填");
+    public SensitiveApplyViewResp applyView(String leadNo, LoanUser user) {
+        requireInternalStaff(user);
+        if (!StringUtils.hasText(leadNo)) throw new BusinessException(ResultCode.PARAM_ERROR, "线索不能为空");
+        // 在任何一致性读之前串行化额度所属员工，避免旧快照造成并发超限。
+        lockQuotaOwner(user.getUserNo());
+        Lead lead = leadMapper.selectOne(new LambdaQueryWrapper<Lead>().eq(Lead::getLeadNo, leadNo));
+        if (lead == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "线索不存在");
+        ClientProfile visible = new ClientProfile();
+        visible.setOwnerStaffCode(lead.getOwnerStaffCode());
+        scopeService.requireClientVisibleToStaff(user, visible);
+        if ("CHANNEL".equalsIgnoreCase(lead.getSource())
+                && Arrays.asList("PENDING_APPROVAL", "REJECTED").contains(lead.getFollowStatus())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "渠道线索尚未通过审核");
         }
-        if (!StringUtils.hasText(userNo)) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "未登录");
+        String clientCode = lead.getClientProfileCode();
+        if (!StringUtils.hasText(clientCode)) {
+            // 历史未绑定的公司公海线索按业务自然键复用或建档，不建立虚假员工归属。
+            ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                    .eq(ClientProfile::getPhoneHash, lead.getPhoneHash())
+                    .eq(ClientProfile::getCustomerGroup, lead.getLeadType()).last("LIMIT 1"));
+            if (client == null) {
+                client = new ClientProfile();
+                client.setClientCode(BizIdGenerator.generate("client"));
+                client.setContactName(lead.getContactName()); client.setPhone(lead.getPhone());
+                client.setPhonePlain(lead.getPhone()); client.setPhoneHash(lead.getPhoneHash());
+                client.setCustomerGroup(lead.getLeadType()); client.setOwnerStaffCode(lead.getOwnerStaffCode());
+                client.setLeadNo(lead.getLeadNo()); client.setSource("LEAD");
+                client.setCustomerTag("NEW"); client.setStatus("ACTIVE");
+                if (!StringUtils.hasText(lead.getOwnerStaffCode())) client.setSeaLevel("ENTERPRISE");
+                client.setCreatedAt(LocalDateTime.now()); client.setCreatedBy(user.getUserNo());
+                try { clientProfileMapper.insert(client); }
+                catch (DuplicateKeyException duplicate) {
+                    client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                            .eq(ClientProfile::getPhoneHash, lead.getPhoneHash())
+                            .eq(ClientProfile::getCustomerGroup, lead.getLeadType()).last("FOR UPDATE"));
+                    if (client == null) throw duplicate;
+                }
+            }
+            clientCode = client.getClientCode();
+            leadMapper.bindClientProfile(lead.getLeadNo(), clientCode, user.getUserNo());
         }
-        Lead lead = leadMapper.selectOne(new LambdaQueryWrapper<Lead>().eq(Lead::getLeadNo, leadNo.trim()));
-        if (lead == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "线索不存在");
-        }
-        // Lead.phone 由 AesTypeHandler 读取时解密，敏感查看只负责授权与审计。
-        String plain = lead.getPhone();
-        String masked = DesensitizeUtils.phone(plain);
+        SensitiveApplyViewResp response = applyClientView(clientCode, user);
+        response.setLeadNo(lead.getLeadNo());
+        return response;
+    }
 
-        SensitiveApplyViewResp resp = new SensitiveApplyViewResp();
-        resp.setLeadNo(leadNo.trim());
-        resp.setPhoneMasked(masked);
+    private void requireInternalStaff(LoanUser user) {
+        if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType())
+                || !StringUtils.hasText(user.getUserNo())
+                || !Arrays.asList("ADVISER", "DEPT_MANAGER", "OPERATOR", "BOSS", "SUPER_ADMIN", "SUPER").contains(user.getRoleCode())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅公司内部员工可申请查看手机号");
+        }
+    }
 
-        // 豁免角色：直接看明文，不走授权/限额
-        if (isExemptRole(roleCode)) {
-            resp.setPhonePlain(plain);
-            resp.setRevealed(true);
-            applyQuota(resp, userNo, roleCode);
-            return resp;
+    @Transactional(rollbackFor = Exception.class)
+    public void saveDailyLimit(int limit, LoanUser user) {
+        com.loan.infrastructure.security.AdminRoleGuard.requireSystemConfigAdmin(user);
+        if (limit < 1 || limit > 100000) throw new BusinessException(ResultCode.PARAM_ERROR, "每日额度应在1至100000之间");
+        ConfigItem item = configItemMapper.selectOne(new LambdaQueryWrapper<ConfigItem>()
+                .eq(ConfigItem::getConfigGroup, "SENSITIVE_VIEW").eq(ConfigItem::getConfigKey, LIMIT_KEY));
+        if (item == null) {
+            item = new ConfigItem(); item.setConfigGroup("SENSITIVE_VIEW"); item.setConfigKey(LIMIT_KEY);
+            item.setConfigValue(String.valueOf(limit)); item.setEnabled(1); item.setIsSecret(0);
+            item.setDescription("员工每日首次客户手机号解锁额度"); item.setCreatedBy(user.getUserNo());
+            configItemMapper.insert(item);
+        } else {
+            item.setConfigValue(String.valueOf(limit)); item.setEnabled(1); item.setUpdatedBy(user.getUserNo());
+            configItemMapper.updateById(item);
         }
-
-        // 已授权：直接看明文，不再消耗当日额度（授权持久化）
-        if (hasGrant(userNo, leadNo)) {
-            resp.setPhonePlain(plain);
-            resp.setRevealed(true);
-            applyQuota(resp, userNo, roleCode);
-            return resp;
-        }
-
-        // 受限角色：校验当日额度
-        long used = countTodayViews(userNo, LocalDate.now());
-        if (used >= getDailyLimit()) {
-            notifyOverLimit(userNo);
-            throw new BusinessException(ResultCode.SENSITIVE_QUOTA_EXCEEDED,
-                    String.format("今日查看次数已用完（已用 %d / 上限 %d）", used, getDailyLimit()));
-        }
-        insertGrant(userNo, leadNo);
-        insertViewLog(userNo, leadNo);
-        resp.setPhonePlain(plain);
-        resp.setRevealed(true);
-        long usedAfter = countTodayViews(userNo, LocalDate.now());
-        if (usedAfter >= getDailyLimit()) {
-            notifyOverLimit(userNo);
-        }
-        applyQuota(resp, userNo, roleCode);
-        return resp;
     }
 
     /**
@@ -236,6 +229,7 @@ public class SensitiveViewService {
      */
     @Transactional(rollbackFor = Exception.class)
     public SensitiveApplyViewResp applyClientView(String clientCode, com.loan.context.LoanUser user) {
+        requireInternalStaff(user);
         String userNo = user == null ? null : user.getUserNo();
         String roleCode = user == null ? null : user.getRoleCode();
         if (!StringUtils.hasText(clientCode)) {
@@ -246,9 +240,7 @@ public class SensitiveViewService {
         }
         // MySQL 默认 REPEATABLE READ 下，必须在任何客户/日志一致性读之前取得员工行锁。
         // 若先读客户再等待锁，后续额度查询可能仍沿用等待前建立的旧快照。
-        if (!isExemptRole(roleCode)) {
-            lockQuotaOwner(userNo);
-        }
+        lockQuotaOwner(userNo);
         ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
                 .eq(ClientProfile::getClientCode, clientCode.trim()).last("limit 1"));
         if (client == null) {
@@ -259,14 +251,19 @@ public class SensitiveViewService {
         if (!StringUtils.hasText(plain)) {
             // ClientProfile.phone 由 AesTypeHandler 读取时解密。
             plain = client.getPhone();
-            if (StringUtils.hasText(plain)) {
+            if (StringUtils.hasText(plain) && plain.matches("1[3-9]\\d{9}")) {
                 clientProfileMapper.backfillPhonePlain(client.getClientCode(), plain);
             }
+        }
+        if (!StringUtils.hasText(plain) || !plain.matches("1[3-9]\\d{9}")) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "客户手机号未完善，请先更新联系方式");
         }
         SensitiveApplyViewResp resp = new SensitiveApplyViewResp();
         resp.setClientCode(client.getClientCode());
         resp.setPhoneMasked(DesensitizeUtils.phone(plain));
         if (isExemptRole(roleCode)) {
+            // 老板/超管不受额度限制，但每个员工-客户-日期仍保留一次审计留痕。
+            if (!hasClientViewedToday(userNo, clientCode)) insertClientViewLog(userNo, clientCode);
             resp.setPhonePlain(plain);
             resp.setRevealed(true);
             applyQuota(resp, userNo, roleCode);
@@ -339,7 +336,7 @@ public class SensitiveViewService {
         else q.eq(Staff::getRoleCode, "DEPT_MANAGER").eq(Staff::getDeptCode, approval.getApplicantDeptCode());
         for (Staff target : staffMapper.selectList(q)) {
             NotificationReq req = new NotificationReq(); req.setUserNo(target.getStaffCode()); req.setType(Notification.TYPE_SYSTEM_NOTICE);
-            req.setTitle("敏感手机号超额查看审批"); req.setContent("员工 " + approval.getApplicantStaffCode() + " 已超过今日查看额度，请处理审批申请"); req.setRelatedId(approval.getApprovalNo());
+            req.setTitle("敏感手机号超额查看审批"); req.setContent("本部门员工已超过今日查看额度，请处理手机号查看申请"); req.setRelatedId(approval.getApprovalNo());
             try { notificationService.sendOnce(req); } catch (Exception e) { log.warn("发送手机号超额审批通知失败", e); }
         }
     }
@@ -349,9 +346,22 @@ public class SensitiveViewService {
         String role = user.getRoleCode().toUpperCase();
         LambdaQueryWrapper<SensitiveViewApproval> q = new LambdaQueryWrapper<SensitiveViewApproval>().eq(SensitiveViewApproval::getApproveStatus, "PENDING").orderByDesc(SensitiveViewApproval::getCreatedAt);
         if ("DEPT_MANAGER".equals(role)) q.eq(SensitiveViewApproval::getApprovalStage, "MANAGER_REVIEW").eq(SensitiveViewApproval::getApplicantDeptCode, user.getDeptCode());
-        else if (Arrays.asList("BOSS", "SUPER_ADMIN", "SUPER").contains(role)) q.eq(SensitiveViewApproval::getApprovalStage, "BOSS_REVIEW");
-        else return java.util.Collections.emptyList();
-        return approvalMapper.selectList(q);
+        else if (!Arrays.asList("BOSS", "SUPER_ADMIN", "SUPER").contains(role)) return java.util.Collections.emptyList();
+        List<SensitiveViewApproval> rows = approvalMapper.selectList(q);
+        if (rows.isEmpty()) return rows;
+        java.util.Map<String, String> staffNames = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                .select(Staff::getStaffCode, Staff::getStaffName).in(Staff::getStaffCode,
+                        rows.stream().map(SensitiveViewApproval::getApplicantStaffCode).collect(java.util.stream.Collectors.toSet())))
+                .stream().collect(java.util.stream.Collectors.toMap(Staff::getStaffCode,
+                        s -> StringUtils.hasText(s.getStaffName()) ? s.getStaffName() : "姓名待补充", (a,b) -> a));
+        java.util.Map<String, String> clientNames = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+                .select(ClientProfile::getClientCode, ClientProfile::getContactName, ClientProfile::getEnterpriseName)
+                .in(ClientProfile::getClientCode, rows.stream().map(SensitiveViewApproval::getClientCode).collect(java.util.stream.Collectors.toSet())))
+                .stream().collect(java.util.stream.Collectors.toMap(ClientProfile::getClientCode,
+                        c -> StringUtils.hasText(c.getEnterpriseName()) ? c.getEnterpriseName()
+                                : (StringUtils.hasText(c.getContactName()) ? c.getContactName() : "客户名称待补充"), (a,b) -> a));
+        rows.forEach(row -> { row.setApplicantName(staffNames.get(row.getApplicantStaffCode())); row.setClientName(clientNames.get(row.getClientCode())); });
+        return rows;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -363,7 +373,13 @@ public class SensitiveViewService {
         boolean manager = "DEPT_MANAGER".equals(role) && "MANAGER_REVIEW".equals(a.getApprovalStage()) && user.getDeptCode() != null && user.getDeptCode().equals(a.getApplicantDeptCode());
         if (!(boss || manager) || user.getUserNo().equals(a.getApplicantStaffCode())) throw new BusinessException(ResultCode.FORBIDDEN, "无权审批该申请");
         if (!approve && !StringUtils.hasText(opinion)) throw new BusinessException(ResultCode.PARAM_ERROR, "驳回意见必填");
-        a.setApproveStatus(approve ? "APPROVED" : "REJECTED"); a.setApproveOpinion(opinion); a.setApproverStaffCode(user.getUserNo()); a.setApprovedAt(LocalDateTime.now()); approvalMapper.updateById(a);
+        int changed = approvalMapper.update(null, new LambdaUpdateWrapper<SensitiveViewApproval>()
+                .eq(SensitiveViewApproval::getApprovalNo, approvalNo).eq(SensitiveViewApproval::getApproveStatus, "PENDING")
+                .set(SensitiveViewApproval::getApproveStatus, approve ? "APPROVED" : "REJECTED")
+                .set(SensitiveViewApproval::getApproveOpinion, opinion)
+                .set(SensitiveViewApproval::getApproverStaffCode, user.getUserNo())
+                .set(SensitiveViewApproval::getApprovedAt, LocalDateTime.now()));
+        if (changed != 1) throw new BusinessException(ResultCode.PARAM_ERROR, "该审批已被处理，请刷新");
         NotificationReq req = new NotificationReq(); req.setUserNo(a.getApplicantStaffCode()); req.setType(Notification.TYPE_SYSTEM_NOTICE); req.setTitle("敏感手机号查看审批结果"); req.setContent(approve ? "审批已通过，请重新申请查看手机号" : "审批已驳回：" + opinion); req.setRelatedId(a.getApprovalNo()); notificationService.send(req);
     }
 
@@ -407,57 +423,4 @@ public class SensitiveViewService {
         resp.setRemaining(quota.getRemaining());
     }
 
-    /** 写入授权记录（并发重复视为已授权）。 */
-    private void insertGrant(String userNo, String leadNo) {
-        SensitiveViewGrant grant = new SensitiveViewGrant();
-        grant.setUserNo(userNo.trim());
-        grant.setLeadNo(leadNo.trim());
-        grant.setCreatedAt(LocalDateTime.now());
-        try {
-            grantMapper.insert(grant);
-        } catch (DuplicateKeyException ignored) {
-            // 并发重复申请：UK 冲突，视为已授权
-        }
-    }
-
-    /** 写入查看留痕（日限额统计依据）。 */
-    private void insertViewLog(String userNo, String leadNo) {
-        SensitiveViewLog logPo = new SensitiveViewLog();
-        logPo.setUserNo(userNo.trim());
-        logPo.setLeadNo(leadNo.trim());
-        logPo.setViewDate(LocalDate.now());
-        logPo.setCreatedAt(LocalDateTime.now());
-        logMapper.insert(logPo);
-    }
-
-    /** 达上限通知老板/主管。 */
-    private void notifyOverLimit(String applicantUserNo) {
-        Staff applicant = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
-                .eq(Staff::getStaffCode, applicantUserNo.trim()));
-        String name = applicant != null && StringUtils.hasText(applicant.getStaffName())
-                ? applicant.getStaffName() : applicantUserNo;
-        String content = String.format("%s 今日查看客户敏感数据已达上限 %d 次，请留意！！！", name, getDailyLimit());
-        List<Staff> managers = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
-                .in(Staff::getRoleCode, "BOSS", "DEPT_MANAGER")
-                .eq(Staff::getStatus, "ACTIVE"));
-        if (managers == null) {
-            return;
-        }
-        Set<String> notified = new HashSet<>();
-        for (Staff s : managers) {
-            if (s != null && StringUtils.hasText(s.getStaffCode()) && notified.add(s.getStaffCode())) {
-                NotificationReq req = new NotificationReq();
-                req.setUserNo(s.getStaffCode());
-                req.setType(Notification.TYPE_SYSTEM_NOTICE);
-                req.setTitle("敏感数据查看超额预警");
-                req.setContent(content);
-                req.setRelatedId(applicantUserNo + ":" + LocalDate.now());
-                try {
-                    notificationService.sendOnce(req);
-                } catch (Exception e) {
-                    log.warn("发送敏感查看超额通知失败: {}", s.getStaffCode(), e);
-                }
-            }
-        }
-    }
 }

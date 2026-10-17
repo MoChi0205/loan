@@ -22,6 +22,7 @@ public class TestUsers {
             set(u, "phone", "13800000000");
             set(u, "name", "tester");
             set(u, "userType", "STAFF");
+            set(u, "clientType", "WEB");
             set(u, "roleCode", "STAFF");
             set(u, "region", "cn");
             set(u, "referrerNo", "R001");
@@ -43,6 +44,7 @@ public class TestUsers {
             set(u, "phone", "13900000000");
             set(u, "name", "customer");
             set(u, "userType", "CUSTOMER");
+            set(u, "clientType", "MINI_APP");
             set(u, "roleCode", "CUSTOMER");
             set(u, "region", "cn");
             return u;

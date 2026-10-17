@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * 渠道本地白/黑名单服务：统一支持单条、批量与组合分页查询。
  *
  * <p>名单键语义：PERSONAL=手机号 MD5(32hex)；ENTERPRISE=统一社会信用代码(18位，原样存)。
- * 新增时后端统一归一化并通过批量 {@code INSERT IGNORE} 保证并发幂等。
+ * 新增时后端统一归一化，批量预查自然键并由唯一索引保证并发幂等。
  *
  * @author loan-platform
  */
@@ -80,7 +80,7 @@ public class ChannelUserListService {
         return codes.stream().map(itemMap::get).filter(item -> item != null).collect(Collectors.toList());
     }
 
-    /** 批量新增名单（后端归一化名单键，单次批量写库）。 */
+    /** 批量新增名单（后端归一化名单键，批量预查已有自然键）。 */
     @Transactional(rollbackFor = Exception.class)
     public int add(String channelCode, String customerGroup, String listType, List<String> rawKeys, String operator) {
         requireText(channelCode, "渠道编码必填");

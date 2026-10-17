@@ -233,6 +233,13 @@ public class ClientService {
         List<String> ownerCodes = result.getRecords().stream().map(ClientProfile::getOwnerStaffCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
         Map<String, String> ownerNames = businessNameService.staffNames(ownerCodes);
+        Map<String, Staff> owners = ownerCodes.isEmpty() ? java.util.Collections.emptyMap()
+                : staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                        .select(Staff::getStaffCode, Staff::getDeptCode)
+                        .in(Staff::getStaffCode, ownerCodes))
+                        .stream().collect(Collectors.toMap(Staff::getStaffCode, staff -> staff,
+                                (left, right) -> left));
+        List<ResourcePoolConfig> poolConfigs = resourcePoolConfigService.list();
         List<String> clientCodes = result.getRecords().stream().map(ClientProfile::getClientCode)
                 .filter(StringUtils::hasText).collect(Collectors.toList());
         Map<String, Map<String, Object>> dynamicTags = clientCodes.isEmpty()
@@ -254,9 +261,8 @@ public class ClientService {
             m.put("customerTags", java.util.Collections.singletonList(currentTag));
             // ClientProfile.phone 已由 AesTypeHandler 在读取时解密，禁止再次解密造成误告警。
             m.put("phone", DesensitizeUtils.phone(c.getPhone()));
-            Staff owner = StringUtils.hasText(c.getOwnerStaffCode()) ? staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
-                    .eq(Staff::getStaffCode, c.getOwnerStaffCode()).last("LIMIT 1")) : null;
-            ResourcePoolConfig pool = resourcePoolConfigService.resolve(c.getOwnerStaffCode(), owner == null ? null : owner.getDeptCode());
+            Staff owner = owners.get(c.getOwnerStaffCode());
+            ResourcePoolConfig pool = resolvePool(poolConfigs, c.getOwnerStaffCode(), owner == null ? null : owner.getDeptCode());
             m.put("poolName", StringUtils.hasText(c.getSeaLevel()) && "TEAM".equalsIgnoreCase(c.getSeaLevel())
                     ? "团队公海" : (StringUtils.hasText(c.getSeaLevel()) ? "公司公共资源池" : "—"));
             if (pool != null && !StringUtils.hasText(c.getOwnerStaffCode())) m.put("poolName", pool.getPoolName());
@@ -270,6 +276,22 @@ public class ClientService {
             return m;
         }).collect(Collectors.toList());
         return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    /** 从一次性批量读取的规则中按员工、团队、公司优先级解析，避免列表逐行访问数据库。 */
+    private ResourcePoolConfig resolvePool(List<ResourcePoolConfig> configs, String staffCode, String deptCode) {
+        if (configs == null || configs.isEmpty()) return null;
+        ResourcePoolConfig team = null;
+        ResourcePoolConfig company = null;
+        for (ResourcePoolConfig config : configs) {
+            if (!Integer.valueOf(1).equals(config.getEnabled())) continue;
+            if (StringUtils.hasText(staffCode) && "STAFF".equalsIgnoreCase(config.getScopeType())
+                    && staffCode.equals(config.getScopeKey())) return config;
+            if (StringUtils.hasText(deptCode) && "TEAM".equalsIgnoreCase(config.getScopeType())
+                    && deptCode.equals(config.getScopeKey())) team = config;
+            if ("COMPANY".equalsIgnoreCase(config.getScopeType())) company = config;
+        }
+        return team != null ? team : company;
     }
 
     /** 动态标签优先级：成交 > 已来访 > 已预约 > 人工经营标签。 */

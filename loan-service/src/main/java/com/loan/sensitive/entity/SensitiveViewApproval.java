@@ -24,4 +24,8 @@ public class SensitiveViewApproval implements Serializable {
     private String approveOpinion;
     private LocalDateTime approvedAt;
     private LocalDateTime createdAt;
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String applicantName;
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String clientName;
 }

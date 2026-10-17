@@ -11,6 +11,7 @@ import com.loan.lead.mapper.LeadAllocationRecordMapper;
 import com.loan.lead.mapper.LeadMapper;
 import com.loan.notification.service.NotificationService;
 import com.loan.sensitive.service.SensitiveViewService;
+import com.loan.lead.mapper.LeadRecycleConfigMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +49,7 @@ class LeadServiceChannelApprovalTest {
         recordMapper = mock(LeadAllocationRecordMapper.class);
         service = new LeadService(leadMapper, mock(ClientProfileMapper.class), recordMapper,
                 mock(NotificationService.class), mock(SensitiveViewService.class),
-                mock(ClaimQuotaService.class));
+                mock(ClaimQuotaService.class), mock(LeadRecycleConfigMapper.class));
     }
 
     @Test

@@ -76,7 +76,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "order:page", "order:create", "order:detail", "order:updateStatus",
             "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim",
             "lead:detail", "lead:follow",
-            "lead:applyView", "lead:applyClientView", "lead:quota",
+            "lead:sensitive:applyView", "lead:sensitive:applyClientView", "lead:sensitive:quota",
             "client:pageLite", "client:tagCounts", "client:detail", "client:update", "client:release", "client:follow", "client:history",
             "client:unassignedPage", "client:claim", "client:batchClaim", "client:lookup",
             "client:createFollow", "client:activityTimeline",
@@ -125,7 +125,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "approval:downloadVoid",
             "approval:allocationPending", "approval:allocationApprove", "approval:allocationReject",
             "approval:unifiedPending", "approval:unifiedCounts", "approval:unifiedAudit",
-            "lead:pendingApprovals", "lead:auditApproval",
+            "lead:sensitive:pendingApprovals", "lead:sensitive:auditApproval",
             // 员工外出审核（2026-09-21）：主管才可审核本人部门的外出申请，
             // 顾问侧只给提交/打卡/上传照片；老板/运营/超管属全量角色自动放行。
             "outing:pending", "outing:approve", "outing:reject",
@@ -234,6 +234,11 @@ public class ApiPermissionSyncService implements ApplicationRunner {
                 mod = "mini:" + miniModule(handlerMethod);
             }
             String apiKey = mod + ":" + methodName;
+            // 敏感查看控制器与 LeadController 同属 lead 模块，固定命名空间避免同名方法
+            // 依赖 Spring HandlerMap 的非确定性扫描顺序产生 #1 后缀漂移。
+            if (handlerMethod.getBeanType().getSimpleName().equals("SensitiveViewController")) {
+                apiKey = "lead:sensitive:" + methodName;
+            }
             Integer cnt = keyCount.getOrDefault(apiKey, 0);
             keyCount.put(apiKey, cnt + 1);
             if (cnt > 0) {
@@ -248,17 +253,20 @@ public class ApiPermissionSyncService implements ApplicationRunner {
                 p.setHttpMethod(httpMethod);
                 p.setPathPattern(pattern);
                 p.setModuleGroup(group);
-                p.setClientTypes("WEB,MINI_APP");
+                p.setClientTypes(pattern.startsWith("/api/admin/lead/sensitive/") ? "WEB" : "WEB,MINI_APP");
                 p.setStatus("ACTIVE");
                 p.setRemark(handlerMethod.getMethod().getDeclaringClass().getSimpleName() + "." + methodName);
                 p.setCreatedBy("system");
                 p.setCreatedAt(LocalDateTime.now());
                 toInsert.add(p);
             } else {
-                boolean changed = !httpMethod.equals(perm.getHttpMethod())
+                // 敏感查看必须显式收紧存量接口端配置，不能仅修新登记。
+                boolean sensitiveWebOnly = pattern.startsWith("/api/admin/lead/sensitive/");
+                boolean changed = (sensitiveWebOnly && !"WEB".equals(perm.getClientTypes())) || !httpMethod.equals(perm.getHttpMethod())
                         || !pattern.equals(perm.getPathPattern())
                         || !group.equals(perm.getModuleGroup());
                 if (changed) {
+                    if (sensitiveWebOnly) perm.setClientTypes("WEB");
                     perm.setHttpMethod(httpMethod);
                     perm.setPathPattern(pattern);
                     perm.setModuleGroup(group);
@@ -273,6 +281,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
         toUpdate.forEach(apiPermissionMapper::updateById);
         // 清理旧格式 mini:<方法名>（单冒号）键，避免与新的 mini:<模块>:<方法名> 并存导致鉴权歧义。
         cleanupLegacyMiniKeys();
+        cleanupLegacySensitiveKeys();
         Long total = apiPermissionMapper.selectCount(null);
         return total == null ? 0 : total.intValue();
     }
@@ -311,6 +320,41 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             if (isLegacyMiniKey(ra.getApiKey())) {
                 roleApiMapper.deleteById(ra.getId());
             }
+        }
+    }
+
+    /** 将旧 lead:<method> 权限键迁移到稳定敏感命名空间，角色授权随之迁移。 */
+    private void cleanupLegacySensitiveKeys() {
+        Map<String, String> replacements = new LinkedHashMap<>();
+        replacements.put("lead:applyView", "lead:sensitive:applyView");
+        replacements.put("lead:applyClientView", "lead:sensitive:applyClientView");
+        replacements.put("lead:quota", "lead:sensitive:quota");
+        replacements.put("lead:pendingApprovals", "lead:sensitive:pendingApprovals");
+        replacements.put("lead:auditApproval", "lead:sensitive:auditApproval");
+        replacements.put("lead:limitConfig", "lead:sensitive:limitConfig");
+        replacements.put("lead:saveLimitConfig", "lead:sensitive:saveLimitConfig");
+        for (Map.Entry<String, String> item : replacements.entrySet()) {
+            Long replacementCount = apiPermissionMapper.selectCount(new LambdaQueryWrapper<ApiPermission>()
+                    .eq(ApiPermission::getApiKey, item.getValue()));
+            if (replacementCount == null || replacementCount == 0) continue;
+            ApiPermission old = apiPermissionMapper.selectOne(new LambdaQueryWrapper<ApiPermission>()
+                    .eq(ApiPermission::getApiKey, item.getKey()));
+            // 同名旧权限可能属于其他控制器，不得将其授权移入敏感接口。
+            if (old == null || old.getPathPattern() == null
+                    || !old.getPathPattern().startsWith("/api/admin/lead/sensitive/")) continue;
+            List<RoleApi> grants = roleApiMapper.selectList(new LambdaQueryWrapper<RoleApi>()
+                    .eq(RoleApi::getApiKey, item.getKey()));
+            for (RoleApi grant : grants) {
+                Long exists = roleApiMapper.selectCount(new LambdaQueryWrapper<RoleApi>()
+                        .eq(RoleApi::getRoleCode, grant.getRoleCode()).eq(RoleApi::getApiKey, item.getValue()));
+                if (exists == null || exists == 0) {
+                    RoleApi migrated = new RoleApi(); migrated.setRoleCode(grant.getRoleCode());
+                    migrated.setApiKey(item.getValue()); migrated.setCreatedBy("system"); migrated.setCreatedAt(LocalDateTime.now());
+                    roleApiMapper.insert(migrated);
+                }
+                roleApiMapper.deleteById(grant.getId());
+            }
+            apiPermissionMapper.deleteById(old.getId());
         }
     }
 

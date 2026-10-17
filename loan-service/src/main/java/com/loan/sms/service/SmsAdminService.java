@@ -227,7 +227,7 @@ public class SmsAdminService {
         record.setSendTime(LocalDateTime.now());
         record.setCreatedBy(operator);
         smsRecordMapper.insert(record);
-        log.info("短信已发送（模拟通道） phone={} template={}", phone, templateCode);
+        log.info("短信已发送（模拟通道） phone={} template={}", com.loan.utils.DesensitizeUtils.phone(phone), templateCode);
     }
 
     /** 手机号 SHA-256 哈希。 */

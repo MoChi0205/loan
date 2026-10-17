@@ -16,7 +16,7 @@ public class SensitiveApplyViewResp implements Serializable {
 
     /** 线索业务 ID */
     private String leadNo;
-    /** 客户档案业务编码；线索查看时为空。 */
+    /** 客户档案业务编码；线索查看也统一绑定到客户额度。 */
     private String clientCode;
 
     /** 明文手机号（仅授权/豁免角色可见） */

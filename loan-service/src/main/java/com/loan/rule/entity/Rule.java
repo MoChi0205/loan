@@ -23,6 +23,9 @@ public class Rule {
     /** 规则编码 */
     private String ruleCode;
 
+    /** 当前生效的规则版本号。 */
+    private Integer currentVersion;
+
     /** 规则名称 */
     private String ruleName;
 

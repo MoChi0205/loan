@@ -267,7 +267,7 @@ public class ClientController {
         String scopedOwner = ownerStaffCode;
         String scopedDeptCode = null;
         String ownershipScope = null;
-        String normalizedScope = scope == null ? "ALL" : scope.trim().toUpperCase();
+        String normalizedScope = normalizeScope(scope, "ALL");
         if ("MY".equals(normalizedScope)) {
             scopedOwner = user.getUserNo();
         } else if ("TEAM".equals(normalizedScope)) {
@@ -322,7 +322,7 @@ public class ClientController {
                                                   @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
         String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
-        String normalized = scope == null ? "MY" : scope.trim().toUpperCase();
+        String normalized = normalizeScope(scope, "MY");
         String scopedOwner = user.getUserNo();
         String scopedDept = null;
         boolean assignedOnly = false;
@@ -336,6 +336,16 @@ public class ClientController {
             throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.PARAM_ERROR, "不支持的客户统计范围");
         }
         return Result.ok(clientService.tagCounts(scopedOwner, scopedDept, assignedOnly));
+    }
+
+    /** 客户中心与服务台共用范围语义，兼容 SELF/DEPARTMENT/COMPANY 和 MY/TEAM/ALL。 */
+    private String normalizeScope(String scope, String defaultScope) {
+        String value = org.springframework.util.StringUtils.hasText(scope)
+                ? scope.trim().toUpperCase() : defaultScope;
+        if ("SELF".equals(value)) return "MY";
+        if ("DEPARTMENT".equals(value)) return "TEAM";
+        if ("COMPANY".equals(value) || "COMPANY_ASSIGNED".equals(value)) return "ALL";
+        return value;
     }
 
     /**

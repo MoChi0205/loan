@@ -46,6 +46,18 @@ class ServiceOperationScopeServiceTest {
         assertThrows(BusinessException.class, () -> service.resolveScope(staff("BOSS"), "OTHER"));
     }
 
+    @Test
+    void teamSeaPhoneScopeMatchesClientDetailScope() {
+        com.loan.client.entity.ClientProfile client = new com.loan.client.entity.ClientProfile();
+        client.setSeaLevel("TEAM"); client.setSeaDeptCode("CONSULT");
+        assertThrows(BusinessException.class, () -> service.requireClientVisibleToStaff(staff("ADVISER"), client));
+        service.requireClientVisibleToStaff(staff("DEPT_MANAGER"), client);
+        client.setSeaDeptCode("OTHER");
+        assertThrows(BusinessException.class, () -> service.requireClientVisibleToStaff(staff("DEPT_MANAGER"), client));
+        client.setSeaDeptCode(null);
+        assertThrows(BusinessException.class, () -> service.requireClientVisibleToStaff(staff("DEPT_MANAGER"), client));
+    }
+
     private LoanUser staff(String role) {
         LoanUser user = new LoanUser();
         user.setUserType(LoanUser.TYPE_STAFF);

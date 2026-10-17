@@ -141,7 +141,7 @@ public class MiniAuthService {
         user.setReferrerNo(referrerNo);
         user.setInvitedFlag(client.getInvitedFlag() != null && client.getInvitedFlag() == 1);
 
-        String token = jwtService.generateToken(user.getUserId(), user.getUserType(), user.getUserNo(), null);
+        String token = jwtService.generateToken(user.getUserId(), user.getUserType(), user.getUserNo(), null, "MINI_APP");
         saveSession(user.getUserId(), user);
 
         LoginResponse response = new LoginResponse();
@@ -233,7 +233,7 @@ public class MiniAuthService {
     }
 
     private LoginResponse issue(LoanUser user) {
-        String token = jwtService.generateToken(user.getUserId(), user.getUserType(), user.getUserNo(), null);
+        String token = jwtService.generateToken(user.getUserId(), user.getUserType(), user.getUserNo(), null, "MINI_APP");
         saveSession(user.getUserId(), user);
         LoginResponse response = new LoginResponse(); response.setToken(token);
         response.setExpireMillis(86400000L); response.setUser(user); return response;

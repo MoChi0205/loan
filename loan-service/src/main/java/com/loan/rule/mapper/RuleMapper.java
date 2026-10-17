@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.loan.rule.entity.Rule;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 /**
  * 规则 Mapper。
@@ -20,8 +19,15 @@ public interface RuleMapper extends BaseMapper<Rule> {
      * @param ruleId 规则 ID
      * @return 版本记录 id；无版本记录时返回 null
      */
-    @Select("SELECT rv.id FROM t_rule_version rv INNER JOIN t_rule r ON r.id = rv.rule_id "
-            + "WHERE rv.rule_id = #{ruleId} AND rv.version_no = r.current_version "
-            + "ORDER BY rv.id DESC LIMIT 1")
-    Long selectCurrentVersionId(@Param("ruleId") Long ruleId);
+    default Long selectCurrentVersionId(Long ruleId) {
+        Rule rule = selectById(ruleId);
+        if (rule == null || rule.getCurrentVersion() == null) return null;
+        com.loan.rule.entity.RuleVersion version = com.loan.common.util.MapperAccess.query(
+            com.loan.rule.entity.RuleVersion.class, mapper -> mapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.loan.rule.entity.RuleVersion>()
+                    .select(com.loan.rule.entity.RuleVersion::getId)
+                    .eq(com.loan.rule.entity.RuleVersion::getRuleId, ruleId)
+                    .eq(com.loan.rule.entity.RuleVersion::getVersionNo, rule.getCurrentVersion())));
+        return version == null ? null : version.getId();
+    }
 }

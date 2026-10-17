@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 /**
  * 产品-服务城市服务：统一支持单条、批量与产品维度列表查询。
  *
- * <p>绑定写入使用批量 {@code INSERT IGNORE}，依赖业务编码与产品省市自然键唯一索引保证并发幂等。
+ * <p>绑定先批量预查自然键，依赖业务编码与产品省市唯一索引保证并发幂等。
  *
  * @author loan-platform
  */
@@ -53,7 +53,7 @@ public class BankProductCityService {
         return PageResult.build(page, size, result.getTotal(), result.getRecords());
     }
 
-    /** 批量绑定产品可服务城市（去重幂等、单次批量写库）。 */
+    /** 批量绑定产品可服务城市（去重幂等、一次自然键预查）。 */
     @Transactional(rollbackFor = Exception.class)
     public int bind(String productCode, List<CityItem> cities, String operator) {
         requireText(productCode, "产品编码必填");

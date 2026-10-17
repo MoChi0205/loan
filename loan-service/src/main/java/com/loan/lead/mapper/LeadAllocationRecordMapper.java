@@ -2,9 +2,7 @@ package com.loan.lead.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.loan.lead.entity.LeadAllocationRecord;
-import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -23,11 +21,7 @@ public interface LeadAllocationRecordMapper extends BaseMapper<LeadAllocationRec
      * @param list 流转记录列表
      * @return 受影响行数
      */
-    @Insert({"<script>INSERT INTO t_lead_allocation_record "
-            + "(lead_no, action_type, from_staff_code, to_staff_code, operator, remark, created_at) VALUES ",
-            "<foreach collection='list' item='item' separator=','>",
-            "(#{item.leadNo}, #{item.actionType}, #{item.fromStaffCode}, #{item.toStaffCode}, #{item.operator}, "
-            + "#{item.remark}, #{item.createdAt})",
-            "</foreach></script>"})
-    int insertBatch(@Param("list") List<LeadAllocationRecord> list);
+    default int insertBatch(List<LeadAllocationRecord> list) {
+        return com.loan.common.util.MapperAccess.insertBatch(LeadAllocationRecord.class, LeadAllocationRecordMapper.class, list);
+    }
 }

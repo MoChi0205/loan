@@ -69,6 +69,19 @@ class ApiPermissionSyncServiceTest {
         assertTrue(defaults.get("DEPT_MANAGER").contains("report:screeningAggregate"));
     }
 
+    @Test
+    void sensitivePhoneApisUseStableLeastPrivilegeKeys() {
+        Map<String, List<String>> defaults = service().defaultRoleApis(keys(
+                "lead:sensitive:applyView", "lead:sensitive:applyClientView", "lead:sensitive:quota",
+                "lead:sensitive:pendingApprovals", "lead:sensitive:auditApproval",
+                "lead:applyView", "lead:pendingApprovals"));
+
+        assertTrue(defaults.get("ADVISER").contains("lead:sensitive:applyView"));
+        assertFalse(defaults.get("ADVISER").contains("lead:sensitive:pendingApprovals"));
+        assertTrue(defaults.get("DEPT_MANAGER").contains("lead:sensitive:pendingApprovals"));
+        assertFalse(defaults.get("ADVISER").contains("lead:applyView"));
+    }
+
     private ApiPermissionSyncService service() {
         return new ApiPermissionSyncService(
                 mock(RequestMappingHandlerMapping.class),

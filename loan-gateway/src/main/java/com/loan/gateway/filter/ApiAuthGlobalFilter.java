@@ -31,7 +31,7 @@ import java.util.UUID;
  * 网关全局鉴权过滤器：所有请求先认证后鉴权，通过才转发到下游。
  *
  * <p>流程：白名单放行 → JWT 认证（解析 userId/userType/userNo/roleCode）→
- * 端识别（X-Client-Type，默认 WEB）→ 接口匹配（method + pathPattern）→
+ * 端识别（签名 JWT clientType；旧令牌仅对非敏感接口兼容请求头）→ 接口匹配（method + pathPattern）→
  * 三重校验：接口状态 / 可用端 / 角色授权（BOSS 业务全量，系统配置域显式拒绝）。
  * 未登记接口一律拒绝（强制「所有接口都鉴权」）。通过后透传身份头给下游。
  *
@@ -207,6 +207,10 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
         // 状态校验
         if ("DISABLED".equals(asString(matched.get("status")))) {
             return reject(exchange, HttpStatus.FORBIDDEN, 2001, "接口已停用");
+        }
+        // 敏感手机号端红线先于配置与管理角色放行，防止旧配置仍允许 MINI_APP/H5。
+        if (path.contains("/api/admin/lead/sensitive/") && !CLIENT_WEB.equals(clientType)) {
+            return reject(exchange, HttpStatus.FORBIDDEN, 2001, "手机号原值仅允许公司内部 Web 受控查看");
         }
         // 端校验
         List<String> clientTypes = (List<String>) matched.get("clientTypes");
@@ -391,18 +395,16 @@ public class ApiAuthGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 解析端类型：请求头优先，其次 JWT claim，默认 WEB。
+     * 签名载荷优先；旧令牌仅用于非敏感接口，不能凭请求头提升端权限。
      */
     private String resolveClientType(ServerHttpRequest request, Claims claims) {
-        String header = request.getHeaders().getFirst(HEADER_CLIENT_TYPE);
-        if (StringUtils.hasText(header)) {
-            return header.trim().toUpperCase();
-        }
         Object claim = claims.get("clientType");
         if (claim != null) {
             return String.valueOf(claim).toUpperCase();
         }
-        return CLIENT_WEB;
+        if (request.getURI().getPath().contains("/api/admin/lead/sensitive/")) return "UNKNOWN";
+        String header = request.getHeaders().getFirst(HEADER_CLIENT_TYPE);
+        return StringUtils.hasText(header) ? header.trim().toUpperCase() : CLIENT_WEB;
     }
 
     /**

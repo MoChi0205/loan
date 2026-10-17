@@ -63,12 +63,18 @@ public class JwtService {
      * @return JWT 字符串
      */
     public String generateToken(Long userId, String userType, String userNo, String roleCode) {
+        return generateToken(userId, userType, userNo, roleCode, "WEB");
+    }
+
+    /** 端类型写入签名载荷，登录后不能通过请求头切换敏感权限边界。 */
+    public String generateToken(Long userId, String userType, String userNo, String roleCode, String clientType) {
         long now = System.currentTimeMillis();
         Map<String, Object> claims = new HashMap<>(8);
         claims.put("userId", userId);
         claims.put("userType", userType);
         claims.put("userNo", userNo);
         claims.put("roleCode", roleCode);
+        claims.put("clientType", clientType);
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(userNo == null ? String.valueOf(userId) : userNo)

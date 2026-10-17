@@ -36,6 +36,10 @@ public class LoanUser implements Serializable {
     /** 用户类型（CUSTOMER / CHANNEL / STAFF） */
     private String userType;
 
+    /** 当前请求签名令牌的端类型，不信任客户端自报请求头。 */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private transient String clientType;
+
     /** 所属邀请人编号（仅客户，取自 t_invitation 绑定关系） */
     private String referrerNo;
 

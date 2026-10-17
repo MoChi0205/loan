@@ -116,6 +116,6 @@ public class AuthController {
      */
     @GetMapping("/me")
     public Result<LoanUser> me(@CurrentUser LoanUser user) {
-        return Result.ok(user);
+        return Result.ok(authService.externalUser(user));
     }
 }

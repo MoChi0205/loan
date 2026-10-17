@@ -23,6 +23,8 @@ import com.loan.context.LoanUser;
 import com.loan.exception.GlobalExceptionHandler;
 
 import com.loan.sensitive.service.SensitiveViewService;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 /**
  * L1 接口契约测试（自动生成，共 2 端点，其中 2 个需登录）。
@@ -95,5 +97,30 @@ class SensitiveViewControllerTest {
         } finally {
             UserContext.clear();
         }
+    }
+
+    @Test
+    void webTokenMayRevealButMiniTokenCannotSpoofWebHeader() throws Exception {
+        LoanUser web = TestUsers.staffUser();
+        try {
+            UserContext.setUser(web);
+            mvc.perform(post("/api/admin/lead/sensitive/client/apply-view")
+                    .header("X-Client-Type", "WEB")
+                    .content("{\"clientCode\":\"client-1\"}").contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().is2xxSuccessful());
+            verify(sensitiveViewService).applyClientView("client-1", web);
+            Mockito.clearInvocations(sensitiveViewService);
+        } finally { UserContext.clear(); }
+
+        LoanUser mini = TestUsers.staffUser();
+        mini.setClientType("MINI_APP");
+        try {
+            UserContext.setUser(mini);
+            mvc.perform(post("/api/admin/lead/sensitive/client/apply-view")
+                    .header("X-Client-Type", "WEB")
+                    .content("{\"clientCode\":\"client-1\"}").contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(2001));
+            verify(sensitiveViewService, never()).applyClientView(Mockito.eq("client-1"), Mockito.any());
+        } finally { UserContext.clear(); }
     }
 }

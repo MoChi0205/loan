@@ -8,6 +8,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
@@ -42,6 +43,17 @@ public class RedisConfig {
      */
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
+        // 云 Redis 会主动回收空闲 TCP 连接。连接池若直接借出已失效连接，命令会一直
+        // 等到 spring.redis.timeout 才触发重连，最明显的表现就是验证码校验固定卡 10 秒。
+        // 借用连接前先做轻量校验，避免把失效连接交给登录、会话和缓存链路。
+        if (connectionFactory instanceof LettuceConnectionFactory) {
+            LettuceConnectionFactory lettuce = (LettuceConnectionFactory) connectionFactory;
+            lettuce.setValidateConnection(true);
+            // 远程开发 Redis 前存在会回收空闲连接的网络层。共享单连接在回收后无法在
+            // 当前命令内恢复，验证码 GET 就会卡满 10 秒；每次操作借用独立连接可让
+            // Lettuce 在命令发出前完成建连和认证，避免复用半失效的共享通道。
+            lettuce.setShareNativeConnection(false);
+        }
         return new StringRedisTemplate(connectionFactory);
     }
 }

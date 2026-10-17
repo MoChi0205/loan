@@ -101,6 +101,21 @@ class ClientControllerTest {
     }
 
     @Test
+    @DisplayName("老板的 COMPANY 范围兼容为全司已分配客户统计")
+    void bossCompanyAliasUsesAllAssignedScope() throws Exception {
+        LoanUser boss = staff("BOSS", "B001");
+        UserContext.setUser(boss);
+        when(clientService.tagCounts(null, null, true)).thenReturn(Collections.singletonMap("total", 3));
+
+        mvc.perform(get("/api/admin/client/tag-counts").param("scope", "COMPANY"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(3));
+
+        verify(clientService).tagCounts(null, null, true);
+    }
+
+    @Test
     @DisplayName("顾问按客户业务编码申请认领")
     void claim() throws Exception {
         LoanUser adviser = staff("ADVISER", "S001");

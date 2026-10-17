@@ -1,38 +1,22 @@
 package com.loan.sensitive.mapper;
-
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.sensitive.entity.SensitiveViewLog;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-
 import java.time.LocalDate;
-
-/**
- * 敏感数据查看留痕 Mapper（日限额 30/天统计依据）。
- *
- * @author loan-platform
- */
 @Mapper
 public interface SensitiveViewLogMapper extends BaseMapper<SensitiveViewLog> {
-
-    /**
-     * 统计某员工当日查看次数。
-     *
-     * @param userNo   查看人工号
-     * @param viewDate 查看日期
-     * @return 当日查看次数
-     */
-    @Select("SELECT COUNT(1) FROM t_sensitive_view_log "
-            + "WHERE user_no = #{userNo} AND view_date = #{viewDate}")
-    Long countToday(@Param("userNo") String userNo, @Param("viewDate") LocalDate viewDate);
-
-    @Select("SELECT COUNT(DISTINCT client_code) FROM t_sensitive_view_log "
-            + "WHERE user_no = #{userNo} AND view_date = #{viewDate} AND client_code IS NOT NULL")
-    Long countTodayClientViews(@Param("userNo") String userNo, @Param("viewDate") LocalDate viewDate);
-
-    @Select("SELECT COUNT(1) FROM t_sensitive_view_log "
-            + "WHERE user_no = #{userNo} AND view_date = #{viewDate} AND client_code = #{clientCode}")
-    Long countTodayClientView(@Param("userNo") String userNo, @Param("viewDate") LocalDate viewDate,
-                              @Param("clientCode") String clientCode);
+    default Long countToday(String userNo, LocalDate date) {
+        return selectCount(day(userNo, date));
+    }
+    default Long countTodayClientViews(String userNo, LocalDate date) {
+        return selectList(day(userNo, date).select(SensitiveViewLog::getClientCode)
+            .isNotNull(SensitiveViewLog::getClientCode)).stream().map(SensitiveViewLog::getClientCode).distinct().count();
+    }
+    default Long countTodayClientView(String userNo, LocalDate date, String clientCode) {
+        return selectCount(day(userNo, date).eq(SensitiveViewLog::getClientCode, clientCode));
+    }
+    default LambdaQueryWrapper<SensitiveViewLog> day(String userNo, LocalDate date) {
+        return new LambdaQueryWrapper<SensitiveViewLog>().eq(SensitiveViewLog::getUserNo, userNo).eq(SensitiveViewLog::getViewDate, date);
+    }
 }

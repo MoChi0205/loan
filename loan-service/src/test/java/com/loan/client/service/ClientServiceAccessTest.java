@@ -5,6 +5,8 @@ import com.loan.client.model.ClientUpdateRequest;
 import com.loan.client.security.ClientAccessGuard;
 import com.loan.common.ResultCode;
 import com.loan.common.service.BusinessNameService;
+import com.loan.staff.mapper.StaffMapper;
+import com.loan.resourcepool.service.ResourcePoolConfigService;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
 import com.loan.invitation.mapper.InvitationMapper;
@@ -35,7 +37,8 @@ class ClientServiceAccessTest {
         personalMapper = mock(PersonalProfileMapper.class);
         accessGuard = mock(ClientAccessGuard.class);
         service = new ClientService(clientMapper, personalMapper, mock(PersonalProfileService.class),
-                mock(InvitationMapper.class), mock(BusinessNameService.class), accessGuard);
+                mock(InvitationMapper.class), mock(BusinessNameService.class), accessGuard,
+                mock(StaffMapper.class), mock(ResourcePoolConfigService.class));
     }
 
     @Test

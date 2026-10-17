@@ -102,7 +102,7 @@ public class SmsService {
         stringRedisTemplate.opsForValue().set(CODE_KEY_PREFIX + normalizedScene + ":" + phone, code, Duration.ofMinutes(5));
         stringRedisTemplate.opsForValue().set(intervalKey, "1", Duration.ofSeconds(60));
         stringRedisTemplate.opsForValue().set(dailyKey, String.valueOf(dailyCount + 1), Duration.ofDays(1));
-        log.info("验证码已发送（模拟通道） phone={} code={}", phone, code);
+        log.info("验证码已发送（模拟通道） phone={}", com.loan.utils.DesensitizeUtils.phone(phone));
         return code;
     }
 
