@@ -1,8 +1,8 @@
 # 设计 Design
 
-> 由本地大脑自动蒸馏，生成时间 2026-09-30T03:00:03。
+> 由本地大脑自动蒸馏，生成时间 2026-10-17T03:08:58。
 
-条目数：**194**
+条目数：**205**
 
 
 ## 项目：abs
@@ -681,7 +681,7 @@
 ### CDP 可靠性与容量 Skill
   - *类型:design-rule*
   - market CDP 模块1-4：Kafka削峰、OneID=users.id、staging异常-only、6k EPS、虚拟属性不进ingest、dict_version发布。Cursor真源：.cursor/skills/；Git副本：docs/superpowers/skills/
-  - 关联：Cursor/Codex Skills 总目录、本地大脑索引、Cursor/Codex Skills、market · CDP、Skills 索引、market 项目 Skills 索引
+  - 关联：Cursor/Codex Skills 总目录、本地大脑索引、Cursor/Codex Skills、market · CDP、Skills 索引、market 项目 Skills 索引、SR 可见性：账本+Redis队列+锁
 
 ### CDP 图01 系统总架构
   - *类型:design-rule*
@@ -743,6 +743,16 @@
   - 10 张标准 PlantUML；开发 CDP 模块前先看图1/4/5/9
   - 关联：架构图、market · CDP、CDP 图01 系统总架构、CDP 图02 数据分层模型、CDP 图03 接入认证时序、CDP 图04 清洗落库管线、CDP 图05 用户身份模型、CDP 图06 ID-Mapping决策
 
+### SR 可见性：账本+Redis队列+锁
+  - *类型:solution*
+  - *_sr 发送成功→账本 sr_topic_sent_at + Redis 待办入队；Worker 持 lock:ingest:sr-visibility 消费队列→SR 点查→sr_loaded_at；空闲零 JDBC；5min 账本补队。
+  - 关联：stored 门禁：SR 可见后才投 *_stored、CDP 可靠性与容量 Skill、避坑：全表轮询对账表做 SR 确认
+
+### stored 门禁：SR 可见后才投 *_stored
+  - *类型:decision*
+  - 双 Topic 保留（*_sr + *_stored）；下游收到 stored = SR 表可查 + 账本 sr_loaded_at。配置 stored-gate-mode=sr-visible（默认）。
+  - 关联：market · CDP、SR 可见性：账本+Redis队列+锁、采集管线 Kafka+异常Staging
+
 ### 多人AI编码·Facade先行
   - *类型:design-rule*
   - 并行 AI 编码最大坑是 Dubbo 接口对不齐。顺序：① Facade+DTO 入 -api ② 跨模块只依赖 -api ③ L1 详细设计评审 ④ 再 AI 写 service。入参统一为 CanonicalEvent。
@@ -756,7 +766,7 @@
 ### 采集管线 Kafka+异常Staging
   - *类型:design-rule*
   - Kafka 削峰必填；staging 仅 UNMATCHED/FAILED/CONFLICT；热路径不写 staging；批量 200–1000；DAU 30万 / 6k EPS。
-  - 关联：market · CDP
+  - 关联：market · CDP、stored 门禁：SR 可见后才投 *_stored
 
 
 ## 项目：mds
@@ -850,6 +860,11 @@
   - Web/小程序/报告仅展示客户、员工、规则、产品等业务名称；业务编码保留为内部路由与关联键。
   - 关联：业务ID禁止作为页面展示值、Loan 统一回归基线 2026-09-26
 
+### TSE资源池设计适配
+  - *类型:design-rule*
+  - 借鉴TSE按状态天数、预警窗口、批次处理与可追溯流转设计。
+  - 关联：分级资源池回收
+
 ### Web 与微信客户打通
   - *类型:design-rule*
   - 手机号 hash 是统一身份键；手机号一键登录优先复用已有 t_client_profile.client_code，冲突账号拒绝自动合并。
@@ -895,6 +910,11 @@
   - 二级菜单使用小标题、分隔线和主色标识，三级页面使用更紧凑缩进，不再将二级标题渲染成与页面项相似的卡片。
   - 关联：网关链路响应头只写一次
 
+### 业务 Mapper 统一 Wrapper
+  - *类型:design-rule*
+  - loan-service 生产代码不再使用 SQL 注解；条件查询与原子状态更新使用 LambdaWrapper，批量写入复用 MapperAccess。
+  - 关联：SQL 安全耗时日志、批量自然键幂等与当前读
+
 ### 业务枚举中文化
   - *类型:design-rule*
   - 报告、服务台、审批等客户与员工可见页面统一将状态、客群、风险级别转换为中文释义。
@@ -919,6 +939,11 @@
   - *类型:design-rule*
   - 审批中心新增申请使用系统卡片、边框、主色和焦点态，不使用原生按钮堆叠。
 
+### 客户中心角色菜单边界
+  - *类型:design-rule*
+  - 顾问本人客户/线索/客户检索/客户公海；经理增加团队客户与团队公海；老板/运营/超管增加全司客户与资源池管理；老板/超管另有导入菜单。
+  - 关联：客户中心云库权限校准
+
 ### 客户回放枚举统一中文展示
   - *类型:design-rule*
   - 客户回放页的来源、客群、布尔状态、生成方式、快照状态、事件类型、操作者和可见范围必须通过中文映射显示；未知枚举使用中文中性兜底，不直接输出内部英文值。
@@ -934,6 +959,11 @@
   - Web 审批中心新增手机号查看审批路由、待审列表、通过与驳回操作。
   - 关联：手机号查看额度外审批
 
+### 批量自然键幂等与当前读
+  - *类型:design-rule*
+  - 名单和产品城市批次一次 Wrapper 预查自然键；冲突后 FOR UPDATE 当前读确认自然键，避免 REPEATABLE READ 旧快照导致误判；编码碰撞不静默吞掉。
+  - 关联：业务 Mapper 统一 Wrapper
+
 ### 找回密码弹窗交互
   - *类型:design-rule*
   - 弹窗打开刷新图形验证码，仅合法手机号回填，清空旧密码和短信码，补齐字段占位符和操作说明。
@@ -943,6 +973,11 @@
   - *类型:design-rule*
   - 页面路由使用低幅度3D折页、毛玻璃模糊和透明过渡，支持prefers-reduced-motion减少动效。
   - 关联：主题色板与弹层边界
+
+### 敏感权限键稳定命名空间
+  - *类型:design-rule*
+  - SensitiveViewController 使用 lead:sensitive:<method> 权限键，启动同步迁移旧 lead:<method> 授权，避免 HandlerMap 扫描顺序产生 #1 漂移。
+  - 关联：Loan 当前手机号解锁规则
 
 ### 日期控件统一尺寸
   - *类型:design-rule*
@@ -978,6 +1013,16 @@
   - 预约、外出、跟进、活动、画像、工单、提交单等核心服务表使用client_code/staff_code/order_no等唯一业务编码，已核验抽查孤儿关联为0。
   - 关联：数据库无物理外键
 
+### 枚举中文兜底边界
+  - *类型:design-rule*
+  - Web/H5 未知枚举显示待确认或未指定等中文中性文案，不向业务页面暴露英文内部枚举编码。
+  - 关联：Loan 当前手机号解锁规则
+
+### 测试数据脚本拆分
+  - *类型:design-rule*
+  - 新增 db/seed-test-data.sql，只写测试部门、员工、渠道账号，不删除业务数据；旧 init-data.sql 改为迁移说明入口。
+  - 关联：角色菜单云端回归、测试账号敏感字段 AES 安全
+
 ### 父菜单由叶子授权派生
   - *类型:design-rule*
   - 角色没有任何有效叶子菜单时不展示父模块；父授权仅从有效叶子菜单补齐。
@@ -998,10 +1043,20 @@
   - 员工和团队排名按成交、意向客户、新增线索、外出、审批、录入产品等指标独立排序，不使用单一综合分掩盖明细。
   - 关联：经营看板排名范围
 
+### 继承客户服务记录
+  - *类型:design-rule*
+  - 转移不删除标签、预约、跟进、工单与外出历史，接收人可继续查看。
+  - 关联：离职员工数据交接
+
 ### 菜单父模块按有权叶子裁剪
   - *类型:design-rule*
   - Web 父模块仅在至少一个可访问叶子页面存在时显示；非路由分区标题不得使空父模块残留。
   - 关联：Web 菜单产品视角重构
+
+### 资源池导入可追溯性
+  - *类型:design-rule*
+  - 客户资源池导入不再只有弹窗结果，导入完成后可通过客户导入进度菜单回看任务。
+  - 关联：批量导入任务追踪
 
 ### 顶部路由页签
   - *类型:design-rule*

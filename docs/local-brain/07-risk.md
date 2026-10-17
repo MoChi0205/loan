@@ -1,8 +1,8 @@
 # 风险 Risk
 
-> 由本地大脑自动蒸馏，生成时间 2026-09-30T03:00:03。
+> 由本地大脑自动蒸馏，生成时间 2026-10-17T03:08:58。
 
-条目数：**190**
+条目数：**208**
 
 
 ## 项目：abs
@@ -422,7 +422,7 @@
 ### CDP 避坑
   - *类型:risk*
   - market-cdp 项目已知问题与反模式索引
-  - 关联：避坑记录、禁止 users 加 one_id 列、禁止 cust_no 作 identity、禁止热路径写 staging、UNMATCHED 禁止写 events
+  - 关联：避坑记录、禁止 users 加 one_id 列、禁止 cust_no 作 identity、禁止热路径写 staging、UNMATCHED 禁止写 events、避坑：全表轮询对账表做 SR 确认
 
 ### UNMATCHED 禁止写 events
   - *类型:bug*
@@ -443,6 +443,11 @@
   - *类型:bug*
   - staging 仅 UNMATCHED/FAILED/CONFLICT
   - 关联：CDP 避坑、market · CDP
+
+### 避坑：全表轮询对账表做 SR 确认
+  - *类型:pitfall*
+  - 500ms 扫 ingest_track_record 待确认行：多 Pod 重复劳动、空闲也查 PolarDB/SR。应用 Redis 待办队列+账本二次校验+分布式锁。
+  - 关联：CDP 避坑、market · CDP、SR 可见性：账本+Redis队列+锁
 
 
 ## 项目：mds
@@ -528,6 +533,11 @@
 
 ## 项目：（未归类）
 
+### /auth/me 手机号脱敏
+  - *类型:risk*
+  - 当前用户接口复用登录出网脱敏逻辑，禁止 Redis 会话中的明文手机号或 AES 密文直接返回。
+  - 关联：登录响应手机号脱敏边界
+
 ### AES密钥缺失即失败
   - *类型:risk*
   - AesUtils移除可运行开发默认密钥，缺少aes.key直接启动失败，密钥必须来自Nacos。
@@ -573,8 +583,8 @@
 
 ### Loan 当前手机号解锁规则
   - *类型:risk*
-  - 列表仅脱敏；首次解锁按员工、客户、日期计数；顾问超限由经理审批，经理超限由老板审批，老板和超管可直接查看并留审计。
-  - 关联：Loan 当前文档单一真值
+  - 列表仅脱敏；额度按员工+客户+日期首次解锁计数；额度从 SENSITIVE_VIEW/daily-limit 读取；顾问或运营超限由本部门经理审批，经理超限由老板/超管审批；老板/超管无限查看但仍留每日审计。
+  - 关联：Loan 当前文档单一真值、手机号额度并发原子边界、敏感接口端类型绑定签名令牌、敏感权限键稳定命名空间、枚举中文兜底边界
 
 ### Loan 服务冷启动 602 秒
   - *类型:risk*
@@ -605,6 +615,11 @@
   - 客户服务菜单只授予ADVISER、DEPT_MANAGER、BOSS、OPERATOR、SUPER_ADMIN、SUPER，显式清除CHANNEL；菜单迁移对旧本地库补齐必要兼容列。
   - 关联：服务运营P2 Web统一工作区
 
+### SQL 安全耗时日志
+  - *类型:risk*
+  - SqlDurationInterceptor 只记录 statement、operation、cost 与 success；控制台与文件脱敏，过滤 MyBatis Preparing/Parameters 并关闭 Druid 原始慢 SQL 参数源。
+  - 关联：业务 Mapper 统一 Wrapper、Loan P0-P1 集中回归边界
+
 ### loan_db 与 erp_db 业务表边界
   - *类型:risk*
   - 两库位于同一远端 MySQL 且账号一致，但 erp_db 缺少 loan 核心表；loan 服务必须保留 loan_db，不能因复用 tse 配置而切换库名。
@@ -625,6 +640,11 @@
   - prd Nacos application.properties未配置wechat.appid和wechat.secret，当前后端会按代码返回未配置真实微信appid/secret。
   - 关联：小程序wx.login登录链路
 
+### 七角色运行态权限回归
+  - *类型:risk*
+  - 六员工角色与渠道角色真实验证码登录；本人/团队/全司、审批、资源池及渠道隔离符合矩阵。
+  - 关联：整体回归结果 2026-10-02、登录响应手机号脱敏边界、批量导入任务表云库迁移
+
 ### 上传目录由 Nacos 配置
   - *类型:risk*
   - loan-service 启动依赖 loan.upload.base-dir；开发 prd Nacos 已配置 /app/data/oss-storage，loan.oss.mode=local 以创建上传/OCR OSS Bean。
@@ -633,6 +653,16 @@
   - *类型:risk*
   - 业务编码仅用于请求参数、路由和row-key；客户侧页面展示姓名、企业名、手机号脱敏和日期。
   - 关联：手机号列表统一脱敏
+
+### 业务页中文与名称展示残留
+  - *类型:risk*
+  - 审批手机号页直接渲染 applicantStaffCode；服务/报表/导入/短信等存在枚举原值 fallback，未完全满足名称与中文展示要求。
+  - 关联：整体回归结果 2026-10-02
+
+### 云库初始化脚本非幂等
+  - *类型:risk*
+  - db/init-data.sql 在已有云库执行会因 t_role.uk_role_code 重复而回滚，不能直接作为增量初始化脚本。
+  - 关联：客户中心云库权限校准
 
 ### 全局AES二次解密清理
   - *类型:risk*
@@ -723,6 +753,11 @@
   - 客户表 phone 使用 AES 类型处理器落库，phone_hash 用于等值查询；页面只返回脱敏值。
   - 关联：客户手机号受控查看、客户手机号内部原值列
 
+### 客户手机号脱敏
+  - *类型:risk*
+  - 客户列表统一展示前三位和后四位，授权查看不回写明文；老板与超管无限制，其余角色按次数与审批控制。
+  - 关联：资源池回收与交接
+
 ### 客户服务菜单角色边界
   - *类型:risk*
   - /service-operations授权给ADVISER、DEPT_MANAGER、BOSS、OPERATOR、SUPER_ADMIN、SUPER；CHANNEL必须排除。
@@ -773,10 +808,20 @@
   - 客户、线索、预约等列表仅返回前三位加四星号加后四位；明文仅通过受控敏感查看服务读取。
   - 关联：业务ID展示边界、客户页面联系方式列
 
+### 手机号额度仍硬编码
+  - *类型:risk*
+  - getDailyLimit 固定30，未读取管理员配置；未实现配置查看次数需求。
+  - 关联：整体回归结果 2026-10-02
+
 ### 手机号额度员工行锁
   - *类型:risk*
   - SensitiveViewService 在客户和额度读取前按 staff_code 获取 SELECT FOR UPDATE 员工行锁，事务内串行化首次客户解锁的计数与留痕，防止并发超过30次。
   - 关联：手机号额度并发绕过风险
+
+### 手机号额度并发原子边界
+  - *类型:risk*
+  - 在任何一致性读之前按 staff_code 锁定活跃员工，串行计数、判断、留痕；老板也加锁并按当天首次客户留痕，不受额度限制。
+  - 关联：Loan 当前手机号解锁规则、Loan P0-P1 集中回归边界
 
 ### 手机号额度并发绕过风险
   - *类型:risk*
@@ -801,10 +846,20 @@
   - *类型:risk*
   - loan.apiperm.strict默认改为true，未登记接口或角色未授权不再自动放行；测试放宽需显式隔离配置。
 
+### 敏感手机号接口端限制缺口
+  - *类型:risk*
+  - 敏感查看 API 同步默认 WEB,MINI_APP，顾问授权包含 lead:applyClientView；需显式限制内部 Web，不可依赖客户端界面隐藏。
+  - 关联：整体回归结果 2026-10-02
+
 ### 敏感手机号查看留痕与日限额
   - *类型:risk*
   - t_sensitive_view_log 记录员工、客户、日期和时间；每日上限30次，已授权客户再次查看不重复消耗额度。
   - 关联：客户手机号受控查看、敏感查看超限通知、手机号查看额度外审批
+
+### 敏感接口端类型绑定签名令牌
+  - *类型:risk*
+  - Web/小程序登录令牌写入 clientType；网关和后端敏感查看接口均以签名 claim 为主，小程序令牌伪造 X-Client-Type=WEB 仍被拒绝。
+  - 关联：Loan 当前手机号解锁规则
 
 ### 敏感查看只约束待审批唯一性
   - *类型:risk*
@@ -855,10 +910,30 @@
   - docker-compose.yml 仍提供本地 MySQL/Redis/Nacos 和可用默认凭证，与本机仅运行应用、基础设施从 Nacos 读取的项目红线冲突。
   - 关联：2026-09-28 构建测试基线
 
+### 模拟短信日志仍含明文
+  - *类型:risk*
+  - SmsService 模拟验证码发送日志打印完整 phone 和 code，违反手机号明文不得写日志要求；开发Mock不豁免敏感日志约束。
+  - 关联：整体回归结果 2026-10-02
+
+### 注解SQL规范仍未完成
+  - *类型:risk*
+  - 至少14个 Mapper 仍使用 Select/Update/Insert/Delete 注解，违反用户要求改为 Wrapper 的实现约束。
+  - 关联：整体回归结果 2026-10-02
+
+### 测试账号敏感字段 AES 安全
+  - *类型:risk*
+  - seed-test-data.sql 只写手机号 hash，不写明文；云库已有测试手机号已按当前 Nacos aes.key 转为 AES/CBC 密文。
+  - 关联：测试数据脚本拆分
+
 ### 画像维度隐藏内部编号
   - *类型:risk*
   - 画像维度摘要不展示 reportNo、snapshotNo、submissionNo、clientCode、staffCode 等内部编号；仅明确列入中文字段白名单的业务维度可呈现。
   - 关联：业务ID禁止作为页面展示值
+
+### 登录响应手机号脱敏边界
+  - *类型:risk*
+  - 员工短信登录以已校验请求手机号覆盖数据库密文字段，响应统一返回前三后四脱敏；会话保留认证原值。
+  - 关联：七角色运行态权限回归、/auth/me 手机号脱敏
 
 ### 登录提交幂等锁
   - *类型:risk*
@@ -883,6 +958,11 @@
   - *类型:risk*
   - 线索档案和跟进必须校验 owner_staff_code 等于当前员工；UPDATE 同时带归属条件防止并发转移后的越权写入。
   - 关联：我的线索操作闭环
+
+### 线索敏感查看未校验数据范围
+  - *类型:risk*
+  - SensitiveViewService.applyView 只按 leadNo 查询，未校验归属/部门/可见范围，旧授权永久生效且额度和客户查看口径不同。
+  - 关联：整体回归结果 2026-10-02
 
 ### 经营分析 ECharts 数据提供器异常
   - *类型:risk*
@@ -937,6 +1017,11 @@
   - *类型:risk*
   - 无会话只能验证公开接口和401边界；禁止注入token、伪造JWT或关闭鉴权代替真实角色登录。
 
+### 角色菜单云端回归
+  - *类型:risk*
+  - 通过 Nacos prd/loan 云数据源重复执行两个脚本，7 角色菜单回归通过，停用授权和重复 NULL 授权均为 0。
+  - 关联：幂等角色菜单初始化、测试数据脚本拆分
+
 ### 跟进统计慢查询风险
   - *类型:risk*
   - 历史日志显示t_client_follow_record部门范围COUNT约1.269秒，需只读EXPLAIN与索引验证。
@@ -965,4 +1050,9 @@
 ### 顾问预约客户范围实测
   - *类型:risk*
   - 真实页面验证顾问创建预约的客户下拉只返回owner_staff_code等于本人工号的客户；未分配客户不会出现在顾问下拉。
+
+### 验证码接口远程Redis超时
+  - *类型:risk*
+  - 运行态 GET /loan/api/auth/captcha 约10秒返回5000，日志为 Redis Command timed out；健康检查和字典接口正常。
+  - 关联：整体回归结果 2026-10-02、云 Redis 空闲连接复用修复
 
