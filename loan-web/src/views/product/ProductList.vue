@@ -325,7 +325,7 @@ const partnerStatusMap = {
 };
 
 function partnerStatusText(code) {
-  return partnerStatusMap[code] || code || '-';
+  return partnerStatusMap[code] || '待确认';
 }
 function partnerStatusTag(code) {
   const m = {

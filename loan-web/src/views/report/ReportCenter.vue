@@ -32,7 +32,7 @@
             <el-option v-for="item in departmentOptions" :key="item.code" :label="item.name" :value="item.code" />
           </el-select>
           <el-select v-if="operationQuery.scope !== 'MY'" v-model="operationQuery.staffCode" clearable filterable remote :remote-method="searchReportStaff" :loading="staffFilterLoading" size="small" placeholder="全部员工" style="width: 180px" @change="loadOperations">
-            <el-option v-for="item in staffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || item.roleCode || '员工'}）`" :value="item.staffCode" />
+            <el-option v-for="item in staffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" />
           </el-select>
           <el-select v-model="operationQuery.days" size="small" style="width: 112px" @change="loadOperations">
             <el-option label="近 30 天" :value="30" />
@@ -182,7 +182,7 @@
         </el-table-column>
         <el-table-column label="档位" width="80">
           <template #default="{ row }">
-            <span class="loan-tag" :class="gradeTag(row.grade)">{{ gradeText[row.grade] || row.grade }}</span>
+            <span class="loan-tag" :class="gradeTag(row.grade)">{{ enumLabel(gradeText, row.grade) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="企业星级" width="100">
@@ -230,6 +230,7 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';

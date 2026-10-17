@@ -4,11 +4,11 @@
     <div class="loan-card">
       <AppSearchBar :loading="loading" @search="load" @reset="reset"><el-select v-model="query.importType" placeholder="导入类型" clearable style="width: 140px"><el-option label="客户资源池" value="LEAD" /><el-option label="产品" value="PRODUCT" /></el-select></AppSearchBar>
       <el-table :data="rows" stripe v-loading="loading" row-key="taskNo">
-        <el-table-column prop="taskNo" label="任务编号" min-width="180" />
+        <el-table-column label="导入任务" min-width="180"><template #default="{ row }">{{ row.fileName || (row.importType === 'LEAD' ? '客户资源导入' : '产品导入') }}</template></el-table-column>
         <el-table-column label="导入类型" width="120"><template #default="{ row }">{{ row.importType === 'LEAD' ? '客户资源池' : '产品' }}</template></el-table-column>
         <el-table-column label="进度" width="180"><template #default="{ row }"><el-progress :percentage="Number(row.progress || 0)" :status="row.status === 'FAILED' ? 'exception' : undefined" /></template></el-table-column>
         <el-table-column label="处理结果" width="180"><template #default="{ row }">成功 {{ row.success || 0 }} / 失败 {{ row.failed || 0 }} / 共 {{ row.total || 0 }}</template></el-table-column>
-        <el-table-column label="状态" width="110"><template #default="{ row }">{{ statusText[row.status] || row.status }}</template></el-table-column>
+        <el-table-column label="状态" width="110"><template #default="{ row }">{{ enumLabel(statusText, row.status) }}</template></el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180" />
       </el-table>
       <AppPagination v-model:page="query.page" v-model:size="query.size" :total="total" @change="load" />
@@ -16,6 +16,7 @@
   </div>
 </template>
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 import { ref, reactive, onMounted } from 'vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';

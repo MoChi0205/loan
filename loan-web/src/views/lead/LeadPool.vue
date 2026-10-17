@@ -667,7 +667,7 @@ async function loadStaffOptions(keyword = '') {
     staffOptions.value = [...merged.values()].map((s) => ({
       value: s.staffCode,
       label: s.staffName,
-      role: s.roleName || s.roleCode,
+      role: s.roleName || '员工',
     }));
   } catch (e) {
     if (sequence === staffSearchSequence) staffOptions.value = [];
@@ -742,7 +742,7 @@ const hasAuthStatus = computed(() => (data.value || []).some((r) => r.authStatus
 const sourceMap = { BOSS: '老板', ADVISER: '顾问', CHANNEL: '渠道', VIP: 'VIP 客户', INVITE: '小程序注册·邀请', MINI: '小程序注册' };
 
 function followStatusText(code) {
-  return followStatusMap[code]?.label || code || '-';
+  return followStatusMap[code]?.label || '待确认';
 }
 function followStatusTag(code) {
   const t = followStatusMap[code]?.type || 'muted';
@@ -750,7 +750,7 @@ function followStatusTag(code) {
   return m[t] || 'loan-tag-muted';
 }
 function sourceText(code) {
-  return sourceMap[code] || code || '-';
+  return sourceMap[code] || '未指定来源';
 }
 function sourceTag(code) {
   const m = { BOSS: 'loan-tag-muted', ADVISER: 'loan-tag-primary', CHANNEL: 'loan-tag-info', VIP: 'loan-tag-warning', INVITE: 'loan-tag-primary', MINI: 'loan-tag-info' };

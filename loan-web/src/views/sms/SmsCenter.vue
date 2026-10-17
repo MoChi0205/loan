@@ -32,7 +32,7 @@
         <el-table-column prop="signName" label="签名" width="110" />
         <el-table-column label="类型" width="110">
           <template #default="{ row }">
-            <span class="loan-tag loan-tag-info">{{ typeText[row.smsType] || row.smsType }}</span>
+            <span class="loan-tag loan-tag-info">{{ enumLabel(typeText, row.smsType) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="启停" width="90">
@@ -73,12 +73,12 @@
         <el-table-column prop="content" label="内容" min-width="240" show-overflow-tooltip />
         <el-table-column label="类型" width="100">
           <template #default="{ row }">
-            <span class="loan-tag loan-tag-info">{{ typeText[row.smsType] || row.smsType }}</span>
+            <span class="loan-tag loan-tag-info">{{ enumLabel(typeText, row.smsType) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <span class="loan-tag" :class="statusTag(row.status)">{{ statusText[row.status] || row.status }}</span>
+            <span class="loan-tag" :class="statusTag(row.status)">{{ enumLabel(statusText, row.status) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="operator" label="操作人" width="100">
@@ -142,6 +142,7 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_sms' });
 import { ref, reactive, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';

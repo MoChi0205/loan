@@ -45,7 +45,7 @@
         </el-table-column>
         <el-table-column label="档位" width="80">
           <template #default="{ row }">
-            <span class="loan-tag" :class="gradeTag(row.grade)">{{ gradeText[row.grade] || row.grade }}</span>
+            <span class="loan-tag" :class="gradeTag(row.grade)">{{ enumLabel(gradeText, row.grade) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="企业星级" width="100">
@@ -142,6 +142,7 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_report_screening' });
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';

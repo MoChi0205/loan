@@ -212,10 +212,10 @@ function methodLabel(value) {
   return hit ? hit.label : value;
 }
 function statusLabel(status) {
-  return STATUS_TEXT[status] || status;
+  return STATUS_TEXT[status] || '待确认';
 }
 function eventLabel(type) {
-  return EVENT_TEXT[type] || type;
+  return EVENT_TEXT[type] || '业务动态';
 }
 function statusTone(status) {
   return STATUS_TONE[status] || 'info';

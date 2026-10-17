@@ -28,13 +28,13 @@
         </template>
         <el-table-column label="维度" width="120">
           <template #default="{ row }">
-            <span class="loan-tag loan-tag-danger">{{ dimensionText[row.dimension] || row.dimension }}</span>
+            <span class="loan-tag loan-tag-danger">{{ enumLabel(dimensionText, row.dimension) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="value" label="命中值" min-width="180" show-overflow-tooltip />
         <el-table-column label="原因分类" width="110">
           <template #default="{ row }">
-            <span class="loan-tag loan-tag-warning">{{ reasonText[row.reasonType] || row.reasonType }}</span>
+            <span class="loan-tag loan-tag-warning">{{ enumLabel(reasonText, row.reasonType) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="reasonRemark" label="原因说明" min-width="180" show-overflow-tooltip>
@@ -85,6 +85,7 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_blacklist' });
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';

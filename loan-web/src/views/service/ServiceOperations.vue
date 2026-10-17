@@ -13,7 +13,7 @@
           <el-option v-for="item in departmentOptions" :key="item.code" :label="item.name" :value="item.code" />
         </el-select>
         <el-select v-if="selectedScope !== 'SELF'" v-model="filterStaffCode" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" placeholder="全部员工" class="scope-select" @change="onStaffFilterChange">
-          <el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || item.roleCode || '员工'}）`" :value="item.staffCode" />
+          <el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" />
         </el-select>
         <el-date-picker v-model="selectedDateRange" type="daterange" value-format="YYYY-MM-DD" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" :clearable="false" aria-label="业务日期范围" @change="onDateRangeChange" />
         <el-checkbox v-model="includeUnfinished" @change="refreshCurrent">包含未完成</el-checkbox>
@@ -42,7 +42,7 @@
               <div class="panel-head"><h3>{{ serviceLabels.visits }}</h3><span>{{ totalOf(workbench.companyVisits) }} 人</span></div>
               <button v-for="row in recordsOf(workbench.companyVisits)" :key="row.appointmentNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ timeOnly(row.scheduledStart) }} · {{ row.hostStaffName || '顾问姓名待补充' }}</small></span>
-                <el-tag size="small" :type="appointmentTag(row.status)">{{ appointmentStatusText[row.status] || row.status }}</el-tag>
+                <el-tag size="small" :type="appointmentTag(row.status)">{{ enumLabel(appointmentStatusText, row.status) }}</el-tag>
               </button>
               <el-empty v-if="!recordsOf(workbench.companyVisits).length" description="当日暂无到公司服务" :image-size="52" />
             </section>
@@ -66,7 +66,7 @@
               <div class="panel-head"><h3>{{ serviceLabels.orders }}</h3><span>{{ totalOf(workbench.activeOrders) }} 单</span></div>
               <button v-for="row in recordsOf(workbench.activeOrders)" :key="row.orderNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
                 <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ formatDateTime(row.updatedAt) }}</small></span>
-                <el-tag size="small" type="info">{{ orderStatusText[row.status] || row.status || '待处理' }}</el-tag>
+                <el-tag size="small" type="info">{{ enumLabel(orderStatusText, row.status) || '待处理' }}</el-tag>
               </button>
               <el-empty v-if="!recordsOf(workbench.activeOrders).length" description="暂无活跃工单" :image-size="52" />
             </section>
@@ -87,9 +87,9 @@
               <template #default="{ row }"><button class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || '未命名客户' }}</button><div class="cell-sub">{{ row.contactName || '—' }} {{ row.contactPhoneMasked || '' }}</div></template>
             </el-table-column>
             <el-table-column label="联系方式" width="150"><template #default="{ row }">{{ row.contactPhoneMasked || '—' }}</template></el-table-column>
-            <el-table-column label="服务安排" min-width="210"><template #default="{ row }"><div>{{ methodText[row.serviceMethod] || row.serviceMethod }}</div><div class="cell-sub">{{ formatDateTime(row.scheduledStart) }} 至 {{ timeOnly(row.scheduledEnd) }}</div></template></el-table-column>
+            <el-table-column label="服务安排" min-width="210"><template #default="{ row }"><div>{{ enumLabel(methodText, row.serviceMethod) }}</div><div class="cell-sub">{{ formatDateTime(row.scheduledStart) }} 至 {{ timeOnly(row.scheduledEnd) }}</div></template></el-table-column>
             <el-table-column label="顾问/地点" min-width="160"><template #default="{ row }"><div>{{ row.hostStaffName || '顾问姓名待补充' }}</div><div class="cell-sub">{{ row.locationName || '线上服务' }}</div></template></el-table-column>
-            <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="appointmentTag(row.status)" size="small">{{ appointmentStatusText[row.status] || row.status }}</el-tag><div class="cell-sub">{{ row.createdByType === 'STAFF' ? '公司已确认安排' : (row.customerConfirmStatus === 'CONFIRMED' ? '客户已提交确认' : '待客户确认') }}</div></template></el-table-column>
+            <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="appointmentTag(row.status)" size="small">{{ enumLabel(appointmentStatusText, row.status) }}</el-tag><div class="cell-sub">{{ row.createdByType === 'STAFF' ? '公司已确认安排' : (row.customerConfirmStatus === 'CONFIRMED' ? '客户已提交确认' : '待客户确认') }}</div></template></el-table-column>
             <el-table-column label="操作" width="300" fixed="right">
               <template #default="{ row }">
                 <div class="action-row">
@@ -288,6 +288,7 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_service_operations' });
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -380,7 +381,7 @@ const saving = ref(false);
 const methodText = Object.freeze({ COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', PHONE_CONSULT: '电话咨询' });
 const appointmentStatusText = Object.freeze({ REQUESTED: '待顾问确认', CONFIRMED: '已预约', ARRIVED: '已到店', SERVING: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', NO_SHOW: '未到场', RESCHEDULED: '已改期' });
 const outingStatusText = Object.freeze({ DRAFT: '草稿', PENDING_REVIEW: '待审核', REJECTED: '已驳回', READY: '待出发', IN_PROGRESS: '外出中', COMPLETED: '已返回', CANCELLED: '已取消' });
-const orderStatusText = Object.freeze({ PENDING: '待处理', PROCESSING: '处理中', IN_PROGRESS: '服务中', COMPLETED: '已完成', CANCELLED: '已取消', CLOSED: '已关闭', REJECTED: '已驳回' });
+const orderStatusText = Object.freeze({ NEW: '待处理', CREATED: '待处理', CONFIRMED: '已确认', IN_SERVICE: '服务中', DEAL: '已成交', COMPLETED: '已完成', CANCEL: '已取消', CANCELLED: '已取消', REFUND: '已退款', NO_SHOW: '未到场', CLOSED: '已关闭', REJECTED: '已驳回', PENDING: '待处理', PROCESSING: '处理中', IN_PROGRESS: '服务中' });
 const followChannelText = Object.freeze({ PHONE: '电话咨询', COMPANY_ON_SITE: '客户到访我司', HOME_VISIT: '员工上门拜访客户', VIDEO_MEETING: '视频会议', WECOM: '企业微信', OTHER: '其他' });
 const serviceLabels = computed(() => {
   const prefix = ({ SELF: '我的', DEPARTMENT: '团队', COMPANY: '全公司' })[selectedScope.value] || '';
@@ -416,7 +417,7 @@ function totalOf(page) { return Number(page?.total || 0); }
 function timeOnly(value) { const text = formatDateTime(value); return text === '-' ? text : text.slice(11, 16); }
 function appointmentTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', NO_SHOW: 'danger', SERVING: 'warning', ARRIVED: 'warning' })[status] || 'info'; }
 function outingTag(status) { return ({ COMPLETED: 'success', CANCELLED: 'info', IN_PROGRESS: 'warning', PENDING_REVIEW: 'warning', REJECTED: 'danger' })[status] || 'info'; }
-function outingStatusLabel(row) { return row?.pendingReturnCheckIn ? '待返回打卡' : (outingStatusText[row?.status] || row?.status || '—'); }
+function outingStatusLabel(row) { return row?.pendingReturnCheckIn ? '待返回打卡' : enumLabel(outingStatusText, row?.status); }
 
 const workbench = ref({});
 const workbenchLoading = ref(false);

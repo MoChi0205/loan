@@ -70,8 +70,8 @@
     <div v-show="activeTab === 'sensitivePhone'" class="loan-card">
       <el-table :data="sensitiveRows" v-loading="sensitiveLoading" stripe row-key="approvalNo">
         <template #empty><AppEmpty title="暂无手机号查看审批" desc="超过查看额度的申请会显示在这里" /></template>
-        <el-table-column label="申请人" prop="applicantStaffCode" width="130" />
-        <el-table-column label="客户" min-width="180"><template #default>客户档案（手机号查看申请）</template></el-table-column>
+        <el-table-column label="申请人" width="130"><template #default="{ row }">{{ row.applicantName || '姓名待补充' }}</template></el-table-column>
+        <el-table-column label="客户" min-width="180"><template #default="{ row }"><el-button link type="primary" @click="router.push({ path: '/client/my', query: { clientCode: row.clientCode } })">{{ row.clientName || '客户名称待补充' }}</el-button></template></el-table-column>
         <el-table-column label="审批级别" width="130"><template #default="{ row }">{{ row.approvalStage === 'BOSS_REVIEW' ? '老板审批' : '部门经理审批' }}</template></el-table-column>
         <el-table-column label="触发日期" prop="viewDate" width="130" />
         <el-table-column label="操作" width="150" fixed="right"><template #default="{ row }"><el-button link type="success" @click="auditSensitive(row, true)">通过</el-button><el-button link type="danger" @click="auditSensitive(row, false)">驳回</el-button></template></el-table-column>
@@ -123,7 +123,7 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <span class="loan-tag" :class="statusTag(row.approveStatus)">{{ statusText[row.approveStatus] || row.approveStatus }}</span>
+            <span class="loan-tag" :class="statusTag(row.approveStatus)">{{ enumLabel(statusText, row.approveStatus) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="approverStaffName" label="审核人" width="120">
@@ -207,7 +207,7 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <span class="loan-tag" :class="statusTag(row.approveStatus)">{{ statusText[row.approveStatus] || row.approveStatus }}</span>
+            <span class="loan-tag" :class="statusTag(row.approveStatus)">{{ enumLabel(statusText, row.approveStatus) }}</span>
             <span v-if="row.voidFlag" class="loan-tag loan-tag-muted" style="margin-left: 4px">已作废</span>
           </template>
         </el-table-column>
@@ -314,10 +314,11 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_approval' });
 import { ref, reactive, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
@@ -458,7 +459,17 @@ function syncChannelDateRange(range) {
 const outingRows = ref([]); const outingTotal = ref(0); const outingLoading = ref(false);
 const sensitiveRows = ref([]); const sensitiveLoading = ref(false);
 async function loadSensitiveApprovals() { sensitiveLoading.value = true; try { sensitiveRows.value = (await pendingSensitiveViewApprovals()).data || []; } finally { sensitiveLoading.value = false; } }
-async function auditSensitive(row, approve) { let opinion = null; if (!approve) { opinion = window.prompt('请输入驳回原因'); if (!opinion?.trim()) return; } await auditSensitiveViewApproval(row.approvalNo, { approve, opinion }); ElMessage.success(approve ? '审批已通过' : '审批已驳回'); await loadSensitiveApprovals(); }
+async function auditSensitive(row, approve) {
+  let opinion = null;
+  if (!approve) {
+    const answer = await ElMessageBox.prompt('请填写驳回原因', '手机号查看审批', { inputValidator: (value) => !!value?.trim() || '驳回原因必填', confirmButtonText: '确认驳回', cancelButtonText: '取消' }).catch(() => null);
+    if (!answer) return;
+    opinion = answer.value.trim();
+  }
+  await auditSensitiveViewApproval(row.approvalNo, { approve, opinion });
+  ElMessage.success(approve ? '审批已通过' : '审批已驳回');
+  await loadSensitiveApprovals();
+}
 const outingQuery = reactive({ page: 1, size: 20 });
 async function loadOutings() {
   outingLoading.value = true;
@@ -609,7 +620,7 @@ const {
 } = useRemoteOptions(pageAttachments, {
   debounce: 400,
   // 业务编码仅作为提交值，用户侧只展示可理解的资料、客户信息。
-  normalize: (a) => ({ value: a.id, label: `${a.clientName || '客户未绑定'} · ${a.fileName || '未命名资料'} · ${a.attachmentTypeName || a.attachmentType || '其他资料'}` }),
+  normalize: (a) => ({ value: a.id, label: `${a.clientName || '客户未绑定'} · ${a.fileName || '未命名资料'} · ${a.attachmentTypeName || '其他资料'}` }),
 });
 function onAttachmentVisible(visible) {
   if (visible && !attachmentOptions.value.length && !attachmentLoading.value) searchAttachments('');

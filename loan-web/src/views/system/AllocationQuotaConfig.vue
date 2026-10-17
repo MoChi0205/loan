@@ -20,7 +20,7 @@
         </template>
         <el-table-column prop="scopeName" label="资源池" width="140">
           <template #default="{ row }">
-            <span class="loan-tag loan-tag-info">{{ row.scopeName || row.scope }}</span>
+            <span class="loan-tag loan-tag-info">{{ row.scopeName || ({ SELF: '本人', DEPARTMENT: '本团队', COMPANY: '全公司' }[row.scope] || '未指定范围') }}</span>
           </template>
         </el-table-column>
         <el-table-column label="每日认领上限" width="210">
@@ -114,7 +114,7 @@ function diffOf() {
   rows.value.forEach((row) => {
     const before = base.get(row.scope);
     if (!before) return;
-    const name = row.scopeName || row.scope;
+    const name = row.scopeName || ({ SELF: '本人', DEPARTMENT: '本团队', COMPANY: '全公司' }[row.scope] || '未指定范围');
     if (Number(before.dailyClaimLimit) !== Number(row.dailyClaimLimit)) {
       changes.push(`${name}：每日认领上限 ${before.dailyClaimLimit} → ${row.dailyClaimLimit}`);
     }

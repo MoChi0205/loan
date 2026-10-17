@@ -69,7 +69,7 @@
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <span class="status-tag" :class="statusTagClass(row.status)">{{ statusText[row.status] || row.status }}</span>
+            <span class="status-tag" :class="statusTagClass(row.status)">{{ enumLabel(statusText, row.status) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="110" fixed="right">
@@ -114,6 +114,7 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_reward' });
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';

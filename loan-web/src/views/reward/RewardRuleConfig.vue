@@ -22,7 +22,7 @@
         <el-table-column label="客群" width="90">
           <template #default="{ row }">
             <span class="loan-tag" :class="row.customerGroup === 'ENTERPRISE' ? 'loan-tag-info' : 'loan-tag-warning'">
-              {{ row.customerGroup === 'ENTERPRISE' ? '企业' : row.customerGroup === 'PERSONAL' ? '个人' : row.customerGroup }}
+              {{ row.customerGroup === 'ENTERPRISE' ? '企业' : row.customerGroup === 'PERSONAL' ? '个人' : '未指定客群' }}
             </span>
           </template>
         </el-table-column>

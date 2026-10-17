@@ -11,6 +11,14 @@
       </el-button>
     </div>
 
+    <div v-if="canConfigure" class="loan-card" style="margin-bottom: 16px">
+      <h3>手机号受控查看额度</h3>
+      <p class="loan-page-subtitle">按员工每天首次解锁的不同客户计数；同日重复查看不扣次。老板和超级管理员不限次数。</p>
+      <el-form inline style="margin-top: 12px" @submit.prevent>
+        <el-form-item label="每日客户解锁额度"><el-input-number v-model="dailyLimit" :min="1" :max="100000" :precision="0" /></el-form-item>
+        <el-form-item><el-button type="primary" :loading="savingLimit" @click="saveLimit">保存额度</el-button></el-form-item>
+      </el-form>
+    </div>
     <div class="loan-card">
       <div class="progress-head">
         <div class="progress-label">
@@ -52,10 +60,22 @@ defineOptions({ name: '_config_wizard' });
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { configStatus } from '@/api/dashboard';
+import { sensitiveLimitConfig, saveSensitiveLimitConfig } from '@/api/sensitive';
+import { useUserStore } from '@/store/user';
+import { ElMessage } from 'element-plus';
 
 const router = useRouter();
 const loading = ref(false);
 const status = ref({});
+const userStore = useUserStore();
+const canConfigure = computed(() => ['OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
+const dailyLimit = ref(30);
+const savingLimit = ref(false);
+async function saveLimit() {
+  savingLimit.value = true;
+  try { await saveSensitiveLimitConfig(dailyLimit.value); ElMessage.success('每日查看额度已保存'); }
+  finally { savingLimit.value = false; }
+}
 
 const steps = computed(() => {
   const c = status.value || {};
@@ -83,6 +103,7 @@ async function load() {
   try {
     const res = await configStatus();
     status.value = res.data || {};
+    if (canConfigure.value) dailyLimit.value = (await sensitiveLimitConfig()).data;
   } catch (e) { /* 拦截器已提示 */ } finally {
     loading.value = false;
   }

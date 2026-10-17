@@ -1,4 +1,5 @@
 import { useDictStore } from '@/store/dict';
+import { enumLabel } from '@/utils/enumDisplay';
 
 /**
  * 枚举解析工具：将后端下发的枚举 code 解析为中文 label / 选项 / 语义色。
@@ -7,7 +8,7 @@ import { useDictStore } from '@/store/dict';
  */
 
 /**
- * code → 中文 label（未命中返回原 code）。
+ * code → 中文 label（未命中返回“待确认”，禁止把内部枚举暴露到页面）。
  *
  * @param {string} type 字典类型
  * @param {string} code 枚举编码
@@ -15,7 +16,7 @@ import { useDictStore } from '@/store/dict';
  */
 export function dictLabel(type, code) {
   const store = useDictStore();
-  return store.map(type)[code] ?? code ?? '-';
+  return enumLabel(store.map(type), code);
 }
 
 /**

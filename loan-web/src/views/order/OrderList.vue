@@ -57,7 +57,7 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <span class="loan-tag" :class="statusTag(row.status)">{{ statusText[row.status] || row.status }}</span>
+            <span class="loan-tag" :class="statusTag(row.status)">{{ enumLabel(statusText, row.status) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="来源" width="110">
@@ -155,13 +155,13 @@
           <el-descriptions-item label="客群">{{ detail.customerGroup === 'ENTERPRISE' ? '企业' : '个人' }}</el-descriptions-item>
           <el-descriptions-item label="关联产品">{{ detail.bankProductName || '—' }}</el-descriptions-item>
           <el-descriptions-item label="归属顾问">{{ detail.ownerStaffName || (detail.ownerStaffCode ? '姓名待补充' : '待分配') }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ statusText[detail.status] || detail.status }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ statusText[detail.status] || '待确认' }}</el-descriptions-item>
           <el-descriptions-item label="来源">{{ sourceText(detail.source) }}</el-descriptions-item>
           <el-descriptions-item label="成交金额">{{ detail.dealAmount ? '¥' + fmtAmount(detail.dealAmount) : '—' }}</el-descriptions-item>
           <el-descriptions-item label="成交时间">{{ detail.dealTime ? formatDateTime(detail.dealTime) : '—' }}</el-descriptions-item>
           <el-descriptions-item label="客户可见备注">{{ detail.customerRemark || '—' }}</el-descriptions-item>
           <el-descriptions-item label="内部备注">{{ detail.internalRemark || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="支付方式">{{ detail.payType || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="支付方式">{{ detail.payType || '未填写' }}</el-descriptions-item>
           <el-descriptions-item label="奖励结算">{{ detail.rewardSettledFlag ? '已结算' : '待结算' }}</el-descriptions-item>
           <el-descriptions-item label="创建人">{{ detail.createdByName || detail.createdBy }}（{{ formatDateTime(detail.createdAt) }}）</el-descriptions-item>
         </el-descriptions>
@@ -171,6 +171,7 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_order' });
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
@@ -213,7 +214,7 @@ const statusTag = (s) => ({
 }[s] || 'loan-tag-muted');
 
 function sourceText(s) {
-  return { MANUAL: '手工建单', OFFLINE_SUPPLEMENT: '线下补录', CRM_WRITEBACK: 'CRM回写' }[s] || s || '—';
+  return { MANUAL: '手工建单', OFFLINE_SUPPLEMENT: '线下补录', CRM_WRITEBACK: 'CRM回写' }[s] || '未指定来源';
 }
 
 function fmtAmount(v) {

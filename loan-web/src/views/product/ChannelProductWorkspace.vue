@@ -134,7 +134,7 @@ const rules = {
   customerGroup: [{ required: true, message: '请选择适用客群', trigger: 'change' }],
 };
 
-const statusText = (status) => ({ DRAFT: '草稿', PENDING: '待审核', APPROVED: '已上架', REJECTED: '已驳回', PENDING_DELETE: '待删除' }[status] || status || '—');
+const statusText = (status) => ({ DRAFT: '草稿', PENDING: '待审核', APPROVED: '已上架', REJECTED: '已驳回', PENDING_DELETE: '待删除' }[status] || '待确认');
 const statusTone = (status) => ({ DRAFT: 'loan-tag-muted', PENDING: 'loan-tag-warning', APPROVED: 'loan-tag-success', REJECTED: 'loan-tag-danger', PENDING_DELETE: 'loan-tag-danger' }[status] || 'loan-tag-muted');
 
 async function load() {

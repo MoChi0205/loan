@@ -21,7 +21,7 @@
     </div>
 
     <div v-if="!clientCode && !loading" class="profile-empty loan-card">
-      <div v-if="clientScope === 'MY'" class="customer-segment-bar" role="tablist" aria-label="我的客户标签">
+      <div v-if="!['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope)" class="customer-segment-bar" role="tablist" aria-label="客户标签统计">
         <button v-for="item in customerTagSegments" :key="item.value" type="button" class="customer-segment"
           :class="{ active: clientQuery.customerTag === item.value }" @click="selectCustomerTag(item.value)">
           <span class="segment-dot" :class="`segment-dot--${item.tone}`"></span>{{ item.label }}
@@ -35,7 +35,7 @@
         <el-select v-model="clientQuery.followState" placeholder="跟进情况" clearable style="width: 150px"><el-option label="从未跟进" value="NEVER" /><el-option label="30天未跟进" value="OVERDUE" /><el-option label="7天内已跟进" value="RECENT" /></el-select>
         <el-select v-model="clientQuery.hasDeal" placeholder="成交情况" clearable style="width: 130px"><el-option label="已成交" :value="true" /><el-option label="未成交" :value="false" /></el-select>
         <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerDeptCode" placeholder="归属团队" clearable filterable style="width: 160px" @change="onOwnerDepartmentChange"><el-option v-for="item in filterDepartments" :key="item.code" :label="item.name" :value="item.code" /></el-select>
-        <el-select v-if="['TEAM', 'ALL'].includes(clientScope)" v-model="clientQuery.ownerStaffCode" placeholder="归属员工" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" style="width: 180px"><el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || item.roleCode || '员工'}）`" :value="item.staffCode" /></el-select>
+        <el-select v-if="['TEAM', 'ALL'].includes(clientScope)" v-model="clientQuery.ownerStaffCode" placeholder="归属员工" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" style="width: 180px"><el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" /></el-select>
         <el-select v-model="clientQuery.customerTag" placeholder="客户标签" clearable style="width: 140px"><el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" /></el-select>
         <el-button text type="primary" @click="moreFiltersVisible = !moreFiltersVisible">{{ moreFiltersVisible ? '收起筛选' : '更多筛选' }}</el-button>
         <template v-if="moreFiltersVisible">
@@ -265,6 +265,7 @@
 </template>
 
 <script setup>
+import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_client_profile' });
 import { ref, reactive, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -378,13 +379,17 @@ async function loadFilterDepartments() {
 }
 
 async function loadClientTagCounts() {
-  // 标签分段只属于“我的客户”；公海仍保留搜索框下拉，但不请求不支持的统计范围。
-  if (clientCode.value || clientScope.value !== 'MY') {
+  // 公海不展示标签分段；我的/团队/公司客户按当前数据范围统计。
+  if (clientCode.value || ['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope.value)) {
     tagCounts.value = {};
     return;
   }
   try {
-    tagCounts.value = (await getClientTagCounts({ scope: 'MY' })).data || {};
+    tagCounts.value = (await getClientTagCounts({
+      scope: clientScope.value,
+      ownerDeptCode: clientQuery.ownerDeptCode || undefined,
+      ownerStaffCode: clientQuery.ownerStaffCode || undefined,
+    })).data || {};
   } catch (e) {
     tagCounts.value = {};
   }
@@ -448,7 +453,7 @@ const HISTORY_ACTION_MAP = {
   CLIENT_SELF_RELEASE: { label: '主动释放', type: 'danger' },
 };
 function historyActionText(code) {
-  return (code && HISTORY_ACTION_MAP[code]?.label) || code || '—';
+  return (code && HISTORY_ACTION_MAP[code]?.label) || (code ? '其他客户操作' : '—');
 }
 function historyActionTag(code) {
   const t = (code && HISTORY_ACTION_MAP[code]?.type) || 'muted';
@@ -683,7 +688,7 @@ function selectCustomerTag(tag) {
 }
 function customerTagText(code) { return customerTagMap[code] || (code ? '待标注' : '未标注'); }
 function sourceText(code) {
-  return sourceMap[code] || code || '-';
+  return enumLabel(sourceMap, code, '其他来源');
 }
 function sourceTag(code) {
   const m = { MINI: 'loan-tag-info', INVITE: 'loan-tag-primary', WEB: 'loan-tag-muted', BOSS: 'loan-tag-muted', ADVISER: 'loan-tag-primary', CHANNEL: 'loan-tag-info', VIP: 'loan-tag-warning' };
@@ -701,7 +706,7 @@ function authStatusTag(code) {
 
 const referrerTypeMap = { STAFF: '顾问', ADVISER: '顾问', CUSTOMER: '客户', VIP: 'VIP 客户' };
 function referrerTypeText(code) {
-  return referrerTypeMap[code] || code || '';
+  return enumLabel(referrerTypeMap, code, '其他引荐人');
 }
 const referrerText = computed(() => {
   const r = detail.referrer;
