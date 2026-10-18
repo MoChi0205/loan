@@ -1180,6 +1180,13 @@ public class ReportService {
     public PageResult<Map<String, Object>> screeningPage(String status, String grade, String keyword,
                                                           int page, int size, String orderBy, String orderDir,
                                                           LoanUser user) {
+        return screeningPage(status, grade, keyword, null, page, size, orderBy, orderDir, user);
+    }
+
+    public PageResult<Map<String, Object>> screeningPage(String status, String grade, String keyword,
+                                                          String ownerStaffCodeFilter,
+                                                          int page, int size, String orderBy, String orderDir,
+                                                          LoanUser user) {
         LambdaQueryWrapper<ClientScreening> wrapper = new LambdaQueryWrapper<>();
         // 角色数据可见范围：按归属客户过滤（老板/运营/超管全量；顾问本人；部门主管本部门）
         Set<String> scope = buildOwnerScope(user);
@@ -1188,6 +1195,16 @@ public class ReportService {
             wrapper.exists("SELECT 1 FROM t_client_profile cp WHERE cp.client_code = t_client_screening.client_profile_code "
                     + "AND cp.owner_staff_code IN ("
                     + scope.stream().map(x -> "'" + x.replace("'", "''") + "'").collect(Collectors.joining(",")) + ")");
+        }
+        // 归属顾问筛选（管理角色）：与角色范围取交集——非全量角色仅能在自己可见范围内再筛。
+        if (StringUtils.hasText(ownerStaffCodeFilter)) {
+            if (scope == null || scope.contains(ownerStaffCodeFilter.trim())) {
+                wrapper.exists("SELECT 1 FROM t_client_profile cp WHERE cp.client_code = t_client_screening.client_profile_code "
+                        + "AND cp.owner_staff_code = '" + ownerStaffCodeFilter.trim().replace("'", "''") + "'");
+            } else {
+                // 目标归属人不在可见范围内：直接返回空页（fail-closed，不泄露他人数据）
+                return PageResult.build(page, size, 0L, java.util.Collections.emptyList());
+            }
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(ClientScreening::getStatus, status);
@@ -1241,6 +1258,18 @@ public class ReportService {
                         .collect(Collectors.toMap(ClientProfile::getClientCode,
                                 java.util.function.Function.identity(), (a, b) -> a));
 
+        // 归属人姓名 + 所属部门名（批量加载，避免行内 N+1）
+        java.util.Set<String> ownerCodes = profileMap.values().stream()
+                .map(ClientProfile::getOwnerStaffCode).filter(StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, Staff> staffMap = ownerCodes.isEmpty() ? java.util.Collections.emptyMap()
+                : staffMapper.selectList(new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, ownerCodes))
+                        .stream().collect(Collectors.toMap(Staff::getStaffCode, s -> s, (a, b) -> a));
+        java.util.Set<String> deptCodes = staffMap.values().stream()
+                .map(Staff::getDeptCode).filter(StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, String> deptNames = deptCodes.isEmpty() ? java.util.Collections.emptyMap()
+                : departmentMapper.selectList(new LambdaQueryWrapper<Department>().in(Department::getDeptCode, deptCodes))
+                        .stream().collect(Collectors.toMap(Department::getDeptCode, Department::getDeptName, (a, b) -> a));
+
         List<Map<String, Object>> records = result.getRecords().stream().map(s -> {
             Map<String, Object> m = new LinkedHashMap<>();
             ClientProfile profile = profileMap.get(s.getClientProfileCode());
@@ -1252,6 +1281,13 @@ public class ReportService {
             m.put("contactName", profile == null ? null : profile.getContactName());
             m.put("enterpriseName", profile == null ? null : profile.getEnterpriseName());
             m.put("contactPhoneMasked", profile == null ? null : com.loan.utils.DesensitizeUtils.phone(profile.getPhone()));
+            // 归属人与所属部门：所有角色都展示（顾问视角即本人），便于管理角色辨识数据来源
+            String ownerCode = profile == null ? null : profile.getOwnerStaffCode();
+            Staff owner = StringUtils.hasText(ownerCode) ? staffMap.get(ownerCode) : null;
+            m.put("ownerStaffCode", ownerCode);
+            m.put("ownerStaffName", owner == null ? null : owner.getStaffName());
+            m.put("deptName", owner == null || !StringUtils.hasText(owner.getDeptCode())
+                    ? null : deptNames.get(owner.getDeptCode()));
             m.put("grade", s.getGrade());
             m.put("bankCount", s.getBankCount());
             m.put("productCount", s.getProductCount());

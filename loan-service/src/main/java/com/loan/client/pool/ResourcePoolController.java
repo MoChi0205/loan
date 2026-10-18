@@ -39,10 +39,9 @@ public class ResourcePoolController {
                 .map(ResourcePoolController::toView).collect(java.util.stream.Collectors.toList())));
     }
 
-    /** 全量启用池（导入目标池 / 线索公海、客户列表筛选下拉）：全体员工可读。 */
+    /** 全量启用池（导入目标池 / 线索公海、客户列表筛选下拉）：全体员工可读（AdminAuthInterceptor 已强校验 STAFF+管理角色）。 */
     @GetMapping("/list")
-    public Result<java.util.List<Map<String, Object>>> list(@CurrentUser LoanUser user) {
-        roleGuard.requireStaff(user);
+    public Result<java.util.List<Map<String, Object>>> list() {
         return Result.ok(resourcePoolMapper.selectList(new LambdaQueryWrapper<ResourcePool>()
                         .eq(ResourcePool::getStatus, "ACTIVE").orderByAsc(ResourcePool::getId))
                 .stream().map(ResourcePoolController::toView).collect(java.util.stream.Collectors.toList()));

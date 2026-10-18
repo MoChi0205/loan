@@ -318,7 +318,7 @@ public class LeadService {
         List<Map<String, Object>> records = result.getRecords().stream().map(lead -> {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("leadNo", lead.getLeadNo());
-            row.put("contactName", com.loan.utils.DesensitizeUtils.name(lead.getContactName()));
+            row.put("contactName", lead.getContactName());
             row.put("phone", DesensitizeUtils.phone(lead.getPhone()));
             row.put("leadType", lead.getLeadType());
             row.put("createdBy", lead.getCreatedBy());
@@ -460,7 +460,7 @@ public class LeadService {
     public Map<String, Object> detail(String leadNo, String staffCode) {
         Lead lead = requireOwnedLead(leadNo, staffCode);
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("contactName", com.loan.utils.DesensitizeUtils.name(lead.getContactName()));
+        result.put("contactName", lead.getContactName());
         result.put("phone", DesensitizeUtils.phone(lead.getPhone()));
         result.put("leadType", lead.getLeadType());
         result.put("source", lead.getSource());

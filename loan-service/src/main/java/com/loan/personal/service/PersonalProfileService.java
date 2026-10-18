@@ -107,7 +107,7 @@ public class PersonalProfileService {
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("clientCode", clientCode);
-        m.put("realName", DesensitizeUtils.name(profile.getRealName()));
+        m.put("realName", profile.getRealName());
         m.put("idCardNo", DesensitizeUtils.idCard(profile.getIdCardNo()));
         m.put("authStatus", "SUCCESS");
         m.put("authType", "PHONE_THREE_ELEMENT");
@@ -133,7 +133,7 @@ public class PersonalProfileService {
             return m;
         }
         m.put("clientProfileCode", profile.getClientProfileCode());
-        m.put("realName", DesensitizeUtils.name(profile.getRealName()));
+        m.put("realName", profile.getRealName());
         m.put("idCardNo", DesensitizeUtils.idCard(profile.getIdCardNo()));
         m.put("age", profile.getAge());
         m.put("city", profile.getCity());

@@ -56,6 +56,7 @@ public class AppointmentService {
     private final ServiceOrderMapper orderMapper;
     private final ServiceOperationScopeService scopeService;
     private final ClientActivityService activityService;
+    private final com.loan.client.mapper.ClientProfileMapper clientProfileMapper;
 
     @Transactional(rollbackFor = Exception.class)
     public String createForCustomer(AppointmentCreateRequest request, LoanUser user, String sourceTerminal) {
@@ -330,6 +331,15 @@ public class AppointmentService {
                                                LoanUser user, int page, int size, String requestedScope,
                                                String requestedDeptCode, String requestedStaffCode,
                                                LocalDate dateFrom, LocalDate dateTo, boolean includeUnfinished) {
+        return day(date, serviceMethod, status, user, page, size, requestedScope,
+                requestedDeptCode, requestedStaffCode, dateFrom, dateTo, includeUnfinished, null);
+    }
+
+    public PageResult<StaffAppointmentDTO> day(LocalDate date, String serviceMethod, String status,
+                                               LoanUser user, int page, int size, String requestedScope,
+                                               String requestedDeptCode, String requestedStaffCode,
+                                               LocalDate dateFrom, LocalDate dateTo, boolean includeUnfinished,
+                                               String clientKeyword) {
         scopeService.requireStaffListAccess(user);
         LocalDate from = dateFrom == null ? (date == null ? LocalDate.now() : date) : dateFrom;
         LocalDate to = dateTo == null ? from : dateTo;
@@ -348,9 +358,33 @@ public class AppointmentService {
             parseStatus(status);
             wrapper.eq(ClientAppointment::getStatus, status.trim().toUpperCase());
         }
+        // 按客户信息过滤（姓名/企业名模糊、手机号摘要精确）；无匹配客户时返回空页而非全量。
+        if (StringUtils.hasText(clientKeyword)) {
+            java.util.List<String> codes = clientCodesForKeyword(clientKeyword.trim());
+            wrapper.in(ClientAppointment::getClientCode, codes.isEmpty() ? java.util.Collections.singletonList("-none-") : codes);
+        }
         scopeService.applyAppointmentListScope(wrapper, user, requestedScope, requestedDeptCode, requestedStaffCode);
         Page<ClientAppointment> result = appointmentMapper.selectPage(new Page<>(page, size), wrapper);
         return PageResult.build(page, size, result.getTotal(), toStaffDtos(result.getRecords()));
+    }
+
+    /**
+     * 按客户关键词解析可见客户编码集（联系人/企业名模糊，手机号 SHA-256 摘要精确），
+     * 供预约/外出等以 clientCode 关联客户的列表过滤复用。
+     */
+    private java.util.List<String> clientCodesForKeyword(String keyword) {
+        String hash = com.loan.infrastructure.security.HashUtils.sha256Hex(keyword);
+        java.util.List<ClientProfile> matched = clientProfileMapper.selectList(
+                new LambdaQueryWrapper<ClientProfile>()
+                        .select(ClientProfile::getClientCode)
+                        .and(w -> w.like(ClientProfile::getContactName, keyword)
+                                .or().like(ClientProfile::getEnterpriseName, keyword)
+                                .or().eq(ClientProfile::getPhoneHash, hash)));
+        java.util.List<String> codes = new java.util.ArrayList<>();
+        for (ClientProfile c : matched) {
+            if (StringUtils.hasText(c.getClientCode())) codes.add(c.getClientCode());
+        }
+        return codes;
     }
 
     public ClientAppointment requireAppointment(String appointmentNo) {

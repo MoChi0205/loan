@@ -74,6 +74,7 @@ public class OutingService {
     private final ClientActivityService activityService;
     private final ObjectMapper objectMapper;
     private final OssStorageService ossStorageService;
+    private final com.loan.client.mapper.ClientProfileMapper clientProfileMapper;
 
     /**
      * 提交外出申请（本人）。
@@ -368,6 +369,14 @@ public class OutingService {
     public PageResult<StaffOutingDTO> day(LocalDate date, String status, LoanUser user, int page, int size,
                                           String requestedScope, String requestedDeptCode, String requestedStaffCode,
                                           LocalDate dateFrom, LocalDate dateTo, boolean includeUnfinished) {
+        return day(date, status, user, page, size, requestedScope, requestedDeptCode, requestedStaffCode,
+                dateFrom, dateTo, includeUnfinished, null);
+    }
+
+    public PageResult<StaffOutingDTO> day(LocalDate date, String status, LoanUser user, int page, int size,
+                                          String requestedScope, String requestedDeptCode, String requestedStaffCode,
+                                          LocalDate dateFrom, LocalDate dateTo, boolean includeUnfinished,
+                                          String clientKeyword) {
         LocalDate from = dateFrom == null ? (date == null ? LocalDate.now() : date) : dateFrom;
         LocalDate to = dateTo == null ? from : dateTo;
         if (to.isBefore(from)) throw new BusinessException(ResultCode.PARAM_ERROR, "结束日期不能早于开始日期");
@@ -384,6 +393,19 @@ public class OutingService {
                 throw new BusinessException(ResultCode.PARAM_ERROR, "外出状态不合法");
             }
             wrapper.eq(StaffOuting::getStatus, value);
+        }
+        // 按客户信息过滤（联系人/企业名模糊、手机号摘要精确）；无匹配客户时返回空页而非全量。
+        if (StringUtils.hasText(clientKeyword)) {
+            String hash = com.loan.infrastructure.security.HashUtils.sha256Hex(clientKeyword.trim());
+            java.util.List<String> codes = new java.util.ArrayList<>();
+            for (ClientProfile c : clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+                    .select(ClientProfile::getClientCode)
+                    .and(w -> w.like(ClientProfile::getContactName, clientKeyword.trim())
+                            .or().like(ClientProfile::getEnterpriseName, clientKeyword.trim())
+                            .or().eq(ClientProfile::getPhoneHash, hash)))) {
+                if (StringUtils.hasText(c.getClientCode())) codes.add(c.getClientCode());
+            }
+            wrapper.in(StaffOuting::getClientCode, codes.isEmpty() ? java.util.Collections.singletonList("-none-") : codes);
         }
         scopeService.applyOutingListScope(wrapper, user, requestedScope, requestedDeptCode, requestedStaffCode);
         Page<StaffOuting> result = outingMapper.selectPage(new Page<>(page, size), wrapper);

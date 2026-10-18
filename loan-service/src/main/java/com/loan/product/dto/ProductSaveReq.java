@@ -1,5 +1,6 @@
 package com.loan.product.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -10,9 +11,12 @@ import java.math.BigDecimal;
  *
  * <p>bankName 为银行名称（文本），后端按名称解析/创建 {@code t_bank_channel} 并回填 bankChannelId。
  *
+ * <p>ignoreUnknown：前端表格行回填编辑时可能携带后端视图多余字段（如 id），反序列化忽略未知字段，避免 400。
+ *
  * @author loan-platform
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ProductSaveReq implements Serializable {
 
     private static final long serialVersionUID = 1L;

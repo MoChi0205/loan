@@ -210,7 +210,7 @@ public class MiniLeadService {
         for (Lead l : p.getRecords()) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("leadNo", l.getLeadNo());
-            m.put("contactName", DesensitizeUtils.name(l.getContactName()));
+            m.put("contactName", l.getContactName());
             m.put("entName", enterpriseNames.get(l.getId()));
             // phone 密文需手动解密（AesTypeHandler 仅写入生效）后掩码
             String plain = l.getPhone();

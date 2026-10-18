@@ -254,7 +254,7 @@ public class ClientService {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("clientCode", c.getClientCode());
             m.put("customerGroup", c.getCustomerGroup());
-            m.put("contactName", com.loan.utils.DesensitizeUtils.name(c.getContactName()));
+            m.put("contactName", c.getContactName());
             m.put("enterpriseName", c.getEnterpriseName());
             m.put("customerGroup", c.getCustomerGroup());
             m.put("source", c.getSource());
@@ -343,7 +343,7 @@ public class ClientService {
         Map<String, Object> detail = new LinkedHashMap<>();
         // —— 基础信息 ——
         detail.put("clientCode", client.getClientCode());
-        detail.put("name", com.loan.utils.DesensitizeUtils.name(client.getContactName()));
+        detail.put("name", client.getContactName());
         // ClientProfile.phone 已由 AesTypeHandler 在读取时解密。
         String phonePlain = client.getPhone();
         detail.put("phone", StringUtils.hasText(phonePlain) ? DesensitizeUtils.phone(phonePlain) : "未绑定");

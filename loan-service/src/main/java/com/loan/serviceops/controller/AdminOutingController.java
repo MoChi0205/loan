@@ -74,9 +74,11 @@ public class AdminOutingController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(defaultValue = "false") boolean includeUnfinished,
+            @RequestParam(required = false) String clientKeyword,
             @CurrentUser LoanUser user) {
         return Result.ok(outingService.day(date, status, user,
-                PageParams.page(page), PageParams.size(size), scope, deptCode, staffCode, dateFrom, dateTo, includeUnfinished));
+                PageParams.page(page), PageParams.size(size), scope, deptCode, staffCode, dateFrom, dateTo,
+                includeUnfinished, clientKeyword));
     }
 
     /** 外出待审批：经理按部门，运营/老板/超管按公司范围。 */

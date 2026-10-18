@@ -83,12 +83,13 @@ public class ReportController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String grade,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String ownerStaffCode,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
             @CurrentUser LoanUser user) {
-        return Result.ok(reportService.screeningPage(status, grade, keyword,
+        return Result.ok(reportService.screeningPage(status, grade, keyword, ownerStaffCode,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir, user));
     }
 

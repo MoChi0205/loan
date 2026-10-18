@@ -235,7 +235,7 @@ public class AuditService {
         view.put("mismatchFlag", trace.getMismatchFlag());
         view.put("executedAt", trace.getExecutedAt());
         if (profile != null) {
-            view.put("contactName", com.loan.utils.DesensitizeUtils.name(profile.getContactName()));
+            view.put("contactName", profile.getContactName());
             view.put("enterpriseName", profile.getEnterpriseName());
             view.put("contactPhoneMasked", DesensitizeUtils.phone(profile.getPhone()));
             if ("ENTERPRISE".equals(profile.getCustomerGroup())) {
@@ -244,7 +244,7 @@ public class AuditService {
             } else if (personal != null) {
                 view.put("identityType", "身份证号");
                 view.put("identityMasked", DesensitizeUtils.idCard(personal.getIdCardNo()));
-                if (!StringUtils.hasText(profile.getContactName())) view.put("contactName", com.loan.utils.DesensitizeUtils.name(personal.getRealName()));
+                if (!StringUtils.hasText(profile.getContactName())) view.put("contactName", personal.getRealName());
             }
         }
         return view;
