@@ -281,7 +281,7 @@
         <el-form-item label="跟进结果" required><el-input v-model="followForm.resultCode" placeholder="例如：已沟通、待补充材料" /></el-form-item>
         <el-form-item label="跟进内容" required><el-input v-model="followForm.content" type="textarea" :rows="3" placeholder="仅员工内部查看的完整记录" /></el-form-item>
         <el-form-item label="下步安排"><el-input v-model="followForm.nextAction" placeholder="下一次要做什么" /></el-form-item>
-        <el-form-item label="下次跟进"><el-date-picker v-model="followForm.nextFollowAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width:100%" /></el-form-item>
+        <el-form-item label="下次跟进"><AppDateTime v-model="followForm.nextFollowAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item>
         <el-form-item label="客户可见"><el-switch v-model="followCustomerVisible" active-text="显示摘要" inactive-text="仅员工可见" /></el-form-item>
         <el-form-item v-if="followCustomerVisible" label="客户摘要" required><el-input v-model="followForm.customerVisibleSummary" type="textarea" :rows="2" placeholder="仅填写适合客户查看的服务进展，不含内部判断" /></el-form-item>
       </el-form>
@@ -296,6 +296,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppDialog from '@/components/AppDialog.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import ServiceDateTimeRange from '@/components/ServiceDateTimeRange.vue';

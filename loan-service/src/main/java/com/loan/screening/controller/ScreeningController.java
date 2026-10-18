@@ -1,5 +1,6 @@
 package com.loan.screening.controller;
 
+import com.loan.client.security.ClientAccessGuard;
 import com.loan.common.Result;
 import com.loan.context.CurrentUser;
 import com.loan.context.LoanUser;
@@ -24,9 +25,13 @@ import java.util.Map;
 public class ScreeningController {
 
     private final ScreeningService screeningService;
+    private final ClientAccessGuard clientAccessGuard;
 
     /**
      * 执行初筛并生成报告。
+     *
+     * <p>D83：只有认领通过或属于自己的客户才可执行初筛（经理限本团队、老板/超管全量），
+     * 未认领客户先走认领流程，避免生成报告后因归属范围过滤而无权查看。
      *
      * @param body { clientCode, facts: {...} }
      * @param user 当前用户
@@ -35,10 +40,12 @@ public class ScreeningController {
     @PostMapping("/run")
     @OpLog(bizType = "初筛", action = "RUN")
     public Result<String> run(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        String clientCode = (String) body.get("clientCode");
+        clientAccessGuard.requireScreeningInitiator(user, clientCode);
         @SuppressWarnings("unchecked")
         Map<String, Object> facts = (Map<String, Object>) body.get("facts");
         String applyCity = body.get("applyCity") == null ? null : String.valueOf(body.get("applyCity"));
-        return Result.ok(screeningService.run((String) body.get("clientCode"), facts,
+        return Result.ok(screeningService.run(clientCode, facts,
                 user == null ? "system" : user.getName(), applyCity));
     }
 }

@@ -206,12 +206,14 @@ import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_screening' });
 import { ref, reactive, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import { useUserStore } from '@/store/user';
+import { claimUnassignedClient } from '@/api/client';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { pageClientLite } from '@/api/order';
@@ -221,6 +223,7 @@ import { clientDisplayLabel, reportDisplayTitle } from '@/utils/display';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 const clientLoading = ref(false);
 const clientOptions = ref([]);
 const selectedClient = ref(null);
@@ -275,12 +278,39 @@ function searchClients(keyword) {
   clientSearchTimer = setTimeout(() => loadClients(keyword), 250);
 }
 
+/** D83：执行初筛前校验客户归属——只有认领通过或属于自己的客户才可初筛（后端同口径兜底）。 */
+async function ensureScreeningEligibility() {
+  const role = (userStore.roleCode || '').toUpperCase();
+  if (['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(role)) return true;
+  const c = selectedClient.value;
+  if (!c) return true; // 无归属信息时交由后端校验
+  const mine = Boolean(c.ownerStaffCode) && c.ownerStaffCode === (userStore.user?.userNo || userStore.user?.staffCode);
+  if (mine) return true;
+  if (role === 'DEPT_MANAGER' && c.ownerStaffCode) return true; // 团队客户，后端按部门复核
+  try {
+    await ElMessageBox.confirm(
+      '该客户尚未认领或不属于你，需先认领（审核通过）才能执行初筛。是否现在申请认领？',
+      '需先认领',
+      { type: 'warning', confirmButtonText: '申请认领', cancelButtonText: '取消' }
+    );
+  } catch {
+    return false;
+  }
+  try {
+    await claimUnassignedClient(c.clientCode);
+    ElMessage.success('认领申请已提交，请等待审核通过后再执行初筛');
+  } catch {
+    /* 拦截器已提示 */
+  }
+  return false;
+}
+
 async function onRun() {
   if (!form.clientCode) {
     ElMessage.warning('请先选择客户');
     return;
   }
-  running.value = true;
+  if (!(await ensureScreeningEligibility())) return;
   try {
     const clientSubmitId = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const res = await runScreening({ clientCode: form.clientCode, facts: form.facts, clientSubmitId });
@@ -297,8 +327,7 @@ async function onRun() {
 
 function goReport() {
   if (result.value?.reportNo) {
-    router.push({ path: '/screening/report', query: { reportNo: result.value.reportNo } });
-  } else {
+    router.push({ path: '/screening/report', query: { reportNo: result.value.reportNo } });  } else {
     router.push('/screening/report');
   }
 }
@@ -341,8 +370,10 @@ async function preselectClient(code) {
       form.clientCode = c.clientCode;
       selectedClient.value = c;
     } else {
+      // 兜底：避免把业务编码直接显示在输入框，占位为「已选客户」
       form.clientCode = code;
       selectedClient.value = null;
+      clientOptions.value = [{ clientCode: code, contactName: '已选客户', enterpriseName: '' }];
     }
   } catch (e) {
     // 拦截器已提示

@@ -213,11 +213,12 @@
           <RemoteProductSelect v-model="partnerDialog.form.bankProductCode" scope="all" placeholder="输入产品名称搜索" />
         </el-form-item>
         <el-form-item label="合作到期日" prop="cooperateUntil">
-          <el-date-picker
+          <AppDateTime
             v-model="partnerDialog.form.cooperateUntil"
             type="datetime"
             placeholder="到期后自动下架"
             value-format="YYYY-MM-DDTHH:mm:ss"
+            format="YYYY-MM-DD HH:mm:ss"
             style="width: 100%"
           />
         </el-form-item>
@@ -234,11 +235,12 @@
       <p class="renew-hint">为产品「{{ renewDialog.productName || '产品名称待补充' }}」续签，原到期日：{{ formatDateTime(renewDialog.oldUntil) }}</p>
       <el-form ref="renewFormRef" :model="renewDialog.form" :rules="renewRules" label-width="110px" label-position="right">
         <el-form-item label="新到期日" prop="cooperateUntil">
-          <el-date-picker
+          <AppDateTime
             v-model="renewDialog.form.cooperateUntil"
             type="datetime"
             placeholder="选择新的合作到期日"
             value-format="YYYY-MM-DDTHH:mm:ss"
+            format="YYYY-MM-DD HH:mm:ss"
             style="width: 100%"
           />
         </el-form-item>
@@ -277,6 +279,7 @@ import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
 import AppIcon from '@/components/AppIcon.vue';

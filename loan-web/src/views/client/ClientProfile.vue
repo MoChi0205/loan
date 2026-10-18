@@ -7,16 +7,16 @@
       </div>
       <div class="header-actions">
         <el-button v-if="clientCode" @click="backToClientList">返回客户列表</el-button>
-        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_SCREENING)" type="primary" :disabled="!clientCode" @click="goScreening">
+        <el-button v-if="clientCode && userStore.hasPerm(ACTION_PERMISSION.CLIENT_SCREENING)" type="primary" :disabled="!clientCode" @click="goScreening">
           <AppIcon name="screening" :size="14" />
           发起初筛
         </el-button>
-        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_UPDATE)" :loading="saving" :disabled="!clientCode" @click="openEdit">
+        <el-button v-if="clientCode && userStore.hasPerm(ACTION_PERMISSION.CLIENT_UPDATE)" :loading="saving" :disabled="!clientCode" @click="openEdit">
           <AppIcon name="edit" :size="14" />
           编辑档案
         </el-button>
-        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)" type="warning" plain :disabled="!clientCode" @click="openAssign">分配归属</el-button>
-        <el-button v-if="userStore.hasPerm(ACTION_PERMISSION.CLIENT_RECYCLE)" type="danger" plain :disabled="!detail.ownerStaffCode" @click="onRecycle">回收进公海</el-button>
+        <el-button v-if="clientCode && userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)" type="warning" plain :disabled="!clientCode" @click="openAssign">分配归属</el-button>
+        <el-button v-if="clientCode && userStore.hasPerm(ACTION_PERMISSION.CLIENT_RECYCLE)" type="danger" plain :disabled="!detail.ownerStaffCode" @click="onRecycle">回收进公海</el-button>
       </div>
     </div>
 
@@ -47,20 +47,18 @@
           <el-input v-model="clientQuery.enterpriseName" placeholder="企业名称" clearable style="width: 200px" @keyup.enter="searchClients" />
           <el-input v-model="clientQuery.creditCode" placeholder="统一社会信用代码" clearable style="width: 220px" @keyup.enter="searchClients" />
           <el-input v-model="clientQuery.source" placeholder="客户来源" clearable style="width: 160px" @keyup.enter="searchClients" />
-        <el-date-picker
+        <AppDateTime
           v-model="createdAtRange"
           type="daterange"
-          range-separator="至"
           start-placeholder="建档起始"
           end-placeholder="建档截止"
           value-format="YYYY-MM-DD HH:mm:ss"
           style="width: 260px"
         />
         </template>
-        <el-date-picker
+        <AppDateTime
           v-model="dealTimeRange"
           type="daterange"
-          range-separator="至"
           start-placeholder="成交起始"
           end-placeholder="成交截止"
           value-format="YYYY-MM-DD HH:mm:ss"
@@ -256,9 +254,20 @@
       </el-form>
     </AppDialog>
 
-    <!-- 跟进弹窗：记录跟进内容并刷新跟进时间，避免超期自动回收 -->
-    <AppDialog v-model:visible="followVisible" title="跟进客户" width="480px" :loading="following" @confirm="onFollowSubmit">
-      <el-form label-width="80px" label-position="right">
+    <!-- 跟进弹窗：记录跟进内容并刷新跟进时间，避免超期自动回收；支持同步修正档案 -->
+    <AppDialog v-model:visible="followVisible" title="跟进客户" width="520px" :loading="following" @confirm="onFollowSubmit">
+      <el-form label-width="90px" label-position="right">
+        <el-form-item label="联系人姓名">
+          <el-input v-model="followForm.contactName" placeholder="修改客户姓名" maxlength="50" />
+        </el-form-item>
+        <el-form-item label="企业名称">
+          <el-input v-model="followForm.enterpriseName" placeholder="修改企业名称（个人客户可留空）" maxlength="120" />
+        </el-form-item>
+        <el-form-item label="意向标签">
+          <el-select v-model="followForm.customerTag" clearable placeholder="选择意向标签" style="width: 100%">
+            <el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="跟进内容">
           <el-input v-model="followForm.content" type="textarea" :rows="3" placeholder="记录本次跟进情况（可选）" />
         </el-form-item>
@@ -274,6 +283,7 @@ import { ref, reactive, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppDialog from '@/components/AppDialog.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
@@ -567,19 +577,34 @@ async function onRecycleCompanyRow(row) {
 
 const followVisible = ref(false);
 const following = ref(false);
-const followForm = reactive({ clientCode: '', content: '' });
+const followForm = reactive({ clientCode: '', content: '', contactName: '', enterpriseName: '', customerTag: '', originContactName: '', originEnterpriseName: '', originCustomerTag: '' });
 function openFollow(row) {
   followForm.clientCode = row.clientCode;
   followForm.content = '';
+  followForm.contactName = row.contactName || row.name || '';
+  followForm.enterpriseName = row.enterpriseName || '';
+  followForm.customerTag = row.customerTag || '';
+  followForm.originContactName = followForm.contactName;
+  followForm.originEnterpriseName = followForm.enterpriseName;
+  followForm.originCustomerTag = followForm.customerTag;
   followVisible.value = true;
 }
 async function onFollowSubmit() {
   following.value = true;
   try {
+    // 支持在跟进时同步修正档案（姓名/企业名/意向标签）；有变更先保存档案再记录跟进
+    const profilePatch = {};
+    if (followForm.contactName !== followForm.originContactName) profilePatch.contactName = followForm.contactName;
+    if (followForm.enterpriseName !== followForm.originEnterpriseName) profilePatch.enterpriseName = followForm.enterpriseName;
+    if (followForm.customerTag !== followForm.originCustomerTag) profilePatch.customerTag = followForm.customerTag;
+    if (Object.keys(profilePatch).length) {
+      await updateClientDetail(followForm.clientCode, profilePatch);
+    }
     await followClient(followForm.clientCode, followForm.content);
     ElMessage.success('跟进已记录');
     followVisible.value = false;
     loadClients();
+    if (clientCode.value === followForm.clientCode) loadDetail(followForm.clientCode);
   } catch (e) { /* 拦截器已提示 */ } finally {
     following.value = false;
   }

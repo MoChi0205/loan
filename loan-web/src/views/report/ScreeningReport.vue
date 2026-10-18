@@ -224,12 +224,10 @@ async function openDetail(row) {
 
 onMounted(async () => {
   loadS();
-  // 从初筛执行页跳转时，URL 携带 reportNo → 自动定位并打开详情
+  // 从初筛执行页跳转时，URL 携带 reportNo → 直接定位并打开详情（不把内部编码展示到搜索框）
   const targetNo = route.query.reportNo;
   if (targetNo) {
-    queryS.keyword = String(targetNo);
-    await searchS();
-    // 等列表加载完后尝试打开详情
+    // 列表未按编码检索（业务编码零展示），等列表加载后按 reportNo 命中行打开详情
     setTimeout(async () => {
       const row = dataS.value.find((r) => r.reportNo === targetNo);
       if (row) {

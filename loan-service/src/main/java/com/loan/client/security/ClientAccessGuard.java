@@ -7,6 +7,8 @@ import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.ResultCode;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
+import com.loan.lead.entity.Lead;
+import com.loan.lead.mapper.LeadMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class ClientAccessGuard {
 
     private final ClientProfileMapper clientProfileMapper;
     private final StaffMapper staffMapper;
+    private final LeadMapper leadMapper;
 
     /** 要求当前员工对客户具有只读权限，并返回已经校验过的客户。 */
     public ClientProfile requireReadable(LoanUser user, String clientCode) {
@@ -68,6 +71,11 @@ public class ClientAccessGuard {
         if (isOwnedBy(user, client)) {
             return true;
         }
+        // 线索维度：线索归属人可只读查看线索关联的客户档案（线索在登录者名下，即使
+        // 客户档案归属他人/公海——档案入口本身由线索列表提供，D83 口径）。
+        if (ownsLinkedLead(user, client)) {
+            return true;
+        }
         if (!StringUtils.hasText(client.getOwnerStaffCode())) {
             // 未分配或公司公海对内部员工可读；团队公海只给对应部门经理。
             if ("TEAM".equalsIgnoreCase(client.getSeaLevel())) {
@@ -78,6 +86,16 @@ public class ClientAccessGuard {
         }
         return "DEPT_MANAGER".equals(role)
                 && sameDepartment(user.getDeptCode(), ownerDeptCode);
+    }
+
+    /** 当前用户是否拥有关联该客户档案的线索（lead.client_profile_code = clientCode）。 */
+    private boolean ownsLinkedLead(LoanUser user, ClientProfile client) {
+        return user != null && StringUtils.hasText(user.getUserNo())
+                && StringUtils.hasText(client.getClientCode())
+                && leadMapper.selectCount(new LambdaQueryWrapper<Lead>()
+                        .eq(Lead::getClientProfileCode, client.getClientCode())
+                        .eq(Lead::getOwnerStaffCode, user.getUserNo())
+                        .last("limit 1")) > 0;
     }
 
     boolean canWrite(LoanUser user, ClientProfile client, String ownerDeptCode) {
@@ -95,6 +113,33 @@ public class ClientAccessGuard {
         return StringUtils.hasText(client.getOwnerStaffCode())
                 && "DEPT_MANAGER".equals(role)
                 && sameDepartment(user.getDeptCode(), ownerDeptCode);
+    }
+
+    /**
+     * 要求当前员工可对该客户执行初筛（D83：只有认领通过或属于自己的客户才可执行初筛）。
+     *
+     * <p>比 {@link #requireWritable} 更严格的一点：公司公海未认领客户对顾问可读，
+     * 但不允许直接初筛——必须先走认领/分配流程建立归属，避免执行后报告因归属
+     * 范围过滤而无法查看。
+     */
+    public ClientProfile requireScreeningInitiator(LoanUser user, String clientCode) {
+        requireStaffIdentity(user);
+        ClientProfile client = requireClient(clientCode, false);
+        String role = normalizedRole(user);
+        if (COMPANY_ROLES.contains(role) || isOwnedBy(user, client)) {
+            return client;
+        }
+        if ("DEPT_MANAGER".equals(role) && StringUtils.hasText(client.getOwnerStaffCode())) {
+            Staff owner = staffMapper.selectOne(new QueryWrapper<Staff>()
+                    .select("staff_code", "dept_code")
+                    .eq("staff_code", client.getOwnerStaffCode())
+                    .last("limit 1"));
+            if (owner != null && sameDepartment(user.getDeptCode(), owner.getDeptCode())) {
+                return client;
+            }
+        }
+        throw new BusinessException(ResultCode.FORBIDDEN,
+                "该客户尚未认领或不属于你，请先认领（或由归属人）执行初筛");
     }
 
     private ClientProfile requireClient(String clientCode, boolean lockForUpdate) {

@@ -160,12 +160,14 @@ public class ClientService {
         }
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
-            // 综合关键词：姓名 / 企业名模糊；手机号 / 身份证 / 统一信用代码按摘要精确匹配。
+            // 综合关键词：姓名 / 企业名模糊；手机号 / 身份证 / 统一信用代码按摘要精确匹配；
+            // 跨页导航（如初筛中心按 clientCode 预选客户）需按编码精确回查（仅内部定位，客户端仍展示姓名）。
             wrapper.and(w -> w.like(ClientProfile::getContactName, kw)
                     .or().like(ClientProfile::getEnterpriseName, kw)
                     .or().eq(ClientProfile::getPhoneHash, sha256(kw))
                     .or().exists("SELECT 1 FROM t_personal_profile pp WHERE pp.client_profile_code = t_client_profile.client_code AND pp.id_card_hash = {0}", sha256(kw))
-                    .or().eq(ClientProfile::getCreditCodeHash, sha256(kw)));
+                    .or().eq(ClientProfile::getCreditCodeHash, sha256(kw))
+                    .or().eq(ClientProfile::getClientCode, kw));
         }
         if (StringUtils.hasText(name)) {
             wrapper.like(ClientProfile::getContactName, name.trim());

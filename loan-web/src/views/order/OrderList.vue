@@ -138,7 +138,7 @@
           <el-input-number v-model="dealForm.dealAmount" :min="0.01" :precision="2" :controls="false" style="width: 200px" placeholder="元" />
         </el-form-item>
         <el-form-item label="成交时间">
-          <el-date-picker v-model="dealForm.dealTime" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="缺省当前时间" style="width: 220px" />
+          <AppDateTime v-model="dealForm.dealTime" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm:ss" placeholder="缺省当前时间" style="width: 220px" />
         </el-form-item>
         <el-form-item label="奖励金额">
           <el-input-number v-model="dealForm.rewardAmount" :min="0" :precision="2" :controls="false" style="width: 200px" placeholder="留空按规则比例自动算" />
