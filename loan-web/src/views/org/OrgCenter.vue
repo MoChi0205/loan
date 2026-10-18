@@ -207,13 +207,23 @@
         <el-alert type="info" :closable="false" show-icon style="margin-bottom: 10px">
           勾选该角色可访问的接口；网关按「角色 × 接口 × 端(WEB/小程序)」统一鉴权，未勾选接口将被拦截
         </el-alert>
+        <el-input
+          v-model="apiSearch"
+          placeholder="搜索接口（中文名称 / apiKey / 路径）"
+          clearable
+          style="max-width: 340px; margin-bottom: 10px"
+        >
+          <template #prefix>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          </template>
+        </el-input>
         <el-tree
           ref="apiTreeRef"
           :data="apiTree"
           :props="treeProps"
           node-key="key"
           show-checkbox
-          default-expand-all
+          :filter-node-method="filterApiNode"
           style="max-height: 460px; overflow: auto"
         />
       </div>
@@ -232,7 +242,7 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { desensitizePhone } from '@/utils/format';
-import { departmentTree, roleList, staffPage, menuTree as fetchMenuTree, rolePermissionMenuIds as fetchRolePermissionMenuIds, saveStaff, disableStaff, saveDepartment, disableDepartment, saveRolePermission } from '@/api/org';
+import { departmentTree, roleList, staffPage, menuTreeAll as fetchMenuTreeAll, rolePermissionMenuIds as fetchRolePermissionMenuIds, saveStaff, disableStaff, saveDepartment, disableDepartment, saveRolePermission } from '@/api/org';
 import { pageApiPerm, roleApiPerm, saveRoleApiPerm } from '@/api/apiperm';
 
 const route = useRoute();
@@ -444,6 +454,68 @@ function onApiRoleSelect(roleCode) {
   loadApiPerms();
 }
 
+/* ---- 接口中文语义命名：apiKey 段位 → 模块 / 动作中文 ---- */
+const API_MODULE_ZH = {
+  mini: '小程序端', auth: '认证', appointment: '预约', audit: '审计', blacklist: '风控名单',
+  client: '客户', lead: '线索', order: '工单', product: '产品', channel: '渠道',
+  approval: '审批', report: '报表', rule: '规则', strategy: '策略', plan: '执行计划',
+  org: '组织', staff: '员工', role: '角色', menu: '菜单', notification: '通知',
+  reward: '奖励', sms: '短信', ocr: '材料识别', screening: '智能匹配', service: '服务',
+  import: '导入', exporting: '导出', allocation: '分配', recycle: '回收', config: '配置',
+  workbench: '工作台', wechat: '微信', upload: '上传', dict: '字典', sensitive: '敏感信息',
+  phone: '手机号', outing: '外出', download: '下载', memory: '备忘', insight: '洞察',
+  gateway: '网关', dept: '部门', permission: '权限', api: '接口', user: '用户',
+  quick: '快捷', common: '通用', export: '导出', template: '模板', tag: '标签',
+  profile: '档案', personal: '个人', ent: '企业', pool: '公海', sea: '公海',
+  team: '团队', mine: '我的', insightSnapshot: '客户洞察', cooperate: '合作库',
+};
+const API_ACTION_ZH = {
+  page: '分页查询', list: '列表查询', detail: '详情', get: '查询', create: '新增', add: '新增',
+  save: '保存', update: '修改', edit: '编辑', delete: '删除', remove: '删除', audit: '审核',
+  approve: '审批通过', reject: '驳回', confirm: '确认', cancel: '取消', close: '关闭',
+  toggle: '启停', enable: '启用', disable: '停用', export: '导出', sync: '同步',
+  send: '发送', claim: '认领', assign: '分配', recycle: '回收', release: '释放',
+  transfer: '交接', batch: '批量', count: '计数', stats: '统计', tree: '树形结构',
+  preview: '预览', verify: '校验', check: '检查', apply: '申请', submit: '提交',
+  withdraw: '撤回', request: '申请', reschedule: '改期', schedule: '排期', login: '登录',
+  code: '验证码', read: '标记已读', unread: '未读数', execute: '执行', replay: '回放',
+  publish: '发布', generate: '生成', match: '匹配', recommend: '推荐', refresh: '刷新',
+  reset: '重置', active: '生效', activate: '激活', offline: '下线', freeze: '冻结',
+  unfreeze: '解冻', flag: '标记', mark: '标记', logs: '日志', log: '日志', rule: '规则',
+  rules: '规则', snapshot: '快照', trace: '轨迹', traces: '轨迹', reveal: '查看原值',
+  'read-all': '全部已读', 'delete-all': '全部删除', 'delete-batch': '批量删除',
+  'phone-login': '手机号登录', 'wechat-login': '微信登录', 'wechat-code': '微信换码',
+  'enterprise-page': '企业分页', 'field-defs': '字段定义', 'save-record': '保存记录',
+  'save-template': '保存模板', 'template-page': '模板分页', 'template-list': '模板列表',
+  'record-page': '记录分页', 'role-list': '角色列表', 'permission-list': '权限清单',
+  'staff-page': '员工分页', 'department-tree': '部门树', 'order-trend': '订单趋势',
+  'reward-trend': '奖励趋势', 'overview-report': '经营总览', 'operations-report': '经营报表',
+};
+/** apiKey → 中文语义名：模块段 + 动作段拼接，未命中保留原文。 */
+function apiZhName(apiKey) {
+  return String(apiKey).split(':')
+    .map((seg) => API_MODULE_ZH[seg] || API_ACTION_ZH[seg] || seg)
+    .join(' · ');
+}
+
+/** 接口搜索关键字 */
+const apiSearch = ref('');
+watch(apiSearch, (val) => {
+  apiTreeRef.value?.filter(val);
+});
+/** 树过滤：组节点按组名，接口节点按中文名 / apiKey / 路径。 */
+function filterApiNode(value, data) {
+  if (!value) return true;
+  const kw = value.trim().toLowerCase();
+  if (!kw) return true;
+  if (!data.children) {
+    const hay = `${data.name || ''} ${data.apiKey || ''}`.toLowerCase();
+    return hay.includes(kw);
+  }
+  return (data.name || '').toLowerCase().includes(kw)
+    || (data.children || []).some((c) => filterApiNode(value, c));
+}
+
 /** 加载接口清单（分组树） */
 async function loadApiPerms() {
   if (!apiRoleCode.value) return;
@@ -463,7 +535,7 @@ async function loadApiPerms() {
       groupMap[g].children.push({
         key: 'a_' + a.apiKey,
         apiKey: a.apiKey,
-        name: `${a.apiKey}  [${a.httpMethod}] ${a.pathPattern}`,
+        name: `${a.remark || apiZhName(a.apiKey)}  [${a.httpMethod}] ${a.pathPattern}`,
         clientTypes: a.clientTypes,
         disabled: a.status !== 'ACTIVE',
       });
@@ -498,7 +570,7 @@ async function onSaveApiPerm() {
 onMounted(async () => {
   reloadDept();
   try {
-    const [role, menu] = await Promise.all([roleList(), fetchMenuTree('BOSS')]);
+    const [role, menu] = await Promise.all([roleList(), fetchMenuTreeAll()]);
     roles.value = role.data || [];
     menuTree.value = menu.data || [];
   } catch (e) { /* 拦截器已提示 */ }

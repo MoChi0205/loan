@@ -133,7 +133,7 @@
 
 <script setup>
 import { reactive, ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { sceneries } from '@/assets/login-bg';
 import { useUserStore } from '@/store/user';
@@ -144,6 +144,7 @@ import { getTheme } from '@/theme';
 import AppIcon from '@/components/AppIcon.vue';
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 const formRef = ref();
 const loading = ref(false);
@@ -246,7 +247,12 @@ async function onLogin() {
       console.warn('[menu] 登录后预加载失败，进入页面后重试', menuError);
     }
     ElMessage.success('登录成功');
-    await router.push('/');
+    // 登录后回到被踢前的页面；redirect 仅接受站内路径，阻断开放重定向。
+    const target = route.query.redirect;
+    const redirect = (typeof target === 'string' && target.startsWith('/') && !target.startsWith('//'))
+      ? target
+      : '/';
+    await router.push(redirect);
   } catch (e) {
     // 登录类请求已标记 __loanSilent，提示统一在这里弹一次，并立即换一张验证码。
     ElMessage.error(loginErrorMessage(e));

@@ -82,13 +82,13 @@ const ICONS = {
   ],
   /** 初筛：播放/漏斗 */
   screening: [{ k: 'path', d: 'M5 3l14 9-14 9V3z' }],
-  /** 规则库：文档+行 */
+  /** 规则模板：文档+行 */
   ruleTemplate: [{ k: 'rect', x: 4, y: 3, w: 16, h: 18, rx: 2 }, { k: 'path', d: 'M8 8h8' }, { k: 'path', d: 'M8 12h8' }, { k: 'path', d: 'M8 16h5' }],
   /** 执行计划：列表+对勾 */
   plan: [{ k: 'path', d: 'M4 6h16' }, { k: 'path', d: 'M4 12h16' }, { k: 'path', d: 'M4 18h10' }, { k: 'path', d: 'M18 15l2 2 4-4' }],
   /** 策略方案：盾牌+对勾 */
   strategy: [{ k: 'path', d: 'M12 2l8 4v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6l8-4z' }, { k: 'path', d: 'M9 12l2 2 4-4' }],
-  /** 规则集：三线 */
+  /** 规则实例：三线 */
   rule: [{ k: 'path', d: 'M8 6h13' }, { k: 'path', d: 'M8 12h13' }, { k: 'path', d: 'M8 18h13' }, { k: 'path', d: 'M3 6h.01' }, { k: 'path', d: 'M3 12h.01' }, { k: 'path', d: 'M3 18h.01' }],
   /** 工单：单据（与小程序 order 语义对齐） */
   order: [

@@ -33,7 +33,7 @@ public final class DesensitizeUtils {
         if (idCard == null || idCard.length() < 10) {
             return idCard;
         }
-        return idCard.substring(0, 6) + "********" + idCard.substring(idCard.length() - 4);
+        return idCard.substring(0, 6) + "****" + idCard.substring(idCard.length() - 4);
     }
 
     /**

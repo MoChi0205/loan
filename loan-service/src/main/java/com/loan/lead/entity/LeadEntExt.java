@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
  * @author loan-platform
  */
 @Data
-@TableName("t_lead_ent_ext")
+@TableName(value = "t_lead_ent_ext", autoResultMap = true)
 public class LeadEntExt implements Serializable {
 
     private static final long serialVersionUID = 1L;

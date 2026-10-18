@@ -46,13 +46,13 @@ const routes = [
         path: 'rule',
         name: 'RuleList',
         component: () => import('@/views/rule/RuleList.vue'),
-        meta: { title: '规则集' },
+        meta: { title: '规则实例' },
       },
       {
         path: 'rule-template',
         name: 'RuleTemplateList',
         component: () => import('@/views/rule/RuleTemplateList.vue'),
-        meta: { title: '规则库' },
+        meta: { title: '规则模板' },
       },
       {
         path: 'channel-config',
@@ -151,12 +151,6 @@ const routes = [
         meta: { title: '客户导入进度', permission: 'page:client' },
       },
       {
-        path: 'client/import-export',
-        name: 'ClientImportExport',
-        component: () => import('@/views/client/ClientImportExport.vue'),
-        meta: { title: '客户导入与导出', permission: 'page:client' },
-      },
-      {
         path: 'client/resource-pool-config',
         name: 'ResourcePoolConfig',
         component: () => import('@/views/client/ResourcePoolConfig.vue'),
@@ -172,13 +166,13 @@ const routes = [
         path: 'client/team',
         name: 'TeamClients',
         component: () => import('@/views/client/ClientProfile.vue'),
-        meta: { title: '部门客户', permission: 'page:client', clientScope: 'TEAM' },
+        meta: { title: '团队客户', permission: 'page:client', clientScope: 'TEAM' },
       },
       {
         path: 'client/company',
         name: 'CompanyClients',
         component: () => import('@/views/client/ClientProfile.vue'),
-        meta: { title: '公司客户', permission: 'page:client', clientScope: 'ALL' },
+        meta: { title: '客户列表', permission: 'page:client', clientScope: 'ALL' },
       },
       {
         path: 'client/company-sea',
@@ -193,13 +187,13 @@ const routes = [
         meta: { title: '团队公海', permission: 'page:client', clientScope: 'TEAM_SEA' },
       },
       {
-        path: 'client-lookup',
+        path: 'client/lookup',
         name: 'ClientLookup',
         component: () => import('@/views/client/ClientLookup.vue'),
         meta: { title: '客户检索', permission: 'page:client' },
       },
       {
-        path: 'ocr',
+        path: 'client/ocr',
         name: 'OcrCenter',
         component: () => import('@/views/ocr/OcrCenter.vue'),
         meta: { title: '客户材料' },
@@ -224,13 +218,13 @@ const routes = [
         path: 'service-operations/appointments',
         name: 'ServiceAppointments',
         component: () => import('@/views/service/ServiceOperations.vue'),
-        meta: { title: '预约管理', serviceView: 'appointments' },
+        meta: { title: '客户预约', serviceView: 'appointments' },
       },
       {
         path: 'service-operations/outings',
         name: 'ServiceOutings',
         component: () => import('@/views/service/ServiceOperations.vue'),
-        meta: { title: '外出管理', serviceView: 'outings' },
+        meta: { title: '员工外出', serviceView: 'outings' },
       },
       {
         path: 'service-operations/replay',
@@ -339,7 +333,7 @@ const routes = [
         meta: { title: '经营概览' },
       },
       {
-        path: 'report/screening',
+        path: 'screening/report',
         name: 'ReportScreening',
         component: () => import('@/views/report/ScreeningReport.vue'),
         meta: { title: '诊断报告' },
@@ -367,7 +361,7 @@ const routes = [
         meta: { title: '匹配任务' },
       },
       {
-        path: 'report-template',
+        path: 'report/template',
         name: 'ReportTemplateList',
         component: () => import('@/views/template/ReportTemplateList.vue'),
         meta: { title: '报告模板' },

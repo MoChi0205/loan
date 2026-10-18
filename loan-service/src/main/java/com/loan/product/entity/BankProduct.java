@@ -72,6 +72,9 @@ public class BankProduct {
     /** 创建人姓名 */
     private String createdBy;
 
+    /** 创建人工号（业务编码，员工数据范围隔离用：普通员工仅可见本人创建产品） */
+    private String createdStaffNo;
+
     /** 更新人姓名 */
     private String updatedBy;
 

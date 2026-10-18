@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  * @author loan-platform
  */
 @Data
-@TableName("t_lead")
+@TableName(value = "t_lead", autoResultMap = true)
 public class Lead implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -43,6 +43,15 @@ public class Lead implements Serializable {
 
     /** 来源（BOSS/ADVISER/CHANNEL/VIP） */
     private String source;
+
+    /** 所属资源池编码（导入/认领按池隔离） */
+    private String poolCode;
+
+    /** 公海层级（COMPANY 公司 / TEAM 团队），NULL 视为公司级 */
+    private String seaLevel;
+
+    /** 团队公海所属部门编码 */
+    private String seaDeptCode;
 
     /** 录入人工号（业务编码，公司员工时 = 归属人） */
     private String recorderStaffCode;

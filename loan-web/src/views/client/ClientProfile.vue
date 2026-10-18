@@ -34,6 +34,9 @@
         <el-select v-model="clientQuery.status" placeholder="客户状态" clearable style="width: 130px"><el-option label="有效" value="ACTIVE" /><el-option label="已停用" value="DISABLED" /></el-select>
         <el-select v-model="clientQuery.followState" placeholder="跟进情况" clearable style="width: 150px"><el-option label="从未跟进" value="NEVER" /><el-option label="30天未跟进" value="OVERDUE" /><el-option label="7天内已跟进" value="RECENT" /></el-select>
         <el-select v-model="clientQuery.hasDeal" placeholder="成交情况" clearable style="width: 130px"><el-option label="已成交" :value="true" /><el-option label="未成交" :value="false" /></el-select>
+        <el-select v-model="clientQuery.poolCode" placeholder="资源池" clearable style="width: 150px">
+          <el-option v-for="pl in clientPoolOptions" :key="pl.poolCode" :label="pl.poolName" :value="pl.poolCode" />
+        </el-select>
         <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerDeptCode" placeholder="归属团队" clearable filterable style="width: 160px" @change="onOwnerDepartmentChange"><el-option v-for="item in filterDepartments" :key="item.code" :label="item.name" :value="item.code" /></el-select>
         <el-select v-if="['TEAM', 'ALL'].includes(clientScope)" v-model="clientQuery.ownerStaffCode" placeholder="归属员工" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" style="width: 180px"><el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" /></el-select>
         <el-select v-model="clientQuery.customerTag" placeholder="客户标签" clearable style="width: 140px"><el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" /></el-select>
@@ -244,7 +247,7 @@
             <el-option
               v-for="o in assignOptions"
               :key="o.staffCode"
-              :label="`${o.staffName || '员工姓名待补充'} · ${o.roleName || '角色待补充'} · ${o.deptName || '未分部门'}`"
+              :label="`${o.staffName || '员工姓名待补充'}（${o.roleName || '员工'} · ${o.deptName || '未分部门'}）`"
               :value="o.staffCode"
               :disabled="o.status && o.status !== 'ACTIVE'"
             />
@@ -276,6 +279,7 @@ import AppEmpty from '@/components/AppEmpty.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
+import { listResourcePools } from '@/api/importing';
 import { getClientDetail, pageClients, getClientTagCounts, updateClientDetail, assignClient, recycleClient, releaseClient, followClient, getClientHistory, claimUnassignedClient, batchClaimClients } from '@/api/client';
 import { staffPage, departmentTree } from '@/api/org';
 import { useUserStore } from '@/store/user';
@@ -301,7 +305,7 @@ const clientCode = ref('');
 const loading = ref(false);
 const profileTab = ref('enterprise');
 const moreFiltersVisible = ref(false);
-const scopeTitle = Object.freeze({ MY: '我的客户', TEAM: '部门客户', ALL: '公司客户', COMPANY_SEA: '客户公海', TEAM_SEA: '团队公海' });
+const scopeTitle = Object.freeze({ MY: '我的客户', TEAM: '团队客户', ALL: '客户列表', COMPANY_SEA: '客户公海', TEAM_SEA: '团队公海' });
 const listPageTitle = computed(() => scopeTitle[clientScope.value] || '客户档案');
 const selectedClientCodes = ref([]);
 const tagCounts = ref({});
@@ -334,6 +338,7 @@ const {
   status: '',
   followState: '',
   hasDeal: '',
+  poolCode: '',
   ownerDeptCode: '',
   ownerStaffCode: '',
   createdAtStart: '',
@@ -344,6 +349,11 @@ const {
 });
 
 const filterStaffOptions = ref([]); const filterStaffLoading = ref(false); const filterDepartments = ref([]);
+const clientPoolOptions = ref([]);
+async function loadClientPools() {
+  try { clientPoolOptions.value = (await listResourcePools()).data || []; } catch { clientPoolOptions.value = []; }
+}
+loadClientPools();
 function flattenDepartments(nodes, output = []) {
   (nodes || []).forEach((item) => { output.push({ code: item.code || item.deptCode, name: item.name || item.deptName }); flattenDepartments(item.children, output); });
   return output;
@@ -491,6 +501,16 @@ function ownClientActions(row) {
       });
     }
   }
+  if (clientScope.value === 'ALL' && userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {
+    actions.push({ key: 'assign-all', label: '分配', type: 'primary', onClick: () => openAssignForRow(row) });
+    actions.push({
+      key: 'recycle-all',
+      label: '回收',
+      type: 'warning',
+      confirm: '确认将该客户回收进公司公海？回收后清空归属并进入冷却期，冷却期内不可被认领。',
+      onClick: () => onRecycleCompanyRow(row),
+    });
+  }
   if (clientScope.value === 'TEAM' && canViewTeamAssigned.value) {
     actions.push({
       key: 'recycle-team',
@@ -500,8 +520,9 @@ function ownClientActions(row) {
       onClick: () => onRecycleListRow(row),
     });
   }
-  if (clientScope.value === 'MY' && row.ownerStaffCode === userStore.user?.userNo && !isChannel.value) {
-    actions.push({ key: 'follow', label: '跟进', onClick: () => openFollow(row) });
+  if (clientScope.value === 'MY' && !isChannel.value) {
+    // 快速跟进：我的客户范围内全员可用（不再限定归属人本人）。
+    actions.push({ key: 'follow', label: '快速跟进', onClick: () => openFollow(row) });
     actions.push({
       key: 'release',
       label: '释放回公海',
@@ -531,6 +552,15 @@ async function onRecycleListRow(row) {
   try {
     await recycleClient(row.clientCode);
     ElMessage.success('已回收至团队公海');
+    loadClients();
+  } catch (e) { /* 拦截器已提示 */ }
+}
+
+/** 客户列表（公司全量视角）回收：清空归属进公司公海。 */
+async function onRecycleCompanyRow(row) {
+  try {
+    await recycleClient(row.clientCode);
+    ElMessage.success('已回收进公司公海');
     loadClients();
   } catch (e) { /* 拦截器已提示 */ }
 }

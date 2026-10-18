@@ -15,7 +15,7 @@ const ROUTE_PARENT = Object.freeze({
   '/report/overview': '/report/center',
   '/report/center': '/report/center',
   '/report/trend': '/report/trend',
-  '/report/screening': '/report/screening',
+  '/screening/report': '/screening/report',
 });
 
 const LEGACY_PARENT = Object.freeze({

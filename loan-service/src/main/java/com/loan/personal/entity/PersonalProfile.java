@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
  * @author loan-platform
  */
 @Data
-@TableName("t_personal_profile")
+@TableName(value = "t_personal_profile", autoResultMap = true)
 public class PersonalProfile implements Serializable {
 
     private static final long serialVersionUID = 1L;

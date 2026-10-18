@@ -74,7 +74,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     /** 顾问（ADVISER）默认可访问接口（一线业务） */
     private static final String[] ADVISER_APIS = {
             "order:page", "order:create", "order:detail", "order:updateStatus",
-            "lead:page", "lead:create", "lead:claim", "lead:release", "lead:batchClaim",
+            "lead:page", "resource-pool:list", "lead:create", "lead:claim", "lead:release", "lead:batchClaim",
             "lead:detail", "lead:follow",
             "lead:sensitive:applyView", "lead:sensitive:applyClientView", "lead:sensitive:quota",
             "client:pageLite", "client:tagCounts", "client:detail", "client:update", "client:release", "client:follow", "client:history",
@@ -104,8 +104,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             // 站内消息中心（mini 端）：客户角色按 `mini:` 前缀整体放行，员工角色需显式授权，
             // 否则消息接口对其被网关拒绝（2026-09-11 审计 P0-2）。
             "mini:notification:mine", "mini:notification:unreadCount", "mini:notification:readAll",
-            "audit:page", "audit:detail",
-            "report:overview", "report:operations", "report:orderTrend", "report:rewardTrend",
+            "report:overview", "report:operations",
             "report:screeningPage", "report:screeningDetail", "report:screeningAggregate",
             "product:page", "product:get", "product:create",
             "approval:mine", "approval:downloadPage", "approval:downloadApply",
@@ -118,7 +117,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
 
     /** 主管（DEPT_MANAGER）在顾问基础上追加管理接口 */
     private static final String[] MANAGER_APIS = {
-            "org:staffPage", "org:departmentTree", "org:roleList", "org:permissionList",
+            "org:staffPage", "org:departmentTree",
             "lead:assign", "lead:batchAssign", "lead:batchDelete",
             "client:tagCounts", "client:claim", "client:batchClaim", "client:lookup", "client:assign", "client:recycle", "client:unassignedPage",
             "approval:downloadPage", "approval:downloadApply", "approval:downloadAudit",
@@ -131,10 +130,6 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "outing:pending", "outing:approve", "outing:reject",
             // 客户画像复核：主管及以上可复核本部门/全公司客户的画像快照（禁止自复核）。
             "client:reviewInsight",
-            "reward:page", "reward:audit", "reward:voidReward",
-            "sms:templatePage", "sms:templateList", "sms:saveTemplate", "sms:toggleTemplate",
-            "sms:recordPage", "sms:send",
-            "report:page", "report:save", "report:toggle",
             "ocr:fieldDefs", "ocr:saveRecord",
             "product:page", "product:get", "product:create", "product:update", "product:delete",
             "product-city:list", "product-city:page", "product-city:detail", "product-city:batchQuery",

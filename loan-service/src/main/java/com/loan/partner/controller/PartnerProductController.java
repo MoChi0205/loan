@@ -93,7 +93,8 @@ public class PartnerProductController {
         if (!StringUtils.hasText(until)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "cooperateUntil 必填");
         }
-        partnerProductService.renew(code, LocalDateTime.parse(until),
+        // 全系统统一 ISO 日期时间格式（yyyy-MM-dd'T'HH:mm:ss），与前端 value-format 一致，不做多格式兼容。
+        partnerProductService.renew(code, java.time.LocalDateTime.parse(until),
                 user == null ? "system" : user.getName());
         return Result.ok();
     }

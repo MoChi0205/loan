@@ -69,6 +69,9 @@ public class ProductDTO implements Serializable {
     /** 录入人 */
     private String createdBy;
 
+    /** 创建人工号（员工数据范围隔离：前端据此判断是否本人产品） */
+    private String createdStaffNo;
+
     /** 录入时间 */
     private java.time.LocalDateTime createdAt;
 }

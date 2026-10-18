@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
  * @author loan-platform
  */
 @Data
-@TableName("t_client_profile")
+@TableName(value = "t_client_profile", autoResultMap = true)
 public class ClientProfile implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -73,6 +73,9 @@ public class ClientProfile implements Serializable {
 
     /** 来源（线索转正 / 渠道等） */
     private String source;
+
+    /** 所属资源池编码 */
+    private String poolCode;
 
     /** 客户经营标签（NO_NEED/INTENTION/DEAL/VISITED/NO_ANSWER 等）。 */
     private String customerTag;

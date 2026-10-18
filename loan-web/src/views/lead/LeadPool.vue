@@ -2,7 +2,7 @@
   <div class="lead-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ activeTab === 'pool' ? '线索公海' : '我的线索' }}</h2>
+        <h2 class="loan-page-title">{{ activeTab === 'pool' ? (seaScope === 'team' ? '团队线索公海' : '线索公海') : '我的线索' }}</h2>
         <p class="loan-page-subtitle">{{ isChannel ? '新增后本人立即可见，公司审核通过后进入公海' : '我的线索＝当前归属我的线索；线索公海＝未分配线索；客户公海＝未分配客户；创建人始终单独展示' }}</p>
       </div>
       <div class="header-actions">
@@ -15,10 +15,18 @@
     </div>
 
     <div class="loan-card">
+      <div v-if="activeTab === 'pool' && !isChannel" class="sea-segment">
+        <button type="button" class="sea-tab" :class="{ active: seaScope === 'company' }" @click="switchSea('company')">公司公海</button>
+        <button v-if="isManager" type="button" class="sea-tab" :class="{ active: seaScope === 'team' }" @click="switchSea('team')">团队公海</button>
+      </div>
+
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
         <el-select v-if="activeTab !== 'clients'" v-model="query.leadType" placeholder="客群" clearable style="width: 130px">
           <el-option label="企业" value="ENTERPRISE" />
           <el-option label="个人" value="PERSONAL" />
+        </el-select>
+        <el-select v-if="activeTab !== 'clients'" v-model="query.poolCode" placeholder="资源池" clearable style="width: 160px">
+          <el-option v-for="pl in poolOptions" :key="pl.poolCode" :label="pl.poolName" :value="pl.poolCode" />
         </el-select>
         <el-select v-if="activeTab !== 'clients' && !isChannel" v-model="query.source" placeholder="来源" clearable style="width: 150px">
           <el-option v-for="(v, k) in sourceMap" :key="k" :label="v" :value="k" />
@@ -260,6 +268,7 @@ import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
+import { listResourcePools } from '@/api/importing';
 import { pageLead, createLead, claimLead, releaseLead, assignLead, batchClaimLead, batchAssignLead, batchDeleteLead, getLeadDetail, followLead } from '@/api/lead';
 import { staffPage } from '@/api/org';
 import { pageUnassignedClients, claimUnassignedClient, assignClient } from '@/api/client';
@@ -279,6 +288,13 @@ const userStore = useUserStore();
 const roleCode = computed(() => (userStore.roleCode || '').toUpperCase());
 const isChannel = computed(() => roleCode.value === 'CHANNEL');
 const canImport = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(roleCode.value));
+const isManager = computed(() => roleCode.value === 'DEPT_MANAGER');
+const seaScope = ref('company');
+function switchSea(v) {
+  seaScope.value = v;
+  query.page = 1;
+  load();
+}
 const canClaimClient = computed(() => roleCode.value === 'ADVISER');
 const rowKey = (row) => row.leadNo || row.clientCode;
 
@@ -401,11 +417,17 @@ function openBatchAssign() {
 }
 
 /** useTable 接管列表（loader 闭包动态拼 pool 参数） */
+const poolOptions = ref([]);
+async function loadPoolOptions() {
+  try { poolOptions.value = (await listResourcePools()).data || []; } catch { poolOptions.value = []; }
+}
+loadPoolOptions();
+
 const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(
   (q) => activeTab.value === 'clients'
     ? pageUnassignedClients({ keyword: q.keyword, page: q.page, size: q.size })
-    : pageLead({ ...q, pool: activeTab.value === 'pool' }),
-  { leadType: '', source: '', followStatus: '', keyword: '' },
+    : pageLead({ ...q, pool: activeTab.value === 'pool', scope: activeTab.value === 'pool' ? (seaScope.value === 'team' ? 'team_sea' : 'company_sea') : undefined }),
+  { leadType: '', source: '', followStatus: '', keyword: '', poolCode: '' },
 );
 watch(activeTab, () => {
   query.page = 1;
@@ -832,4 +854,9 @@ onMounted(load);
   margin: 6px 0 0;
   color: var(--loan-text-secondary);
 }
+</style>
+<style scoped>
+.sea-segment { display: flex; gap: 6px; margin-bottom: 10px; }
+.sea-tab { border: 1px solid var(--loan-border); background: var(--loan-card-bg); color: var(--loan-text-secondary); border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; transition: all var(--loan-transition); }
+.sea-tab.active { color: var(--loan-primary); border-color: color-mix(in srgb, var(--loan-primary) 45%, var(--loan-border)); background: color-mix(in srgb, var(--loan-primary) 8%, transparent); }
 </style>

@@ -20,7 +20,7 @@
         <el-select v-model="query.ownerStaffCode" placeholder="归属顾问" clearable filterable style="width: 150px">
           <el-option v-for="s in staffOptions" :key="s.staffCode" :label="s.staffName" :value="s.staffCode" />
         </el-select>
-        <el-date-picker v-model="query.createdAtRange" type="daterange" value-format="YYYY-MM-DD" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" style="width: 250px" @change="syncDateRange" />
+        <AppDateTime v-model="query.createdAtRange" type="daterange" style="width: 250px" @update:model-value="syncDateRange" />
         <el-checkbox v-model="query.mineOnly" style="margin-right: 8px">仅我的工单</el-checkbox>
       </AppSearchBar>
 

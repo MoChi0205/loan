@@ -364,7 +364,7 @@ const quick = [
   },
   {
     path: '/rule',
-    name: '规则集',
+    name: '规则实例',
     desc: '企业 16 条准入规则四分类',
     icon: 'rule',
   },
@@ -402,7 +402,7 @@ const channelQuick = [
   { path: '/lead/my', name: '我的线索', desc: '录入并查看本人提交的客户线索', icon: 'lead' },
   { path: '/client/my', name: '我的客户', desc: '查看本人线索形成的客户档案与归属', icon: 'client' },
   { path: '/product/all', name: '我的产品', desc: '录入产品并跟踪平台审核进度', icon: 'product' },
-  { path: '/report/screening', name: '客户分析报告', desc: '查看本人客户的分析结果', icon: 'reportDoc' },
+  { path: '/screening/report', name: '客户分析报告', desc: '查看本人客户的分析结果', icon: 'reportDoc' },
 ];
 
 /** 最近匹配（对接 /api/admin/audit/page 取真实审计记录） */

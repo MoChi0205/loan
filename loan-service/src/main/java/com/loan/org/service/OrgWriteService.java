@@ -210,7 +210,7 @@ public class OrgWriteService {
         for (ClientProfile row : clients) {
             LambdaUpdateWrapper<ClientProfile> w = new LambdaUpdateWrapper<ClientProfile>().eq(ClientProfile::getClientCode, row.getClientCode()).eq(ClientProfile::getOwnerStaffCode, fromStaffCode)
                     .set(ClientProfile::getOwnerStaffCode, targetStaffCode).set(ClientProfile::getUpdatedBy, operator);
-            if (toPool) w.set(ClientProfile::getSeaLevel, "COMPANY").set(ClientProfile::getSeaDeptCode, null);
+            if (toPool) w.set(ClientProfile::getSeaLevel, "ENTERPRISE").set(ClientProfile::getSeaDeptCode, null);
             else w.set(ClientProfile::getSeaLevel, null).set(ClientProfile::getSeaDeptCode, null);
             total += clientProfileMapper.update(null, w);
             audit(fromStaffCode, targetStaffCode, "CLIENT", row.getClientCode(), reason, operator);

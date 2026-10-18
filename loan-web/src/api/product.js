@@ -35,9 +35,10 @@ export function updateProduct(data) {
 }
 
 /** 删除产品（按业务唯一编码 productCode） */
-export function deleteProduct(productCode) {
+export function deleteProduct(productCode, reason) {
   return request({
     url: `/api/admin/product/${productCode}`,
     method: 'delete',
+    params: reason ? { reason } : undefined,
   });
 }

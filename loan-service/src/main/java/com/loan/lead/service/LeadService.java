@@ -74,6 +74,7 @@ public class LeadService {
     private final SensitiveViewService sensitiveViewService;
     private final ClaimQuotaService claimQuotaService;
     private final LeadRecycleConfigMapper leadRecycleConfigMapper;
+    private final com.loan.staff.mapper.StaffMapper staffMapper;
 
     private static final List<String> FOLLOW_STATUSES = Arrays.asList(
             "NEW", "INTENTION", "POTENTIAL", "VISITED", "NO_ANSWER", "NO_NEED");
@@ -98,7 +99,8 @@ public class LeadService {
         // 员工录入一律直接归属本人。渠道/客户不是公司员工，不建立服务归属。
         boolean toPool = !StringUtils.hasText(recorderCode)
                 || "CHANNEL".equalsIgnoreCase(lead.getSource())
-                || "VIP".equalsIgnoreCase(lead.getSource());
+                || "VIP".equalsIgnoreCase(lead.getSource())
+                || StringUtils.hasText(lead.getSeaLevel()); // 导入/录入进池：已指定公海层级则进公海
         lead.setOwnerStaffCode(toPool ? null : recorderCode);
         lead.setCreatedBy(recorderName);
         // 线索标签属于业务数据：主表暂不扩列，统一写入 ext_json，保证渠道录入/员工录入均可追溯。
@@ -118,38 +120,56 @@ public class LeadService {
 
         // 公司员工录入的线索同时进入“我的客户”。渠道/VIP 仍保持原审批、公海链路不变。
         if (!toPool) {
-            ClientProfile profile = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
-                    .eq(ClientProfile::getPhoneHash, lead.getPhoneHash())
-                    .eq(ClientProfile::getCustomerGroup, lead.getLeadType())
-                    .last("limit 1"));
-            if (profile == null) {
-                profile = new ClientProfile();
-                profile.setClientCode(BizIdGenerator.generate("client"));
-                profile.setCustomerGroup(lead.getLeadType());
-                profile.setContactName(lead.getContactName());
-                profile.setPhone(lead.getPhone());
-                profile.setPhonePlain(lead.getPhone());
-                profile.setPhoneHash(lead.getPhoneHash());
-                profile.setOwnerStaffCode(recorderCode);
-                profile.setSource("LEAD");
-                profile.setLeadNo(lead.getLeadNo());
-                profile.setCustomerTag(normalizeCustomerTag(lead.getCustomerTag()));
-                profile.setStatus("ACTIVE");
-                profile.setInvitedFlag(0);
-                profile.setWecomAdded(0);
-                profile.setCreatedBy(recorderName);
-                clientProfileMapper.insert(profile);
-            } else if (!StringUtils.hasText(profile.getOwnerStaffCode())) {
-                clientProfileMapper.assignOwnerIfUnassigned(profile.getClientCode(), recorderCode,
-                        recorderName, LocalDateTime.now());
-            }
-            lead.setClientProfileCode(profile.getClientCode());
-            leadMapper.bindClientProfile(lead.getLeadNo(), profile.getClientCode(), recorderName);
+            ensureClientProfile(lead, recorderCode, recorderName);
         }
 
         allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "MANUAL", null, lead.getOwnerStaffCode(),
                 recorderName, "录入线索"));
         return lead.getLeadNo();
+    }
+
+    /**
+     * 线索 → 客户建档：按手机号+客群查找客户档案，不存在则新建（归属 owner），
+     * 已存在且未分配则认领归属；并回填 lead.client_profile_code、同步 pool_code。
+     */
+    private void ensureClientProfile(Lead lead, String ownerCode, String ownerName) {
+        if (!StringUtils.hasText(lead.getPhoneHash())) {
+            return;
+        }
+        ClientProfile profile = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                .eq(ClientProfile::getPhoneHash, lead.getPhoneHash())
+                .eq(ClientProfile::getCustomerGroup, lead.getLeadType())
+                .last("limit 1"));
+        if (profile == null) {
+            profile = new ClientProfile();
+            profile.setClientCode(BizIdGenerator.generate("client"));
+            profile.setCustomerGroup(lead.getLeadType());
+            profile.setContactName(lead.getContactName());
+            profile.setPhone(lead.getPhone());
+            profile.setPhonePlain(lead.getPhone());
+            profile.setPhoneHash(lead.getPhoneHash());
+            profile.setOwnerStaffCode(ownerCode);
+            profile.setSource("LEAD");
+            profile.setLeadNo(lead.getLeadNo());
+            profile.setPoolCode(lead.getPoolCode());
+            profile.setCustomerTag(normalizeCustomerTag(lead.getCustomerTag()));
+            profile.setStatus("ACTIVE");
+            profile.setInvitedFlag(0);
+            profile.setWecomAdded(0);
+            profile.setCreatedBy(ownerName);
+            clientProfileMapper.insert(profile);
+        } else if (!StringUtils.hasText(profile.getOwnerStaffCode())) {
+            clientProfileMapper.assignOwnerIfUnassigned(profile.getClientCode(), ownerCode,
+                    ownerName, LocalDateTime.now());
+            // 已有客户档案但未绑定池时，补池标记（认领的导入线索归入对应资源池）。
+            if (!StringUtils.hasText(profile.getPoolCode()) && StringUtils.hasText(lead.getPoolCode())) {
+                clientProfileMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<ClientProfile>()
+                        .eq(ClientProfile::getClientCode, profile.getClientCode())
+                        .set(ClientProfile::getPoolCode, lead.getPoolCode()));
+            }
+        }
+        lead.setClientProfileCode(profile.getClientCode());
+        leadMapper.bindClientProfile(lead.getLeadNo(), profile.getClientCode(), ownerName);
     }
 
     private String normalizeCustomerTag(String tag) {
@@ -184,15 +204,33 @@ public class LeadService {
      */
     public PageResult<Lead> page(String selfStaffCode, String leadType, String followStatus,
                                  String keyword, int page, int size, String roleCode, String userNo,
+                                 String poolCode, String seaScope, String seaDeptCode,
                                  String orderBy, String orderDir) {
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
+        // 按资源池隔离：导入/认领只作用于指定池的线索。
+        if (StringUtils.hasText(poolCode)) {
+            wrapper.eq(Lead::getPoolCode, poolCode.trim());
+        }
         if (selfStaffCode != null) {
             wrapper.eq(Lead::getOwnerStaffCode, selfStaffCode);
         } else {
-            wrapper.isNull(Lead::getOwnerStaffCode)
-                    // 渠道线索只有终审通过变为 NEW 后才进入公司公海；待审/驳回仅渠道本人可见。
-                    .and(w -> w.ne(Lead::getSource, "CHANNEL")
-                            .or().eq(Lead::getFollowStatus, "NEW"));
+            wrapper.isNull(Lead::getOwnerStaffCode);
+            if ("TEAM".equalsIgnoreCase(seaScope)) {
+                // 团队线索公海：仅本部门、团队池线索（部门经理查看/认领）。
+                wrapper.eq(Lead::getSeaLevel, "TEAM");
+                if (StringUtils.hasText(seaDeptCode)) {
+                    wrapper.eq(Lead::getSeaDeptCode, seaDeptCode.trim());
+                }
+            } else {
+                // 公司线索公海：管理角色看全部公海（含团队池）；普通员工只看非团队池。
+                boolean fullRole = roleCode != null && java.util.Arrays.asList("BOSS", "SUPER_ADMIN", "SUPER", "OPERATOR")
+                        .contains(roleCode.toUpperCase());
+                if (!fullRole) {
+                    wrapper.and(w -> w.isNull(Lead::getSeaLevel).or().ne(Lead::getSeaLevel, "TEAM"));
+                }
+                // 渠道线索只有终审转 NEW 后才进入公海；待审/驳回仅渠道本人可见。
+                wrapper.and(w -> w.ne(Lead::getSource, "CHANNEL").or().eq(Lead::getFollowStatus, "NEW"));
+            }
         }
         if (StringUtils.hasText(leadType)) {
             wrapper.eq(Lead::getLeadType, leadType);
@@ -277,7 +315,7 @@ public class LeadService {
         List<Map<String, Object>> records = result.getRecords().stream().map(lead -> {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("leadNo", lead.getLeadNo());
-            row.put("contactName", lead.getContactName());
+            row.put("contactName", com.loan.utils.DesensitizeUtils.name(lead.getContactName()));
             row.put("phone", DesensitizeUtils.phone(lead.getPhone()));
             row.put("leadType", lead.getLeadType());
             row.put("createdBy", lead.getCreatedBy());
@@ -378,6 +416,8 @@ public class LeadService {
             claimQuotaService.refund(ClaimQuotaService.SCOPE_LEAD, staffCode, 1);
             throw new BusinessException(ResultCode.PARAM_ERROR, "线索已被其他顾问认领，请刷新后查看");
         }
+        // 认领即转化：线索公海认领后自动建档为客户（归属认领人），进入「我的客户」。
+        ensureClientProfile(lead, staffCode, staffName);
         allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "CLAIM", null, staffCode, staffName, "公海认领"));
     }
 
@@ -394,7 +434,16 @@ public class LeadService {
         if (!staffCode.equals(lead.getOwnerStaffCode())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "只能释放归属自己的线索");
         }
-        int updated = leadMapper.releaseOwned(leadNo.trim(), staffCode, staffName, LocalDateTime.now().plusDays(7));
+        // 团队分层：释放进释放人所在部门的「团队公海」；无部门则进「公司公海」。
+        String releaseDept = null;
+        try {
+            com.loan.staff.entity.Staff releaseStaff = staffMapper.selectOne(new LambdaQueryWrapper<com.loan.staff.entity.Staff>()
+                    .eq(com.loan.staff.entity.Staff::getStaffCode, staffCode).last("limit 1"));
+            releaseDept = releaseStaff == null ? null : releaseStaff.getDeptCode();
+        } catch (Exception ignored) { releaseDept = null; }
+        boolean toTeam = StringUtils.hasText(releaseDept);
+        int updated = leadMapper.releaseOwned(leadNo.trim(), staffCode, staffName, LocalDateTime.now().plusDays(7),
+                toTeam ? "TEAM" : "COMPANY", toTeam ? releaseDept : null);
         if (updated == 0) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "线索归属已变化，请刷新后重试");
         }
@@ -408,7 +457,7 @@ public class LeadService {
     public Map<String, Object> detail(String leadNo, String staffCode) {
         Lead lead = requireOwnedLead(leadNo, staffCode);
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("contactName", lead.getContactName());
+        result.put("contactName", com.loan.utils.DesensitizeUtils.name(lead.getContactName()));
         result.put("phone", DesensitizeUtils.phone(lead.getPhone()));
         result.put("leadType", lead.getLeadType());
         result.put("source", lead.getSource());
@@ -533,6 +582,7 @@ public class LeadService {
                 if (leadMapper.claimIfUnowned(leadNo, staffCode, staffName) == 0) {
                     throw new BusinessException(ResultCode.PARAM_ERROR, "线索已被其他顾问认领，请刷新后查看");
                 }
+                ensureClientProfile(lead, staffCode, staffName);
                 allocationRecordMapper.insert(buildRecord(leadNo, "CLAIM", null, staffCode, staffName, "批量公海认领"));
             }
         } catch (RuntimeException e) {
@@ -661,6 +711,7 @@ public class LeadService {
             leadMapper.update(null, new LambdaUpdateWrapper<Lead>()
                     .eq(Lead::getLeadNo, lead.getLeadNo()).eq(Lead::getOwnerStaffCode, from)
                     .set(Lead::getOwnerStaffCode, (String) null)
+                    .set(Lead::getSeaLevel, "COMPANY").set(Lead::getSeaDeptCode, null)
                     .set(Lead::getAssignBlockedUntil, LocalDateTime.now().plusDays(cfg.getCooldownDays() == null ? 7 : cfg.getCooldownDays()))
                     .set(Lead::getUpdatedBy, "system"));
             recycled++;

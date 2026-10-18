@@ -30,7 +30,7 @@
           <el-option label="部门经理审批" value="MANAGER_REVIEW" />
           <el-option label="老板/超管审批" value="BOSS_REVIEW" />
         </el-select>
-        <el-date-picker v-model="mineQuery.dateRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="提交开始日期" end-placeholder="提交结束日期" range-separator="至" :clearable="true" style="width: 260px" />
+        <AppDateRange v-model="mineQuery.dateRange" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="260px" />
         <el-input v-model="mineQuery.keyword" placeholder="申请事项 / 审批意见" clearable style="width: 220px" @keyup.enter="searchMine" />
       </AppSearchBar>
       <el-table :data="mineRows" v-loading="mineLoading" stripe row-key="approvalNo">
@@ -96,7 +96,14 @@
         <el-select v-model="queryP.status" placeholder="审核状态" clearable style="width: 140px">
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
-        <el-input v-model="queryP.keyword" placeholder="产品名称 / 提交人" style="width: 220px" clearable @keyup.enter="searchP" />
+        <el-input v-model="queryP.keyword" placeholder="产品名称 / 工单号" style="width: 200px" clearable @keyup.enter="searchP" />
+        <el-select v-model="queryP.submitDeptCode" placeholder="提交人团队" clearable filterable style="width: 160px">
+          <el-option v-for="d in deptOptionsP" :key="d.deptCode" :label="d.deptName" :value="d.deptCode" />
+        </el-select>
+        <el-select v-model="queryP.submitStaffCode" placeholder="提交人" clearable filterable style="width: 150px">
+          <el-option v-for="st in staffOptionsP" :key="st.staffCode" :label="st.staffName" :value="st.staffCode" />
+        </el-select>
+        <AppDateRange v-model="dateRangeP" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="250px" />
       </AppSearchBar>
 
       <AppTableState :error="errorP" @retry="loadP">
@@ -112,7 +119,16 @@
         </el-table-column>
         <el-table-column label="申请类型" width="100">
           <template #default="{ row }">
-            <span class="loan-tag loan-tag-info">{{ row.applyType === 'CREATE' ? '新建' : '变更' }}</span>
+            <span class="loan-tag loan-tag-info">{{ row.applyType === 'CREATE' ? '新建' : row.applyType === 'DELETE' ? '下线删除' : '变更' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="申请理由" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.applyReason || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="提交人" min-width="120">
+          <template #default="{ row }">
+            <div class="cell-main">{{ row.submitterStaffName || row.submitterStaffCode || '—' }}</div>
+            <div class="cell-sub">{{ row.submitterStaffCode || '' }}</div>
           </template>
         </el-table-column>
         <el-table-column label="重复标记" width="90">
@@ -316,10 +332,11 @@
 <script setup>
 import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_approval' });
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch , onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppDateRange from '@/components/AppDateRange.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
@@ -371,7 +388,7 @@ const requestedTab = approvalViewMap[approvalView] || String(approvalView || rou
 const activeTab = ref(['mine', 'download', 'allocation', 'outing', 'sensitivePhone', 'product', 'channelLead', 'smsTemplate', 'reportTemplate'].includes(requestedTab) ? requestedTab : 'mine');
 const approvalPageCopy = computed(() => ({
   mine: { title: '我的申请', subtitle: '查看本人发起的全部申请与当前审批进度' },
-  product: { title: '产品审核', subtitle: '审核产品新增、变更与重复风险标记' },
+  product: { title: '产品审核', subtitle: '审核产品新增、变更、下线申请与重复风险标记' },
   download: { title: '附件下载审核', subtitle: '审核员工发起的无水印资料下载申请' },
   allocation: { title: '客户分配审核', subtitle: '处理当前数据范围内的客户认领与归属流转' },
   outing: { title: '外出审批', subtitle: '审核当前数据范围内的员工外出计划' },
@@ -437,9 +454,35 @@ function attachmentCount(value) {
   try { return Array.isArray(value) ? value.length : JSON.parse(value || '[]').length; } catch { return 0; }
 }
 
+/** 产品审核：提交人/团队下拉数据 + 提交时间范围（与 queryP.startTime/endTime 双向同步） */
+const deptOptionsP = ref([]);
+const staffOptionsP = ref([]);
+const dateRangeP = computed({
+  get: () => (queryP.startTime && queryP.endTime ? [queryP.startTime, queryP.endTime] : []),
+  set: (v) => {
+    queryP.startTime = v?.[0] || '';
+    queryP.endTime = v?.[1] || '';
+  },
+});
+onMounted(async () => {
+  try {
+    const flat = [];
+    const walk = (nodes, prefix) => (nodes || []).forEach((n) => {
+      const label = prefix ? `${prefix} / ${n.name}` : n.name;
+      flat.push({ deptCode: n.code, deptName: label });
+      walk(n.children, label);
+    });
+    walk((await departmentTree()).data || [], '');
+    deptOptionsP.value = flat;
+  } catch { deptOptionsP.value = []; }
+  try {
+    staffOptionsP.value = (await staffPage({ page: 1, size: 200, status: 'ACTIVE' })).data?.records || [];
+  } catch { staffOptionsP.value = []; }
+});
+
 /** 产品审核表 */
 const { loading: loadingP, error: errorP, data: dataP, total: totalP, query: queryP, load: loadP, onSearch: searchP, onReset: resetP, handleSortChange } =
-  useTable(pageProductApprovals, { status: '', keyword: '' });
+  useTable(pageProductApprovals, { status: '', keyword: '', submitStaffCode: '', submitDeptCode: '', startTime: '', endTime: '' });
 
 /** 下载审核表 */
 const { loading: loadingD, error: errorD, data: dataD, total: totalD, query: queryD, load: loadD, onSearch: searchD, onReset: resetD, handleSortChange: handleSortChangeD } =

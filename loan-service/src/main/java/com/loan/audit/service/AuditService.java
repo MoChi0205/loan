@@ -8,6 +8,10 @@ import com.loan.audit.mapper.MatchRuleLogMapper;
 import com.loan.audit.mapper.MatchTraceMapper;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.org.entity.Department;
+import com.loan.org.mapper.DepartmentMapper;
+import com.loan.staff.entity.Staff;
+import com.loan.staff.mapper.StaffMapper;
 import com.loan.engine.catalog.RuleCatalog;
 import com.loan.infrastructure.security.AesUtils;
 import com.loan.infrastructure.security.HashUtils;
@@ -44,6 +48,8 @@ public class AuditService {
     private final MatchRuleLogMapper matchRuleLogMapper;
     private final ClientProfileMapper clientProfileMapper;
     private final PersonalProfileMapper personalProfileMapper;
+    private final StaffMapper staffMapper;
+    private final DepartmentMapper departmentMapper;
     private final RuleMapper ruleMapper;
 
     /**
@@ -90,8 +96,27 @@ public class AuditService {
     public PageResult<Map<String, Object>> page(String traceUuid, String keyword,
                                        String customerGroup, String totalResult,
                                        Integer mismatchFlag, String startTime, String endTime,
+                                       String ownerDeptCode, String ownerStaffCode,
                                        int page, int size) {
         LambdaQueryWrapper<MatchTrace> wrapper = new LambdaQueryWrapper<>();
+        // 团队 / 员工筛选：审计轨迹经客户归属人（t_client_profile.owner_staff_code）过滤。
+        if (StringUtils.hasText(ownerStaffCode) || StringUtils.hasText(ownerDeptCode)) {
+            LambdaQueryWrapper<ClientProfile> ownerQuery = new LambdaQueryWrapper<>();
+            if (StringUtils.hasText(ownerStaffCode)) {
+                ownerQuery.eq(ClientProfile::getOwnerStaffCode, ownerStaffCode.trim());
+            }
+            if (StringUtils.hasText(ownerDeptCode)) {
+                ownerQuery.inSql(ClientProfile::getOwnerStaffCode,
+                        "SELECT staff_code FROM t_staff WHERE status = 'ACTIVE' AND dept_code = '"
+                                + ownerDeptCode.trim().replace("'", "''") + "'");
+            }
+            Set<String> ownedCodes = clientProfileMapper.selectList(ownerQuery).stream()
+                    .map(ClientProfile::getClientCode).filter(StringUtils::hasText).collect(Collectors.toSet());
+            if (ownedCodes.isEmpty()) {
+                return PageResult.build(page, size, 0L, Collections.emptyList());
+            }
+            wrapper.in(MatchTrace::getClientProfileCode, ownedCodes);
+        }
         if (StringUtils.hasText(traceUuid)) {
             wrapper.like(MatchTrace::getTraceUuid, traceUuid.trim());
         }
@@ -126,7 +151,34 @@ public class AuditService {
                 .map(trace -> toTraceView(trace, profiles.get(trace.getClientProfileCode()),
                         personals.get(trace.getClientProfileCode())))
                 .collect(Collectors.toList());
+        attachOwnerInfo(records, profiles);
         return PageResult.build(page, size, result.getTotal(), records);
+    }
+
+    /** 补充客户归属员工 / 团队展示信息（审计中心列表与筛选联动）。 */
+    private void attachOwnerInfo(List<Map<String, Object>> records, Map<String, ClientProfile> profiles) {
+        Set<String> staffCodes = profiles.values().stream()
+                .map(ClientProfile::getOwnerStaffCode).filter(StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, Staff> staffMap = staffCodes.isEmpty() ? Collections.emptyMap()
+                : staffMapper.selectList(new LambdaQueryWrapper<Staff>().in(Staff::getStaffCode, staffCodes))
+                        .stream().collect(Collectors.toMap(Staff::getStaffCode, Function.identity(), (a, b) -> a));
+        Set<String> deptCodes = staffMap.values().stream()
+                .map(Staff::getDeptCode).filter(StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, Department> deptMap = deptCodes.isEmpty() ? Collections.emptyMap()
+                : departmentMapper.selectList(new LambdaQueryWrapper<Department>().in(Department::getDeptCode, deptCodes))
+                        .stream().collect(Collectors.toMap(Department::getDeptCode, Function.identity(), (a, b) -> a));
+        for (Map<String, Object> record : records) {
+            ClientProfile profile = profiles.get(String.valueOf(record.get("clientProfileCode")));
+            if (profile == null || !StringUtils.hasText(profile.getOwnerStaffCode())) {
+                record.put("ownerName", "—");
+                record.put("ownerDeptName", "—");
+                continue;
+            }
+            Staff staff = staffMap.get(profile.getOwnerStaffCode());
+            record.put("ownerName", staff == null ? profile.getOwnerStaffCode() : staff.getStaffName());
+            Department dept = staff == null ? null : deptMap.get(staff.getDeptCode());
+            record.put("ownerDeptName", dept == null ? "—" : dept.getDeptName());
+        }
     }
 
     /** 姓名/企业名/客户业务ID模糊，手机号/信用代码/身份证号按哈希精确查询。 */
@@ -183,7 +235,7 @@ public class AuditService {
         view.put("mismatchFlag", trace.getMismatchFlag());
         view.put("executedAt", trace.getExecutedAt());
         if (profile != null) {
-            view.put("contactName", profile.getContactName());
+            view.put("contactName", com.loan.utils.DesensitizeUtils.name(profile.getContactName()));
             view.put("enterpriseName", profile.getEnterpriseName());
             view.put("contactPhoneMasked", DesensitizeUtils.phone(profile.getPhone()));
             if ("ENTERPRISE".equals(profile.getCustomerGroup())) {
@@ -192,7 +244,7 @@ public class AuditService {
             } else if (personal != null) {
                 view.put("identityType", "身份证号");
                 view.put("identityMasked", DesensitizeUtils.idCard(personal.getIdCardNo()));
-                if (!StringUtils.hasText(profile.getContactName())) view.put("contactName", personal.getRealName());
+                if (!StringUtils.hasText(profile.getContactName())) view.put("contactName", com.loan.utils.DesensitizeUtils.name(personal.getRealName()));
             }
         }
         return view;

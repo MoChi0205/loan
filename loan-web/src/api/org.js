@@ -7,6 +7,11 @@ export function menuTree(roleCode) {
   return request({ url: '/api/admin/org/menu/tree', method: 'get', params: { roleCode } });
 }
 
+/** 全量菜单树（权限配置弹窗：展示所有菜单供勾选）。 */
+export function menuTreeAll() {
+  return request({ url: '/api/admin/org/menu/tree-all', method: 'get' });
+}
+
 export function departmentTree() {
   return request({ url: '/api/admin/org/department/tree', method: 'get' });
 }

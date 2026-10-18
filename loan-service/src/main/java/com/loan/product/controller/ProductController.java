@@ -73,15 +73,17 @@ public class ProductController {
                 return Result.ok(PageResult.build(p, s, 0, java.util.Collections.emptyList()));
             }
             return Result.ok(productQueryService.queryProductsForAdmin(
-                    customerGroup, status, productName, null, null, "channel-self", channelCode, p, s));
+                    customerGroup, status, productName, null, null, "channel-self", channelCode, null, p, s));
         }
         boolean manager = isProductManager(user);
+        // 全量库可见角色：老板/超管/运营看全量；其余员工仅可见本人创建的产品
+        boolean fullScope = manager || isOperator(user);
         if ("cooperate".equalsIgnoreCase(scope) && !manager) {
             throw new BusinessException(ResultCode.FORBIDDEN, "合作库仅老板或超级管理员可访问");
         }
-        // 普通员工仅查看已审批发布的公司产品；同时可在审批中心查看自己提交的状态。
-        String visibleStatus = manager ? status : "APPROVED";
-        return Result.ok(productQueryService.queryProductsForAdmin(customerGroup, visibleStatus, productName, bankName, city, scope, null, p, s));
+        String visibleStatus = fullScope ? status : null;
+        String staffNo = fullScope ? null : (user == null ? null : user.getUserNo());
+        return Result.ok(productQueryService.queryProductsForAdmin(customerGroup, visibleStatus, productName, bankName, city, scope, null, staffNo, p, s));
     }
 
     /**
@@ -94,22 +96,29 @@ public class ProductController {
     @PostMapping
     @OpLog(bizType = "产品", action = "CREATE")
     public Result<String> create(@RequestBody ProductSaveReq req, @CurrentUser LoanUser user) {
-        return Result.ok(productService.create(req, user == null ? "system" : user.getName()));
+        return Result.ok(productService.create(req,
+                user == null ? "system" : user.getName(),
+                user == null ? null : user.getUserNo()));
     }
 
     /**
-     * 编辑产品。
+     * 编辑产品：老板/超管直接生效；其余员工仅可对本人创建的产品提交变更审批。
      *
      * @param req  请求（含 productCode）
      * @param user 当前用户
-     * @return 成功标记
+     * @return 直接生效返回空串；走审批时返回审批工单号
      */
     @PutMapping
     @OpLog(bizType = "产品", action = "UPDATE")
-    public Result<Void> update(@RequestBody ProductSaveReq req, @CurrentUser LoanUser user) {
-        requireProductManager(user);
-        productService.update(req, user == null ? "system" : user.getName());
-        return Result.ok();
+    public Result<String> update(@RequestBody ProductSaveReq req, @CurrentUser LoanUser user) {
+        if (isProductManager(user)) {
+            productService.update(req, user == null ? "system" : user.getName());
+            return Result.ok("");
+        }
+        String approvalNo = productService.submitUpdateApproval(req,
+                user == null ? "system" : user.getName(),
+                user == null ? null : user.getUserNo());
+        return Result.ok(approvalNo);
     }
 
     /**
@@ -124,18 +133,26 @@ public class ProductController {
     }
 
     /**
-     * 删除产品。
+     * 删除产品：老板/超管直接逻辑下线；其余员工提交下线审批（删除理由必填，审批通过后 OFFLINE）。
      *
      * @param productCode 产品编码（业务唯一ID）
+     * @param reason      删除理由（员工提交审批时必填）
      * @param user        当前用户
-     * @return 成功标记
+     * @return 直接生效返回空串；走审批时返回审批工单号
      */
     @DeleteMapping("/{productCode}")
     @OpLog(bizType = "产品", action = "DELETE")
-    public Result<Void> delete(@PathVariable String productCode, @CurrentUser LoanUser user) {
-        requireProductManager(user);
-        productService.deleteByCode(productCode, user == null ? "system" : user.getName());
-        return Result.ok();
+    public Result<String> delete(@PathVariable String productCode,
+                                 @RequestParam(required = false) String reason,
+                                 @CurrentUser LoanUser user) {
+        if (isProductManager(user)) {
+            productService.deleteByCode(productCode, user == null ? "system" : user.getName());
+            return Result.ok("");
+        }
+        String approvalNo = productService.submitOfflineApproval(productCode, reason,
+                user == null ? "system" : user.getName(),
+                user == null ? null : user.getUserNo());
+        return Result.ok(approvalNo);
     }
 
     private boolean isProductManager(LoanUser user) {
@@ -144,7 +161,9 @@ public class ProductController {
         return "BOSS".equals(role) || "SUPER_ADMIN".equals(role) || "SUPER".equals(role);
     }
 
-    private void requireProductManager(LoanUser user) {
-        if (!isProductManager(user)) throw new BusinessException(ResultCode.FORBIDDEN, "已发布产品仅老板或超级管理员可操作");
+    /** 运营：可查看全量产品库（但新增/变更/下线仍按需审批，不能直接操作已发布产品） */
+    private boolean isOperator(LoanUser user) {
+        if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType())) return false;
+        return "OPERATOR".equals(String.valueOf(user.getRoleCode()).toUpperCase());
     }
 }

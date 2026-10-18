@@ -74,6 +74,22 @@ public class OrgController {
     }
 
     /**
+     * 全量菜单树（角色权限配置弹窗用）：仅系统配置管理员可访问。
+     *
+     * @return 全量菜单树
+     */
+    @GetMapping("/menu/tree-all")
+    public Result<List<MenuNodeVO>> menuTreeAll(@CurrentUser LoanUser user) {
+        if (user == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "未登录或会话已过期");
+        }
+        if (!AdminRoleGuard.isSystemConfigAdmin(user)) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅老板或超级管理员可查看全量菜单");
+        }
+        return Result.ok(orgService.listAllMenus());
+    }
+
+    /**
      * 部门树。
      *
      * @return 部门树

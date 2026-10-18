@@ -245,18 +245,18 @@ const BASE_MENU_GROUPS = [
     items: [
       { title: '线索管理', icon: 'lead', isSection: true },
       { path: '/lead/my', title: '我的线索', icon: 'lead', indent: true },
-      { path: '/lead/pool', title: '线索公海', icon: 'sea', indent: true, roles: ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/lead/pool', title: '线索公海', icon: 'sea', indent: true },
       { title: '客户档案', icon: 'client', isSection: true },
       { path: '/client/my', title: '我的客户', icon: 'client', indent: true },
-      { path: '/client/team', title: '部门客户', icon: 'client', indent: true, roles: ['DEPT_MANAGER'] },
-      { path: '/client/company', title: '公司客户', icon: 'client', indent: true, roles: ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/client/company-sea', title: '客户公海', icon: 'sea', indent: true, roles: ['ADVISER', 'DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/client/team-sea', title: '团队公海', icon: 'sea', indent: true, roles: ['DEPT_MANAGER'] },
-      { path: '/client-lookup', title: '客户检索', icon: 'search' },
-      { path: '/client/import-tasks', title: '客户导入进度', icon: 'clock', indent: true, roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/client/import-export', title: '客户导入与导出', icon: 'download', indent: true, roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/client/resource-pool-config', title: '资源池回收规则', icon: 'setting', indent: true, roles: ['BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/ocr', title: '客户材料', icon: 'ocr' },
+      { path: '/client/team', title: '团队客户', icon: 'client', indent: true },
+      { path: '/client/company', title: '客户列表', icon: 'client', indent: true },
+      { path: '/client/company-sea', title: '客户公海', icon: 'sea', indent: true },
+      { path: '/client/team-sea', title: '团队公海', icon: 'sea', indent: true },
+      { path: '/client/lookup', title: '客户检索', icon: 'search' },
+      { path: '/client/import-tasks', title: '客户导入进度', icon: 'clock', indent: true },
+      { path: '/client/resource-pool-config', title: '资源池回收规则', icon: 'setting', indent: true },
+      { path: '/allocation-quota', title: '认领设置', icon: 'setting', indent: true },
+      { path: '/client/ocr', title: '客户材料', icon: 'ocr' },
     ],
   },
   {
@@ -265,7 +265,7 @@ const BASE_MENU_GROUPS = [
     icon: 'strategy',
     items: [
       { path: '/screening', title: '匹配任务', icon: 'screening' },
-      { path: '/report/screening', title: '诊断报告', icon: 'reportDoc' },
+      { path: '/screening/report', title: '诊断报告', icon: 'reportDoc' },
     ],
   },
   {
@@ -275,8 +275,8 @@ const BASE_MENU_GROUPS = [
     items: [
       { title: '服务台', icon: 'client', isSection: true },
       { path: '/service-operations/daily', title: '服务总览', icon: 'workbench', indent: true },
-      { path: '/service-operations/appointments', title: '预约管理', icon: 'client', indent: true },
-      { path: '/service-operations/outings', title: '外出管理', icon: 'lead', indent: true },
+      { path: '/service-operations/appointments', title: '客户预约', icon: 'client', indent: true },
+      { path: '/service-operations/outings', title: '员工外出', icon: 'lead', indent: true },
       { path: '/service-operations/replay', title: '客户服务记录', icon: 'clock', indent: true },
       { path: '/order', title: '服务工单', icon: 'order' },
     ],
@@ -287,14 +287,14 @@ const BASE_MENU_GROUPS = [
     icon: 'approval',
     items: [
       { path: '/approval/mine', title: '我的申请', icon: 'approval' },
-      { path: '/approval/product', title: '产品审核', icon: 'product', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/product', title: '产品审核', icon: 'product' },
       { path: '/approval/download', title: '附件下载审核', icon: 'download' },
-      { path: '/approval/allocation', title: '客户分配审核', icon: 'client', roles: ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/approval/outing', title: '外出审批', icon: 'lead', roles: ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/approval/sensitive-phone', title: '手机号查看审批', icon: 'lock', roles: ['DEPT_MANAGER', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/approval/channel-lead', title: '渠道线索审核', icon: 'channel', roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/approval/sms-template', title: '短信模板审核', icon: 'sms', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/approval/report-template', title: '报告模板审核', icon: 'reportDoc', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/approval/allocation', title: '客户分配审核', icon: 'client' },
+      { path: '/approval/outing', title: '外出审批', icon: 'lead' },
+      { path: '/approval/sensitive-phone', title: '手机号查看审批', icon: 'lock' },
+      { path: '/approval/channel-lead', title: '渠道线索审核', icon: 'channel' },
+      { path: '/approval/sms-template', title: '短信模板审核', icon: 'sms' },
+      { path: '/approval/report-template', title: '报告模板审核', icon: 'reportDoc' },
     ],
   },
   {
@@ -317,7 +317,7 @@ const BASE_MENU_GROUPS = [
     items: [
       { path: '/report/center', title: '经营看板', icon: 'report' },
       { path: '/report/trend', title: '趋势分析', icon: 'trend' },
-      { path: '/report-template', title: '报告模板', icon: 'reportDoc' },
+      { path: '/report/template', title: '报告模板', icon: 'reportDoc' },
     ],
   },
   {
@@ -327,15 +327,17 @@ const BASE_MENU_GROUPS = [
     items: [
       { title: '产品库', icon: 'product', isSection: true },
       { path: '/product/all', title: '全量产品库', icon: 'product', indent: true },
-      { path: '/product/cooperate', title: '合作产品库', icon: 'channel', indent: true, roles: ['BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { path: '/product/cooperate', title: '合作产品库', icon: 'channel', indent: true },
       { title: '渠道管理', icon: 'channel', isSection: true },
       { path: '/channel-config', title: '渠道档案', icon: 'channel', indent: true },
-      { path: '/channel-strategy', title: '准入策略', icon: 'strategy', indent: true },
+      { path: '/channel-strategy', title: '渠道准入', icon: 'strategy', indent: true },
       { path: '/channel-user-list', title: '渠道名单', icon: 'client', indent: true },
-      { path: '/rule-template', title: '规则模板', icon: 'ruleTemplate', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/rule', title: '规则实例', icon: 'rule', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/plan-edit', title: '执行计划', icon: 'plan', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
-      { path: '/strategy-template', title: '策略方案', icon: 'strategy', roles: ['OPERATOR', 'BOSS', 'SUPER_ADMIN', 'SUPER'] },
+      { title: '规则策略', icon: 'strategy', isSection: true },
+      { path: '/rule-template', title: '规则模板', icon: 'ruleTemplate', indent: true },
+      { path: '/rule', title: '规则实例', icon: 'rule', indent: true },
+      { path: '/strategy-template', title: '策略方案', icon: 'strategy', indent: true },
+      { path: '/plan-edit', title: '执行计划', icon: 'plan', indent: true },
+      { path: '/blacklist', title: '风控名单', icon: 'ban', indent: true },
     ],
   },
   {
@@ -348,7 +350,6 @@ const BASE_MENU_GROUPS = [
       { path: '/org/roles', title: '角色权限', icon: 'org', indent: true },
       { path: '/org/api-permissions', title: '接口权限', icon: 'rule', indent: true },
       { path: '/audit', title: '审计日志', icon: 'audit' },
-      { path: '/blacklist', title: '风控名单', icon: 'ban' },
       { path: '/config-wizard', title: '系统配置', icon: 'config' },
       { path: '/debug', title: '调试中心', icon: 'debug' },
     ],
@@ -381,7 +382,7 @@ const menuGroups = computed(() => {
           title: item.roleTitles?.[userStore.roleCode] || (item.path === '/lead/my' ? '我的线索'
             : item.path === '/client/my' ? '我的客户'
               : item.path === '/product/all' ? '我的产品'
-                : item.path === '/report/screening' ? '客户分析报告' : item.title),
+                : item.path === '/screening/report' ? '客户分析报告' : item.title),
         })),
       }))
     : SAFE_MENU_GROUPS.map((group) => ({
@@ -394,7 +395,6 @@ const menuGroups = computed(() => {
   const filtered = raw
     .map((g) => {
       const visibleLeaves = g.items.filter((it) => it.path
-        && (!it.roles || it.roles.includes(userStore.roleCode))
         && set.has(it.path.split('?')[0]));
       const visibleSections = new Set();
       let currentSection = null;
@@ -1087,13 +1087,11 @@ watch(menus, () => {
 .tabs-bar {
   display: flex;
   align-items: center;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   background: transparent;
   padding: 0 18px;
   min-height: 40px;
-  max-width: 720px;
-  min-width: 0;
 }
 .route-tabs {
   display: flex;
@@ -1199,7 +1197,7 @@ watch(menus, () => {
   border-bottom: 1px solid var(--loan-border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 0 24px;
   flex-shrink: 0;
 }
@@ -1242,6 +1240,7 @@ watch(menus, () => {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .collapse-btn {

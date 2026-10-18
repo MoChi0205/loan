@@ -43,7 +43,7 @@ public class ProductService {
      * @return 产品 ID
      */
     @Transactional(rollbackFor = Exception.class)
-    public String create(ProductSaveReq req, String operator) {
+    public String create(ProductSaveReq req, String operator, String staffNo) {
         validate(req, false);
         if (bankProductMapper.selectCount(new LambdaQueryWrapper<BankProduct>()
                 .eq(BankProduct::getProductName, req.getProductName())
@@ -59,6 +59,7 @@ public class ProductService {
         product.setBankChannelCode(resolveChannel(req.getBankName()));
         product.setStatus("PENDING");
         product.setCreatedBy(operator);
+        product.setCreatedStaffNo(staffNo);
         bankProductMapper.insert(product);
         ProductApproval approval = new ProductApproval();
         approval.setApprovalNo(BizIdGenerator.generate("papr"));
@@ -102,6 +103,103 @@ public class ProductService {
     }
 
     /**
+     * 提交产品变更审批（员工仅可对本人创建的产品提交；审批通过后由审核流程应用变更）。
+     *
+     * @param req      变更请求（含 productCode）
+     * @param operator 操作人姓名
+     * @param staffNo  操作人工号（用于本人产品校验）
+     * @return 审批工单号
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public String submitUpdateApproval(ProductSaveReq req, String operator, String staffNo) {
+        validate(req, true);
+        if (!StringUtils.hasText(req.getProductCode())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "产品编码必填");
+        }
+        BankProduct exist = requireOwnedProduct(req.getProductCode(), staffNo);
+        requireNoPendingApproval(exist.getProductCode());
+        LocalDateTime now = LocalDateTime.now();
+        ProductApproval approval = new ProductApproval();
+        approval.setApprovalNo(BizIdGenerator.generate("papr"));
+        approval.setBankProductCode(exist.getProductCode());
+        approval.setApplyType("UPDATE");
+        approval.setApproveStatus("PENDING");
+        approval.setDuplicateFlag(0);
+        approval.setCreatedBy(operator);
+        approval.setUpdatedBy(operator);
+        approval.setCreatedAt(now);
+        approval.setUpdatedAt(now);
+        approval.setTimeoutAt(now.plusHours(48));
+        try {
+            BankProduct target = toEntity(req);
+            target.setBankChannelCode(resolveChannel(req.getBankName()));
+            approval.setBeforeSnapshotJson(OBJECT_MAPPER.writeValueAsString(exist));
+            approval.setAfterSnapshotJson(OBJECT_MAPPER.writeValueAsString(target));
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "产品资料无法生成审批快照");
+        }
+        productApprovalMapper.insert(approval);
+        return approval.getApprovalNo();
+    }
+
+    /**
+     * 提交产品下线审批（删除理由必填；审批通过后逻辑下线 OFFLINE，不做物理删除）。
+     *
+     * @param productCode 产品编码
+     * @param reason      删除理由（必填）
+     * @param operator    操作人姓名
+     * @param staffNo     操作人工号（用于本人产品校验）
+     * @return 审批工单号
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public String submitOfflineApproval(String productCode, String reason, String operator, String staffNo) {
+        if (!StringUtils.hasText(reason)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "删除理由必填");
+        }
+        BankProduct exist = requireOwnedProduct(productCode, staffNo);
+        requireNoPendingApproval(exist.getProductCode());
+        LocalDateTime now = LocalDateTime.now();
+        ProductApproval approval = new ProductApproval();
+        approval.setApprovalNo(BizIdGenerator.generate("papr"));
+        approval.setBankProductCode(exist.getProductCode());
+        approval.setApplyType("DELETE");
+        approval.setApplyReason(reason);
+        approval.setApproveStatus("PENDING");
+        approval.setDuplicateFlag(0);
+        approval.setCreatedBy(operator);
+        approval.setUpdatedBy(operator);
+        approval.setCreatedAt(now);
+        approval.setUpdatedAt(now);
+        approval.setTimeoutAt(now.plusHours(48));
+        try { approval.setBeforeSnapshotJson(OBJECT_MAPPER.writeValueAsString(exist)); }
+        catch (Exception e) { throw new BusinessException(ResultCode.PARAM_ERROR, "产品资料无法生成审批快照"); }
+        productApprovalMapper.insert(approval);
+        return approval.getApprovalNo();
+    }
+
+    /** 校验产品存在且为本人创建（员工数据范围硬约束）。 */
+    private BankProduct requireOwnedProduct(String productCode, String staffNo) {
+        BankProduct exist = bankProductMapper.selectOne(new LambdaQueryWrapper<BankProduct>()
+                .eq(BankProduct::getProductCode, productCode));
+        if (exist == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "产品不存在");
+        }
+        if (StringUtils.hasText(staffNo) && !staffNo.equals(exist.getCreatedStaffNo())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅可对本人创建的产品提交审批");
+        }
+        return exist;
+    }
+
+    /** 防重复提交：同一产品存在待审核工单时禁止再次提交。 */
+    private void requireNoPendingApproval(String productCode) {
+        if (productApprovalMapper.selectCount(new LambdaQueryWrapper<ProductApproval>()
+                .eq(ProductApproval::getBankProductCode, productCode)
+                .eq(ProductApproval::getApproveStatus, "PENDING")) > 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "该产品存在待审核工单，请等待审核完成后再提交");
+        }
+    }
+
+    /**
      * 产品详情（按业务唯一编码）。
      *
      * @param productCode 产品编码
@@ -113,7 +211,7 @@ public class ProductService {
     }
 
     /**
-     * 删除产品（按业务唯一编码）。
+     * 删除产品（逻辑下线：置 OFFLINE，保留历史数据与审批留痕）。
      *
      * @param productCode 产品编码
      * @param operator    操作人姓名
@@ -125,7 +223,10 @@ public class ProductService {
         if (exist == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "产品不存在");
         }
-        bankProductMapper.deleteById(exist.getId());
+        exist.setStatus("OFFLINE");
+        exist.setUpdatedBy(operator);
+        exist.setUpdatedAt(LocalDateTime.now());
+        bankProductMapper.updateById(exist);
     }
 
     /**

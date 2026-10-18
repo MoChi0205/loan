@@ -297,14 +297,14 @@ async function onRun() {
 
 function goReport() {
   if (result.value?.reportNo) {
-    router.push({ path: '/report/screening', query: { reportNo: result.value.reportNo } });
+    router.push({ path: '/screening/report', query: { reportNo: result.value.reportNo } });
   } else {
-    router.push('/report/screening');
+    router.push('/screening/report');
   }
 }
 
 function goMaterial() {
-  router.push({ path: '/ocr', query: form.clientCode ? { clientCode: form.clientCode } : {} });
+  router.push({ path: '/client/ocr', query: form.clientCode ? { clientCode: form.clientCode } : {} });
 }
 
 // ============================================================
@@ -324,7 +324,7 @@ function screeningSourceTag(code) {
 
 function goReportRecord(row) {
   if (row.reportNo) {
-    router.push({ path: '/report/screening', query: { reportNo: row.reportNo } });
+    router.push({ path: '/screening/report', query: { reportNo: row.reportNo } });
   }
 }
 

@@ -103,6 +103,7 @@ public class ProductQueryService {
         dto.setTermMin(p.getTermMin());
         dto.setTermMax(p.getTermMax());
         dto.setCreatedBy(p.getCreatedBy());
+        dto.setCreatedStaffNo(p.getCreatedStaffNo());
         dto.setCreatedAt(p.getCreatedAt());
         dto.setServiceCities(serviceCities);
         return dto;
@@ -162,7 +163,7 @@ public class ProductQueryService {
      */
     public PageResult<ProductDTO> queryProductsForAdmin(String customerGroup, String status,
                                                         String productName, String bankName, String city, String scope,
-                                                        String bankChannelCode, int page, int size) {
+                                                        String bankChannelCode, String createdStaffNo, int page, int size) {
         LambdaQueryWrapper<BankProduct> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(customerGroup)) {
             wrapper.eq(BankProduct::getCustomerGroup, customerGroup);
@@ -176,6 +177,10 @@ public class ProductQueryService {
         // 渠道数据范围硬隔离（T11/D28）：仅本银行渠道产品，禁止全量
         if (StringUtils.hasText(bankChannelCode)) {
             wrapper.eq(BankProduct::getBankChannelCode, bankChannelCode);
+        }
+        // 员工数据范围隔离：普通员工仅可见本人创建的产品
+        if (StringUtils.hasText(createdStaffNo)) {
+            wrapper.eq(BankProduct::getCreatedStaffNo, createdStaffNo);
         }
         if ("cooperate".equalsIgnoreCase(scope)) {
             // 合作库：读 t_partner_product（status=ACTIVE 且 cooperate_until>now）的银行产品业务编码过滤全量库

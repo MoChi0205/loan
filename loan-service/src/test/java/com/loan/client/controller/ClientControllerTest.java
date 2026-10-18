@@ -167,8 +167,8 @@ class ClientControllerTest {
     }
 
     @Test
-    @DisplayName("老板查看全司已分配客户时强制排除公海")
-    void allScopeMeansCompanyAssignedOnly() throws Exception {
+    @DisplayName("老板查看客户列表时包含全部客户（已分配 + 未分配公海）")
+    void allScopeCoversAllCompanyClients() throws Exception {
         ClientService clientService = mock(ClientService.class);
         ClientController controller = new ClientController(clientService, allocationService, roleGuard, null, accessGuard, mock(com.loan.staff.mapper.StaffMapper.class));
         mvc = MockMvcBuilders.standaloneSetup(controller)
@@ -178,7 +178,7 @@ class ClientControllerTest {
         UserContext.setUser(staff("BOSS", "B001"));
         when(clientService.pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ASSIGNED"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+                isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
 
         mvc.perform(get("/api/admin/client/page-lite").param("scope", "ALL"))
@@ -187,7 +187,7 @@ class ClientControllerTest {
 
         verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ASSIGNED"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
+                isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
     }
 
     @Test
@@ -202,7 +202,7 @@ class ClientControllerTest {
         UserContext.setUser(staff("ADVISER", "S001"));
         when(clientService.pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
+                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(PageResult.build(1, 10, 0, Collections.emptyList()));
 
         mvc.perform(get("/api/admin/client/page-lite").param("scope", "COMPANY_SEA"))
@@ -211,7 +211,7 @@ class ClientControllerTest {
 
         verify(clientService).pageLite(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull(), eq(1), eq(10), isNull(), isNull(), isNull(),
-                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
+                eq("ENTERPRISE"), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
     }
 
     @Test

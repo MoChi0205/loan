@@ -99,12 +99,16 @@ public class ApprovalController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String submitStaffCode,
+            @RequestParam(required = false) String submitDeptCode,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
             @CurrentUser LoanUser user) {
         requireApprovalRole("PRODUCT", user);
-        return Result.ok(approvalService.productPage(status, keyword,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
+        return Result.ok(approvalService.productPage(status, keyword, submitStaffCode, submitDeptCode,
+                startTime, endTime, PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 
     /**

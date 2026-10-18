@@ -5,9 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>企业资金咨询服务产品系统 · 管理端</title>
     <link rel="icon" href="/favicon.ico" />
+    <style>
+      /* 启动骨架：JS 加载/挂载期间的过渡画面，消除整页白屏闪烁。
+         Vue 挂载后 #app 内容被替换，骨架自动消失。 */
+      html, body { margin: 0; padding: 0; background: #f5f6f8; }
+      #boot-splash {
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px;
+        background: #f5f6f8; z-index: 1; user-select: none;
+      }
+      #boot-splash .boot-spinner {
+        width: 30px; height: 30px; border-radius: 50%;
+        border: 3px solid #e2e5ea; border-top-color: #c9a04e;
+        animation: boot-rotate 0.9s linear infinite;
+      }
+      #boot-splash .boot-text { font-size: 13px; color: #8a9099; font-family: system-ui, sans-serif; }
+      @keyframes boot-rotate { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div id="boot-splash">
+        <div class="boot-spinner"></div>
+        <div class="boot-text">正在加载系统…</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

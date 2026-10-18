@@ -14,6 +14,8 @@ import './styles/index.css';
 // 需显式补齐，否则弹窗 / toast 无样式渲染（标题/内容/按钮堆叠、图标缺失）。
 import 'element-plus/theme-chalk/el-message.css';
 import 'element-plus/theme-chalk/el-message-box.css';
+// ElDatePicker 按需引入时 range 样式不会完整注入（日期框渲染破碎），与 message/message-box 同理显式补齐。
+import 'element-plus/theme-chalk/el-date-picker.css';
 
 /**
  * 应用入口：挂载 Vue + Element Plus + Pinia + 路由。

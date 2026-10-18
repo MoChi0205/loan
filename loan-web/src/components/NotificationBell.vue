@@ -7,11 +7,19 @@
       </button>
     </template>
     <div class="notification-panel">
-      <div class="notification-panel__header"><strong>消息通知</strong><el-button link type="primary" :disabled="!unread" @click="markAll">全部已读</el-button></div>
+      <div class="notification-panel__header">
+        <strong>消息通知</strong>
+        <span class="notification-panel__actions">
+          <el-button link type="primary" :disabled="!unread" @click="markAll">全部已读</el-button>
+          <el-button link type="danger" :disabled="!messages.length" @click="clearAll">清空</el-button>
+        </span>
+      </div>
       <div v-loading="loading" class="notification-list">
-        <button v-for="item in messages" :key="item.notificationId" type="button" class="notification-item" :class="{ unread: item.readStatus === 0 }" @click="read(item)">
-          <span class="notification-item__dot"></span><span class="notification-item__body"><span class="notification-item__title">{{ item.title }}</span><span class="notification-item__content">{{ item.content }}</span><span class="notification-item__time">{{ item.createdAt || '' }}</span></span>
-        </button>
+        <div v-for="item in messages" :key="item.notificationId" class="notification-item" :class="{ unread: item.readStatus === 0 }" role="button" tabindex="0" @click="read(item)" @keyup.enter="read(item)">
+          <span class="notification-item__dot"></span>
+          <span class="notification-item__body"><span class="notification-item__title">{{ item.title }}</span><span class="notification-item__content">{{ item.content }}</span><span class="notification-item__time">{{ item.createdAt || '' }}</span></span>
+          <el-button class="notification-item__del" link type="danger" size="small" @click.stop="removeOne(item)">删除</el-button>
+        </div>
         <el-empty v-if="!loading && !messages.length" description="暂无消息" :image-size="52" />
       </div>
     </div>
@@ -19,14 +27,34 @@
 </template>
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import AppIcon from '@/components/AppIcon.vue';
-import { markAllNotificationsRead, markNotificationRead, myNotifications, unreadCount } from '@/api/notification';
+import { deleteAllNotifications, deleteNotifications, markAllNotificationsRead, markNotificationRead, myNotifications, unreadCount } from '@/api/notification';
 const visible = ref(false); const loading = ref(false); const unread = ref(0); const messages = ref([]); let timer;
 async function refreshUnread() { try { unread.value = Number((await unreadCount()).data || 0); } catch { /* 静默轮询 */ } }
 async function loadMessages() { loading.value = true; try { const res = await myNotifications({ page: 1, size: 20 }); messages.value = res.data?.records || []; unread.value = Number(res.data?.unreadCount || 0); } catch { messages.value = []; } finally { loading.value = false; } }
 async function read(item) { if (item.readStatus !== 0) return; await markNotificationRead(item.notificationId); item.readStatus = 1; unread.value = Math.max(0, unread.value - 1); }
 async function markAll() { if (!unread.value) return; await markAllNotificationsRead(); messages.value.forEach((item) => { item.readStatus = 1; }); unread.value = 0; ElMessage.success('已全部标记为已读'); }
+/** 单条删除：复用批量删除接口传单个 ID，未读消息删除后同步扣减角标。 */
+async function removeOne(item) {
+  try {
+    await deleteNotifications([item.notificationId]);
+    if (item.readStatus === 0) unread.value = Math.max(0, unread.value - 1);
+    messages.value = messages.value.filter((m) => m.notificationId !== item.notificationId);
+    ElMessage.success('已删除');
+  } catch { /* 拦截器已提示 */ }
+}
+/** 清空全部消息（二次确认，防误触）。 */
+async function clearAll() {
+  try { await ElMessageBox.confirm('确定清空全部消息吗？清空后不可恢复。', '清空消息', { type: 'warning', confirmButtonText: '清空', cancelButtonText: '取消' }); }
+  catch { return; }
+  try {
+    await deleteAllNotifications();
+    messages.value = [];
+    unread.value = 0;
+    ElMessage.success('已清空全部消息');
+  } catch { /* 拦截器已提示 */ }
+}
 onMounted(() => { refreshUnread(); timer = window.setInterval(refreshUnread, 60000); }); onBeforeUnmount(() => { if (timer) window.clearInterval(timer); });
 </script>
 <style scoped>

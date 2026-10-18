@@ -20,11 +20,15 @@ public interface LeadMapper extends BaseMapper<Lead> {
     }
     default int claimIfUnowned(String leadNo, String staffCode, String staffName) {
         return update(null, new LambdaUpdateWrapper<Lead>().eq(Lead::getLeadNo, leadNo).isNull(Lead::getOwnerStaffCode)
-            .set(Lead::getOwnerStaffCode, staffCode).set(Lead::getUpdatedBy, staffName).set(Lead::getUpdatedAt, LocalDateTime.now()));
+            .set(Lead::getOwnerStaffCode, staffCode)
+            .set(Lead::getSeaLevel, null).set(Lead::getSeaDeptCode, null)
+            .set(Lead::getUpdatedBy, staffName).set(Lead::getUpdatedAt, LocalDateTime.now()));
     }
-    default int releaseOwned(String leadNo, String staffCode, String staffName, LocalDateTime blockedUntil) {
+    default int releaseOwned(String leadNo, String staffCode, String staffName, LocalDateTime blockedUntil,
+                             String seaLevel, String seaDeptCode) {
         return update(null, new LambdaUpdateWrapper<Lead>().eq(Lead::getLeadNo, leadNo).eq(Lead::getOwnerStaffCode, staffCode)
             .set(Lead::getOwnerStaffCode, null).set(Lead::getAssignBlockedUntil, blockedUntil)
+            .set(Lead::getSeaLevel, seaLevel).set(Lead::getSeaDeptCode, seaDeptCode)
             .set(Lead::getUpdatedBy, staffName).set(Lead::getUpdatedAt, LocalDateTime.now()));
     }
     default int followOwned(String leadNo, String staffCode, String followStatus, LocalDateTime followedAt, String operator) {

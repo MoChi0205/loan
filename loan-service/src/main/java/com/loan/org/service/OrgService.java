@@ -90,6 +90,20 @@ public class OrgService {
     }
 
     /**
+     * 全量 ACTIVE 菜单树（不做角色过滤）：角色权限配置弹窗展示所有菜单供勾选。
+     * 仅系统配置管理员调用（Controller 侧守卫），不缓存（低频管理操作）。
+     *
+     * @return 全量菜单树
+     */
+    public List<MenuNodeVO> listAllMenus() {
+        List<Menu> all = menuMapper.selectList(
+                new LambdaQueryWrapper<Menu>()
+                        .eq(Menu::getStatus, "ACTIVE")
+                        .orderByAsc(Menu::getSort));
+        return buildTree(all, java.util.Collections.emptySet(), true);
+    }
+
+    /**
      * 部门树（按部门编码 parentCode 串联）。
      *
      * @return 部门树（嵌套）

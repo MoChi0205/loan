@@ -64,6 +64,7 @@ public class BatchImportController {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("taskNo", task.getTaskNo()); row.put("importType", task.getImportType()); row.put("status", task.getStatus());
             row.put("total", task.getTotalCount()); row.put("success", task.getSuccessCount()); row.put("failed", task.getFailedCount());
+            row.put("duplicate", task.getDuplicateCount()); row.put("existing", task.getExistingCount()); row.put("poolCode", task.getPoolCode());
             row.put("progress", task.getProgressPercent()); row.put("error", task.getErrorMessage());
             row.put("createdAt", task.getCreatedAt()); row.put("updatedAt", task.getUpdatedAt()); rows.add(row);
         }
@@ -120,19 +121,26 @@ public class BatchImportController {
     /** 正式导入：逐行事务处理，返回成功/失败明细；单行失败不影响其他行。 */
     @PostMapping("/execute")
     public Result<Map<String, Object>> execute(@RequestParam String type,
+                                               @RequestParam(required = false) String poolCode,
                                                @RequestParam("file") MultipartFile file,
                                                @CurrentUser LoanUser user) {
         roleGuard.requireImportAdmin(user);
+        if (!org.springframework.util.StringUtils.hasText(poolCode)) {
+            throw new com.loan.exception.BusinessException(
+                    com.loan.common.ResultCode.PARAM_ERROR, "导入必须选择目标资源池");
+        }
         String normalized = "PRODUCT".equalsIgnoreCase(type) ? "PRODUCT" : "LEAD";
         @SuppressWarnings("unchecked") List<Map<String, String>> rows =
                 (List<Map<String, String>>) templateService.preview(normalized, file).get("rows");
         BatchImportTask task = new BatchImportTask();
         task.setTaskNo(BizIdGenerator.generate("imptask")); task.setImportType(normalized); task.setStatus("PROCESSING");
-        task.setTotalCount(rows.size()); task.setSuccessCount(0); task.setFailedCount(0); task.setProgressPercent(0);
+        task.setTotalCount(rows.size()); task.setSuccessCount(0); task.setFailedCount(0); task.setDuplicateCount(0); task.setExistingCount(0); task.setPoolCode(poolCode); task.setProgressPercent(0);
         task.setApplicantStaffCode(user.getUserNo()); task.setCreatedAt(LocalDateTime.now()); task.setUpdatedAt(LocalDateTime.now());
         taskMapper.insert(task);
         List<Map<String, Object>> failures = new ArrayList<>();
         int success = 0;
+        int duplicate = 0;
+        int existing = 0;
         Set<String> naturalKeys = new HashSet<>();
         Set<String> leadKeys = new HashSet<>();
         for (int i = 0; i < rows.size(); i++) {
@@ -147,13 +155,14 @@ public class BatchImportController {
                             + String.valueOf(req.getProductName()).trim().toUpperCase() + "|"
                             + String.valueOf(req.getCustomerGroup()).trim().toUpperCase();
                     if (!naturalKeys.add(naturalKey)) throw new IllegalArgumentException("文件内产品重复");
-                    productService.create(req, user.getName());
+                    productService.create(req, user.getName(), user.getUserNo());
                 } else {
                     Map<String, String> lead = new LinkedHashMap<>();
                     lead.put("contactName", row.get("联系人*")); lead.put("phone", row.get("手机号*"));
                     lead.put("leadType", row.get("客群*")); lead.put("entName", row.get("企业名称"));
                     lead.put("creditCode", row.get("统一社会信用代码")); lead.put("idCardNo", row.get("身份证号"));
                     lead.put("customerTag", row.get("客户标签"));
+                    if (poolCode != null && !poolCode.trim().isEmpty()) lead.put("poolCode", poolCode.trim());
                     lead.put("remark", row.get("备注"));
                     String identity = String.valueOf(lead.get("phone")).trim();
                     if (identity.isEmpty() || "null".equals(identity)) identity = String.valueOf(lead.get("idCardNo")).trim();
@@ -163,16 +172,27 @@ public class BatchImportController {
                 }
                 success++;
             } catch (RuntimeException ex) {
+                String msg = ex.getMessage() == null ? "导入失败" : ex.getMessage();
                 Map<String, Object> failure = new LinkedHashMap<>(); failure.put("row", i + 2);
-                failure.put("message", ex.getMessage() == null ? "导入失败" : ex.getMessage()); failures.add(failure);
+                failure.put("message", msg); failures.add(failure);
+                // 统计分类：文件内重复 / 系统已有数据（两类不再计入普通失败数）
+                if (msg.contains("重复")) {
+                    duplicate++;
+                    task.setDuplicateCount(duplicate);
+                } else if (msg.contains("已存在")) {
+                    existing++;
+                    task.setExistingCount(existing);
+                }
             }
-            task.setSuccessCount(success); task.setFailedCount(failures.size());
+            task.setSuccessCount(success);
+            task.setFailedCount(failures.size() - duplicate - existing);
             task.setProgressPercent(rows.isEmpty() ? 100 : (int) Math.round(((i + 1) * 100D) / rows.size()));
             task.setUpdatedAt(LocalDateTime.now()); taskMapper.updateById(task);
         }
         task.setStatus("COMPLETED"); task.setProgressPercent(100); task.setUpdatedAt(LocalDateTime.now()); taskMapper.updateById(task);
         Map<String, Object> result = new LinkedHashMap<>(); result.put("total", rows.size());
-        result.put("taskNo", task.getTaskNo()); result.put("success", success); result.put("failed", failures.size()); result.put("failures", failures);
+        result.put("taskNo", task.getTaskNo()); result.put("success", success); result.put("failed", failures.size() - duplicate - existing);
+        result.put("duplicate", duplicate); result.put("existing", existing); result.put("poolCode", poolCode); result.put("failures", failures);
         return Result.ok(result);
     }
 

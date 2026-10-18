@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  * @author loan-platform
  */
 @Data
-@TableName("t_staff")
+@TableName(value = "t_staff", autoResultMap = true)
 public class Staff implements Serializable {
 
     private static final long serialVersionUID = 1L;

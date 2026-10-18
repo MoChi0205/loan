@@ -33,15 +33,13 @@
             <el-option label="有异常" :value="1" />
             <el-option label="无异常" :value="0" />
           </el-select>
-          <el-date-picker
-            v-model="timeRange"
-            type="datetimerange"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            style="width: 360px"
-          />
+          <AppDateTime v-model="timeRange" type="datetimerange" value-format="YYYY-MM-DD HH:mm:ss" start-placeholder="开始时间" end-placeholder="结束时间" style="width: 360px" />
+          <el-select v-model="query.ownerDeptCode" placeholder="归属团队" clearable filterable style="width: 170px">
+            <el-option v-for="d in deptOptions" :key="d.deptCode" :label="d.deptName" :value="d.deptCode" />
+          </el-select>
+          <el-select v-model="query.ownerStaffCode" placeholder="归属员工" clearable filterable style="width: 150px">
+            <el-option v-for="st in staffOptionsFiltered" :key="st.staffCode" :label="st.staffName" :value="st.staffCode" />
+          </el-select>
         </template>
         <template #append>
           <el-button @click="load">刷新</el-button>
@@ -63,6 +61,12 @@
           <template #default="{ row }">
             <div>{{ row.contactName || '—' }}</div>
             <div class="cell-sub">{{ row.contactPhoneMasked || '—' }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="归属" min-width="120">
+          <template #default="{ row }">
+            <div class="cell-main">{{ row.ownerName || '—' }}</div>
+            <div class="cell-sub">{{ row.ownerDeptName || '—' }}</div>
           </template>
         </el-table-column>
         <el-table-column label="客群" width="100">
@@ -111,19 +115,39 @@
       width="760px"
     >
       <div v-if="detailTrace" class="audit-detail">
-        <div class="audit-meta">
+        <div class="audit-section">
+          <div class="section-head"><span class="section-mark"></span>客户信息</div>
+          <div class="section-grid">
           <div class="meta-item">
-            <span class="meta-label">企业/个人</span>
+            <span class="meta-label">企业 / 个人</span>
             <span class="meta-value">{{ detailTrace.enterpriseName || detailTrace.contactName || '—' }}</span>
           </div>
           <div class="meta-item">
-            <span class="meta-label">联系人手机号</span>
-            <span class="meta-value">{{ detailTrace.contactName || '—' }} · {{ detailTrace.contactPhoneMasked || '—' }}</span>
+            <span class="meta-label">联系人</span>
+            <span class="meta-value">{{ detailTrace.contactName || '—' }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">联系手机号</span>
+            <span class="meta-value mono">{{ detailTrace.contactPhoneMasked || '—' }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">归属员工</span>
+            <span class="meta-value">{{ detailTrace.ownerName || '—' }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">归属团队</span>
+            <span class="meta-value">{{ detailTrace.ownerDeptName || '—' }}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">{{ detailTrace.identityType || '唯一身份标识' }}</span>
             <span class="meta-value mono">{{ detailTrace.identityMasked || '—' }}</span>
           </div>
+          </div>
+        </div>
+
+        <div class="audit-section">
+          <div class="section-head"><span class="section-mark section-mark--accent"></span>执行结果</div>
+          <div class="section-grid">
           <div class="meta-item">
             <span class="meta-label">客群</span>
             <DictTag type="customerGroup" :value="detailTrace.customerGroup" />
@@ -147,6 +171,7 @@
           <div class="meta-item">
             <span class="meta-label">执行时间</span>
             <span class="meta-value">{{ formatDateTime(detailTrace.executedAt) }}</span>
+          </div>
           </div>
         </div>
 
@@ -177,6 +202,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import DictTag from '@/components/DictTag.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
@@ -185,6 +211,7 @@ import { useTable } from '@/composables/useTable';
 import { dictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { pageAudit, queryAudit } from '@/api/audit';
+import { departmentTree, staffPage } from '@/api/org';
 
 /** 客群 / 总结果下拉选项（来自后端字典，不硬编码） */
 const groupOptions = dictOptions('customerGroup');
@@ -207,6 +234,8 @@ const { loading, data, total, query, load, onSearch, onReset, handleSortChange }
   mismatchFlag: '',
   startTime: '',
   endTime: '',
+  ownerDeptCode: '',
+  ownerStaffCode: '',
 });
 
 /** 时间范围（datetimerange 双值 ↔ query.startTime/endTime 双向同步） */
@@ -220,6 +249,29 @@ const timeRange = computed({
 
 /** 次级筛选（客群/总结果/异常/时间区间）默认收起，点「更多筛选」展开，释放表格空间 */
 const showMore = ref(false);
+
+/** 团队 / 员工下拉数据（审计归属筛选） */
+const deptOptions = ref([]);
+const staffOptions = ref([]);
+const staffOptionsFiltered = computed(() => {
+  if (!query.ownerDeptCode) return staffOptions.value;
+  return staffOptions.value.filter((st) => st.deptCode === query.ownerDeptCode);
+});
+async function loadOrgOptions() {
+  try {
+    const flat = [];
+    const walk = (nodes, prefix) => (nodes || []).forEach((n) => {
+      const label = prefix ? `${prefix} / ${n.name}` : n.name;
+      flat.push({ deptCode: n.code, deptName: label });
+      walk(n.children, label);
+    });
+    walk((await departmentTree()).data || [], '');
+    deptOptions.value = flat;
+  } catch { deptOptions.value = []; }
+  try {
+    staffOptions.value = (await staffPage({ page: 1, size: 200, status: 'ACTIVE' })).data?.records || [];
+  } catch { staffOptions.value = []; }
+}
 
 /** 详情弹窗 */
 const detailVisible = ref(false);
@@ -252,6 +304,7 @@ function stepType(r) {
 /** 支持从外部带 trace 跳入（如工作台「最近匹配」→ /audit?trace=uuid）自动打开详情 */
 const route = useRoute();
 onMounted(async () => {
+  loadOrgOptions();
   const trace = route.query?.trace ? String(route.query.trace) : '';
   if (trace) {
     query.traceUuid = trace;
@@ -287,6 +340,47 @@ onMounted(async () => {
   border: 1px solid var(--loan-border);
   border-radius: var(--loan-radius);
   margin-bottom: 20px;
+}
+
+.audit-section {
+  border: 1px solid var(--loan-border);
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  margin-bottom: 14px;
+  background: color-mix(in srgb, var(--loan-card-bg) 60%, transparent);
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--loan-text);
+  margin-bottom: 12px;
+}
+
+.section-mark {
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--loan-primary);
+}
+
+.section-mark--accent {
+  background: color-mix(in srgb, var(--loan-primary) 55%, var(--loan-border));
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 18px;
+}
+
+.section-grid .meta-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .meta-item {

@@ -261,6 +261,7 @@ public class ClientController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
+            @RequestParam(required = false) String poolCode,
             @RequestParam(defaultValue = "ALL") String scope,
             @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
@@ -302,16 +303,17 @@ public class ClientController {
             String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
             if (!java.util.Arrays.asList("BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER").contains(role)) {
                 throw new com.loan.exception.BusinessException(
-                        com.loan.common.ResultCode.FORBIDDEN, "当前角色无权查看全司已分配客户");
+                        com.loan.common.ResultCode.FORBIDDEN, "当前角色无权查看全司客户列表");
             }
             scopedOwner = ownerStaffCode;
             scopedDeptCode = ownerDeptCode;
-            ownershipScope = "ASSIGNED";
+            // 客户列表（原公司客户）：查看公司全部客户（已分配 + 未分配公海），未分配的可在客户公海认领。
+            ownershipScope = null;
         }
         return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
                 scopedOwner, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir, scopedDeptCode, ownershipScope,
-                customerGroup, source, customerTag, status, followState, hasDeal));
+                customerGroup, source, customerTag, status, followState, hasDeal, poolCode));
     }
 
     /** 我的客户标签计数，与列表使用同一数据范围。 */

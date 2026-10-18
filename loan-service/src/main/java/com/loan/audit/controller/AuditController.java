@@ -63,9 +63,11 @@ public class AuditController {
             @RequestParam(required = false) Integer mismatchFlag,
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String ownerDeptCode,
+            @RequestParam(required = false) String ownerStaffCode,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return Result.ok(auditService.page(traceUuid, keyword, customerGroup, totalResult, mismatchFlag,
-                startTime, endTime, PageParams.page(page), PageParams.size(size)));
+                startTime, endTime, ownerDeptCode, ownerStaffCode, PageParams.page(page), PageParams.size(size)));
     }
 }

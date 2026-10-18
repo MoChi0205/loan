@@ -1240,3 +1240,51 @@ body {
 }
 
 /* stylelint-enable color-no-hex */
+
+/* ============ 全局下拉面板统一规范（防溢出/遮挡/换行参差） ============ */
+.el-select__popper .el-select-dropdown__item,
+.el-select-dropdown .el-select-dropdown__item {
+  height: 34px;
+  line-height: 34px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.el-select__popper .el-select-dropdown__wrap,
+.el-select-dropdown .el-select-dropdown__wrap {
+  max-height: 274px;
+}
+
+/* ============ 表格列宽与单元格统一规范 ============ */
+/* 单元格垂直居中、固定行距，列头与内容对齐观感一致 */
+.el-table .el-table__cell {
+  padding: 9px 0;
+}
+
+.el-table .cell {
+  line-height: 1.55;
+}
+
+/* 操作列 link 按钮统一间距，避免参差 */
+.el-table .cell .el-button.is-link + .el-button.is-link {
+  margin-left: 10px;
+}
+
+/* 表头背景与字重统一 */
+.el-table th.el-table__cell {
+  font-weight: 600;
+}
+
+/* ============ 按钮 / 输入控件统一规范 ============ */
+/* 同一行内的输入、下拉、按钮高度严格一致（Element 默认 32px），间距统一 */
+.app-search-bar .el-input,
+.app-search-bar .el-select,
+.app-search-bar .el-date-editor {
+  --el-component-size: 32px;
+}
+
+/* 弹窗内表单控件高度与搜索区一致 */
+.el-dialog .el-input,
+.el-dialog .el-select {
+  --el-component-size: 32px;
+}

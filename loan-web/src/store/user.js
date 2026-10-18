@@ -51,6 +51,9 @@ export const useUserStore = defineStore('user', {
       /** 当前角色后端动态菜单 path；null 表示尚未加载，Set 表示已加载。 */
       menuPaths: null,
       menuRoleCode: '',
+      /** 最近一次非空菜单快照（接口偶发空/失败时兜底，登录或切换角色时清空）。 */
+      lastGoodMenuPaths: null,
+      lastGoodMenuRole: '',
     };
   },
   getters: {
@@ -82,6 +85,8 @@ export const useUserStore = defineStore('user', {
         : rolePerms;
       this.menuPaths = null;
       this.menuRoleCode = '';
+      this.lastGoodMenuPaths = null;
+      this.lastGoodMenuRole = '';
       if (this.user && this.permissions.length) this.user = { ...this.user, permissions: this.permissions };
       setStorage(TOKEN_KEY, this.token);
       setStorageJSON(USER_KEY, this.user);
@@ -107,7 +112,16 @@ export const useUserStore = defineStore('user', {
             this.menuPaths = set;
             this.menuRoleCode = requestRole;
           }
-          return set;
+          return this.resolveMenuSet(set, requestRole);
+        })
+        .catch((e) => {
+          // 菜单接口偶发失败（后端重启/网络抖动）：沿用最近一次成功菜单，避免用户被误踢回工作台。
+          const fallback = this.stableMenuSet(requestRole);
+          if (fallback) {
+            console.warn('[menu] 菜单加载失败，沿用最近一次成功菜单', e);
+            return fallback;
+          }
+          throw e;
         })
         .finally(() => {
           if (menuRequestRole === requestRole) {
@@ -118,6 +132,32 @@ export const useUserStore = defineStore('user', {
       menuRequest = request;
       menuRequestRole = requestRole;
       return request;
+    },
+
+    /**
+     * 菜单兜底策略：接口成功但返回空菜单（后端缓存回源抖动等）时，沿用最近一次非空结果。
+     * 仅在同角色下生效；登录/切换角色会清空兜底，权限真实收紧不受影响。
+     */
+    resolveMenuSet(set, requestRole) {
+      if (set && set.size > 0) {
+        this.lastGoodMenuPaths = set;
+        this.lastGoodMenuRole = requestRole;
+        return set;
+      }
+      const fallback = this.stableMenuSet(requestRole);
+      if (fallback) {
+        console.warn('[menu] 菜单树返回为空，沿用最近一次成功菜单');
+        return fallback;
+      }
+      return set;
+    },
+
+    stableMenuSet(requestRole) {
+      if (this.lastGoodMenuRole === requestRole && this.lastGoodMenuPaths instanceof Set
+          && this.lastGoodMenuPaths.size > 0) {
+        return this.lastGoodMenuPaths;
+      }
+      return null;
     },
 
     /**
@@ -134,6 +174,8 @@ export const useUserStore = defineStore('user', {
       this.permissions = [];
       this.menuPaths = null;
       this.menuRoleCode = '';
+      this.lastGoodMenuPaths = null;
+      this.lastGoodMenuRole = '';
       removeStorage(TOKEN_KEY);
       removeStorage(USER_KEY);
     },

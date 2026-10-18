@@ -15,7 +15,7 @@
         <el-select v-if="selectedScope !== 'SELF'" v-model="filterStaffCode" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" placeholder="全部员工" class="scope-select" @change="onStaffFilterChange">
           <el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" />
         </el-select>
-        <el-date-picker v-model="selectedDateRange" type="daterange" value-format="YYYY-MM-DD" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" :clearable="false" aria-label="业务日期范围" @change="onDateRangeChange" />
+        <AppDateTime v-model="selectedDateRange" type="daterange" :clearable="false" @update:model-value="onDateRangeChange" />
         <el-checkbox v-model="includeUnfinished" @change="refreshCurrent">包含未完成</el-checkbox>
         <el-button :loading="refreshing" @click="refreshCurrent">刷新</el-button>
         <el-button type="primary" @click="openCreateAppointment">创建预约</el-button>
@@ -90,7 +90,7 @@
             <el-table-column label="服务安排" min-width="210"><template #default="{ row }"><div>{{ enumLabel(methodText, row.serviceMethod) }}</div><div class="cell-sub">{{ formatDateTime(row.scheduledStart) }} 至 {{ timeOnly(row.scheduledEnd) }}</div></template></el-table-column>
             <el-table-column label="顾问/地点" min-width="160"><template #default="{ row }"><div>{{ row.hostStaffName || '顾问姓名待补充' }}</div><div class="cell-sub">{{ row.locationName || '线上服务' }}</div></template></el-table-column>
             <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="appointmentTag(row.status)" size="small">{{ enumLabel(appointmentStatusText, row.status) }}</el-tag><div class="cell-sub">{{ row.createdByType === 'STAFF' ? '公司已确认安排' : (row.customerConfirmStatus === 'CONFIRMED' ? '客户已提交确认' : '待客户确认') }}</div></template></el-table-column>
-            <el-table-column label="操作" width="300" fixed="right">
+            <el-table-column label="操作" width="240" fixed="right">
               <template #default="{ row }">
                 <div class="action-row">
                   <el-button v-if="canConfirm(row)" link type="primary" @click="runAppointmentAction('confirm', row)">确认预约</el-button>
@@ -393,7 +393,7 @@ const serviceLabels = computed(() => {
   };
 });
 const servicePageTitle = computed(() => {
-  const title = { daily: '服务总览', appointments: '预约管理', outings: '外出管理', replay: '客户服务记录' };
+  const title = { daily: '服务总览', appointments: '客户预约', outings: '员工外出', replay: '客户服务记录' };
   return title[activeTab.value] || '服务台';
 });
 const servicePageSubtitle = computed(() => ({

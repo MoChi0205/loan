@@ -156,7 +156,10 @@ public class ApprovalService {
      * @param size    每页大小
      * @return 审核工单分页
      */
-    public PageResult<Map<String, Object>> productPage(String status, String keyword, int page, int size, String orderBy, String orderDir) {
+    public PageResult<Map<String, Object>> productPage(String status, String keyword,
+                                                       String submitStaffCode, String submitDeptCode,
+                                                       String startTime, String endTime,
+                                                       int page, int size, String orderBy, String orderDir) {
         LambdaQueryWrapper<ProductApproval> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(status)) {
             wrapper.eq(ProductApproval::getApproveStatus, status);
@@ -166,6 +169,20 @@ public class ApprovalService {
             wrapper.and(w -> w.like(ProductApproval::getApprovalNo, kw)
                     .or().like(ProductApproval::getBankProductCode, kw));
         }
+        if (StringUtils.hasText(submitStaffCode)) {
+            wrapper.eq(ProductApproval::getCreatedBy, submitStaffCode.trim());
+        }
+        if (StringUtils.hasText(submitDeptCode)) {
+            wrapper.inSql(ProductApproval::getCreatedBy,
+                    "SELECT staff_code FROM t_staff WHERE status = 'ACTIVE' AND dept_code = '"
+                            + submitDeptCode.trim().replace("'", "''") + "'");
+        }
+        if (StringUtils.hasText(startTime)) {
+            wrapper.ge(ProductApproval::getCreatedAt, startTime.trim());
+        }
+        if (StringUtils.hasText(endTime)) {
+            wrapper.le(ProductApproval::getCreatedAt, endTime.trim() + " 23:59:59");
+        }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, ProductApproval::getApproveStatus);
         Page<ProductApproval> result = productApprovalMapper.selectPage(new Page<>(page, size), wrapper);
 
@@ -174,6 +191,8 @@ public class ApprovalService {
         Map<String, String> productNameMap = businessNameService.productNames(productCodes);
         Map<String, String> staffNameMap = businessNameService.staffNames(result.getRecords().stream()
                 .map(ProductApproval::getApproverStaffCode).collect(Collectors.toSet()));
+        Map<String, String> submitterNameMap = businessNameService.staffNames(result.getRecords().stream()
+                .map(ProductApproval::getCreatedBy).collect(Collectors.toSet()));
 
         List<Map<String, Object>> records = result.getRecords().stream().map(a -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -181,10 +200,13 @@ public class ApprovalService {
             m.put("bankProductCode", a.getBankProductCode());
             m.put("bankProductName", productNameMap.get(a.getBankProductCode()));
             m.put("applyType", a.getApplyType());
+            m.put("applyReason", a.getApplyReason());
             m.put("duplicateFlag", a.getDuplicateFlag());
             m.put("approveStatus", a.getApproveStatus());
             m.put("approverStaffCode", a.getApproverStaffCode());
             m.put("approverStaffName", staffNameMap.get(a.getApproverStaffCode()));
+            m.put("submitterStaffCode", a.getCreatedBy());
+            m.put("submitterStaffName", submitterNameMap.get(a.getCreatedBy()));
             m.put("approveOpinion", a.getApproveOpinion());
             m.put("timeoutAt", a.getTimeoutAt());
             m.put("approvedAt", a.getApprovedAt());
@@ -206,6 +228,7 @@ public class ApprovalService {
         m.put("approvalNo", a.getApprovalNo());
         m.put("bankProductCode", a.getBankProductCode());
         m.put("applyType", a.getApplyType());
+        m.put("applyReason", a.getApplyReason());
         m.put("beforeSnapshotJson", a.getBeforeSnapshotJson());
         m.put("afterSnapshotJson", a.getAfterSnapshotJson());
         m.put("duplicateFlag", a.getDuplicateFlag());
@@ -258,14 +281,53 @@ public class ApprovalService {
         if (product == null) {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND, "审批关联的银行产品不存在");
         }
-        product.setStatus(targetStatus);
-        product.setUpdatedBy(operator);
-        product.setUpdatedAt(now);
-        bankProductMapper.updateById(product);
-        // 内部员工提交的产品仅进入全量库；合作库由老板/超管单独维护。
-        if (approve && a.getChannelUserId() != null) {
-            partnerProductService.activateByApproval(a.getBankProductCode(),
-                    cooperateUntil(a.getAfterSnapshotJson()), operator);
+        // 按申请类型分流：CREATE 生效入全量库；UPDATE 通过后应用变更（产品状态保持）；DELETE 通过后逻辑下线。
+        String applyType = StringUtils.hasText(a.getApplyType()) ? a.getApplyType() : "CREATE";
+        if ("UPDATE".equals(applyType)) {
+            if (approve) {
+                applyProductUpdate(product, a.getAfterSnapshotJson(), operator);
+            }
+        } else if ("DELETE".equals(applyType)) {
+            if (approve) {
+                product.setStatus("OFFLINE");
+                product.setUpdatedBy(operator);
+                product.setUpdatedAt(now);
+                bankProductMapper.updateById(product);
+            }
+        } else {
+            product.setStatus(targetStatus);
+            product.setUpdatedBy(operator);
+            product.setUpdatedAt(now);
+            bankProductMapper.updateById(product);
+            // 内部员工提交的产品仅进入全量库；合作库由老板/超管单独维护。
+            if (approve && a.getChannelUserId() != null) {
+                partnerProductService.activateByApproval(a.getBankProductCode(),
+                        cooperateUntil(a.getAfterSnapshotJson()), operator);
+            }
+        }
+    }
+
+    /** 审批通过后应用变更快照（仅覆盖业务字段，状态/归属保持原值）。 */
+    private void applyProductUpdate(BankProduct product, String snapshotJson, String operator) {
+        try {
+            BankProduct target = OBJECT_MAPPER.readValue(snapshotJson, BankProduct.class);
+            product.setProductName(target.getProductName());
+            product.setCustomerGroup(target.getCustomerGroup());
+            product.setSource(target.getSource());
+            product.setAmountMin(target.getAmountMin());
+            product.setAmountMax(target.getAmountMax());
+            product.setRateMin(target.getRateMin());
+            product.setRateMax(target.getRateMax());
+            product.setTermMin(target.getTermMin());
+            product.setTermMax(target.getTermMax());
+            product.setTaxThreshold(target.getTaxThreshold());
+            product.setInvoiceRequire(target.getInvoiceRequire());
+            product.setBankChannelCode(target.getBankChannelCode());
+            product.setUpdatedBy(operator);
+            product.setUpdatedAt(LocalDateTime.now());
+            bankProductMapper.updateById(product);
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "变更快照无法应用");
         }
     }
 
@@ -916,7 +978,7 @@ public class ApprovalService {
     /** 按类型取一页待审数据（PRODUCT / DOWNLOAD / MATERIAL_REVIEW 均按 status=PENDING 过滤，保证 total 即待审数）。 */
     private PageResult<Map<String, Object>> pendingSlice(String type, int page, int size) {
         if (TYPE_PRODUCT.equals(type)) {
-            return productPage(STATUS_PENDING, null, page, size, null, "DESC");
+            return productPage(STATUS_PENDING, null, null, null, null, null, page, size, null, "DESC");
         }
         if (TYPE_DOWNLOAD.equals(type)) {
             return downloadPage(STATUS_PENDING, null, page, size, null, "DESC");

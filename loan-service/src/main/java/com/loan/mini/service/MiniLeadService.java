@@ -53,6 +53,7 @@ public class MiniLeadService {
     private final LeadEntExtMapper leadEntExtMapper;
     private final ClientProfileMapper clientProfileMapper;
     private final PersonalProfileMapper personalProfileMapper;
+    private final com.loan.client.pool.ResourcePoolMapper resourcePoolMapper;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -78,6 +79,19 @@ public class MiniLeadService {
         Lead lead = new Lead();
         lead.setContactName(contactName);
         lead.setPhone(phone);
+        lead.setPoolCode(body.get("poolCode"));
+        // 导入/录入进池：按资源池类型落公海层级（团队池→团队公海带部门，公司池→公司公海）。
+        if (StringUtils.hasText(lead.getPoolCode())) {
+            try {
+                com.loan.client.pool.ResourcePool pool = resourcePoolMapper.selectOne(
+                        new LambdaQueryWrapper<com.loan.client.pool.ResourcePool>()
+                                .eq(com.loan.client.pool.ResourcePool::getPoolCode, lead.getPoolCode()));
+                if (pool != null) {
+                    lead.setSeaLevel("TEAM".equals(pool.getPoolType()) ? "TEAM" : "COMPANY");
+                    lead.setSeaDeptCode("TEAM".equals(pool.getPoolType()) ? pool.getDeptCode() : null);
+                }
+            } catch (Exception ignored) { /* 池不存在时按普通录入处理 */ }
+        }
         String leadType = body.get("leadType");
         lead.setLeadType(StringUtils.hasText(leadType) ? leadType.trim().toUpperCase() : "ENTERPRISE");
         // 来源按用户类型 + 角色派生（修复旧版写死 MINI 不在字典的缺陷，设计 §2.3a）

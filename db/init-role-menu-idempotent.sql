@@ -29,16 +29,16 @@ INSERT INTO t_menu (menu_name,path,component,menu_type,permission_code,sort,stat
  ('线索公海','/lead/pool','views/lead/LeadPool','MENU','page:lead',112,'ACTIVE','system'),
  ('我的客户','/client/my','views/client/ClientProfile','MENU','page:client',121,'ACTIVE','system'),
  ('团队客户','/client/team','views/client/ClientProfile','MENU','page:client',122,'ACTIVE','system'),
- ('全司客户','/client/company','views/client/ClientProfile','MENU','page:client',123,'ACTIVE','system'),
+ ('客户列表','/client/company','views/client/ClientProfile','MENU','page:client',123,'ACTIVE','system'),
  ('客户公海','/client/company-sea','views/client/ClientProfile','MENU','page:client',124,'ACTIVE','system'),
  ('团队公海','/client/team-sea','views/client/ClientProfile','MENU','page:client',125,'ACTIVE','system'),
  ('客户导入进度','/client/import-tasks','views/client/ImportTasks','MENU','page:client',126,'ACTIVE','system'),
  ('资源池回收规则','/client/resource-pool-config','views/client/ResourcePoolConfig','MENU','page:client',127,'ACTIVE','system'),
- ('客户导入与导出','/client/import-export','views/client/ClientImportExport','MENU','page:client',128,'ACTIVE','system'),
- ('客户检索','/client-lookup','views/client/ClientLookup','MENU','page:client',129,'ACTIVE','system'),
- ('客户材料','/ocr','views/ocr/OcrCenter','MENU',NULL,130,'ACTIVE','system'),
+ ('认领设置','/allocation-quota','views/system/AllocationQuotaConfig','MENU',NULL,128,'ACTIVE','system'),
+ ('客户检索','/client/lookup','views/client/ClientLookup','MENU','page:client',129,'ACTIVE','system'),
+ ('客户材料','/client/ocr','views/ocr/OcrCenter','MENU',NULL,130,'ACTIVE','system'),
  ('匹配任务','/screening','views/screening/ScreeningCenter','MENU',NULL,211,'ACTIVE','system'),
- ('诊断报告','/report/screening','views/report/ScreeningReport','MENU',NULL,212,'ACTIVE','system'),
+ ('诊断报告','/screening/report','views/report/ScreeningReport','MENU',NULL,212,'ACTIVE','system'),
  ('服务总览','/service-operations/daily','views/service/ServiceOperations','MENU','page:service-daily',311,'ACTIVE','system'),
  ('客户预约','/service-operations/appointments','views/service/ServiceOperations','MENU','page:service-appointments',312,'ACTIVE','system'),
  ('员工外出','/service-operations/outings','views/service/ServiceOperations','MENU','page:service-outings',313,'ACTIVE','system'),
@@ -59,7 +59,7 @@ INSERT INTO t_menu (menu_name,path,component,menu_type,permission_code,sort,stat
  ('奖励规则','/reward/rules','views/reward/RewardRuleConfig','MENU','page:reward-rule',422,'ACTIVE','system'),
  ('经营看板','/report/center','views/report/ReportCenter','MENU',NULL,511,'ACTIVE','system'),
  ('趋势分析','/report/trend','views/report/TrendAnalysis','MENU',NULL,512,'ACTIVE','system'),
- ('报告模板','/report-template','views/template/ReportTemplateList','MENU',NULL,513,'ACTIVE','system'),
+ ('报告模板','/report/template','views/template/ReportTemplateList','MENU',NULL,513,'ACTIVE','system'),
  ('全量产品库','/product/all','views/product/ProductList','MENU','page:product',611,'ACTIVE','system'),
  ('合作产品库','/product/cooperate','views/product/ProductList','MENU','page:product',612,'ACTIVE','system'),
  ('渠道档案','/channel-config','views/plan/ChannelConfigList','MENU',NULL,621,'ACTIVE','system'),
@@ -79,17 +79,21 @@ INSERT INTO t_menu (menu_name,path,component,menu_type,permission_code,sort,stat
 ON DUPLICATE KEY UPDATE menu_name=VALUES(menu_name),component=VALUES(component),menu_type='MENU',permission_code=VALUES(permission_code),sort=VALUES(sort),status='ACTIVE';
 
 UPDATE t_menu m JOIN t_menu p ON p.path='/domain/client' SET m.parent_id=p.id
- WHERE m.path IN ('/lead/my','/lead/pool','/client/my','/client/team','/client/company','/client/company-sea','/client/team-sea','/client/import-tasks','/client/resource-pool-config','/client/import-export','/client-lookup','/ocr');
-UPDATE t_menu m JOIN t_menu p ON p.path='/domain/matching' SET m.parent_id=p.id WHERE m.path IN ('/screening','/report/screening');
+ WHERE m.path IN ('/lead/my','/lead/pool','/client/my','/client/team','/client/company','/client/company-sea','/client/team-sea','/client/import-tasks','/client/resource-pool-config','/allocation-quota','/client/lookup','/client/ocr');
+UPDATE t_menu m JOIN t_menu p ON p.path='/domain/matching' SET m.parent_id=p.id WHERE m.path IN ('/screening','/screening/report');
 UPDATE t_menu m JOIN t_menu p ON p.path='/domain/service' SET m.parent_id=p.id WHERE m.path IN ('/service-operations/daily','/service-operations/appointments','/service-operations/outings','/service-operations/replay','/order');
 UPDATE t_menu m JOIN t_menu p ON p.path='/domain/approval' SET m.parent_id=p.id WHERE m.path LIKE '/approval/%';
 UPDATE t_menu m JOIN t_menu p ON p.path='/domain/operation' SET m.parent_id=p.id WHERE m.path IN ('/sms/templates','/sms/records','/reward/records','/reward/rules');
-UPDATE t_menu m JOIN t_menu p ON p.path='/domain/report' SET m.parent_id=p.id WHERE m.path IN ('/report/center','/report/trend','/report-template');
-UPDATE t_menu m JOIN t_menu p ON p.path='/domain/product' SET m.parent_id=p.id WHERE m.path IN ('/product/all','/product/cooperate','/channel-config','/channel-strategy','/channel-user-list','/rule-template','/rule','/strategy-template','/plan-edit');
-UPDATE t_menu m JOIN t_menu p ON p.path='/domain/system' SET m.parent_id=p.id WHERE m.path IN ('/blacklist','/audit','/org/staff','/org/roles','/org/api-permissions','/config-wizard','/debug');
+UPDATE t_menu m JOIN t_menu p ON p.path='/domain/report' SET m.parent_id=p.id WHERE m.path IN ('/report/center','/report/trend','/report/template');
+UPDATE t_menu m JOIN t_menu p ON p.path='/domain/product' SET m.parent_id=p.id WHERE m.path IN ('/product/all','/product/cooperate','/channel-config','/channel-strategy','/channel-user-list','/rule-template','/rule','/strategy-template','/plan-edit','/blacklist');
+UPDATE t_menu m JOIN t_menu p ON p.path='/domain/system' SET m.parent_id=p.id WHERE m.path IN ('/audit','/org/staff','/org/roles','/org/api-permissions','/config-wizard','/debug');
 UPDATE t_menu SET status='DISABLED' WHERE path IN ('/lead','/client','/client?scope=TEAM_SEA','/service-operations','/approval','/sms','/reward','/reward-rule','/product','/org');
 
 -- 历史表的 NULL permission_code 不受唯一索引去重约束，清理重复叶子/父级授权。
+-- 已废弃菜单清理（客户导入与导出已并入导入进度页；诊断报告路径已改为 /screening/report）
+DELETE rp FROM t_role_permission rp JOIN t_menu m ON m.id=rp.menu_id WHERE m.path IN ('/client/import-export','/report/screening');
+DELETE FROM t_menu WHERE path IN ('/client/import-export','/report/screening');
+
 DELETE a FROM t_role_permission a JOIN t_role_permission b
  ON a.role_code=b.role_code AND a.menu_id=b.menu_id
  AND a.permission_code IS NULL AND b.permission_code IS NULL AND a.id>b.id;
@@ -98,7 +102,7 @@ DELETE rp FROM t_role_permission rp JOIN t_menu m ON m.id=rp.menu_id
 
 -- 先重建本脚本负责的页面授权，保留按钮级 permission_code 授权。
 DELETE rp FROM t_role_permission rp JOIN t_menu m ON m.id=rp.menu_id
- WHERE rp.permission_code IS NULL AND m.path IN ('/workbench','/lead/my','/lead/pool','/client/my','/client/team','/client/company','/client/company-sea','/client/team-sea','/client/import-tasks','/client/resource-pool-config','/client/import-export','/client-lookup','/ocr','/screening','/report/screening','/service-operations/daily','/service-operations/appointments','/service-operations/outings','/service-operations/replay','/order','/approval/mine','/approval/product','/approval/download','/approval/allocation','/approval/outing','/approval/sensitive-phone','/approval/channel-lead','/approval/sms-template','/approval/report-template','/sms/templates','/sms/records','/reward/records','/reward/rules','/report/center','/report/trend','/report-template','/product/all','/product/cooperate','/channel-config','/channel-strategy','/channel-user-list','/rule-template','/rule','/strategy-template','/plan-edit','/blacklist','/audit','/org/staff','/org/roles','/org/api-permissions','/config-wizard','/debug');
+ WHERE rp.permission_code IS NULL AND m.path IN ('/workbench','/lead/my','/lead/pool','/client/my','/client/team','/client/company','/client/company-sea','/client/team-sea','/client/import-tasks','/client/resource-pool-config','/allocation-quota','/client/lookup','/client/ocr','/screening','/screening/report','/service-operations/daily','/service-operations/appointments','/service-operations/outings','/service-operations/replay','/order','/approval/mine','/approval/product','/approval/download','/approval/allocation','/approval/outing','/approval/sensitive-phone','/approval/channel-lead','/approval/sms-template','/approval/report-template','/sms/templates','/sms/records','/reward/records','/reward/rules','/report/center','/report/trend','/report/template','/product/all','/product/cooperate','/channel-config','/channel-strategy','/channel-user-list','/rule-template','/rule','/strategy-template','/plan-edit','/blacklist','/audit','/org/staff','/org/roles','/org/api-permissions','/config-wizard','/debug');
 
 -- 角色菜单规则：基础集合 + 管理角色集合。
 INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
@@ -108,15 +112,17 @@ JOIN t_menu m ON m.path='/workbench' AND m.status='ACTIVE';
 INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
 SELECT r.role_code,m.id,NULL,'system' FROM (SELECT 'CHANNEL' role_code UNION ALL SELECT 'ADVISER' UNION ALL SELECT 'DEPT_MANAGER' UNION ALL SELECT 'OPERATOR' UNION ALL SELECT 'BOSS' UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r JOIN t_menu m ON m.path IN ('/lead/my','/client/my') AND m.status='ACTIVE';
 INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
-SELECT 'CHANNEL',m.id,NULL,'system' FROM t_menu m WHERE m.path IN ('/product/all','/report/screening') AND m.status='ACTIVE';
+SELECT 'CHANNEL',m.id,NULL,'system' FROM t_menu m WHERE m.path IN ('/product/all','/screening/report') AND m.status='ACTIVE';
 INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
-SELECT r.role_code,m.id,NULL,'system' FROM (SELECT 'ADVISER' role_code UNION ALL SELECT 'DEPT_MANAGER' UNION ALL SELECT 'OPERATOR' UNION ALL SELECT 'BOSS' UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r JOIN t_menu m ON m.path IN ('/lead/pool','/client/company-sea','/client-lookup','/ocr','/screening','/report/screening','/service-operations/daily','/service-operations/appointments','/service-operations/outings','/service-operations/replay','/order','/report/center','/product/all') AND m.status='ACTIVE';
+SELECT r.role_code,m.id,NULL,'system' FROM (SELECT 'ADVISER' role_code UNION ALL SELECT 'DEPT_MANAGER' UNION ALL SELECT 'OPERATOR' UNION ALL SELECT 'BOSS' UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r JOIN t_menu m ON m.path IN ('/lead/pool','/client/company-sea','/client/lookup','/client/ocr','/screening','/screening/report','/service-operations/daily','/service-operations/appointments','/service-operations/outings','/service-operations/replay','/order','/report/center','/product/all') AND m.status='ACTIVE';
 INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
 SELECT 'DEPT_MANAGER',m.id,NULL,'system' FROM t_menu m WHERE m.path IN ('/client/team','/client/team-sea','/approval/mine','/approval/download','/approval/allocation','/approval/outing','/approval/sensitive-phone') AND m.status='ACTIVE';
 INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
-SELECT r.role_code,m.id,NULL,'system' FROM (SELECT 'OPERATOR' role_code UNION ALL SELECT 'BOSS' UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r JOIN t_menu m ON m.path IN ('/client/company','/client/resource-pool-config','/approval/mine','/approval/product','/approval/download','/approval/allocation','/approval/outing','/approval/sensitive-phone','/approval/channel-lead','/approval/sms-template','/approval/report-template','/sms/templates','/sms/records','/reward/records','/reward/rules','/report/trend','/report-template','/channel-config','/channel-strategy','/channel-user-list','/rule-template','/rule','/strategy-template','/plan-edit','/blacklist','/audit') AND m.status='ACTIVE';
+SELECT 'ADVISER',m.id,NULL,'system' FROM t_menu m WHERE m.path='/approval/mine' AND m.status='ACTIVE';
 INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
-SELECT r.role_code,m.id,NULL,'system' FROM (SELECT 'BOSS' role_code UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r JOIN t_menu m ON m.path IN ('/client/import-tasks','/client/import-export') AND m.status='ACTIVE';
+SELECT r.role_code,m.id,NULL,'system' FROM (SELECT 'OPERATOR' role_code UNION ALL SELECT 'BOSS' UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r JOIN t_menu m ON m.path IN ('/client/company','/client/resource-pool-config','/allocation-quota','/approval/mine','/approval/product','/approval/download','/approval/allocation','/approval/outing','/approval/sms-template','/approval/report-template','/sms/templates','/sms/records','/reward/records','/reward/rules','/report/trend','/report/template','/channel-config','/channel-strategy','/channel-user-list','/rule-template','/rule','/strategy-template','/plan-edit','/blacklist','/audit') AND m.status='ACTIVE';
+INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
+SELECT r.role_code,m.id,NULL,'system' FROM (SELECT 'BOSS' role_code UNION ALL SELECT 'SUPER_ADMIN' UNION ALL SELECT 'SUPER') r JOIN t_menu m ON m.path IN ('/client/import-tasks','/product/cooperate','/approval/channel-lead','/approval/sensitive-phone') AND m.status='ACTIVE';
 INSERT IGNORE INTO t_role_permission(role_code,menu_id,permission_code,created_by)
 SELECT r.role_code,m.id,NULL,'system' FROM (SELECT 'SUPER_ADMIN' role_code UNION ALL SELECT 'SUPER') r JOIN t_menu m ON m.path IN ('/org/staff','/org/roles','/org/api-permissions','/config-wizard','/debug') AND m.status='ACTIVE';
 

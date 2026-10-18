@@ -16,7 +16,7 @@
         <template #empty>
           <AppEmpty title="暂无奖励规则" desc="按产品×客群新增一条规则，成交时才会计入推荐奖励" />
         </template>
-        <el-table-column label="产品" min-width="160">
+        <el-table-column label="产品" width="280">
           <template #default="{ row }">{{ productName(row.productCode) }}</template>
         </el-table-column>
         <el-table-column label="客群" width="90">
@@ -53,6 +53,7 @@
             <AppTableActions :actions="rowActions(row)" />
           </template>
         </el-table-column>
+        <el-table-column min-width="40" />
       </el-table>
     </div>
 

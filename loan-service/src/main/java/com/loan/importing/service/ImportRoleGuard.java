@@ -20,4 +20,11 @@ public class ImportRoleGuard {
             throw new BusinessException(ResultCode.FORBIDDEN, "仅老板或超级管理员可执行批量导入导出");
         }
     }
+
+    /** 资源池下拉等只读查询：全体员工可用（渠道/小程序端除外）。 */
+    public void requireStaff(LoanUser user) {
+        if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "仅公司员工可访问资源池信息");
+        }
+    }
 }

@@ -49,7 +49,8 @@ class LeadServiceChannelApprovalTest {
         recordMapper = mock(LeadAllocationRecordMapper.class);
         service = new LeadService(leadMapper, mock(ClientProfileMapper.class), recordMapper,
                 mock(NotificationService.class), mock(SensitiveViewService.class),
-                mock(ClaimQuotaService.class), mock(LeadRecycleConfigMapper.class));
+                mock(ClaimQuotaService.class), mock(LeadRecycleConfigMapper.class),
+                mock(com.loan.staff.mapper.StaffMapper.class));
     }
 
     @Test
@@ -109,7 +110,7 @@ class LeadServiceChannelApprovalTest {
             return page;
         });
 
-        service.page(null, null, null, null, 1, 10, "ADVISER", "ADV001", null, null);
+        service.page(null, null, null, null, 1, 10, "ADVISER", "ADV001", null, null, null, null, null);
 
         ArgumentCaptor<LambdaQueryWrapper<Lead>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(leadMapper).selectPage(any(Page.class), captor.capture());
@@ -172,13 +173,15 @@ class LeadServiceChannelApprovalTest {
         lead.setOwnerStaffCode("ADV001");
         when(leadMapper.selectOne(any())).thenReturn(lead);
         when(leadMapper.releaseOwned(org.mockito.ArgumentMatchers.eq("lead-1"),
-                org.mockito.ArgumentMatchers.eq("ADV001"), org.mockito.ArgumentMatchers.eq("张顾问"), any()))
+                org.mockito.ArgumentMatchers.eq("ADV001"), org.mockito.ArgumentMatchers.eq("张顾问"), any(),
+                any(), any()))
                 .thenReturn(1);
 
         service.release("lead-1", "ADV001", "张顾问");
 
         verify(leadMapper).releaseOwned(org.mockito.ArgumentMatchers.eq("lead-1"),
-                org.mockito.ArgumentMatchers.eq("ADV001"), org.mockito.ArgumentMatchers.eq("张顾问"), any());
+                org.mockito.ArgumentMatchers.eq("ADV001"), org.mockito.ArgumentMatchers.eq("张顾问"), any(),
+                any(), any());
         verify(recordMapper).insert(any());
     }
 
@@ -192,7 +195,7 @@ class LeadServiceChannelApprovalTest {
                 () -> service.release("lead-own", "ADV001", "张顾问"));
 
         assertEquals(ResultCode.FORBIDDEN.getCode(), error.getCode());
-        verify(leadMapper, never()).releaseOwned(any(), any(), any(), any());
+        verify(leadMapper, never()).releaseOwned(any(), any(), any(), any(), any(), any());
     }
 
     @Test

@@ -32,8 +32,11 @@ public class ProductApproval implements Serializable {
     /** 提交渠道账号 ID（内部引用，渠道端功能预留） */
     private Long channelUserId;
 
-    /** 申请类型（CREATE 新建 / UPDATE 变更） */
+    /** 申请类型（CREATE 新建 / UPDATE 变更 / DELETE 下线删除） */
     private String applyType;
+
+    /** 申请理由（下线删除审批必填；变更审批填变更说明） */
+    private String applyReason;
 
     /** 变更前快照 */
     private String beforeSnapshotJson;

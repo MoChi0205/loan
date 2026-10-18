@@ -185,6 +185,24 @@
         <el-form-item v-if="editing" label="状态" prop="status">
           <DictSelect v-model="dialogForm.status" type="productStatus" placement="top-start" />
         </el-form-item>
+        <!-- 服务城市：编辑时内联配置，避免割裂的独立入口 -->
+        <el-form-item v-if="editing && canManageProduct" label="服务城市">
+          <div class="city-inline">
+            <div class="city-tags">
+              <el-tag v-for="c in cityDialog.list" :key="c.productCityCode" closable class="city-tag" @click="onEditCity(c)" @close.stop="onUnbindCity(c)">
+                {{ c.province }} {{ c.city }}
+              </el-tag>
+              <span v-if="!cityDialog.list.length" class="city-empty">暂无绑定城市</span>
+            </div>
+            <div class="city-add">
+              <el-input v-model="cityDialog.province" placeholder="省（如 湖北省）" style="width: 150px" />
+              <el-input v-model="cityDialog.city" placeholder="市（如 武汉市）" style="width: 150px" @keyup.enter="onSaveCity" />
+              <el-button type="primary" @click="onSaveCity">{{ cityDialog.editingCode ? '保存' : '添加' }}</el-button>
+              <el-button v-if="cityDialog.editingCode" @click="cancelEditCity">取消编辑</el-button>
+            </div>
+            <div class="city-tip">点击城市标签可编辑；省市名称精确匹配。</div>
+          </div>
+        </el-form-item>
       </el-form>
     </AppDialog>
 
@@ -199,7 +217,7 @@
             v-model="partnerDialog.form.cooperateUntil"
             type="datetime"
             placeholder="到期后自动下架"
-            value-format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ss"
             style="width: 100%"
           />
         </el-form-item>
@@ -220,7 +238,7 @@
             v-model="renewDialog.form.cooperateUntil"
             type="datetime"
             placeholder="选择新的合作到期日"
-            value-format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ss"
             style="width: 100%"
           />
         </el-form-item>
@@ -252,7 +270,7 @@
 defineOptions({ name: '_product' });
 import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import DictSelect from '@/components/DictSelect.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
@@ -359,16 +377,24 @@ function onHeaderAction() {
 // 全量库操作列
 // ============================================================
 function rowActions(row) {
+  // 老板/超管：直接编辑、维护城市、逻辑下线；员工：仅本人创建的产品可提交变更/申请下线（走审批）。
+  if (canManageProduct.value) {
+    return [
+      { key: 'edit', label: '编辑', onClick: () => onEdit(row) },
+      {
+        key: 'delete',
+        label: '下线',
+        type: 'danger',
+        confirm: `确认将产品「${row.productName}」逻辑下线？下线后全量库不再展示，数据保留。`,
+        onClick: () => onDelete(row),
+      },
+    ];
+  }
+  const own = Boolean(row.createdStaffNo) && row.createdStaffNo === userStore.user?.userNo;
+  if (!own) return [];
   return [
-    { key: 'edit', label: '编辑', onClick: () => onEdit(row) },
-    { key: 'city', label: '服务城市', onClick: () => openCity(row) },
-    {
-      key: 'delete',
-      label: '删除',
-      type: 'danger',
-      confirm: `确认删除产品「${row.productName}」？删除后不可恢复，请谨慎操作。`,
-      onClick: () => onDelete(row),
-    },
+    { key: 'edit', label: '提交变更', onClick: () => onEdit(row) },
+    { key: 'offline', label: '申请下线', type: 'danger', onClick: () => onApplyOffline(row) },
   ];
 }
 
@@ -388,6 +414,11 @@ function onEdit(row) {
     termMax: row.termMax,
     status: row.status,
   });
+  // 编辑时内联加载服务城市，弹窗内直接配置。
+  cityDialog.productCode = row.productCode;
+  cityDialog.productName = row.productName;
+  cityDialog.province = ''; cityDialog.city = ''; cityDialog.editingCode = '';
+  if (canManageProduct.value) loadCityList();
   dialogVisible.value = true;
 }
 
@@ -411,9 +442,34 @@ function onAdd() {
   dialogVisible.value = true;
 }
 
+/** 老板/超管：直接逻辑下线（二次确认由操作列处理）。 */
 async function onDelete(row) {
   try {
-    await deleteProduct(row.productCode);
+    await deleteProduct(row.productCode, '');
+    ElMessage.success('产品已逻辑下线');
+    loadAll();
+  } catch (e) {
+    // 拦截器已提示
+  }
+}
+
+/** 员工：对本人创建的产品提交下线审批（删除理由必填，通过后 OFFLINE）。 */
+async function onApplyOffline(row) {
+  let reason = '';
+  try {
+    const res = await ElMessageBox.prompt('请输入下线（删除）理由，提交后由老板或超级管理员审批。', '申请下线', {
+      confirmButtonText: '提交审批',
+      cancelButtonText: '取消',
+      inputPlaceholder: '删除理由（必填）',
+      inputValidator: (v) => (v && v.trim() ? true : '删除理由必填'),
+    });
+    reason = res.value.trim();
+  } catch (e) {
+    return; // 用户取消
+  }
+  try {
+    await deleteProduct(row.productCode, reason);
+    ElMessage.success('下线申请已提交，等待审批');
     loadAll();
   } catch (e) {
     // 拦截器已提示
@@ -614,8 +670,8 @@ async function onSave() {
     const payload = { ...dialogForm };
     if (!editing.value) delete payload.status;
     if (editing.value) {
-      await updateProduct(payload);
-      ElMessage.success('编辑成功');
+      const res = await updateProduct(payload);
+      ElMessage.success(res.data ? '变更申请已提交，等待老板或超级管理员审批' : '编辑成功');
     } else {
       await createProduct(payload);
       ElMessage.success('已提交审批，老板或超级管理员通过后展示');

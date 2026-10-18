@@ -60,7 +60,7 @@ class MiniLeadServiceChannelVisibilityTest {
         clientProfileMapper = mock(ClientProfileMapper.class);
         personalProfileMapper = mock(PersonalProfileMapper.class);
         service = new MiniLeadService(leadService, leadMapper, extensionMapper,
-                clientProfileMapper, personalProfileMapper);
+                clientProfileMapper, personalProfileMapper, mock(com.loan.client.pool.ResourcePoolMapper.class));
         channel = new LoanUser();
         channel.setUserType(LoanUser.TYPE_CHANNEL);
         channel.setUserNo("channel-a");

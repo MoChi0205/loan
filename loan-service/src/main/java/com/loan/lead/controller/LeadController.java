@@ -30,6 +30,7 @@ import java.util.Map;
 public class LeadController {
 
     private final LeadService leadService;
+    private final com.loan.mini.service.MiniRoleGuard miniRoleGuard;
 
     /**
      * 新增线索。
@@ -72,6 +73,8 @@ public class LeadController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String poolCode,
+            @RequestParam(required = false) String scope,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
             @CurrentUser LoanUser user) {
@@ -85,7 +88,15 @@ public class LeadController {
         String selfNo = pool ? null : (user == null ? null : user.getUserNo());
         String roleCode = user == null ? null : user.getRoleCode();
         String userNo = user == null ? null : user.getUserNo();
-        return Result.ok(leadService.page(selfNo, leadType, followStatus, keyword, page, size, roleCode, userNo, orderBy, orderDir));
+        String seaScope = null; String seaDeptCode = null;
+        if ("team_sea".equalsIgnoreCase(scope)) {
+            // 团队线索公海：仅部门经理可见本部门团队池。
+            miniRoleGuard.requireDeptManager(user);
+            seaScope = "TEAM";
+            seaDeptCode = user == null ? null : user.getDeptCode();
+        }
+        return Result.ok(leadService.page(selfNo, leadType, followStatus, keyword, page, size, roleCode, userNo,
+                poolCode, seaScope, seaDeptCode, orderBy, orderDir));
     }
 
     /**
@@ -142,6 +153,7 @@ public class LeadController {
     @PostMapping("/assign")
     @OpLog(bizType = "线索", action = "ASSIGN")
     public Result<String> assign(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
+        requireManagerOrAdmin(user);
         leadService.assign(body.get("leadNo"), body.get("toStaffCode"),
                 user == null ? "system" : user.getName());
         return Result.ok("ok");
@@ -174,6 +186,7 @@ public class LeadController {
     @PostMapping("/batch-assign")
     @OpLog(bizType = "线索", action = "BATCH_ASSIGN")
     public Result<Integer> batchAssign(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        requireManagerOrAdmin(user);
         @SuppressWarnings("unchecked")
         List<String> leadNos = (List<String>) body.get("leadNos");
         String toStaffCode = (String) body.get("toStaffCode");
@@ -191,6 +204,7 @@ public class LeadController {
     @PostMapping("/batch-delete")
     @OpLog(bizType = "线索", action = "BATCH_DELETE")
     public Result<Integer> batchDelete(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
+        requireManagerOrAdmin(user);
         @SuppressWarnings("unchecked")
         List<String> leadNos = (List<String>) body.get("leadNos");
         int count = leadService.batchDelete(leadNos, user == null ? "system" : user.getName());
@@ -215,5 +229,14 @@ public class LeadController {
     @PostMapping("/warn-recycle")
     public Result<Integer> warnRecycle() {
         return Result.ok(leadService.warnRecycle());
+    }
+    /** 指派/删除线索硬校验：仅部门经理、老板或超级管理员（对齐客户侧）。 */
+    private void requireManagerOrAdmin(LoanUser user) {
+        miniRoleGuard.requireStaff(user);
+        String role = user.getRoleCode() == null ? "" : String.valueOf(user.getRoleCode()).toUpperCase();
+        if (!java.util.Arrays.asList("DEPT_MANAGER", "BOSS", "SUPER_ADMIN", "SUPER").contains(role)) {
+            throw new com.loan.exception.BusinessException(
+                    com.loan.common.ResultCode.FORBIDDEN, "仅部门经理、老板或超级管理员可指派/删除线索");
+        }
     }
 }

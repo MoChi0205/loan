@@ -8,11 +8,26 @@ export function previewImport(type, file) {
   return request({ url: '/api/admin/import/preview', method: 'post', data: form });
 }
 
-export function executeImport(type, file) {
+export function executeImport(type, file, poolCode) {
   const form = new FormData();
   form.append('type', type);
+  if (poolCode) form.append('poolCode', poolCode);
   form.append('file', file);
   return request({ url: '/api/admin/import/execute', method: 'post', data: form });
+}
+
+/* ============ 资源池管理（创建/列表/启停） ============ */
+export function pageResourcePools(params) {
+  return request({ url: '/api/admin/resource-pool/page', method: 'get', params });
+}
+export function listResourcePools() {
+  return request({ url: '/api/admin/resource-pool/list', method: 'get' });
+}
+export function createResourcePool(data) {
+  return request({ url: '/api/admin/resource-pool', method: 'post', data });
+}
+export function toggleResourcePool(poolCode) {
+  return request({ url: `/api/admin/resource-pool/${poolCode}/toggle`, method: 'post' });
 }
 
 export function downloadImportTemplate(type) {
