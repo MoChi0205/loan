@@ -28,8 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@link #metaByDimension(String, String)} 附带样本量 / 数据来源等元信息。</li>
  * </ul>
  *
- * <p>缓存刷新：本轮仅 {@code @PostConstruct} 预热 + {@link #refresh()} 手动方法；
- * 定时刷新后续接入 XXL-Job（红线 #2 禁 {@code @Scheduled}）。
+ * <p>缓存刷新：{@code @PostConstruct} 预热 + {@link #refresh()} 手动方法；
+ * 定时刷新由 {@code report/job/IndustryBenchmarkRefreshJob}（XXL-Job）触发（红线 #2 禁 {@code @Scheduled}）。
  *
  * @author loan-platform
  */
@@ -49,6 +49,13 @@ public class IndustryBenchmarkService {
 
     /** 默认客群 */
     public static final String DEFAULT_GROUP = "ENTERPRISE";
+
+    /** 行业基准表查不到（含 DEFAULT 缺数据）时的兜底均值（零回归，集中定义避免散落魔法值）。 */
+    public static final int DEFAULT_TAX_AVG = 45;
+    public static final int DEFAULT_INVOICE_AVG = 50;
+    public static final int DEFAULT_OPERATE_YEARS_AVG = 55;
+    public static final int DEFAULT_FINANCIAL_HEALTH_AVG = 60;
+    public static final int DEFAULT_MATCH_AVG = 55;
 
     private final IndustryBenchmarkMapper mapper;
 

@@ -129,6 +129,17 @@ public class ClientController {
         return Result.ok(clientAllocationService.batchAssign(codes, target, user));
     }
 
+    /** 批量均衡分配：一批客户按轮转均分给多个目标顾问（工作量均衡）。 */
+    @PostMapping("/batch-assign-round-robin")
+    @OpLog(bizType = "客户归属", action = "BATCH_ROUND_ROBIN_ASSIGN")
+    public Result<Map<String, Object>> batchAssignRoundRobin(@RequestBody Map<String, Object> body,
+                                                              @CurrentUser LoanUser user) {
+        miniRoleGuard.requireApprover(user);
+        @SuppressWarnings("unchecked") List<String> codes = body == null ? null : (List<String>) body.get("clientCodes");
+        @SuppressWarnings("unchecked") List<String> staffCodes = body == null ? null : (List<String>) body.get("staffCodes");
+        return Result.ok(clientAllocationService.batchAssignRoundRobin(codes, staffCodes, user));
+    }
+
     @PostMapping("/batch-recycle")
     @OpLog(bizType = "客户归属", action = "BATCH_CLIENT_RECYCLE")
     public Result<Map<String, Object>> batchRecycle(@RequestBody Map<String, Object> body,

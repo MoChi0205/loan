@@ -16,6 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -119,7 +120,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
     private static final String[] MANAGER_APIS = {
             "org:staffPage", "org:departmentTree",
             "lead:assign", "lead:batchAssign", "lead:batchDelete",
-            "client:tagCounts", "client:claim", "client:batchClaim", "client:lookup", "client:assign", "client:recycle", "client:unassignedPage",
+            "client:tagCounts", "client:claim", "client:batchClaim", "client:lookup", "client:assign", "client:batchAssignRoundRobin", "client:recycle", "client:unassignedPage",
             "approval:downloadPage", "approval:downloadApply", "approval:downloadAudit",
             "approval:downloadVoid",
             "approval:allocationPending", "approval:allocationApprove", "approval:allocationReject",
@@ -160,6 +161,7 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             seedRoleApis();
             backfillRoleApis();
             apiPermissionService.refreshRules("system");
+            verifyApiCoverage();
             log.info("[ApiPerm] 接口清单同步完成，共 {} 个接口", n);
         } catch (Exception e) {
             log.error("[ApiPerm] 启动同步失败", e);
@@ -449,5 +451,47 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             }
         }
         return selected;
+    }
+
+    /**
+     * 校验接口授权覆盖（启动期，仅告警不阻断）。
+     *
+     * <p>解决「新增 mini 接口漏补员工矩阵授权 → 顾问/经理被网关拒绝」的隐性遗漏：
+     * <ol>
+     *   <li>悬空引用：ADVISER_APIS / MANAGER_APIS 里引用了已删除/改名的接口键；</li>
+     *   <li>未覆盖提示：登记的 {@code mini:*} 接口未纳入员工/经理矩阵，仅靠 CUSTOMER
+     *       前缀放行——客户专属接口属正常，但开发者需人工确认是否漏配员工授权。</li>
+     * </ol>
+     */
+    public void verifyApiCoverage() {
+        Set<String> registered = loadActiveApiKeys();
+        Set<String> adviser = new HashSet<>(Arrays.asList(ADVISER_APIS));
+        Set<String> manager = new HashSet<>(Arrays.asList(MANAGER_APIS));
+
+        // 1. 悬空引用：矩阵引用不存在的接口键（删接口未同步清理矩阵）
+        List<String> danglingAdviser = adviser.stream()
+                .filter(k -> !registered.contains(k)).sorted().collect(Collectors.toList());
+        List<String> danglingManager = manager.stream()
+                .filter(k -> !registered.contains(k)).sorted().collect(Collectors.toList());
+        if (!danglingAdviser.isEmpty()) {
+            log.warn("[ApiPerm] 顾问矩阵引用了不存在的接口键（删接口后未清理或键名漂移）：{}", danglingAdviser);
+        }
+        if (!danglingManager.isEmpty()) {
+            log.warn("[ApiPerm] 经理矩阵引用了不存在的接口键（删接口后未清理或键名漂移）：{}", danglingManager);
+        }
+
+        // 2. mini 接口未覆盖：提示开发者确认是否漏配员工授权
+        Set<String> miniAuthorized = new HashSet<>();
+        miniAuthorized.addAll(adviser);
+        miniAuthorized.addAll(manager);
+        List<String> uncoveredMini = registered.stream()
+                .filter(k -> k.startsWith("mini:"))
+                .filter(k -> !miniAuthorized.contains(k))
+                .sorted().collect(Collectors.toList());
+        if (!uncoveredMini.isEmpty()) {
+            log.warn("[ApiPerm] 以下 mini 接口未纳入员工/经理矩阵，仅靠 CUSTOMER 前缀放行"
+                            + "（客户专属属正常，若需员工访问请补 ADVISER_APIS/MANAGER_APIS）：{}",
+                    uncoveredMini);
+        }
     }
 }

@@ -1,6 +1,8 @@
 package com.loan.resourcepool.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.loan.client.entity.ClientRecycleConfig;
 import com.loan.client.mapper.ClientRecycleConfigMapper;
 import com.loan.resourcepool.entity.ResourcePoolConfig;
@@ -13,10 +15,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** 资源池规则读取：员工池优先，团队池次之，公司公共池兜底。 */
 @Service
@@ -27,7 +31,21 @@ public class ResourcePoolConfigService {
     private final StaffMapper staffMapper;
     private final DepartmentMapper departmentMapper;
 
+    /**
+     * resolve 结果本地缓存（不经常变更的配置数据，短 TTL 防穿透；写后 save 会失效全部）。
+     * value 用 Optional 包裹以兼容「查不到返回 null」。
+     */
+    private final Cache<String, Optional<ResourcePoolConfig>> resolveCache = Caffeine.newBuilder()
+            .maximumSize(10000)
+            .expireAfterWrite(Duration.ofMinutes(5))
+            .build();
+
     public ResourcePoolConfig resolve(String staffCode, String deptCode) {
+        String key = (staffCode == null ? "" : staffCode) + "|" + (deptCode == null ? "" : deptCode);
+        return resolveCache.get(key, k -> Optional.ofNullable(doResolve(staffCode, deptCode))).orElse(null);
+    }
+
+    private ResourcePoolConfig doResolve(String staffCode, String deptCode) {
         ResourcePoolConfig row = null;
         if (StringUtils.hasText(staffCode)) {
             row = mapper.selectOne(new LambdaQueryWrapper<ResourcePoolConfig>()
@@ -103,6 +121,8 @@ public class ResourcePoolConfigService {
         req.setUpdatedBy(operator);
         if (old == null) mapper.insert(req);
         else { req.setId(old.getId()); req.setCreatedAt(old.getCreatedAt()); mapper.updateById(req); }
+        // 写后失效本地缓存，避免旧配置继续生效
+        resolveCache.invalidateAll();
     }
 
     public Map<String, Integer> parseStatusDays(ResourcePoolConfig config) {

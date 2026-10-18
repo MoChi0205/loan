@@ -14,6 +14,7 @@ import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.client.mapper.ClientRecycleConfigMapper;
 import com.loan.client.mapper.ClientLifecycleEventMapper;
 import com.loan.common.ResultCode;
+import com.loan.common.constant.RoleCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.common.service.BusinessNameService;
 import com.loan.context.LoanUser;
@@ -25,6 +26,8 @@ import com.loan.lead.mapper.LeadAllocationRecordMapper;
 import com.loan.notification.dto.NotificationReq;
 import com.loan.notification.entity.Notification;
 import com.loan.notification.service.NotificationService;
+import com.loan.org.entity.Department;
+import com.loan.org.mapper.DepartmentMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import com.loan.utils.DesensitizeUtils;
@@ -80,11 +83,12 @@ public class ClientAllocationService {
      * 且目标不再局限于顾问，团队管理者本人也可作为客户归属人。</p>
      */
     private static final List<String> ASSIGNABLE_ROLES = Arrays.asList(
-            "ADVISER", "DEPT_MANAGER", "BOSS", "OPERATOR", "SUPER_ADMIN", "SUPER");
+            RoleCode.ADVISER, RoleCode.DEPT_MANAGER, RoleCode.BOSS, RoleCode.OPERATOR, RoleCode.SUPER_ADMIN, RoleCode.SUPER);
 
     private final ClientProfileMapper clientProfileMapper;
     private final ClientAllocationApprovalMapper approvalMapper;
     private final StaffMapper staffMapper;
+    private final DepartmentMapper departmentMapper;
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final ClientRecycleConfigMapper clientRecycleConfigMapper;
     private final ClientLifecycleEventMapper lifecycleEventMapper;
@@ -322,11 +326,56 @@ public class ClientAllocationService {
         return result;
     }
 
-    /** 批量回收：复用单条团队范围校验，任一失败整批回滚。 */
+    /**
+     * 批量均衡分配：把一批客户按轮转（round-robin）均分给多个目标顾问，保证工作量均衡。
+     *
+     * <p>参考 tse {@code CustomerAllocationBatchExecutor#batchAssignToMember}；复用
+     * {@link #directAssign} 的单条范围与并发校验，任一失败整批回滚。
+     *
+     * @param clientCodes 待分配客户编码（1~500）
+     * @param staffCodes  目标顾问工号（≥1，去重后轮转）
+     * @param operator    操作人
+     * @return { successCount, assignedTo }
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> batchAssignRoundRobin(List<String> clientCodes, List<String> staffCodes,
+                                                     LoanUser operator) {
+        List<String> codes = normalizeBatch(clientCodes);
+        if (staffCodes == null || staffCodes.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择目标顾问");
+        }
+        List<String> targets = staffCodes.stream().filter(StringUtils::hasText).map(String::trim)
+                .distinct().collect(Collectors.toList());
+        if (targets.isEmpty()) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请选择目标顾问");
+        }
+        // 轮转均衡：第 i 个客户分配给第 (i % targets.size()) 个顾问
+        int idx = 0;
+        for (String code : codes) {
+            directAssign(code, targets.get(idx % targets.size()), operator);
+            idx++;
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("successCount", codes.size());
+        result.put("assignedTo", targets.size());
+        return result;
+    }
+
+    /** 批量回收：复用单条团队范围校验，任一失败整批回滚；加执行锁防并发重复回收。 */
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> batchRecycle(List<String> clientCodes, LoanUser operator) {
         List<String> codes = normalizeBatch(clientCodes);
-        for (String code : codes) manualRecycle(code, operator);
+        String token = UUID.randomUUID().toString();
+        String key = "loan:client:recycle:batch:" + String.join(",", codes).hashCode();
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(key, token, Duration.ofSeconds(15));
+        if (!Boolean.TRUE.equals(locked)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "客户正在被其他人员回收，请稍后重试");
+        }
+        try {
+            for (String code : codes) manualRecycle(code, operator);
+        } finally {
+            if (token.equals(redisTemplate.opsForValue().get(key))) redisTemplate.delete(key);
+        }
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("successCount", codes.size());
         return result;
@@ -590,7 +639,7 @@ public class ClientAllocationService {
         Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
                 .eq(Staff::getStaffCode, staffCode).last("limit 1"));
         if (staff == null || !"ACTIVE".equalsIgnoreCase(staff.getStatus())
-                || !"ADVISER".equalsIgnoreCase(staff.getRoleCode())) {
+                || !RoleCode.ADVISER.equalsIgnoreCase(staff.getRoleCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "目标顾问不存在或不可用");
         }
         return staff;
@@ -623,18 +672,18 @@ public class ClientAllocationService {
     /** 当前用户是否为团队管理者（仅企业员工中的部门经理）。 */
     private boolean isDeptManager(LoanUser user) {
         return user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())
-                && "DEPT_MANAGER".equalsIgnoreCase(user.getRoleCode());
+                && RoleCode.DEPT_MANAGER.equalsIgnoreCase(user.getRoleCode());
     }
 
     private boolean isBoss(LoanUser user) {
         return user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())
-                && "BOSS".equalsIgnoreCase(user.getRoleCode());
+                && RoleCode.BOSS.equalsIgnoreCase(user.getRoleCode());
     }
 
     private boolean isCrossTeamApprover(LoanUser user) {
         if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType()) || user.getRoleCode() == null) return false;
         String role = user.getRoleCode().toUpperCase();
-        return "BOSS".equals(role) || "SUPER_ADMIN".equals(role) || "SUPER".equals(role);
+        return RoleCode.BOSS.equals(role) || RoleCode.SUPER_ADMIN.equals(role) || RoleCode.SUPER.equals(role);
     }
 
     private boolean isCrossTeamTransfer(ClientAllocationApproval approval) {
@@ -783,10 +832,16 @@ public class ClientAllocationService {
                     .gt(ClientProfile::getId, cursor)
                     .orderByAsc(ClientProfile::getId).last("LIMIT 500"));
             if (batch == null || batch.isEmpty()) break;
+            // 批量加载本批归属人，消除循环内逐条 selectOne 的 N+1
+            Set<String> ownerCodes = batch.stream().map(ClientProfile::getOwnerStaffCode)
+                    .filter(StringUtils::hasText).collect(Collectors.toSet());
+            Map<String, Staff> staffMap = ownerCodes.isEmpty() ? Collections.emptyMap()
+                    : staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                            .in(Staff::getStaffCode, ownerCodes)).stream()
+                            .collect(Collectors.toMap(Staff::getStaffCode, Function.identity(), (a, b) -> a));
             for (ClientProfile client : batch) {
                 if (client.getId() != null) cursor = client.getId();
-                Staff owner = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
-                        .eq(Staff::getStaffCode, client.getOwnerStaffCode()).last("LIMIT 1"));
+                Staff owner = staffMap.get(client.getOwnerStaffCode());
                 ResourcePoolConfig cfg = resourcePoolConfigService.resolve(client.getOwnerStaffCode(), owner == null ? null : owner.getDeptCode());
                 int days = recycleDays(cfg, client.getCustomerTag());
                 if (days <= 0 || !inactiveBefore(client, LocalDateTime.now().minusDays(days))) continue;
@@ -805,32 +860,63 @@ public class ClientAllocationService {
     @Transactional(rollbackFor = Exception.class)
     public int warnRecycle() {
         int sent = 0;
-        List<ClientProfile> warns = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
-                .isNotNull(ClientProfile::getOwnerStaffCode).orderByAsc(ClientProfile::getId).last("LIMIT 500"));
-        for (ClientProfile client : warns) {
-            String ownerNo = client.getOwnerStaffCode();
-            if (ownerNo == null) {
-                continue;
+        // 分块扫描：cursor 分页，避免一次性全量 selectList（与线索侧 warnRecycle 对齐）
+        long cursor = 0L;
+        while (true) {
+            List<ClientProfile> warns = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+                    .isNotNull(ClientProfile::getOwnerStaffCode)
+                    .gt(ClientProfile::getId, cursor)
+                    .orderByAsc(ClientProfile::getId).last("LIMIT 500"));
+            if (warns == null || warns.isEmpty()) break;
+            // 批量加载归属人 + 部门，消除循环内逐条 selectOne 的 N+1，供经理预警
+            Set<String> ownerCodes = warns.stream().map(ClientProfile::getOwnerStaffCode)
+                    .filter(StringUtils::hasText).collect(Collectors.toSet());
+            Map<String, Staff> staffMap = ownerCodes.isEmpty() ? Collections.emptyMap()
+                    : staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                            .in(Staff::getStaffCode, ownerCodes)).stream()
+                            .collect(Collectors.toMap(Staff::getStaffCode, Function.identity(), (a, b) -> a));
+            Set<String> deptCodes = staffMap.values().stream().map(Staff::getDeptCode)
+                    .filter(StringUtils::hasText).collect(Collectors.toSet());
+            Map<String, Department> deptMap = deptCodes.isEmpty() ? Collections.emptyMap()
+                    : departmentMapper.selectList(new LambdaQueryWrapper<Department>()
+                            .in(Department::getDeptCode, deptCodes)).stream()
+                            .collect(Collectors.toMap(Department::getDeptCode, d -> d, (a, b) -> a));
+            for (ClientProfile client : warns) {
+                if (client.getId() != null) cursor = client.getId();
+                String ownerNo = client.getOwnerStaffCode();
+                if (ownerNo == null) {
+                    continue;
+                }
+                Staff owner = staffMap.get(ownerNo);
+                ResourcePoolConfig cfg = resourcePoolConfigService.resolve(ownerNo, owner == null ? null : owner.getDeptCode());
+                int recycleDays = recycleDays(cfg, client.getCustomerTag());
+                int warnDays = cfg == null || cfg.getWarnDays() == null ? 3 : cfg.getWarnDays();
+                if (recycleDays <= 0 || warnDays <= 0) continue;
+                LocalDateTime threshold = LocalDateTime.now().minusDays(recycleDays);
+                LocalDateTime warnThreshold = LocalDateTime.now().minusDays(Math.max(0, recycleDays - warnDays));
+                LocalDateTime active = activeAt(client);
+                if (active != null && (active.isBefore(threshold) || active.isAfter(warnThreshold))) continue;
+                if (notificationService.existsByTypeAndRelatedId(
+                        Notification.TYPE_CLIENT_RECYCLE_WARN, client.getClientCode())) {
+                    continue;
+                }
+                String name = client.getEnterpriseName() != null ? client.getEnterpriseName() : client.getContactName();
+                notificationService.send(buildClientNotice(ownerNo, "客户即将回收预警",
+                        "客户【" + (name == null ? client.getClientCode() : name) + "】将在 " + warnDays
+                                + " 天内因超期未跟进被回收进公海，请及时跟进。",
+                        client.getClientCode()));
+                sent++;
+                // 经理预警：通知归属人部门负责人（团队维度，独立去重，幂等防重复）
+                Department dept = owner == null ? null : deptMap.get(owner.getDeptCode());
+                String managerNo = dept == null ? null : dept.getLeaderStaffCode();
+                if (StringUtils.hasText(managerNo) && !managerNo.equals(ownerNo)) {
+                    notificationService.sendOnce(buildClientNotice(managerNo, Notification.TYPE_CLIENT_RECYCLE_MANAGER_WARN,
+                            "团队客户即将回收预警",
+                            "您的团队客户【" + (name == null ? client.getClientCode() : name) + "】将在 " + warnDays
+                                    + " 天内因超期未跟进被回收进公海，请关注。",
+                            client.getClientCode()));
+                }
             }
-            Staff owner = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, ownerNo).last("LIMIT 1"));
-            ResourcePoolConfig cfg = resourcePoolConfigService.resolve(ownerNo, owner == null ? null : owner.getDeptCode());
-            int recycleDays = recycleDays(cfg, client.getCustomerTag());
-            int warnDays = cfg == null || cfg.getWarnDays() == null ? 3 : cfg.getWarnDays();
-            if (recycleDays <= 0 || warnDays <= 0) continue;
-            LocalDateTime threshold = LocalDateTime.now().minusDays(recycleDays);
-            LocalDateTime warnThreshold = LocalDateTime.now().minusDays(Math.max(0, recycleDays - warnDays));
-            LocalDateTime active = activeAt(client);
-            if (active != null && (active.isBefore(threshold) || active.isAfter(warnThreshold))) continue;
-            if (notificationService.existsByTypeAndRelatedId(
-                    Notification.TYPE_CLIENT_RECYCLE_WARN, client.getClientCode())) {
-                continue;
-            }
-            String name = client.getEnterpriseName() != null ? client.getEnterpriseName() : client.getContactName();
-            notificationService.send(buildClientNotice(ownerNo, "客户即将回收预警",
-                    "客户【" + (name == null ? client.getClientCode() : name) + "】将在 " + warnDays
-                            + " 天内因超期未跟进被回收进公海，请及时跟进。",
-                    client.getClientCode()));
-            sent++;
         }
         return sent;
     }
@@ -1043,9 +1129,13 @@ public class ClientAllocationService {
 
     /** 构建客户回收类站内通知请求。 */
     private NotificationReq buildClientNotice(String userNo, String title, String content, String relatedId) {
+        return buildClientNotice(userNo, Notification.TYPE_CLIENT_RECYCLE_WARN, title, content, relatedId);
+    }
+
+    private NotificationReq buildClientNotice(String userNo, String type, String title, String content, String relatedId) {
         NotificationReq req = new NotificationReq();
         req.setUserNo(userNo);
-        req.setType(Notification.TYPE_CLIENT_RECYCLE_WARN);
+        req.setType(type);
         req.setTitle(title);
         req.setContent(content);
         req.setRelatedId(relatedId);

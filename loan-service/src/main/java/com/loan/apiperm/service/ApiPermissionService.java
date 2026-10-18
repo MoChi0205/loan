@@ -8,6 +8,7 @@ import com.loan.apiperm.entity.ApiPermission;
 import com.loan.apiperm.entity.RoleApi;
 import com.loan.apiperm.mapper.ApiPermissionMapper;
 import com.loan.apiperm.mapper.RoleApiMapper;
+import com.loan.common.constant.RoleCode;
 import com.loan.context.LoanUser;
 import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -64,7 +65,7 @@ public class ApiPermissionService {
      * 边界继续由 {@link #BOSS_DENIED_API_RULES} 优先收紧。</p>
      */
     private static final List<String> FULL_ACCESS_ROLES = Collections.unmodifiableList(
-            Arrays.asList(BOSS_ROLE, "OPERATOR", "SUPER_ADMIN", "SUPER"));
+            Arrays.asList(BOSS_ROLE, RoleCode.OPERATOR, RoleCode.SUPER_ADMIN, RoleCode.SUPER));
 
     /**
      * BOSS 禁止的系统配置接口键。

@@ -339,10 +339,10 @@ public class MiniClientService {
      */
     public PageResult<Map<String, Object>> seaClients(String keyword, String seaLevel, int page, int size,
                                                       LoanUser user) {
-        // 安全边界不能只依赖 Controller 或网关：渠道账号即使通过内部调用/错误路由
-        // 进入服务层，也绝不能读取公司或团队公海。
-        if (user == null || LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "渠道合作方无公海数据权限");
+        // 安全边界不能只依赖 Controller 或网关：公海是员工侧能力，客户/渠道账号即使通过
+        // 内部调用/错误路由进入服务层，也绝不能读取公司或团队公海（纵深防御）。
+        if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType())) {
+            throw new BusinessException(ResultCode.FORBIDDEN, "无公海数据权限");
         }
         String level = SEA_TEAM.equalsIgnoreCase(String.valueOf(seaLevel)) ? SEA_TEAM : SEA_ENTERPRISE;
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();

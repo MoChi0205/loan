@@ -6,6 +6,7 @@ import com.loan.api.dto.PageResult;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.common.ResultCode;
+import com.loan.common.constant.RoleCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.common.util.PageOrder;
 import com.loan.common.service.BusinessNameService;
@@ -149,7 +150,7 @@ public class OrderService {
         if (mineOnly || !isManager(roleCode)) {
             wrapper.eq(ServiceOrder::getOwnerStaffCode, userNo);
         }
-        if ("DEPT_MANAGER".equalsIgnoreCase(roleCode)) {
+        if (RoleCode.DEPT_MANAGER.equalsIgnoreCase(roleCode)) {
             Staff current = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, userNo));
             List<String> teamCodes = current == null ? java.util.Collections.emptyList()
                     : staffMapper.selectList(new LambdaQueryWrapper<Staff>().eq(Staff::getDeptCode, current.getDeptCode()))
@@ -157,7 +158,7 @@ public class OrderService {
             wrapper.in(ServiceOrder::getOwnerStaffCode, teamCodes.isEmpty() ? java.util.Collections.singletonList("__NO_TEAM__") : teamCodes);
         }
         if (StringUtils.hasText(ownerStaffCode) && isManager(roleCode)) {
-            if ("DEPT_MANAGER".equalsIgnoreCase(roleCode)) {
+            if (RoleCode.DEPT_MANAGER.equalsIgnoreCase(roleCode)) {
                 Staff current = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, userNo));
                 Staff selected = staffMapper.selectOne(new LambdaQueryWrapper<Staff>().eq(Staff::getStaffCode, ownerStaffCode));
                 if (current == null || selected == null || !StringUtils.hasText(current.getDeptCode())
@@ -288,11 +289,11 @@ public class OrderService {
      */
     private boolean isManager(String roleCode) {
         // 管理角色：老板 / 部门经理 / 运营 / 超管（阶段3 B4：补齐 OPERATOR/SUPER_ADMIN）
-        return "BOSS".equalsIgnoreCase(roleCode)
-                || "DEPT_MANAGER".equalsIgnoreCase(roleCode)
-                || "OPERATOR".equalsIgnoreCase(roleCode)
-                || "SUPER_ADMIN".equalsIgnoreCase(roleCode)
-                || "SUPER".equalsIgnoreCase(roleCode);
+        return RoleCode.BOSS.equalsIgnoreCase(roleCode)
+                || RoleCode.DEPT_MANAGER.equalsIgnoreCase(roleCode)
+                || RoleCode.OPERATOR.equalsIgnoreCase(roleCode)
+                || RoleCode.SUPER_ADMIN.equalsIgnoreCase(roleCode)
+                || RoleCode.SUPER.equalsIgnoreCase(roleCode);
     }
 
     /**

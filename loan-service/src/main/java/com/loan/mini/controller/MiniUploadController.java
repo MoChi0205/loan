@@ -1,5 +1,6 @@
 package com.loan.mini.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.attachment.entity.ServiceAttachment;
 import com.loan.attachment.mapper.ServiceAttachmentMapper;
 import com.loan.client.service.ClientAllocationService;
@@ -151,14 +152,37 @@ public class MiniUploadController {
     /**
      * 按 fileKey 回传已存文件（inline 预览）。
      *
-     * @param fileKey 文件标识（仅允许字母数字，防目录穿越）
+     * <p>安全：fileKey 仅允许字母数字（防目录穿越）；未登录拒绝；客户仅可下载
+     * 归属本人的材料，渠道不可下载（防 IDOR 越权读取任意附件）。
+     *
+     * @param fileKey  文件标识（仅允许字母数字）
+     * @param user     当前登录用户（可为空）
      * @param response HTTP 响应
      */
     @GetMapping("/upload/{fileKey}")
-    public void download(@PathVariable String fileKey, HttpServletResponse response) throws IOException {
+    public void download(@PathVariable String fileKey, @CurrentUser LoanUser user,
+                         HttpServletResponse response) throws IOException {
         if (!fileKey.matches("[a-zA-Z0-9]+")) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST);
             return;
+        }
+        // 鉴权兜底：附件属敏感经营材料，必须登录；渠道不可下载；客户仅限本人材料
+        if (user == null || !StringUtils.hasText(user.getUserNo())) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+        ServiceAttachment att = attachmentMapper.selectOne(new LambdaQueryWrapper<ServiceAttachment>()
+                .eq(ServiceAttachment::getFileKey, fileKey).last("LIMIT 1"));
+        if (att != null && StringUtils.hasText(att.getClientProfileCode())) {
+            if (LoanUser.TYPE_CHANNEL.equals(user.getUserType())) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
+            if (LoanUser.TYPE_CUSTOMER.equals(user.getUserType())
+                    && !att.getClientProfileCode().equals(user.getUserNo())) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
         }
         String objectKey = fileKey;
         // 业务 key 不含扩展名，兼容常见文件扩展名并避免目录穿越

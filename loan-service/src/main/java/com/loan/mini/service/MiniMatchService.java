@@ -670,11 +670,11 @@ public class MiniMatchService {
         // 查行业基准均值表；查不到（含 DEFAULT 缺数据）返回 null，逐维度落回硬编码常量
         Map<String, Integer> avgMap = industryBenchmarkService.avgByDimension(rawIndustry, customerGroup);
         boolean fromTable = avgMap != null;
-        Integer taxAvg = pick(avgMap, IndustryBenchmarkService.DIM_TAX_INTENSITY, 45);
-        Integer invoiceAvg = pick(avgMap, IndustryBenchmarkService.DIM_INVOICE_SCALE, 50);
-        Integer yearsAvg = pick(avgMap, IndustryBenchmarkService.DIM_OPERATE_YEARS, 55);
-        Integer healthAvg = pick(avgMap, IndustryBenchmarkService.DIM_FINANCIAL_HEALTH, 60);
-        Integer matchAvg = pick(avgMap, IndustryBenchmarkService.DIM_MATCH_OVERALL, 55);
+        Integer taxAvg = pick(avgMap, IndustryBenchmarkService.DIM_TAX_INTENSITY, IndustryBenchmarkService.DEFAULT_TAX_AVG);
+        Integer invoiceAvg = pick(avgMap, IndustryBenchmarkService.DIM_INVOICE_SCALE, IndustryBenchmarkService.DEFAULT_INVOICE_AVG);
+        Integer yearsAvg = pick(avgMap, IndustryBenchmarkService.DIM_OPERATE_YEARS, IndustryBenchmarkService.DEFAULT_OPERATE_YEARS_AVG);
+        Integer healthAvg = pick(avgMap, IndustryBenchmarkService.DIM_FINANCIAL_HEALTH, IndustryBenchmarkService.DEFAULT_FINANCIAL_HEALTH_AVG);
+        Integer matchAvg = pick(avgMap, IndustryBenchmarkService.DIM_MATCH_OVERALL, IndustryBenchmarkService.DEFAULT_MATCH_AVG);
         List<Map<String, Object>> list = new ArrayList<>();
         list.add(dimension("纳税强度", levelScore(tax), taxAvg, IndustryBenchmarkService.DIM_TAX_INTENSITY, fromTable));
         list.add(dimension("开票规模", levelScore(invoice), invoiceAvg, IndustryBenchmarkService.DIM_INVOICE_SCALE, fromTable));
@@ -696,12 +696,12 @@ public class MiniMatchService {
         Map<String, Integer> avgMap = industryBenchmarkService.avgByDimension(rawIndustry, customerGroup);
         boolean fromTable = avgMap != null;
         List<Map<String, Object>> list = new ArrayList<>();
-        list.add(dimension("纳税数据", levelScore(tax), pick(avgMap, IndustryBenchmarkService.DIM_TAX_INTENSITY, 45),
+        list.add(dimension("纳税数据", levelScore(tax), pick(avgMap, IndustryBenchmarkService.DIM_TAX_INTENSITY, IndustryBenchmarkService.DEFAULT_TAX_AVG),
                 IndustryBenchmarkService.DIM_TAX_INTENSITY, fromTable));
-        list.add(dimension("开票数据", levelScore(invoice), pick(avgMap, IndustryBenchmarkService.DIM_INVOICE_SCALE, 50),
+        list.add(dimension("开票数据", levelScore(invoice), pick(avgMap, IndustryBenchmarkService.DIM_INVOICE_SCALE, IndustryBenchmarkService.DEFAULT_INVOICE_AVG),
                 IndustryBenchmarkService.DIM_INVOICE_SCALE, fromTable));
         list.add(dimension("经营时长", years >= 5 ? 100 : years >= 3 ? 80 : years >= 1 ? 60 : years > 0 ? 40 : 20,
-                pick(avgMap, IndustryBenchmarkService.DIM_OPERATE_YEARS, 55),
+                pick(avgMap, IndustryBenchmarkService.DIM_OPERATE_YEARS, IndustryBenchmarkService.DEFAULT_OPERATE_YEARS_AVG),
                 IndustryBenchmarkService.DIM_OPERATE_YEARS, fromTable));
         list.add(dimension("资料完整度", factsComplete(facts) ? 90 : 45, 60,
                 "MATERIAL_COMPLETENESS", false));

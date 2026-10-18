@@ -21,6 +21,8 @@ import com.loan.lead.mapper.LeadRecycleConfigMapper;
 import com.loan.notification.dto.NotificationReq;
 import com.loan.notification.entity.Notification;
 import com.loan.notification.service.NotificationService;
+import com.loan.org.entity.Department;
+import com.loan.org.mapper.DepartmentMapper;
 import com.loan.sensitive.service.SensitiveViewService;
 import com.loan.utils.DesensitizeUtils;
 import lombok.RequiredArgsConstructor;
@@ -75,6 +77,7 @@ public class LeadService {
     private final ClaimQuotaService claimQuotaService;
     private final LeadRecycleConfigMapper leadRecycleConfigMapper;
     private final com.loan.staff.mapper.StaffMapper staffMapper;
+    private final DepartmentMapper departmentMapper;
 
     private static final List<String> FOLLOW_STATUSES = Arrays.asList(
             "NEW", "INTENTION", "POTENTIAL", "VISITED", "NO_ANSWER", "NO_NEED");
@@ -684,46 +687,55 @@ public class LeadService {
     }
 
     /**
-     * 回收过期线索进公海（供定时任务 @Scheduled 调用）。
+     * 回收过期线索进公海（供 XXL-Job 任务 leadRecycleJob 调用）。
      * 阶段一默认：NEW 状态 30 天未跟进即回收，回收后冷却 7 天。
      *
      * @return 回收数量
      */
     @Transactional(rollbackFor = Exception.class)
     public int recycleOverdue() {
-        LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
-        wrapper.isNotNull(Lead::getOwnerStaffCode);
-        List<Lead> overdue = leadMapper.selectList(wrapper);
         List<LeadAllocationRecord> records = new ArrayList<>();
+        // 循环外一次性加载回收配置到 Map（消除循环内逐条 selectOne 的 N+1；followStatus 唯一）
+        Map<String, LeadRecycleConfig> configMap = leadRecycleConfigMapper.selectList(null).stream()
+                .collect(Collectors.toMap(LeadRecycleConfig::getFollowStatus, c -> c, (a, b) -> a));
         int recycled = 0;
-        for (Lead lead : overdue) {
-            LeadRecycleConfig cfg = leadRecycleConfigMapper.selectOne(new LambdaQueryWrapper<LeadRecycleConfig>()
-                    .eq(LeadRecycleConfig::getFollowStatus, lead.getFollowStatus()).last("LIMIT 1"));
-            if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1
-                    || cfg.getRecycleDays() == null || cfg.getRecycleDays() <= 0
-                    || "NO_NEED".equalsIgnoreCase(lead.getFollowStatus())) continue;
-            LocalDateTime active = lead.getLastFollowedAt() != null ? lead.getLastFollowedAt() : lead.getCreatedAt();
-            if (active != null && active.isAfter(LocalDateTime.now().minusDays(cfg.getRecycleDays()))) continue;
-            String from = lead.getOwnerStaffCode();
-            String ownerNo = lead.getOwnerStaffCode();
-            // 回收后冷却 7 天、操作人 system（owner_staff_code 维持不变，与 updateById 原行为一致）
-            records.add(buildRecord(lead.getLeadNo(), "RECYCLE", from, null, "system", "超期未跟进回收进公海"));
-            leadMapper.update(null, new LambdaUpdateWrapper<Lead>()
-                    .eq(Lead::getLeadNo, lead.getLeadNo()).eq(Lead::getOwnerStaffCode, from)
-                    .set(Lead::getOwnerStaffCode, (String) null)
-                    .set(Lead::getSeaLevel, "COMPANY").set(Lead::getSeaDeptCode, null)
-                    .set(Lead::getAssignBlockedUntil, LocalDateTime.now().plusDays(cfg.getCooldownDays() == null ? 7 : cfg.getCooldownDays()))
-                    .set(Lead::getUpdatedBy, "system"));
-            recycled++;
-            // 站内通知：线索已回收进公海（非 DB 操作，保持逐条、顺序与位置不变）
-            if (ownerNo != null) {
-                notificationService.send(buildNotice(ownerNo, Notification.TYPE_LEAD_RECYCLE_WARN,
-                        "线索已回收进公海",
-                        "线索【" + lead.getLeadNo() + "】因超期未跟进已回收进公海，冷却期内不可认领。",
-                        lead.getLeadNo()));
+        // 分块回收：cursor 分页，避免一次性全量 selectList 造成大事务 / 长锁
+        long cursor = 0L;
+        while (true) {
+            List<Lead> overdue = leadMapper.selectList(new LambdaQueryWrapper<Lead>()
+                    .isNotNull(Lead::getOwnerStaffCode)
+                    .gt(Lead::getId, cursor)
+                    .orderByAsc(Lead::getId).last("LIMIT 500"));
+            if (overdue == null || overdue.isEmpty()) break;
+            for (Lead lead : overdue) {
+                if (lead.getId() != null) cursor = lead.getId();
+                LeadRecycleConfig cfg = configMap.get(lead.getFollowStatus());
+                if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1
+                        || cfg.getRecycleDays() == null || cfg.getRecycleDays() <= 0
+                        || "NO_NEED".equalsIgnoreCase(lead.getFollowStatus())) continue;
+                LocalDateTime active = lead.getLastFollowedAt() != null ? lead.getLastFollowedAt() : lead.getCreatedAt();
+                if (active != null && active.isAfter(LocalDateTime.now().minusDays(cfg.getRecycleDays()))) continue;
+                String from = lead.getOwnerStaffCode();
+                String ownerNo = lead.getOwnerStaffCode();
+                // 回收后冷却 7 天、操作人 system（owner_staff_code 维持不变，与 updateById 原行为一致）
+                records.add(buildRecord(lead.getLeadNo(), "RECYCLE", from, null, "system", "超期未跟进回收进公海"));
+                leadMapper.update(null, new LambdaUpdateWrapper<Lead>()
+                        .eq(Lead::getLeadNo, lead.getLeadNo()).eq(Lead::getOwnerStaffCode, from)
+                        .set(Lead::getOwnerStaffCode, (String) null)
+                        .set(Lead::getSeaLevel, "COMPANY").set(Lead::getSeaDeptCode, null)
+                        .set(Lead::getAssignBlockedUntil, LocalDateTime.now().plusDays(cfg.getCooldownDays() == null ? 7 : cfg.getCooldownDays()))
+                        .set(Lead::getUpdatedBy, "system"));
+                recycled++;
+                // 站内通知：线索已回收进公海（非 DB 操作，保持逐条、顺序与位置不变）
+                if (ownerNo != null) {
+                    notificationService.send(buildNotice(ownerNo, Notification.TYPE_LEAD_RECYCLE_WARN,
+                            "线索已回收进公海",
+                            "线索【" + lead.getLeadNo() + "】因超期未跟进已回收进公海，冷却期内不可认领。",
+                            lead.getLeadNo()));
+                }
             }
         }
-        // 批量写：一次 UPDATE 回收全部过期线索 + 一次多值 INSERT 落流转记录（消除循环 UPDATE-INSERT 的 N+1）
+        // 流转记录批量落库（一次多值 INSERT）
         if (!records.isEmpty()) {
             allocationRecordMapper.insertBatch(records);
         }
@@ -737,34 +749,68 @@ public class LeadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public int warnRecycle() {
-        LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
-        wrapper.isNotNull(Lead::getOwnerStaffCode);
-        List<Lead> warns = leadMapper.selectList(wrapper);
+        // 循环外一次性加载回收配置到 Map（消除循环内逐条 selectOne 的 N+1）
+        Map<String, LeadRecycleConfig> configMap = leadRecycleConfigMapper.selectList(null).stream()
+                .collect(Collectors.toMap(LeadRecycleConfig::getFollowStatus, c -> c, (a, b) -> a));
         int sent = 0;
-        for (Lead lead : warns) {
-            String ownerNo = lead.getOwnerStaffCode();
-            if (ownerNo == null) {
-                continue;
+        // 分块扫描：cursor 分页，避免一次性全量 selectList
+        long cursor = 0L;
+        while (true) {
+            List<Lead> warns = leadMapper.selectList(new LambdaQueryWrapper<Lead>()
+                    .isNotNull(Lead::getOwnerStaffCode)
+                    .gt(Lead::getId, cursor)
+                    .orderByAsc(Lead::getId).last("LIMIT 500"));
+            if (warns == null || warns.isEmpty()) break;
+            // 批量加载归属人 + 部门，消除循环内逐条 selectOne 的 N+1，供经理预警
+            java.util.Set<String> ownerCodes = warns.stream().map(Lead::getOwnerStaffCode)
+                    .filter(StringUtils::hasText).collect(Collectors.toSet());
+            Map<String, com.loan.staff.entity.Staff> staffMap = ownerCodes.isEmpty() ? Collections.emptyMap()
+                    : staffMapper.selectList(new LambdaQueryWrapper<com.loan.staff.entity.Staff>()
+                            .in(com.loan.staff.entity.Staff::getStaffCode, ownerCodes)).stream()
+                            .collect(Collectors.toMap(com.loan.staff.entity.Staff::getStaffCode, s -> s, (a, b) -> a));
+            java.util.Set<String> deptCodes = staffMap.values().stream()
+                    .map(com.loan.staff.entity.Staff::getDeptCode).filter(StringUtils::hasText)
+                    .collect(Collectors.toSet());
+            Map<String, Department> deptMap = deptCodes.isEmpty() ? Collections.emptyMap()
+                    : departmentMapper.selectList(new LambdaQueryWrapper<Department>()
+                            .in(Department::getDeptCode, deptCodes)).stream()
+                            .collect(Collectors.toMap(Department::getDeptCode, d -> d, (a, b) -> a));
+            for (Lead lead : warns) {
+                if (lead.getId() != null) cursor = lead.getId();
+                String ownerNo = lead.getOwnerStaffCode();
+                if (ownerNo == null) {
+                    continue;
+                }
+                LeadRecycleConfig cfg = configMap.get(lead.getFollowStatus());
+                if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1
+                        || cfg.getRecycleDays() == null || cfg.getRecycleDays() <= 0) continue;
+                int warnDays = cfg.getWarnDays() == null ? 3 : cfg.getWarnDays();
+                LocalDateTime active = lead.getLastFollowedAt() != null ? lead.getLastFollowedAt() : lead.getCreatedAt();
+                if (active != null) {
+                    LocalDateTime due = active.plusDays(cfg.getRecycleDays());
+                    if (due.isBefore(LocalDateTime.now()) || due.isAfter(LocalDateTime.now().plusDays(warnDays))) continue;
+                }
+                // 去重：同类型 + 同关联线索只发一次
+                if (notificationService.existsByTypeAndRelatedId(Notification.TYPE_LEAD_RECYCLE_WARN, lead.getLeadNo())) {
+                    continue;
+                }
+                notificationService.send(buildNotice(ownerNo, Notification.TYPE_LEAD_RECYCLE_WARN,
+                        "线索即将回收预警",
+                        "线索【" + lead.getLeadNo() + "】将在 " + warnDays + " 天内因超期未跟进被回收进公海，请及时跟进。",
+                        lead.getLeadNo()));
+                sent++;
+                // 经理预警：通知归属人部门负责人（团队维度，独立去重，幂等防重复）
+                com.loan.staff.entity.Staff ownerStaff = staffMap.get(ownerNo);
+                Department dept = ownerStaff == null ? null : deptMap.get(ownerStaff.getDeptCode());
+                String managerNo = dept == null ? null : dept.getLeaderStaffCode();
+                if (StringUtils.hasText(managerNo) && !managerNo.equals(ownerNo)) {
+                    notificationService.sendOnce(buildNotice(managerNo, Notification.TYPE_LEAD_RECYCLE_MANAGER_WARN,
+                            "团队线索即将回收预警",
+                            "您的团队线索【" + lead.getLeadNo() + "】将在 " + warnDays
+                                    + " 天内因超期未跟进被回收进公海，请关注。",
+                            lead.getLeadNo()));
+                }
             }
-            LeadRecycleConfig cfg = leadRecycleConfigMapper.selectOne(new LambdaQueryWrapper<LeadRecycleConfig>()
-                    .eq(LeadRecycleConfig::getFollowStatus, lead.getFollowStatus()).last("LIMIT 1"));
-            if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1
-                    || cfg.getRecycleDays() == null || cfg.getRecycleDays() <= 0) continue;
-            int warnDays = cfg.getWarnDays() == null ? 3 : cfg.getWarnDays();
-            LocalDateTime active = lead.getLastFollowedAt() != null ? lead.getLastFollowedAt() : lead.getCreatedAt();
-            if (active != null) {
-                LocalDateTime due = active.plusDays(cfg.getRecycleDays());
-                if (due.isBefore(LocalDateTime.now()) || due.isAfter(LocalDateTime.now().plusDays(warnDays))) continue;
-            }
-            // 去重：同类型 + 同关联线索只发一次
-            if (notificationService.existsByTypeAndRelatedId(Notification.TYPE_LEAD_RECYCLE_WARN, lead.getLeadNo())) {
-                continue;
-            }
-            notificationService.send(buildNotice(ownerNo, Notification.TYPE_LEAD_RECYCLE_WARN,
-                    "线索即将回收预警",
-                    "线索【" + lead.getLeadNo() + "】将在 " + warnDays + " 天内因超期未跟进被回收进公海，请及时跟进。",
-                    lead.getLeadNo()));
-            sent++;
         }
         return sent;
     }

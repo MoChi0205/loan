@@ -25,6 +25,10 @@ public class Notification implements Serializable {
     public static final String TYPE_LEAD_RECYCLE_WARN = "LEAD_RECYCLE_WARN";
     /** 通知类型：客户回收预警（超期未跟进回收进公海 / 即将回收） */
     public static final String TYPE_CLIENT_RECYCLE_WARN = "CLIENT_RECYCLE_WARN";
+    /** 通知类型：线索回收预警（发给部门经理的团队维度预警） */
+    public static final String TYPE_LEAD_RECYCLE_MANAGER_WARN = "LEAD_RECYCLE_MANAGER_WARN";
+    /** 通知类型：客户回收预警（发给部门经理的团队维度预警） */
+    public static final String TYPE_CLIENT_RECYCLE_MANAGER_WARN = "CLIENT_RECYCLE_MANAGER_WARN";
     /** 通知类型：产品审核结果 */
     public static final String TYPE_PRODUCT_APPROVAL = "PRODUCT_APPROVAL";
     /** 通知类型：服务工单 */
