@@ -14,7 +14,7 @@
 |---|---|---|
 | Web 登录 | `/api/auth` | 图片验证码、验证码登录、密码登录、找回密码、当前用户 |
 | 小程序登录 | `/api/mini/auth` | 微信登录、手机号一键登录、客户身份 |
-| 客户 | `/api/admin/client` | 列表、详情、历史、归属和跟进；对象级鉴权 |
+| 客户 | `/api/admin/client` | 列表、详情、历史、归属和跟进；对象级鉴权；批量分配 / 轮转均衡分配（`/batch-assign-round-robin`）/ 回收 / 认领 |
 | 服务运营 | `/api/admin/appointment`、`/api/admin/outing`、`/api/admin/workbench` | 预约、外出、每日名单、日期范围和未完成事项 |
 | 审批 | `/api/admin/approval` | 我的申请、待审批、分配、下载等统一审批 |
 | 手机号查看 | `/api/admin/lead/sensitive` | 解锁、额度、超限审批和留痕 |
