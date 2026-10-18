@@ -20,6 +20,9 @@
           <el-option label="小程序提交" value="MINI" />
           <el-option label="Web 录入" value="WEB" />
         </el-select>
+        <el-select v-if="isManagerRole" v-model="queryS.ownerStaffCode" placeholder="归属顾问" clearable filterable style="width: 140px" @change="searchS">
+          <el-option v-for="s in ownerOptions" :key="s.staffCode" :label="s.staffName" :value="s.staffCode" />
+        </el-select>
         <el-input v-model="queryS.keyword" placeholder="企业名称 / 客户姓名 / 手机号 / 生成日期" style="width: 360px" clearable @keyup.enter="searchS" />
       </AppSearchBar>
 
@@ -37,7 +40,8 @@
         <el-table-column label="联系方式" width="150">
           <template #default="{ row }">{{ desensitizePhone(row.contactPhoneMasked || row.phone || row.contactPhone) }}</template>
         </el-table-column>
-        <el-table-column v-if="isChannel" prop="ownerStaffName" label="归属顾问" width="130"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
+        <el-table-column prop="ownerStaffName" label="归属顾问" width="120" show-overflow-tooltip><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
+        <el-table-column prop="deptName" label="所属部门" width="130" show-overflow-tooltip><template #default="{ row }">{{ row.deptName || '—' }}</template></el-table-column>
         <el-table-column v-if="!isChannel" label="来源" width="110">
           <template #default="{ row }">
             <span class="loan-tag" :class="sourceTag(row.source)">{{ sourceText(row.source) }}</span>
@@ -153,6 +157,7 @@ import StaffAggregatedReport from '@/components/report/StaffAggregatedReport.vue
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { pageScreenings, screeningAggregate, screeningDetail } from '@/api/report';
+import { staffPage } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import { reportDisplayTitle } from '@/utils/display';
 
@@ -190,7 +195,19 @@ const detailStarLabel = computed(() => {
 });
 
 const { loading: loadingS, data: dataS, total: totalS, query: queryS, load: loadS, onSearch: searchS, onReset: resetS, handleSortChange } =
-  useTable(pageScreenings, { grade: '', status: '', source: '', keyword: '' });
+  useTable(pageScreenings, { grade: '', status: '', source: '', keyword: '', ownerStaffCode: '' });
+
+/** 管理角色才提供「归属顾问」筛选（org:staffPage 仅经理及以上授权，顾问请求会 403） */
+const isManagerRole = ['BOSS', 'DEPT_MANAGER', 'OPERATOR', 'SUPER_ADMIN', 'SUPER']
+  .includes(String(userStore.roleCode || '').toUpperCase());
+const ownerOptions = ref([]);
+async function searchOwnerOptions() {
+  try {
+    const res = await staffPage({ page: 1, size: 200, status: 'ACTIVE' });
+    ownerOptions.value = res.data?.records || [];
+  } catch { ownerOptions.value = []; }
+}
+if (isManagerRole) searchOwnerOptions('');
 
 const detailVisible = ref(false);
 const detail = ref(null);

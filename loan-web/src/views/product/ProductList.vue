@@ -3,8 +3,8 @@
   <div v-else class="product-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">{{ activeTab === 'cooperate' ? '合作产品库' : '全量产品库' }}</h2>
-        <p class="loan-page-subtitle">全量库（公司产品）<template v-if="canManageProduct"> / 合作库（渠道展示）</template></p>
+        <h2 class="loan-page-title">{{ activeTab === 'cooperate' ? '合作产品库' : (canSeeAllProducts ? '全量产品库' : '我的产品') }}</h2>
+        <p class="loan-page-subtitle">{{ canSeeAllProducts ? '全量库（公司产品）' : '仅展示本人录入的产品；所有人可录入，老板与超级管理员可见全量' }}<template v-if="canManageProduct"> / 合作库（渠道展示）</template></p>
       </div>
       <el-button type="primary" @click="onHeaderAction">
         <AppIcon name="add" :size="14" />
@@ -299,6 +299,8 @@ import ChannelProductWorkspace from './ChannelProductWorkspace.vue';
 const userStore = useUserStore();
 const isChannel = computed(() => userStore.roleCode === 'CHANNEL');
 const canManageProduct = computed(() => ['BOSS', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
+/** 全量库可见角色（与后端 isProductManager/isOperator 对齐）：老板/超管/运营看全量，其余仅本人录入 */
+const canSeeAllProducts = computed(() => [...['BOSS', 'SUPER_ADMIN', 'SUPER'], 'OPERATOR'].includes(userStore.roleCode));
 
 const route = useRoute();
 const activeTab = ref(String(route.meta.productView || 'all'));
@@ -668,7 +670,10 @@ async function onSave() {
   saving.value = true;
   try {
     const payload = { ...dialogForm };
-    if (!editing.value) delete payload.status;
+    if (!editing.value) {
+      delete payload.status;
+      delete payload.id; // 新增不携带表格行残留的 id，避免后端未知字段解析失败
+    }
     if (editing.value) {
       const res = await updateProduct(payload);
       ElMessage.success(res.data ? '变更申请已提交，等待老板或超级管理员审批' : '编辑成功');

@@ -17,11 +17,11 @@
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
         <el-input v-model="query.keyword" placeholder="客户姓名 / 手机号 / 企业名" style="width: 240px" clearable @keyup.enter="onSearch" />
-        <el-select v-model="query.ownerStaffCode" placeholder="归属顾问" clearable filterable style="width: 150px">
+        <el-select v-if="isManagerRole" v-model="query.ownerStaffCode" placeholder="归属顾问" clearable filterable style="width: 150px">
           <el-option v-for="s in staffOptions" :key="s.staffCode" :label="s.staffName" :value="s.staffCode" />
         </el-select>
         <AppDateTime v-model="query.createdAtRange" type="daterange" style="width: 250px" @update:model-value="syncDateRange" />
-        <el-checkbox v-model="query.mineOnly" style="margin-right: 8px">仅我的工单</el-checkbox>
+        <el-checkbox v-if="isManagerRole" v-model="query.mineOnly" style="margin-right: 8px">仅我的工单</el-checkbox>
       </AppSearchBar>
 
       <AppTableState :error="error" @retry="load">
@@ -202,7 +202,11 @@ const statusText = {
 const userStore = useUserStore();
 const router = useRouter();
 const staffOptions = ref([]);
+/** 管理角色才请求员工下拉（org:staffPage 仅经理及以上授权，顾问请求会 403）；顾问后端本就强制仅本人数据。 */
+const isManagerRole = ['BOSS', 'DEPT_MANAGER', 'OPERATOR', 'SUPER_ADMIN', 'SUPER']
+  .includes(String(userStore.roleCode || '').toUpperCase());
 async function loadStaffOptions() {
+  if (!isManagerRole) return;
   try { staffOptions.value = (await staffPage({ page: 1, size: 200, status: 'ACTIVE' })).data?.records || []; } catch { staffOptions.value = []; }
 }
 const statusTag = (s) => ({

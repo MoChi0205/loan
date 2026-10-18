@@ -75,6 +75,7 @@
 
         <div v-else-if="activeTab === 'appointments'">
           <div class="filter-row">
+            <el-input v-model="appointmentQuery.clientKeyword" clearable placeholder="客户姓名 / 企业名 / 手机号" style="width: 220px" @keyup.enter="loadAppointments(); appointmentQuery.page = 1" @clear="loadAppointments" />
             <el-select v-model="appointmentQuery.serviceMethod" clearable placeholder="全部服务方式" @change="loadAppointments">
               <el-option v-for="(label, code) in methodText" :key="code" :label="label" :value="code" />
             </el-select>
@@ -113,6 +114,7 @@
 
         <div v-else-if="activeTab === 'outings'">
           <div class="filter-row">
+            <el-input v-model="outingQuery.clientKeyword" clearable placeholder="客户姓名 / 企业名 / 手机号" style="width: 220px" @keyup.enter="loadOutings(); outingQuery.page = 1" @clear="loadOutings" />
             <el-select v-model="outingQuery.status" clearable placeholder="全部状态" @change="loadOutings">
               <el-option v-for="(label, code) in outingStatusText" :key="code" :label="label" :value="code" />
             </el-select>
@@ -133,7 +135,7 @@
         <div v-else>
           <div class="replay-layout">
             <aside class="client-picker">
-              <el-input v-model="clientKeyword" clearable placeholder="姓名、企业名或手机号" @keyup.enter="searchClients"><template #append><el-button :loading="clientLoading" @click="searchClients">查询</el-button></template></el-input>
+              <el-input v-model="clientKeyword" clearable placeholder="姓名、企业名、手机号、身份证号或信用代码" @keyup.enter="searchClients"><template #append><el-button :loading="clientLoading" @click="searchClients">查询</el-button></template></el-input>
               <div class="client-results">
                 <button v-for="row in clientOptions" :key="row.clientCode" type="button" class="client-option" :class="{ active: selectedClient?.clientCode === row.clientCode }" @click="selectClient(row)">
                   <strong>{{ row.enterpriseName || row.contactName || row.name || '未命名客户' }}</strong><span>{{ row.contactName || row.name || '—' }} · {{ row.phone || '未绑定手机号' }}</span><small>{{ row.ownerStaffName || '暂未分配顾问' }}</small>
@@ -447,7 +449,7 @@ function goMetric(item) {
 const appointments = ref([]);
 const appointmentTotal = ref(0);
 const appointmentLoading = ref(false);
-const appointmentQuery = reactive({ page: 1, size: 20, serviceMethod: '', status: '' });
+const appointmentQuery = reactive({ page: 1, size: 20, serviceMethod: '', status: '', clientKeyword: '' });
 async function loadAppointments() {
   appointmentLoading.value = true;
   try { const page = (await pageAppointments({ ...appointmentQuery, date: selectedDate.value, dateFrom: dateFrom.value, dateTo: dateTo.value, includeUnfinished: includeUnfinished.value, scope: selectedScope.value, ...staffFilterParams.value })).data || {}; appointments.value = recordsOf(page); appointmentTotal.value = totalOf(page); }
@@ -474,7 +476,7 @@ async function runAppointmentAction(action, row) {
 const outings = ref([]);
 const outingTotal = ref(0);
 const outingLoading = ref(false);
-const outingQuery = reactive({ page: 1, size: 20, status: '' });
+const outingQuery = reactive({ page: 1, size: 20, status: '', clientKeyword: '' });
 async function loadOutings() {
   outingLoading.value = true;
   try { const page = (await pageOutings({ ...outingQuery, date: selectedDate.value, dateFrom: dateFrom.value, dateTo: dateTo.value, includeUnfinished: includeUnfinished.value, scope: selectedScope.value, ...staffFilterParams.value })).data || {}; outings.value = recordsOf(page); outingTotal.value = totalOf(page); }

@@ -145,7 +145,7 @@
           </el-tab-pane>
           <el-tab-pane label="个人档案" name="personal">
             <el-descriptions :column="3" border>
-              <el-descriptions-item label="姓名">{{ desensitizeName(detail.realName) }}</el-descriptions-item>
+              <el-descriptions-item label="姓名">{{ detail.realName || '-' }}</el-descriptions-item>
               <el-descriptions-item label="身份证号">{{ desensitizeIdCard(detail.idCardNo) }}</el-descriptions-item>
               <el-descriptions-item label="城市">{{ detail.city || '—' }}</el-descriptions-item>
               <el-descriptions-item label="年龄">{{ detail.age ?? '—' }}</el-descriptions-item>
@@ -759,15 +759,7 @@ function desensitizeIdCard(v) {
   if (/^\d{15}(\d{2}[\dXx])?$/.test(s)) return `${s.slice(0, 3)}********${s.slice(-4)}`;
   return s;
 }
-/** 姓名脱敏：2 字「*名」，3 字「*名」，其余首尾保留 */
-function desensitizeName(v) {
-  if (!v) return '-';
-  if (/[*＊]/.test(v)) return v;
-  const s = String(v).trim();
-  if (s.length <= 1) return s;
-  if (s.length === 2) return `*${s.slice(-1)}`;
-  return `${s[0]}${'*'.repeat(s.length - 2)}${s.slice(-1)}`;
-}
+/** 姓名 2026-10-18 起明文展示（用户确认）；身份证号保留脱敏 */
 /** 统一社会信用代码脱敏：18 位 前3后4 */
 function desensitizeCreditCode(v) {
   if (!v) return '-';
@@ -961,7 +953,7 @@ watch(
 .customer-segment { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border:1px solid var(--loan-border); border-radius:999px; background:var(--loan-surface); color:var(--loan-text-secondary); cursor:pointer; transition:all .18s ease; }
 .customer-segment:hover, .customer-segment.active { border-color:var(--loan-primary); background:var(--loan-primary-soft); color:var(--loan-primary); }
 .segment-dot { width:7px; height:7px; border-radius:50%; background:var(--loan-text-muted); }
-.segment-dot--info { background:#4f7cff; }.segment-dot--visit { background:#7c5cff; }.segment-dot--intent { background:#e6a23c; }.segment-dot--deal { background:#21a366; }.segment-dot--muted { background:#9aa4b2; }.segment-dot--all { background:var(--loan-primary); }
+.segment-dot--info { background:var(--chart-blue); }.segment-dot--visit { background:var(--chart-violet); }.segment-dot--intent { background:var(--chart-orange); }.segment-dot--deal { background:var(--chart-green); }.segment-dot--muted { background:var(--chart-silver); }.segment-dot--all { background:var(--loan-primary); }
 .segment-hint { margin-left:auto; color:var(--loan-text-muted); font-size:12px; }
 .customer-row-tag { margin:2px 4px 2px 0; display:inline-block; }
 .profile-body {
