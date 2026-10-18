@@ -243,6 +243,7 @@ import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { reportDisplayTitle } from '@/utils/display';
 import { reportOverview, reportOperations, pageScreenings, screeningAggregate } from '@/api/report';
+import { getChartTokens } from '@/theme';
 import { useUserStore } from '@/store/user';
 import { departmentTree, staffPage } from '@/api/org';
 
@@ -436,7 +437,7 @@ const flowChartOption = computed(() => {
     xAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', opacity: 0.22 } } },
     yAxis: { type: 'category', data: ['完成分配', '公海认领', '回收公海', '主动释放'], axisTick: { show: false } },
     series: [{ type: 'bar', barWidth: 18, data: [d.assigned || 0, d.claimed || 0, d.recycled || 0, d.selfReleased || 0],
-      itemStyle: { borderRadius: [0, 8, 8, 0], color: '#4f7cff' }, label: { show: true, position: 'right', fontWeight: 700 } }],
+      itemStyle: { borderRadius: [0, 8, 8, 0], color: getChartTokens().blue }, label: { show: true, position: 'right', fontWeight: 700 } }],
   };
 });
 
@@ -509,13 +510,13 @@ onMounted(async () => {
   transition: transform .2s ease, box-shadow .2s ease;
 }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); }
-.stat-card-icon { display:grid; place-items:center; flex:0 0 42px; height:42px; border-radius:12px; color:#fff; }
-.stat-card-icon.blue { background:linear-gradient(135deg,#4f7cff,#6aa5ff); }
-.stat-card-icon.cyan { background:linear-gradient(135deg,#06b6d4,#22d3ee); }
-.stat-card-icon.violet { background:linear-gradient(135deg,#7c3aed,#a78bfa); }
-.stat-card-icon.green { background:linear-gradient(135deg,#10b981,#34d399); }
-.stat-card-icon.orange { background:linear-gradient(135deg,#f59e0b,#fb923c); }
-.stat-card-icon.red { background:linear-gradient(135deg,#ef4444,#fb7185); }
+.stat-card-icon { display:grid; place-items:center; flex:0 0 42px; height:42px; border-radius:12px; color:white; }
+.stat-card-icon.blue { background:linear-gradient(135deg,var(--chart-blue),color-mix(in srgb,var(--chart-blue) 55%,white)); }
+.stat-card-icon.cyan { background:linear-gradient(135deg,var(--chart-cyan),color-mix(in srgb,var(--chart-cyan) 55%,white)); }
+.stat-card-icon.violet { background:linear-gradient(135deg,var(--chart-violet),color-mix(in srgb,var(--chart-violet) 55%,white)); }
+.stat-card-icon.green { background:linear-gradient(135deg,var(--chart-green),color-mix(in srgb,var(--chart-green) 55%,white)); }
+.stat-card-icon.orange { background:linear-gradient(135deg,var(--chart-orange),color-mix(in srgb,var(--chart-orange) 55%,white)); }
+.stat-card-icon.red { background:linear-gradient(135deg,var(--chart-red),color-mix(in srgb,var(--chart-red) 55%,white)); }
 .stat-label {
   font-size: 12px;
   color: var(--loan-text-secondary, var(--loan-text-muted));
@@ -564,14 +565,14 @@ onMounted(async () => {
 .podium-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
 .podium-card { position:relative; display:grid; grid-template-columns:38px minmax(0,1fr) auto; align-items:center; gap:10px; min-width:0; padding:13px 14px; border:1px solid var(--loan-border); border-radius:12px; background:var(--loan-surface); }
 .podium-card.rank-1 { border-color:color-mix(in srgb,var(--loan-warning) 55%,var(--loan-border)); background:color-mix(in srgb,var(--loan-warning) 8%,var(--loan-surface)); }
-.podium-card.rank-2 { border-color:color-mix(in srgb,#94a3b8 55%,var(--loan-border)); }
-.podium-card.rank-3 { border-color:color-mix(in srgb,#b7791f 45%,var(--loan-border)); }
-.rank-medal { position:absolute; left:7px; top:5px; z-index:1; display:grid; place-items:center; width:19px; height:19px; border-radius:50%; color:#fff; background:#64748b; font-size:10px; font-weight:800; }
-.rank-1 .rank-medal { background:#d99a16; }.rank-2 .rank-medal { background:#7b8799; }.rank-3 .rank-medal { background:#a96b2c; }
+.podium-card.rank-2 { border-color:color-mix(in srgb,var(--chart-silver) 55%,var(--loan-border)); }
+.podium-card.rank-3 { border-color:color-mix(in srgb,var(--chart-bronze) 45%,var(--loan-border)); }
+.rank-medal { position:absolute; left:7px; top:5px; z-index:1; display:grid; place-items:center; width:19px; height:19px; border-radius:50%; color:white; background:var(--chart-silver); font-size:10px; font-weight:800; }
+.rank-1 .rank-medal { background:var(--chart-gold); }.rank-2 .rank-medal { background:var(--chart-silver); }.rank-3 .rank-medal { background:var(--chart-bronze); }
 .rank-avatar { display:grid; place-items:center; width:38px; height:38px; border-radius:11px; color:var(--loan-primary); background:color-mix(in srgb,var(--loan-primary) 11%,transparent); font-weight:750; }
 .rank-person { min-width:0; }.rank-person strong,.rank-person span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.rank-person span { margin-top:3px; color:var(--loan-text-secondary,var(--loan-text-muted)); font-size:11px; }
 .rank-result { text-align:right; }.rank-result strong { display:block; color:var(--loan-text); font-size:22px; line-height:1; }.rank-result span { display:block; margin-top:5px; color:var(--loan-text-secondary,var(--loan-text-muted)); font-size:10px; white-space:nowrap; }
-.table-rank { display:inline-grid; place-items:center; width:24px; height:24px; border-radius:50%; color:var(--loan-text-secondary); background:var(--loan-surface); font-weight:700; }.table-rank.rank-1 { color:#fff; background:#d99a16; }.table-rank.rank-2 { color:#fff; background:#7b8799; }.table-rank.rank-3 { color:#fff; background:#a96b2c; }
+.table-rank { display:inline-grid; place-items:center; width:24px; height:24px; border-radius:50%; color:var(--loan-text-secondary); background:var(--loan-surface); font-weight:700; }.table-rank.rank-1 { color:white; background:var(--chart-gold); }.table-rank.rank-2 { color:white; background:var(--chart-silver); }.table-rank.rank-3 { color:white; background:var(--chart-bronze); }
 .rank-detail { color:var(--loan-text-secondary,var(--loan-text-muted)); font-size:12px; white-space:nowrap; }
 .conversion-head { align-items: center; }
 .deal-total { color: var(--loan-text-secondary, var(--loan-text-muted)); font-size: 12px; white-space: nowrap; }

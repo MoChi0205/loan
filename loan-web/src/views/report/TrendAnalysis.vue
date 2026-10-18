@@ -45,6 +45,7 @@ defineOptions({ name: '_report_trend' });
 import { ref, computed, onMounted } from 'vue';
 import AppEChart from '@/components/AppEChart.vue';
 import { orderTrend, rewardTrend } from '@/api/report';
+import { getChartTokens, hexAlpha } from '@/theme';
 
 function fmtAmount(v) {
   return Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -54,15 +55,15 @@ const loadingT = ref(false);
 const orderTrendData = ref([]);
 const rewardTrendData = ref([]);
 
-/** 跟随当前 data-theme 的图表文字/轴线色 */
-const isDarkTheme = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark';
-const C_TEXT = isDarkTheme ? '#f3f4f6' : '#111827';
-const C_TEXT_SUB = isDarkTheme ? '#9ca3af' : '#6b7280';
-const C_BORDER = isDarkTheme ? 'rgba(255,255,255,0.12)' : '#e5e7eb';
-const C_TOOLTIP_BG = isDarkTheme ? 'rgba(17,24,39,0.92)' : 'rgba(255,255,255,0.96)';
+/** 跟随当前 data-theme 的图表文字/轴线色（每次构建 option 实时取值，主题切换后随数据刷新跟随） */
 
 /** 统一构造双 Y 轴趋势图 option（折线 + 面积，图例顶置防重叠） */
 function buildTrendOption({ months, countData, amountData, countName, amountName, countColor, amountColor, areaColor }) {
+  const chart = getChartTokens();
+  const C_TEXT = chart.text;
+  const C_TEXT_SUB = chart.textSub;
+  const C_BORDER = chart.border;
+  const C_TOOLTIP_BG = chart.tooltipBg;
   return {
     tooltip: {
       trigger: 'axis',
@@ -158,9 +159,9 @@ const orderEChartOption = computed(() => {
     amountData: amounts,
     countName: '成交单数',
     amountName: '成交金额',
-    countColor: '#3b82f6',
-    amountColor: '#f59e0b',
-    areaColor: 'rgba(59, 130, 246, 0.25)',
+    countColor: getChartTokens().blue,
+    amountColor: getChartTokens().orange,
+    areaColor: hexAlpha(getChartTokens().blue, 0.25),
   });
 });
 
@@ -175,9 +176,9 @@ const rewardEChartOption = computed(() => {
     amountData: amounts,
     countName: '奖励单数',
     amountName: '奖励金额',
-    countColor: '#10b981',
-    amountColor: '#f97316',
-    areaColor: 'rgba(16, 185, 129, 0.25)',
+    countColor: getChartTokens().green,
+    amountColor: getChartTokens().orange,
+    areaColor: hexAlpha(getChartTokens().green, 0.25),
   });
 });
 

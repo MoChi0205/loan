@@ -159,7 +159,7 @@
         <el-input v-model="queryR.keyword" placeholder="企业/客户姓名 / 日期" clearable style="width: 300px" @keyup.enter="searchR" />
       </AppSearchBar>
 
-      <el-table :data="dataR" v-loading="loadingR" stripe row-key="reportNo" style="height: calc(100vh - 320px); min-height: 360px">
+      <el-table :data="dataR" v-loading="loadingR" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
           <AppEmpty title="暂无初筛记录" desc="执行初筛或小程序客户提交后展示于此" />
         </template>
@@ -186,7 +186,7 @@
         <el-table-column label="命中产品" width="90">
           <template #default="{ row }">{{ row.productCount }}</template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="提交时间" width="160">
+        <el-table-column prop="createdAt" label="提交时间" width="160" sortable>
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right">
@@ -310,7 +310,7 @@ function goMaterial() {
 // ============================================================
 // 最近初筛记录（P0-4：小程序提交 / Web 录入统一可见）
 // ============================================================
-const { loading: loadingR, data: dataR, total: totalR, query: queryR, load: loadR, onSearch: searchR, onReset: resetR } =
+const { loading: loadingR, data: dataR, total: totalR, query: queryR, load: loadR, onSearch: searchR, onReset: resetR, handleSortChange } =
   useTable(pageScreenings, { source: '', keyword: '' });
 
 const screeningSourceMap = { MINI: '小程序提交', WEB: 'Web 录入', INVITE: '邀请提交' };
@@ -388,7 +388,7 @@ onMounted(() => {
   margin-top: 4px;
 }
 .material-guide { display:flex; align-items:center; gap:12px; margin:-4px 0 18px; padding:12px 14px; border:1px solid color-mix(in srgb,var(--loan-primary) 20%,var(--loan-border)); border-radius:10px; background:color-mix(in srgb,var(--loan-primary) 5%,var(--loan-card-bg)); }
-.guide-index { display:grid; place-items:center; flex:0 0 28px; height:28px; border-radius:50%; color:#fff; background:var(--loan-primary); font-weight:700; }
+.guide-index { display:grid; place-items:center; flex:0 0 28px; height:28px; border-radius:50%; color:white; background:var(--loan-primary); font-weight:700; }
 .guide-copy { flex:1; min-width:0; }
 .guide-copy strong,.guide-copy span { display:block; }
 .guide-copy strong { font-size:13px; color:var(--loan-text); }

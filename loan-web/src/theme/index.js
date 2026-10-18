@@ -22,6 +22,28 @@ function rgba(rgb, alpha) {
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
 }
 
+/**
+ * 数据可视化色板（固定值，不随明暗变化）。
+ * 收口 Tailwind 默认色为唯一真源：图表系列色 / 排名金银铜 / 指标卡语义色统一走这一组。
+ * CSS 侧映射为 --chart-* 变量；JS（ECharts 配置）侧通过 getChartTokens() 读取。
+ */
+const CHART_COLORS = {
+  blue: '#4f7cff',
+  green: '#10b981',
+  orange: '#f59e0b',
+  red: '#ef4444',
+  cyan: '#06b6d4',
+  violet: '#7c3aed',
+  gold: '#d99a16',
+  silver: '#7b8799',
+  bronze: '#a96b2c',
+};
+
+/** 十六进制色 → rgba(透明度) 字符串（供图表面积 / 渐变等半透明场景） */
+export function hexAlpha(hex, alpha) {
+  return rgba(hexToRgb(hex), alpha);
+}
+
 /** 生成主色到强调色的渐变 */
 function gradient(primaryRgb, accentRgb, angle = '135deg') {
   return `linear-gradient(${angle}, rgb(${primaryRgb.join(',')}), rgb(${accentRgb.join(',')}))`;
@@ -136,6 +158,17 @@ function applyVars(mode, primary, accent) {
     '--loan-cat-orange': isDark ? '#fb923c' : '#f97316',
     '--loan-cat-purple': isDark ? '#c084fc' : '#a855f7',
 
+    // 数据可视化色（固定值，不随明暗变化；图表系列色 / 排名金银铜唯一真源）
+    '--chart-blue': CHART_COLORS.blue,
+    '--chart-green': CHART_COLORS.green,
+    '--chart-orange': CHART_COLORS.orange,
+    '--chart-red': CHART_COLORS.red,
+    '--chart-cyan': CHART_COLORS.cyan,
+    '--chart-violet': CHART_COLORS.violet,
+    '--chart-gold': CHART_COLORS.gold,
+    '--chart-silver': CHART_COLORS.silver,
+    '--chart-bronze': CHART_COLORS.bronze,
+
     // 侧栏
     '--loan-sider-bg': isDark ? '#0E1626' : '#FFFFFF',
     '--loan-sider-text': isDark ? '#B6C2D6' : '#3A465C',
@@ -198,4 +231,20 @@ export function setThemeAccent(accent) {
 /** 读取当前主题状态 */
 export function getTheme() {
   return { ...current };
+}
+
+/**
+ * 读取图表令牌（供 ECharts 等 JS 配置读取）。
+ * 数据色固定；文字/轴线/边框随明暗，与 --loan-text / --loan-text-muted / --loan-border 同一真源。
+ * 每次调用按当前主题实时取值，主题切换后重建图表 option 即可跟随。
+ */
+export function getChartTokens() {
+  const isDark = current.mode === 'dark';
+  return {
+    ...CHART_COLORS,
+    text: isDark ? '#E8EDF5' : '#16203A',
+    textSub: isDark ? '#93A0B8' : '#6B7689',
+    border: isDark ? '#26344F' : '#E2E8F2',
+    tooltipBg: isDark ? 'rgba(14, 22, 38, 0.92)' : 'rgba(255, 255, 255, 0.96)',
+  };
 }

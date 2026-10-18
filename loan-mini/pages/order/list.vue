@@ -102,7 +102,7 @@
         </template>
         <template #meta>
           <text v-if="item.clientName" class="meta-text">{{ item.clientName }}</text>
-          <text v-if="item.phone" class="meta-text">{{ item.phone }}</text>
+          <text v-if="item.phone" class="meta-text">{{ maskPhone(item.phone) }}</text>
           <text v-if="isStaff && item.ownerStaffName" class="meta-text">归属 {{ item.ownerStaffName }}</text>
           <text v-if="item.dealAmount != null && item.dealAmount !== ''" class="meta-text">
             额度 ¥ {{ formatAmount(item.dealAmount) }}
@@ -141,6 +141,7 @@ import { useUserStore } from '../../store/user';
 import { useThemeMode } from '../../theme';
 import TabBar from '../../components/TabBar.vue';
 import { orderList } from '../../api/order';
+import { maskPhone } from '../../utils/mask';
 
 /** 企业员工（C7）：可查全量工单 */
 const STAFF_ROLES = ['adviser', 'deptmgr', 'boss', 'operator', 'super'];

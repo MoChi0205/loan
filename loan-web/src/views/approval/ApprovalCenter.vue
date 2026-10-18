@@ -85,7 +85,7 @@
         <el-table-column label="模板名称" prop="templateName" min-width="180" />
         <el-table-column label="版本" prop="versionNo" width="90" />
         <el-table-column label="提交人" prop="applicantName" width="140" />
-        <el-table-column label="提交时间" prop="createdAt" width="180" />
+        <el-table-column label="提交时间" prop="createdAt" width="180" sortable />
         <el-table-column label="操作" width="100"><template #default="{row}"><el-button v-permission="ACTION_PERMISSION.CHANNEL_CONTENT_AUDIT" type="success" link @click="openAudit(kind === 'smsTemplate' ? 'SMS_TEMPLATE' : 'REPORT_TEMPLATE', row)">审核</el-button></template></el-table-column>
       </el-table>
     </div>
@@ -174,7 +174,7 @@
           </el-table-column>
           <el-table-column prop="createdBy" label="创建人" min-width="150" />
           <el-table-column prop="leadType" label="客群" width="100"><template #default="{ row }">{{ row.leadType === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
-          <el-table-column prop="createdAt" label="提交时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column prop="createdAt" label="提交时间" width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
           <el-table-column label="操作" width="120" fixed="right">
             <template #default="{ row }">
               <AppTableActions :actions="[{ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('channelLead', { ...row, approvalNo: row.leadNo }) }]" />
