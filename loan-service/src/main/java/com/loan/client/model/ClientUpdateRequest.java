@@ -37,6 +37,35 @@ public class ClientUpdateRequest implements Serializable {
     /** 统一社会信用代码（明文，服务端 AES 加密 + hash 落库） */
     private String creditCode;
 
+    // —— 企业经营事实（报告初筛数据条件，落 t_client_business_fact，field_code 对齐规则引擎白名单） ——
+
+    /** 地区（fact: region） */
+    private String region;
+
+    /** 行业（fact: industry） */
+    private String industry;
+
+    /** 成立年限（年，fact: establish_years） */
+    private Integer establishYears;
+
+    /** 注册资本（fact: registered_capital） */
+    private String registeredCapital;
+
+    /** 经营状态（fact: biz_status） */
+    private String bizStatus;
+
+    /** 纳税等级（fact: tax_grade） */
+    private String taxGrade;
+
+    /** 年纳税额（fact: annual_tax） */
+    private String annualTaxAmount;
+
+    /** 年开票额（fact: annual_invoice） */
+    private String annualInvoiceAmount;
+
+    /** 社保人数（fact: social_count） */
+    private Integer socialCount;
+
     /** 个人档案-姓名 */
     private String realName;
 

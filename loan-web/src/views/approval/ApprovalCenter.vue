@@ -109,7 +109,7 @@
         <el-select v-model="queryP.submitStaffCode" placeholder="提交人" clearable filterable style="width: 150px">
           <el-option v-for="st in staffOptionsP" :key="st.staffCode" :label="st.staffName" :value="st.staffCode" />
         </el-select>
-        <AppDateRange v-model="dateRangeP" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="250px" />
+        <AppDateRange v-model="dateRangeP" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="260px" />
       </AppSearchBar>
 
       <AppTableState :error="errorP" @retry="loadP">
@@ -169,7 +169,7 @@
       <AppSearchBar :loading="loadingCL" @search="searchCL" @reset="resetCL">
         <el-input v-model="queryCL.keyword" placeholder="联系人 / 手机号 / 渠道名称" style="width: 260px" clearable @keyup.enter="searchCL" />
         <el-select v-model="queryCL.leadType" placeholder="客群" clearable style="width: 120px"><el-option label="个人" value="PERSONAL" /><el-option label="企业" value="ENTERPRISE" /></el-select>
-        <AppDateTime v-model="queryCL.dateRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="提交开始" end-placeholder="提交结束" width="250px" @update:model-value="syncChannelDateRange" />
+        <AppDateTime v-model="queryCL.dateRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="提交开始" end-placeholder="提交结束" width="260px" @update:model-value="syncChannelDateRange" />
       </AppSearchBar>
       <AppTableState :error="errorCL" @retry="loadCL">
         <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo" style="height: calc(100vh - 320px); min-height: 360px">
@@ -255,13 +255,16 @@
     <div v-show="activeTab === 'allocation'" class="loan-card">
       <AppSearchBar :loading="loadingA" @search="searchA" @reset="resetA">
         <el-input v-model="queryA.keyword" placeholder="企业名称 / 客户姓名 / 申请人" style="width: 240px" clearable @keyup.enter="searchA" />
+        <el-button :disabled="!allocationSelection.length || batchAuditing" @click="onBatchAuditAllocation(true)">一键通过（{{ allocationSelection.length }}）</el-button>
+        <el-button type="danger" :disabled="!allocationSelection.length || batchAuditing" @click="onBatchAuditAllocation(false)">一键驳回（{{ allocationSelection.length }}）</el-button>
       </AppSearchBar>
 
       <AppTableState :error="errorA" @retry="loadA">
-      <el-table :data="dataA" v-loading="loadingA" stripe row-key="approvalNo" @sort-change="handleSortChangeA">
+      <el-table :data="dataA" v-loading="loadingA" stripe row-key="approvalNo" @selection-change="onAllocationSelectionChange" @sort-change="handleSortChangeA">
         <template #empty>
           <AppEmpty title="暂无分配审核" desc="客户申请归属流转、无归宿客户分配将在此等待审核" />
         </template>
+        <el-table-column type="selection" width="44" :selectable="(row) => row.approveStatus === 'PENDING'" />
         <el-table-column label="审核事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'allocation') }}</template></el-table-column>
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
@@ -359,11 +362,12 @@ import { ACTION_PERMISSION, approvalActionState } from '@/utils/access';
 import {
   pageProductApprovals, auditProductApproval,
   pageDownloadApprovals, auditDownloadApproval, voidDownloadApproval, applyDownload,
-  pageAllocationApprovals, auditAllocationApproval,
+  pageAllocationApprovals, auditAllocationApproval, batchAuditAllocationApprovals,
   pageChannelLeadApprovals, auditChannelLeadApproval,
   pageContentApprovals, auditContentApproval,
   myApprovalApplications,
 } from '@/api/approval';
+import { appConfirm } from '@/utils/confirm';
 import { pageAttachments } from '@/api/attachment';
 import { pagePendingOutings, approveOuting, rejectOuting } from '@/api/serviceOperations';
 import { pendingSensitiveViewApprovals, auditSensitiveViewApproval } from '@/api/sensitive';
@@ -396,15 +400,17 @@ const approvalViewMap = Object.freeze({ 'channel-lead': 'channelLead', 'sms-temp
 const requestedTab = approvalViewMap[approvalView] || String(approvalView || route.query.tab || 'mine');
 const activeTab = ref(['mine', 'download', 'allocation', 'outing', 'sensitivePhone', 'product', 'channelLead', 'smsTemplate', 'reportTemplate'].includes(requestedTab) ? requestedTab : 'mine');
 const approvalPageCopy = computed(() => ({
-  mine: { title: '我的申请', subtitle: '查看本人发起的全部申请与当前审批进度' },
-  product: { title: '产品审核', subtitle: '审核产品新增、变更、下线申请与重复风险标记' },
-  download: { title: '附件下载审核', subtitle: '审核员工发起的无水印资料下载申请' },
-  allocation: { title: '客户分配审核', subtitle: '处理当前数据范围内的客户认领与归属流转' },
-  outing: { title: '外出审批', subtitle: '审核当前数据范围内的员工外出计划' },
-  sensitivePhone: { title: '手机号查看审批', subtitle: '处理顾问超出查看额度后的手机号解锁申请' },
-  channelLead: { title: '渠道线索审核', subtitle: '审核合作渠道提交的新线索' },
-  smsTemplate: { title: '短信模板审核', subtitle: '审核短信模板发布与变更申请' },
-  reportTemplate: { title: '报告模板审核', subtitle: '审核报告模板发布与变更申请' },
+  // 命名澄清（2026-10-19）：「我的申请」易与审批人视角混淆——
+  // 「我发起的」= 我提交给他人审批；各审批 tab 副标题统一带「待我审批」语义。
+  mine: { title: '我发起的', subtitle: '我提交给他人审批的单子与当前进度（此处不能审批，需到对应审批 tab 处理）' },
+  product: { title: '产品审核', subtitle: '待我审批：产品新增、变更、下线申请与重复风险标记' },
+  download: { title: '附件下载审核', subtitle: '待我审批：员工发起的无水印资料下载申请' },
+  allocation: { title: '客户分配审核', subtitle: '待我审批：客户认领与归属流转申请，支持勾选后一键批量审批' },
+  outing: { title: '外出审批', subtitle: '待我审批：当前数据范围内的员工外出计划' },
+  sensitivePhone: { title: '手机号查看审批', subtitle: '待我审批：顾问超出查看额度后的手机号解锁申请' },
+  channelLead: { title: '渠道线索审核', subtitle: '待我审批：合作渠道提交的新线索' },
+  smsTemplate: { title: '短信模板审核', subtitle: '待我审批：短信模板发布与变更申请' },
+  reportTemplate: { title: '报告模板审核', subtitle: '待我审批：报告模板发布与变更申请' },
 }[activeTab.value] || { title: '审批中心', subtitle: '处理当前数据范围内的审批事项' }));
 function tabFromRoute() {
   const view = String(route.path.split('/').pop() || 'mine');
@@ -508,6 +514,48 @@ const { loading: loadingD, error: errorD, data: dataD, total: totalD, query: que
 /** 客户分配审核表 */
 const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA, handleSortChange: handleSortChangeA } =
   useTable(pageAllocationApprovals, { keyword: '' });
+
+/** 一键审批（批量，2026-10-19）：勾选后批量通过/驳回，逐条结果汇总展示。 */
+const allocationSelection = ref([]);
+const batchAuditing = ref(false);
+function onAllocationSelectionChange(rows) { allocationSelection.value = rows || []; }
+async function onBatchAuditAllocation(approve) {
+  const nos = allocationSelection.value.map((r) => r.approvalNo).filter(Boolean);
+  if (!nos.length) return;
+  let opinion = '';
+  if (approve) {
+    try {
+      await appConfirm(`确认一键通过选中的 ${nos.length} 条分配审批？跨团队单通过部门经理审核后仍需老板终审。`, '确认批量通过？', { confirmButtonText: '确认通过' });
+    } catch (e) { return; }
+  } else {
+    try {
+      const { value } = await ElMessageBox.prompt(`即将驳回选中的 ${nos.length} 条分配审批`, '批量驳回意见（必填）', {
+        confirmButtonText: '确认驳回', cancelButtonText: '取消',
+        inputPlaceholder: '请填写统一的驳回原因', inputValidator: (v) => !!(v && v.trim()) || '驳回原因必填',
+      });
+      opinion = value.trim();
+    } catch (e) { return; }
+  }
+  batchAuditing.value = true;
+  try {
+    const res = (await batchAuditAllocationApprovals({ approvalNos: nos, approve, opinion: opinion || null })).data || {};
+    const okCount = res.successCount ?? 0;
+    const failCount = res.failCount ?? 0;
+    const bossCount = (res.results || []).filter((r) => r.success && /老板终审/.test(r.message || '')).length;
+    if (failCount) {
+      const firstFail = (res.results || []).find((r) => !r.success);
+      ElMessage.warning(`批量处理完成：成功 ${okCount} 条，失败 ${failCount} 条（如：${firstFail?.message || '未知原因'}）`);
+    } else if (approve && bossCount) {
+      ElMessage.success(`已通过 ${okCount} 条，其中 ${bossCount} 条为跨团队单，待老板终审`);
+    } else {
+      ElMessage.success(approve ? `已批量通过 ${okCount} 条` : `已批量驳回 ${okCount} 条`);
+    }
+    allocationSelection.value = [];
+    loadA();
+  } catch (e) { /* 拦截器已提示 */ } finally {
+    batchAuditing.value = false;
+  }
+}
 
 const { loading: loadingCL, error: errorCL, data: dataCL, total: totalCL, query: queryCL, load: loadCL, onSearch: searchCL, onReset: resetCL } =
   useTable(pageChannelLeadApprovals, { keyword: '', leadType: '', dateRange: [] });

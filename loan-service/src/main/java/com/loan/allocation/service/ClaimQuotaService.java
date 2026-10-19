@@ -85,6 +85,21 @@ public class ClaimQuotaService {
         return configOf(scope).maxHolding;
     }
 
+    /** 数据保护期天数：进入公海后 N 天内所有人不可认领（0 = 不启用）。 */
+    public int protectDaysOf(String scope) {
+        return configOf(scope).protectDays;
+    }
+
+    /** 每日认领冷却条数：与每日认领上限取较小值生效（0 = 不启用）。 */
+    public int cooldownLimitOf(String scope) {
+        return configOf(scope).cooldownLimit;
+    }
+
+    /** 退回/回收回纳目标：PUBLIC（默认，公司公海）/ ORIGINAL（归属人原部门团队池）。 */
+    public String returnTargetOf(String scope) {
+        return configOf(scope).returnTarget;
+    }
+
     /** 读取并缓存某公海类型的配额配置；配置表缺失/读写异常时回退兜底值，不阻断认领。 */
     private CachedConfig configOf(String scope) {
         long now = System.currentTimeMillis();
@@ -94,6 +109,9 @@ public class ClaimQuotaService {
         }
         int dailyClaimLimit = fallbackDailyLimitOf(scope);
         int maxHolding = fallbackHoldingOf(scope);
+        int protectDays = 0;
+        int cooldownLimit = 0;
+        String returnTarget = "PUBLIC";
         try {
             ClaimQuotaConfig row = configMapper.selectOne(new LambdaQueryWrapper<ClaimQuotaConfig>()
                     .eq(ClaimQuotaConfig::getScope, scope)
@@ -105,12 +123,21 @@ public class ClaimQuotaService {
                 if (row.getMaxHolding() != null) {
                     maxHolding = row.getMaxHolding();
                 }
+                if (row.getProtectDays() != null) {
+                    protectDays = Math.max(0, row.getProtectDays());
+                }
+                if (row.getDailyCooldownLimit() != null) {
+                    cooldownLimit = Math.max(0, row.getDailyCooldownLimit());
+                }
+                if (StringUtils.hasText(row.getReturnTarget())) {
+                    returnTarget = row.getReturnTarget().trim().toUpperCase();
+                }
             }
         } catch (Exception e) {
             log.warn("认领配额配置读取失败，降级为兜底值 scope={} daily={} holding={}",
                     scope, dailyClaimLimit, maxHolding, e);
         }
-        CachedConfig value = new CachedConfig(dailyClaimLimit, maxHolding, now + CACHE_TTL_MS);
+        CachedConfig value = new CachedConfig(dailyClaimLimit, maxHolding, protectDays, cooldownLimit, returnTarget, now + CACHE_TTL_MS);
         configCache.put(scope, value);
         return value;
     }
@@ -127,6 +154,11 @@ public class ClaimQuotaService {
             return;
         }
         int limit = limitOf(scope);
+        // 每日认领冷却条数：与每日认领上限取较小值生效（0 = 不启用，2026-10-19）
+        int cooldownLimit = cooldownLimitOf(scope);
+        if (cooldownLimit > 0) {
+            limit = limit <= 0 ? cooldownLimit : Math.min(limit, cooldownLimit);
+        }
         if (limit <= 0) {
             return;
         }
@@ -202,15 +234,22 @@ public class ClaimQuotaService {
                 : "已达到今日客户认领上限（" + limit + " 条），请明日再试";
     }
 
-    /** 配额配置缓存项（每日认领上限 + 持有上限）。 */
+    /** 配额配置缓存项（每日认领上限 + 持有上限 + 保护期/冷却/回纳目标）。 */
     private static final class CachedConfig {
         private final int dailyClaimLimit;
         private final int maxHolding;
+        private final int protectDays;
+        private final int cooldownLimit;
+        private final String returnTarget;
         private final long expiresAt;
 
-        private CachedConfig(int dailyClaimLimit, int maxHolding, long expiresAt) {
+        private CachedConfig(int dailyClaimLimit, int maxHolding, int protectDays,
+                             int cooldownLimit, String returnTarget, long expiresAt) {
             this.dailyClaimLimit = dailyClaimLimit;
             this.maxHolding = maxHolding;
+            this.protectDays = protectDays;
+            this.cooldownLimit = cooldownLimit;
+            this.returnTarget = returnTarget;
             this.expiresAt = expiresAt;
         }
     }

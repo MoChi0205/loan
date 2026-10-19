@@ -40,6 +40,15 @@ public class ClaimQuotaConfig implements Serializable {
     /** 每员工持有上限（0 = 不限）；参照 tse max_new_customers_per_user */
     private Integer maxHolding;
 
+    /** 数据保护期天数：进入公海后 N 天内所有人不可认领（0/NULL = 不启用）；参照 tse claim_protect_days */
+    private Integer protectDays;
+
+    /** 每日认领冷却条数：与每日认领上限取较小值生效（0/NULL = 不启用） */
+    private Integer dailyCooldownLimit;
+
+    /** 退回/回收回纳目标：PUBLIC=公司公海（默认）/ ORIGINAL=归属人原部门团队池 */
+    private String returnTarget;
+
     /** 说明 */
     private String remark;
 

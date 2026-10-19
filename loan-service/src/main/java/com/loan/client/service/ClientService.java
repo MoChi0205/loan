@@ -24,6 +24,8 @@ import com.loan.resourcepool.entity.ResourcePoolConfig;
 import com.loan.resourcepool.service.ResourcePoolConfigService;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
+import com.loan.submission.entity.ClientBusinessFact;
+import com.loan.submission.mapper.ClientBusinessFactMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,7 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +77,7 @@ public class ClientService {
     private final ClientAccessGuard clientAccessGuard;
     private final StaffMapper staffMapper;
     private final ResourcePoolConfigService resourcePoolConfigService;
+    private final ClientBusinessFactMapper clientBusinessFactMapper;
 
     /**
      * 客户轻量分页（建单下拉 / 客户列表多维筛选）。
@@ -363,6 +367,8 @@ public class ClientService {
         enterprise.put("enterpriseName", client.getEnterpriseName());
         // ClientProfile.creditCode 同样由 AesTypeHandler 在读取时解密。
         enterprise.put("creditCode", DesensitizeUtils.creditCode(client.getCreditCode()));
+        // 经营事实（报告初筛数据条件，field_code 对齐规则引擎白名单），编辑弹窗回显用
+        enterprise.put("facts", enterpriseFacts(clientCode));
         detail.put("enterprise", enterprise);
         // —— 个人档案（复用 PersonalProfileService 脱敏读取） ——
         detail.put("personal", personalProfileService.getByClientCode(clientCode));
@@ -443,9 +449,80 @@ public class ClientService {
         if (changed) {
             clientProfileMapper.updateById(client);
         }
+        // —— 企业经营事实合并更新（报告初筛数据条件，落 t_client_business_fact） ——
+        upsertEnterpriseFacts(clientCode, req);
         // —— 个人档案合并更新（任一字段有值则 upsert） ——
         upsertPersonal(clientCode, req);
         return getClientDetail(clientCode);
+    }
+
+    /** 编辑弹窗可维护的企业经营事实字段 → 规则引擎 fact 取数键（StepConditionEvaluator 白名单）。 */
+    private static final Map<String, String> ENTERPRISE_FACT_KEYS;
+    static {
+        Map<String, String> keys = new LinkedHashMap<>();
+        keys.put("region", "region");
+        keys.put("industry", "industry");
+        keys.put("establishYears", "establish_years");
+        keys.put("registeredCapital", "registered_capital");
+        keys.put("bizStatus", "biz_status");
+        keys.put("taxGrade", "tax_grade");
+        keys.put("annualTaxAmount", "annual_tax");
+        keys.put("annualInvoiceAmount", "annual_invoice");
+        keys.put("socialCount", "social_count");
+        ENTERPRISE_FACT_KEYS = Collections.unmodifiableMap(keys);
+    }
+
+    /** 读取客户企业经营事实（field_code → field_value）。 */
+    private Map<String, Object> enterpriseFacts(String clientCode) {
+        Map<String, Object> facts = new LinkedHashMap<>();
+        for (ClientBusinessFact row : clientBusinessFactMapper.selectList(new LambdaQueryWrapper<ClientBusinessFact>()
+                .eq(ClientBusinessFact::getClientProfileCode, clientCode)
+                .isNull(ClientBusinessFact::getSubmissionNo))) {
+            facts.put(row.getFieldCode(), row.getFieldValue());
+        }
+        return facts;
+    }
+
+    /**
+     * 企业经营事实 upsert（合并更新：仅提交的非空字段生效）。
+     *
+     * <p>落 {@code t_client_business_fact}（submission_no 为空 = 档案维护来源），规则引擎
+     * StepConditionEvaluator 按 field_code 直接取数，报告初筛条件即时可用。</p>
+     */
+    private void upsertEnterpriseFacts(String clientCode, ClientUpdateRequest req) {
+        Map<String, String> values = new LinkedHashMap<>();
+        if (StringUtils.hasText(req.getRegion())) values.put("region", req.getRegion().trim());
+        if (StringUtils.hasText(req.getIndustry())) values.put("industry", req.getIndustry().trim());
+        if (req.getEstablishYears() != null) values.put("establish_years", String.valueOf(req.getEstablishYears()));
+        if (StringUtils.hasText(req.getRegisteredCapital())) values.put("registered_capital", req.getRegisteredCapital().trim());
+        if (StringUtils.hasText(req.getBizStatus())) values.put("biz_status", req.getBizStatus().trim());
+        if (StringUtils.hasText(req.getTaxGrade())) values.put("tax_grade", req.getTaxGrade().trim());
+        if (StringUtils.hasText(req.getAnnualTaxAmount())) values.put("annual_tax", req.getAnnualTaxAmount().trim());
+        if (StringUtils.hasText(req.getAnnualInvoiceAmount())) values.put("annual_invoice", req.getAnnualInvoiceAmount().trim());
+        if (req.getSocialCount() != null) values.put("social_count", String.valueOf(req.getSocialCount()));
+        if (values.isEmpty()) return;
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            String fieldCode = entry.getKey();
+            ClientBusinessFact existing = clientBusinessFactMapper.selectOne(new LambdaQueryWrapper<ClientBusinessFact>()
+                    .eq(ClientBusinessFact::getClientProfileCode, clientCode)
+                    .eq(ClientBusinessFact::getFieldCode, fieldCode)
+                    .isNull(ClientBusinessFact::getSubmissionNo)
+                    .last("LIMIT 1"));
+            if (existing == null) {
+                ClientBusinessFact row = new ClientBusinessFact();
+                row.setClientProfileCode(clientCode);
+                row.setFieldCode(fieldCode);
+                row.setFieldValue(entry.getValue());
+                row.setFieldType("establish_years".equals(fieldCode) || "social_count".equals(fieldCode)
+                        ? "NUMBER" : "STRING");
+                row.setExtractTime(java.time.LocalDateTime.now());
+                clientBusinessFactMapper.insert(row);
+            } else {
+                existing.setFieldValue(entry.getValue());
+                existing.setExtractTime(java.time.LocalDateTime.now());
+                clientBusinessFactMapper.updateById(existing);
+            }
+        }
     }
 
     /**

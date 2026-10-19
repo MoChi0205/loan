@@ -406,6 +406,20 @@ public class LeadService {
                 && lead.getRecorderStaffCode().equals(staffCode)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "回收冷却期内不可认领");
         }
+        // 数据保护期：进入公海后 N 天内所有人不可认领（认领设置 LEAD 行 protect_days，0 = 不启用）
+        int protectDays = claimQuotaService.protectDaysOf(ClaimQuotaService.SCOPE_LEAD);
+        if (protectDays > 0) {
+            LeadAllocationRecord lastEnter = allocationRecordMapper.selectOne(
+                    new LambdaQueryWrapper<LeadAllocationRecord>()
+                            .eq(LeadAllocationRecord::getLeadNo, leadNo)
+                            .eq(LeadAllocationRecord::getActionType, "RECYCLE")
+                            .orderByDesc(LeadAllocationRecord::getCreatedAt).last("LIMIT 1"));
+            if (lastEnter != null && lastEnter.getCreatedAt() != null
+                    && lastEnter.getCreatedAt().plusDays(protectDays).isAfter(LocalDateTime.now())) {
+                throw new BusinessException(ResultCode.PARAM_ERROR,
+                        "该线索处于数据保护期内（进入公海 " + protectDays + " 天内不可认领），到期后再试");
+            }
+        }
         // 每日认领上限（参考 tse daily_assign_limit_per_user）：先预占额度，失败回滚
         claimQuotaService.consume(ClaimQuotaService.SCOPE_LEAD, staffCode, 1);
         int updated;

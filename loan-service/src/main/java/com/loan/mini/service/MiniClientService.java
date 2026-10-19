@@ -83,6 +83,7 @@ public class MiniClientService {
     private final ClientLifecycleEventMapper lifecycleEventMapper;
     private final LeadAllocationRecordMapper allocationRecordMapper;
     private final StaffMapper staffMapper;
+    private final com.loan.org.mapper.DepartmentMapper departmentMapper;
     private final ClientAllocationService clientAllocationService;
     private final BusinessNameService businessNameService;
 
@@ -119,8 +120,25 @@ public class MiniClientService {
         m.put("contactPhone", maskPhone(c.getPhone()));
         m.put("ownerStaffCode", c.getOwnerStaffCode());
         m.put("ownerStaffName", staffName(c.getOwnerStaffCode()));
+        // 现归属人部门（2026-10-19）：供前端判断同/跨团队并展示预计审批链路
+        m.put("ownerDeptName", ownerDeptName(c.getOwnerStaffCode()));
         m.put("hasOwner", StringUtils.hasText(c.getOwnerStaffCode()));
         return m;
+    }
+
+    /** 原归属人部门名（无归属或部门缺失返回 null）。 */
+    private String ownerDeptName(String staffCode) {
+        if (!StringUtils.hasText(staffCode)) return null;
+        try {
+            Staff staff = staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
+                    .eq(Staff::getStaffCode, staffCode).last("LIMIT 1"));
+            if (staff == null || !StringUtils.hasText(staff.getDeptCode())) return null;
+            com.loan.org.entity.Department dept = departmentMapper.selectOne(new LambdaQueryWrapper<com.loan.org.entity.Department>()
+                    .eq(com.loan.org.entity.Department::getDeptCode, staff.getDeptCode()).last("LIMIT 1"));
+            return dept == null ? null : dept.getDeptName();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

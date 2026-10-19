@@ -20,7 +20,7 @@
         <el-select v-if="isManagerRole" v-model="query.ownerStaffCode" placeholder="归属顾问" clearable filterable style="width: 150px">
           <el-option v-for="s in staffOptions" :key="s.staffCode" :label="s.staffName" :value="s.staffCode" />
         </el-select>
-        <AppDateTime v-model="query.createdAtRange" type="daterange" width="250px" @update:model-value="syncDateRange" />
+        <AppDateTime v-model="query.createdAtRange" type="daterange" width="260px" @update:model-value="syncDateRange" />
         <el-checkbox v-if="isManagerRole" v-model="query.mineOnly" style="margin-right: 8px">仅我的工单</el-checkbox>
       </AppSearchBar>
 

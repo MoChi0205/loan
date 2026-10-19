@@ -18,9 +18,11 @@
       <div v-if="result" class="actions">
         <!-- 未分配：任何角色直接认领（无需审批） -->
         <el-button v-if="!result.hasOwner && !result.ownedByMe" type="primary" @click="claim">直接认领</el-button>
-        <!-- 已归属他人：经理/老板/超管/运营可强制转移（本团队直接生效，跨团队由后端拒绝并引导走审批）；顾问走申请审批 -->
-        <el-button v-else-if="result.hasOwner && !result.ownedByMe && canForceAssign" type="primary" @click="openForceTransfer">强制转移</el-button>
-        <el-button v-else-if="result.hasOwner && !result.ownedByMe" type="primary" @click="claim">申请转移</el-button>
+        <template v-else-if="result.hasOwner && !result.ownedByMe">
+          <!-- 经理/老板/超管/运营：本团队可强制转移；跨团队走申请（负责人初审+老板终审，2026-10-19 规则） -->
+          <el-button v-if="canForceAssign" @click="openForceTransfer">强制转移（本团队直接生效）</el-button>
+          <el-button type="primary" @click="claim">申请转移{{ canForceAssign ? '（跨团队）' : '' }}</el-button>
+        </template>
         <el-tag v-if="result.ownedByMe" type="success" size="large">当前已是我的客户</el-tag>
       </div>
     </div>
@@ -56,7 +58,9 @@ const actionHint = computed(() => {
   if (!result.value) return '—';
   if (result.value.ownedByMe) return '已归属本人，无需重复认领';
   if (!result.value.hasOwner) return '直接认领，无需审批';
-  return canForceAssign.value ? '强制转移（本团队直接生效）' : '提交转移申请，等待审批';
+  // 预计审批链路（2026-10-19 规则）：同团队单级审批；跨团队两级审批。
+  const ownerDept = result.value.ownerDeptName ? `（现归属部门：${result.value.ownerDeptName}）` : '';
+  return `提交转移申请${ownerDept}：同团队由本团队负责人审批；跨团队由负责人初审 + 老板终审`;
 });
 async function search() {
   if (keyword.value.trim().length < 2) return ElMessage.warning('请输入至少 2 个字符');
@@ -127,7 +131,19 @@ async function onForceTransferConfirm() {
     ElMessage.success('强制转移成功');
     transferVisible.value = false;
     await search();
-  } catch (e) { /* 拦截器已提示；跨团队由后端拒绝并引导走审批 */ }
+  } catch (e) {
+    // 跨团队客户不可直接分配：降级引导转为提交转移申请（负责人初审 + 老板终审）
+    if (String(e?.message || '').includes('跨团队')) {
+      try {
+        await ElMessageBox.confirm('该客户属于其他团队，不能直接分配。是否转为提交转移申请？本团队负责人初审通过后由老板终审。', '转为转移申请？', { type: 'warning', confirmButtonText: '提交申请' });
+        const res = await claimUnassignedClient(result.value.clientCode);
+        ElMessage.success(res.data?.direct ? '已直接认领' : '转移申请已提交，等待审批');
+        transferVisible.value = false;
+        await search();
+      } catch (e2) { /* 用户取消或提交失败，拦截器已提示 */ }
+    }
+    /* 其余错误拦截器已提示 */
+  }
   finally { transferring.value = false; }
 }
 </script>

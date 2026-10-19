@@ -45,6 +45,36 @@
             />
           </template>
         </el-table-column>
+        <el-table-column label="数据保护期(天)" width="180">
+          <template #default="{ row }">
+            <el-input-number
+              v-model="row.protectDays"
+              :min="0"
+              :step="1"
+              controls-position="right"
+              style="width: 120px"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="每日认领冷却(条)" width="180">
+          <template #default="{ row }">
+            <el-input-number
+              v-model="row.dailyCooldownLimit"
+              :min="0"
+              :step="1"
+              controls-position="right"
+              style="width: 120px"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="退回/回纳目标" width="180">
+          <template #default="{ row }">
+            <el-select v-model="row.returnTarget" style="width: 140px">
+              <el-option label="公司公海" value="PUBLIC" />
+              <el-option label="原部门团队池" value="ORIGINAL" />
+            </el-select>
+          </template>
+        </el-table-column>
         <el-table-column label="说明" min-width="200">
           <template #default="{ row }">
             <span :class="{ 'cell-sub': !row.remark }">{{ row.remark || '—' }}</span>
@@ -61,6 +91,9 @@
       <ul class="quota-tip">
         <li><b>每日认领上限</b>：按「员工 × 公海类型 × 自然日」计数，跨天自动清零（口径对齐 tse <code>daily_assign_limit_per_user</code>，按人计数、不分资源池）；超出后当天不可再认领（提示「已达到今日认领上限」）。</li>
         <li><b>持有上限</b>：该员工名下归属客户 / 线索的总数上限（口径对齐 tse <code>max_new_customers_per_user</code>）；<b>线索侧无持有上限概念，保持 0（不限）</b>。</li>
+        <li><b>数据保护期(天)</b>：客户 / 线索进入公海后 N 天内所有人不可认领（口径对齐 tse <code>claim_protect_days</code>）；0 表示不启用。</li>
+        <li><b>每日认领冷却(条)</b>：与「每日认领上限」同时生效、取较小值；用于保护期结束后进一步收紧每日认领节奏；0 表示不启用（仅按每日认领上限）。</li>
+        <li><b>退回/回纳目标</b>：客户被系统自动回收时的去向——公司公海（默认，现状）或归属人原部门团队池；手动回收 / 主动释放不受此配置影响。</li>
         <li><b>不计数的情况</b>：管理员 / 主管的手动指派与转移审批通过，不占用被分配人的每日认领额度。</li>
       </ul>
     </div>
@@ -88,6 +121,9 @@ async function load() {
       ...item,
       dailyClaimLimit: item.dailyClaimLimit == null ? 0 : Number(item.dailyClaimLimit),
       maxHolding: item.maxHolding == null ? 0 : Number(item.maxHolding),
+      protectDays: item.protectDays == null ? 0 : Number(item.protectDays),
+      dailyCooldownLimit: item.dailyCooldownLimit == null ? 0 : Number(item.dailyCooldownLimit),
+      returnTarget: item.returnTarget || 'PUBLIC',
     }));
     origin.value = snapshot();
   } catch (e) {
@@ -104,6 +140,9 @@ function snapshot() {
     scope: row.scope,
     dailyClaimLimit: Number(row.dailyClaimLimit),
     maxHolding: Number(row.maxHolding),
+    protectDays: Number(row.protectDays),
+    dailyCooldownLimit: Number(row.dailyCooldownLimit),
+    returnTarget: row.returnTarget || 'PUBLIC',
   }));
 }
 
@@ -120,6 +159,16 @@ function diffOf() {
     }
     if (Number(before.maxHolding) !== Number(row.maxHolding)) {
       changes.push(`${name}：持有上限 ${before.maxHolding} → ${row.maxHolding}`);
+    }
+    if (Number(before.protectDays) !== Number(row.protectDays)) {
+      changes.push(`${name}：数据保护期 ${before.protectDays} → ${row.protectDays} 天`);
+    }
+    if (Number(before.dailyCooldownLimit) !== Number(row.dailyCooldownLimit)) {
+      changes.push(`${name}：每日认领冷却 ${before.dailyCooldownLimit} → ${row.dailyCooldownLimit} 条`);
+    }
+    if ((before.returnTarget || 'PUBLIC') !== (row.returnTarget || 'PUBLIC')) {
+      const label = { PUBLIC: '公司公海', ORIGINAL: '原部门团队池' };
+      changes.push(`${name}：回纳目标 ${label[before.returnTarget] || before.returnTarget} → ${label[row.returnTarget] || row.returnTarget}`);
     }
   });
   return changes;
@@ -153,6 +202,9 @@ async function onSave() {
         scope: row.scope,
         dailyClaimLimit: row.dailyClaimLimit,
         maxHolding: row.maxHolding,
+        protectDays: row.protectDays,
+        dailyCooldownLimit: row.dailyCooldownLimit,
+        returnTarget: row.returnTarget || 'PUBLIC',
         remark: row.remark,
       })),
     );

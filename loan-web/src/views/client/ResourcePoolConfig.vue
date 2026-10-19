@@ -6,33 +6,19 @@
       <div class="dept-head" style="margin-bottom: 12px">
         <span class="panel-title">资源池管理</span>
         <span class="pool-manage-note">客户导入时可选择目标资源池；停用的池不再出现在导入下拉。展开行可按跟进状态配置差异化回收天数。</span>
+        <el-button v-if="canManage" type="primary" style="margin-left: auto" @click="createDialogVisible = true">创建资源池</el-button>
       </div>
-      <div v-if="canManage" class="pool-create-row">
-        <el-input v-model="poolForm.poolName" placeholder="资源池名称（必填）" style="width: 200px" maxlength="30" />
-        <el-select v-model="poolForm.poolType" style="width: 130px" @change="poolForm.deptCode = ''">
-          <el-option label="公司池" value="COMPANY" />
-          <el-option label="团队池" value="TEAM" />
-        </el-select>
-        <el-select v-if="poolForm.poolType === 'TEAM'" v-model="poolForm.deptCode" placeholder="关联部门（必选）" clearable filterable style="width: 180px">
-          <el-option v-for="d in deptOptions" :key="d.deptCode" :label="d.deptName" :value="d.deptCode" />
-        </el-select>
-        <el-input v-model="poolForm.description" placeholder="池说明（可选）" style="width: 200px" maxlength="60" />
-        <span class="pool-create-field">自动回收<el-switch v-model="poolForm.recycleEnabled" :active-value="1" :inactive-value="0" /></span>
-        <el-input-number v-model="poolForm.recycleDays" :min="1" :controls="false" :disabled="poolForm.recycleEnabled !== 1" style="width: 90px" />
-        <span class="pool-create-field">天</span>
-        <el-button type="primary" :loading="creatingPool" @click="onCreatePool">创建资源池</el-button>
-      </div>
-      <div v-else class="pool-manage-note" style="margin-bottom: 8px">当前角色仅可查看：资源池的创建与规则维护限部门经理、老板、超级管理员。</div>
+      <div v-if="!canManage" class="pool-manage-note" style="margin-bottom: 8px">当前角色仅可查看：资源池的创建与规则维护限部门经理、老板、超级管理员。</div>
 
       <el-table :data="pools" v-loading="poolsLoading" stripe size="small" style="margin-top: 12px" row-key="poolCode">
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="status-days-editor">
-              <span class="status-days-title">按跟进状态的无活跃回收天数（留空或 0 = 沿用默认回收天数；成交 / 已签约 / 无需求不可回收）：</span>
+              <span class="status-days-title">按跟进状态的无活跃回收天数（0 = 当天回收；留空 = 不限制，该状态不参与超期回收；成交 / 已签约 / 无需求为终态不可回收）：</span>
               <div class="status-days-fields">
                 <label v-for="st in STATUS_KEYS" :key="st.key" class="status-days-item">
                   <span>{{ st.label }}</span>
-                  <el-input-number v-model="row.statusDays[st.key]" :min="0" :controls="false" :disabled="row.recycleEnabled !== 1" style="width: 90px" />
+                  <el-input-number v-model="row.statusDays[st.key]" :min="0" :controls="false" placeholder="不限制" :disabled="row.recycleEnabled !== 1 || !canManage" style="width: 90px" />
                 </label>
               </div>
             </div>
@@ -45,7 +31,9 @@
         <el-table-column label="自动回收" width="100"><template #default="{ row }"><el-switch v-model="row.recycleEnabled" :active-value="1" :inactive-value="0" :disabled="!canManage" /></template></el-table-column>
         <el-table-column label="默认回收天数" width="130">
           <template #default="{ row }">
-            <el-input-number v-model="row.recycleDays" :min="1" :controls="false" :disabled="row.recycleEnabled !== 1 || !canManage" style="width: 100px" />
+            <el-tooltip content="线索回收与报告展示口径使用；客户的回收天数以展开行按状态配置为准" placement="top">
+              <el-input-number v-model="row.recycleDays" :min="1" :controls="false" :disabled="row.recycleEnabled !== 1 || !canManage" style="width: 100px" />
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column label="提前预警天数" width="130">
@@ -69,19 +57,54 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <el-dialog v-model="createDialogVisible" title="创建资源池" width="480px" :close-on-click-modal="false">
+      <div class="pool-create-form">
+        <label class="pool-form-item"><span class="pool-form-label">资源池名称<i class="req">*</i></span>
+          <el-input v-model="poolForm.poolName" placeholder="必填" maxlength="30" style="flex: 1" />
+        </label>
+        <label class="pool-form-item"><span class="pool-form-label">池类型<i class="req">*</i></span>
+          <el-select v-model="poolForm.poolType" style="flex: 1" @change="poolForm.deptCode = ''">
+            <el-option label="公司池" value="COMPANY" />
+            <el-option label="团队池" value="TEAM" />
+          </el-select>
+        </label>
+        <label v-if="poolForm.poolType === 'TEAM'" class="pool-form-item"><span class="pool-form-label">关联部门<i class="req">*</i></span>
+          <el-select v-model="poolForm.deptCode" placeholder="必选" clearable filterable style="flex: 1">
+            <el-option v-for="d in deptOptions" :key="d.deptCode" :label="d.deptName" :value="d.deptCode" />
+          </el-select>
+        </label>
+        <label class="pool-form-item"><span class="pool-form-label">池说明</span>
+          <el-input v-model="poolForm.description" placeholder="可选" maxlength="60" style="flex: 1" />
+        </label>
+        <label class="pool-form-item"><span class="pool-form-label">自动回收</span>
+          <span style="flex: 1; display: flex; align-items: center; gap: 8px">
+            <el-switch v-model="poolForm.recycleEnabled" :active-value="1" :inactive-value="0" />
+            <template v-if="poolForm.recycleEnabled === 1">
+              <el-input-number v-model="poolForm.recycleDays" :min="1" :controls="false" style="width: 90px" />
+              <span class="pool-form-label">天（作为各跟进状态初始预填值）</span>
+            </template>
+          </span>
+        </label>
+      </div>
+      <template #footer>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="creatingPool" @click="onCreatePool">创建</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { listResourcePools, createResourcePool, toggleResourcePool, savePoolRecycle } from '@/api/importing';
+import { createResourcePool, toggleResourcePool, savePoolRecycle, fetchPoolRules } from '@/api/importing';
 import { departmentTree } from '@/api/org';
-import { useUserStore } from '@/store/user';
 
-/** 可创建/维护资源池的角色（与后端 ResourcePoolController.requirePoolManager 一致） */
-const POOL_MANAGER_ROLES = ['DEPT_MANAGER', 'BOSS', 'SUPER_ADMIN', 'SUPER'];
-/** 可差异化配置回收天数的跟进状态（成交/已签约/无需求为终态，禁止回收） */
+/**
+ * 可差异化配置回收天数的跟进状态（成交/已签约/无需求为终态，禁止回收——后端 validateStatusDays 同步拦截）。
+ * 语义（2026-10-19）：显式配置 0 = 当天回收；留空（null）= 不限制；与后端 parseStatusDays/recycleDays 口径一致。
+ */
 const STATUS_KEYS = [
   { key: 'NEW', label: '新用户' },
   { key: 'NO_ANSWER', label: '无人接听' },
@@ -91,12 +114,12 @@ const STATUS_KEYS = [
   { key: 'APPOINTED', label: '已预约' },
 ];
 
-const userStore = useUserStore();
-const canManage = computed(() => POOL_MANAGER_ROLES.includes((userStore.roleCode || '').toUpperCase()));
-
 const pools = ref([]);
 const poolsLoading = ref(false);
+/** 权限单一真源：由后端 /rules 接口返回，前端不再本地判角色（2026-10-19）。 */
+const canManage = ref(false);
 const creatingPool = ref(false);
+const createDialogVisible = ref(false);
 const poolForm = reactive({ poolName: '', poolType: 'COMPANY', description: '', deptCode: '', recycleEnabled: 1, recycleDays: 30 });
 const deptOptions = ref([]);
 
@@ -113,21 +136,26 @@ async function loadDeptOptions() {
   } catch { deptOptions.value = []; }
 }
 
-/** statusDaysJson → 行内可编辑对象（未知键忽略）。 */
+/** statusDaysJson → 行内可编辑对象：未配置 = null（留空不限制）；0 = 当天回收；未知键忽略。 */
 function parseStatusDays(row) {
   const days = {};
   try {
     const raw = row.statusDaysJson ? JSON.parse(row.statusDaysJson) : {};
-    STATUS_KEYS.forEach(({ key }) => { days[key] = Number(raw[key]) > 0 ? Number(raw[key]) : 0; });
-  } catch { STATUS_KEYS.forEach(({ key }) => { days[key] = 0; }); }
+    STATUS_KEYS.forEach(({ key }) => {
+      const v = raw[key];
+      const n = v == null ? NaN : Number(v);
+      days[key] = Number.isFinite(n) && n >= 0 ? n : null;
+    });
+  } catch { STATUS_KEYS.forEach(({ key }) => { days[key] = null; }); }
   return days;
 }
 
 async function loadPools() {
   poolsLoading.value = true;
   try {
-    const list = (await listResourcePools()).data || [];
-    pools.value = list.map((row) => ({ ...row, statusDays: parseStatusDays(row) }));
+    const body = (await fetchPoolRules()).data || {};
+    canManage.value = !!body.canManage;
+    pools.value = (body.pools || []).map((row) => ({ ...row, statusDays: parseStatusDays(row) }));
   } catch { pools.value = []; } finally { poolsLoading.value = false; }
 }
 
@@ -143,14 +171,18 @@ async function onCreatePool() {
       deptName: dept?.deptName || '',
     });
     ElMessage.success('资源池已创建');
+    createDialogVisible.value = false;
     poolForm.poolName = ''; poolForm.description = ''; poolForm.deptCode = '';
     loadPools();
   } catch (e) { /* 拦截器已提示 */ } finally { creatingPool.value = false; }
 }
 
-/** 保存单个池的回收规则（一个池一条规则；statusDays 全 0 时不下发按状态 JSON）。 */
+/**
+ * 保存单个池的回收规则（一个池一条规则）。
+ * 显式配置项（含 0）均下发；留空（null）= 不限制，不写入 JSON。
+ */
 async function saveRecycle(row) {
-  const statusEntries = Object.entries(row.statusDays || {}).filter(([, v]) => Number(v) > 0);
+  const statusEntries = Object.entries(row.statusDays || {}).filter(([, v]) => v != null && Number(v) >= 0);
   try {
     await savePoolRecycle(row.poolCode, {
       recycleEnabled: row.recycleEnabled,
@@ -178,11 +210,17 @@ onMounted(() => { /* pools 在 setup 即加载 */ });
 </script>
 
 <style scoped>
-.pool-create-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.pool-create-field { font-size: 13px; color: var(--loan-text-secondary); white-space: nowrap; }
-.pool-manage-note { font-size: 12px; color: var(--loan-text-secondary); }
-.status-days-editor { padding: 4px 12px 8px 48px; }
-.status-days-title { display: block; font-size: 12px; color: var(--loan-text-secondary); margin-bottom: 8px; }
-.status-days-fields { display: flex; flex-wrap: wrap; gap: 12px 20px; }
-.status-days-item { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--loan-text); }
+.resource-pool-config { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dept-head { display: flex; align-items: center; gap: 12px; }
+.panel-title { color: var(--loan-text); font-size: 15px; font-weight: 500; }
+.pool-manage-note { color: var(--loan-text-muted); font-size: 12px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.status-days-editor { display: flex; flex-direction: column; gap: 10px; padding: 4px 12px 8px; }
+.status-days-title { color: var(--loan-text-secondary); font-size: 12px; }
+.status-days-fields { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.status-days-item { display: flex; align-items: center; gap: 6px; color: var(--loan-text); font-size: 12px; }
+.pool-create-form { display: flex; flex-direction: column; gap: 12px; }
+.pool-form-item { display: flex; align-items: center; gap: 10px; }
+.pool-form-label { flex: 0 0 84px; color: var(--loan-text-secondary); font-size: 13px; }
+.pool-form-label .req { color: var(--el-color-danger); font-style: normal; margin-left: 2px; }
 </style>

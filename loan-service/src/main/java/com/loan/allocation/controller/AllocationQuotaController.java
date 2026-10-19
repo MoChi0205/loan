@@ -109,7 +109,15 @@ public class AllocationQuotaController {
             }
             int dailyClaimLimit = readNonNegative(row.get("dailyClaimLimit"), "每日认领上限");
             int maxHolding = readNonNegative(row.get("maxHolding"), "持有上限");
-            upsert(scope, dailyClaimLimit, maxHolding, (String) row.get("remark"), operatorName);
+            int protectDays = readNonNegative(row.get("protectDays"), "数据保护期天数");
+            int dailyCooldownLimit = readNonNegative(row.get("dailyCooldownLimit"), "每日认领冷却条数");
+            String returnTarget = row.get("returnTarget") == null || "".equals(row.get("returnTarget"))
+                    ? "PUBLIC" : String.valueOf(row.get("returnTarget")).trim().toUpperCase();
+            if (!"PUBLIC".equals(returnTarget) && !"ORIGINAL".equals(returnTarget)) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "回纳目标仅支持 PUBLIC / ORIGINAL");
+            }
+            upsert(scope, dailyClaimLimit, maxHolding, protectDays, dailyCooldownLimit, returnTarget,
+                    (String) row.get("remark"), operatorName);
         }
         claimQuotaService.evictCache();
         return Result.ok("ok");
@@ -133,7 +141,8 @@ public class AllocationQuotaController {
     }
 
     /** 按 scope upsert 配置行。 */
-    private void upsert(String scope, int dailyClaimLimit, int maxHolding, String remark, String operator) {
+    private void upsert(String scope, int dailyClaimLimit, int maxHolding, int protectDays,
+                        int dailyCooldownLimit, String returnTarget, String remark, String operator) {
         ClaimQuotaConfig existing = configMapper.selectOne(new LambdaQueryWrapper<ClaimQuotaConfig>()
                 .eq(ClaimQuotaConfig::getScope, scope)
                 .last("LIMIT 1"));
@@ -142,6 +151,9 @@ public class AllocationQuotaController {
             row.setScope(scope);
             row.setDailyClaimLimit(dailyClaimLimit);
             row.setMaxHolding(maxHolding);
+            row.setProtectDays(protectDays);
+            row.setDailyCooldownLimit(dailyCooldownLimit);
+            row.setReturnTarget(returnTarget);
             row.setRemark(remark);
             row.setUpdatedBy(operator);
             configMapper.insert(row);
@@ -149,6 +161,9 @@ public class AllocationQuotaController {
         }
         existing.setDailyClaimLimit(dailyClaimLimit);
         existing.setMaxHolding(maxHolding);
+        existing.setProtectDays(protectDays);
+        existing.setDailyCooldownLimit(dailyCooldownLimit);
+        existing.setReturnTarget(returnTarget);
         if (remark != null) {
             existing.setRemark(remark);
         }
@@ -165,6 +180,12 @@ public class AllocationQuotaController {
                 ? row.getDailyClaimLimit() : claimQuotaService.limitOf(scope));
         view.put("maxHolding", row != null && row.getMaxHolding() != null
                 ? row.getMaxHolding() : claimQuotaService.holdingLimitOf(scope));
+        view.put("protectDays", row != null && row.getProtectDays() != null
+                ? row.getProtectDays() : claimQuotaService.protectDaysOf(scope));
+        view.put("dailyCooldownLimit", row != null && row.getDailyCooldownLimit() != null
+                ? row.getDailyCooldownLimit() : claimQuotaService.cooldownLimitOf(scope));
+        view.put("returnTarget", row != null && StringUtils.hasText(row.getReturnTarget())
+                ? row.getReturnTarget() : claimQuotaService.returnTargetOf(scope));
         view.put("remark", row == null ? null : row.getRemark());
         view.put("updatedBy", row == null ? null : row.getUpdatedBy());
         view.put("updatedAt", row == null || row.getUpdatedAt() == null

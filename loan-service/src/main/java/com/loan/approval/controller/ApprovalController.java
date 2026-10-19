@@ -262,6 +262,58 @@ public class ApprovalController {
         return Result.ok(miniClientService.rejectAllocation(approvalNo, opinion, user));
     }
 
+    /**
+     * 批量审批分配单（一键审批，2026-10-19）：逐条复用单条通过/驳回逻辑，返回逐条结果明细。
+     *
+     * <p>body: { approvalNos: [...], approve: true/false, opinion: 统一意见（批量驳回必填） }。
+     * 跨团队单通过后推进至老板终审（needBossApproval=true），视为成功而非失败；
+     * 单条失败不影响其余单据（已 APPROVED/REJECTED 等并发冲突单独记为失败）。</p>
+     */
+    @PostMapping("/allocation/batch-audit")
+    @OpLog(bizType = "分配审批", action = "BATCH_AUDIT")
+    public Result<Map<String, Object>> allocationBatchAudit(@RequestBody Map<String, Object> body,
+                                                            @CurrentUser LoanUser user) {
+        miniRoleGuard.requireApprover(user);
+        Object nosRaw = body == null ? null : body.get("approvalNos");
+        if (!(nosRaw instanceof java.util.List) || ((java.util.List<?>) nosRaw).isEmpty()) {
+            throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.PARAM_ERROR, "请提交 approvalNos 列表");
+        }
+        boolean approve = Boolean.parseBoolean(String.valueOf(body.get("approve")));
+        String opinion = body.get("opinion") == null ? null : String.valueOf(body.get("opinion"));
+        if (!approve && (opinion == null || opinion.trim().isEmpty())) {
+            throw new com.loan.exception.BusinessException(com.loan.common.ResultCode.PARAM_ERROR, "批量驳回必须填写统一驳回意见");
+        }
+        java.util.List<Map<String, Object>> results = new java.util.ArrayList<>();
+        int ok = 0;
+        for (Object raw : (java.util.List<?>) nosRaw) {
+            String approvalNo = String.valueOf(raw);
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("approvalNo", approvalNo);
+            try {
+                Map<String, Object> res = approve
+                        ? miniClientService.approveAllocation(approvalNo, user)
+                        : miniClientService.rejectAllocation(approvalNo, opinion, user);
+                row.put("success", true);
+                row.put("status", res == null ? null : res.get("status"));
+                if (res != null && Boolean.TRUE.equals(res.get("needBossApproval"))) {
+                    row.put("message", "已通过部门经理审核，待老板终审");
+                }
+                ok++;
+            } catch (Exception e) {
+                row.put("success", false);
+                row.put("message", e instanceof com.loan.exception.BusinessException
+                        ? e.getMessage() : "处理失败，请单条重试");
+            }
+            results.add(row);
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("total", results.size());
+        out.put("successCount", ok);
+        out.put("failCount", results.size() - ok);
+        out.put("results", results);
+        return Result.ok(out);
+    }
+
     // ============================================================
     // 统一审批中心（跨类型：PRODUCT / DOWNLOAD / ALLOCATION）
     // ============================================================

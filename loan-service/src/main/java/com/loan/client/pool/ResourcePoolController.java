@@ -61,6 +61,25 @@ public class ResourcePoolController {
                 .stream().map(ResourcePoolController::toView).collect(java.util.stream.Collectors.toList()));
     }
 
+    /**
+     * 规则页专用：全量池（含停用）+ 当前用户可维护标记 canManage。
+     *
+     * <p>权限单一真源（2026-10-19）：前端不再本地判角色，直接消费后端 canManage；
+     * 读接口不抛 403，无权限角色也能看列表（只读）。</p>
+     */
+    @GetMapping("/rules")
+    public Result<Map<String, Object>> rules(@CurrentUser LoanUser user) {
+        boolean canManage = user != null && LoanUser.TYPE_STAFF.equals(user.getUserType())
+                && user.getRoleCode() != null
+                && POOL_MANAGER_ROLES.contains(user.getRoleCode().trim().toUpperCase());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("canManage", canManage);
+        body.put("pools", resourcePoolMapper.selectList(new LambdaQueryWrapper<ResourcePool>()
+                        .orderByAsc(ResourcePool::getId))
+                .stream().map(ResourcePoolController::toView).collect(java.util.stream.Collectors.toList()));
+        return Result.ok(body);
+    }
+
     /** 创建资源池（含初始回收规则；仅经理/老板/超级管理员）。 */
     @PostMapping
     public Result<Map<String, Object>> create(@RequestBody Map<String, Object> body, @CurrentUser LoanUser user) {
@@ -182,8 +201,8 @@ public class ResourcePoolController {
                 throw new BusinessException(ResultCode.PARAM_ERROR, "成交、已签约、无需求客户不可配置自动回收");
             }
             try {
-                if (Integer.parseInt(String.valueOf(entry.getValue())) <= 0) {
-                    throw new BusinessException(ResultCode.PARAM_ERROR, "状态回收天数必须大于 0");
+                if (Integer.parseInt(String.valueOf(entry.getValue())) < 0) {
+                    throw new BusinessException(ResultCode.PARAM_ERROR, "状态回收天数不能为负数（0 = 当天回收）");
                 }
             } catch (NumberFormatException e) {
                 throw new BusinessException(ResultCode.PARAM_ERROR, "状态回收天数必须是整数");

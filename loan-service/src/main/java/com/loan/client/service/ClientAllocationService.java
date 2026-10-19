@@ -204,6 +204,8 @@ public class ClientAllocationService {
                     throw new BusinessException(ResultCode.FORBIDDEN, "该客户属于其他团队公海，不可直接认领");
                 }
             }
+            // 数据保护期：进入公海后 N 天内所有人不可认领（认领设置 protect_days，0 = 不启用）
+            enforceClaimProtectDays(clientCode);
             enforceClaimQuota(targetStaffCode);
             // 公海认领即时生效，不进入审批；乐观更新避免多人并发认领覆盖。
             return directAssign(clientCode, targetStaffCode, operator);
@@ -247,6 +249,24 @@ public class ClientAllocationService {
         record(clientCode, client.getOwnerStaffCode(), targetStaffCode, "TRANSFER_APPLY",
                 operator == null ? "system" : operator.getName(), "已有归属客户转移申请，等待审批");
         return applyResult(approval, target.getStaffName(), false);
+    }
+
+    /**
+     * 数据保护期校验：客户进入公海后 N 天内所有人不可认领。
+     * N 读认领设置 CLIENT 行 protect_days（0 = 不启用）；进入公海时间取最近一次 ENTER_*_SEA 生命周期事件。
+     */
+    private void enforceClaimProtectDays(String clientCode) {
+        int protectDays = claimQuotaService.protectDaysOf(ClaimQuotaService.SCOPE_CLIENT);
+        if (protectDays <= 0) return;
+        ClientLifecycleEvent lastEnter = lifecycleEventMapper.selectOne(new LambdaQueryWrapper<ClientLifecycleEvent>()
+                .eq(ClientLifecycleEvent::getClientCode, clientCode)
+                .likeRight(ClientLifecycleEvent::getEventType, "ENTER_")
+                .orderByDesc(ClientLifecycleEvent::getEventAt).last("LIMIT 1"));
+        if (lastEnter != null && lastEnter.getEventAt() != null
+                && lastEnter.getEventAt().plusDays(protectDays).isAfter(LocalDateTime.now())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR,
+                    "该客户处于数据保护期内（进入公海 " + protectDays + " 天内不可认领），到期后再试");
+        }
     }
 
     /**
@@ -843,8 +863,9 @@ public class ClientAllocationService {
                 if (client.getId() != null) cursor = client.getId();
                 Staff owner = staffMap.get(client.getOwnerStaffCode());
                 ResourcePoolConfig cfg = resourcePoolConfigService.resolve(client.getOwnerStaffCode(), owner == null ? null : owner.getDeptCode());
-                int days = recycleDays(cfg, client.getCustomerTag());
-                if (days <= 0 || !inactiveBefore(client, LocalDateTime.now().minusDays(days))) continue;
+                Integer days = recycleDays(cfg, client.getCustomerTag());
+                // 未配置(null) = 不限制；0 = 当天回收（inactiveBefore 对 now 判定，超期即命中）
+                if (days == null || days < 0 || !inactiveBefore(client, LocalDateTime.now().minusDays(days))) continue;
                 recycleClient(client, "因超期未跟进已回收进公海", "system");
                 n++;
             }
@@ -889,9 +910,9 @@ public class ClientAllocationService {
                 }
                 Staff owner = staffMap.get(ownerNo);
                 ResourcePoolConfig cfg = resourcePoolConfigService.resolve(ownerNo, owner == null ? null : owner.getDeptCode());
-                int recycleDays = recycleDays(cfg, client.getCustomerTag());
+                Integer recycleDays = recycleDays(cfg, client.getCustomerTag());
                 int warnDays = cfg == null || cfg.getWarnDays() == null ? 3 : cfg.getWarnDays();
-                if (recycleDays <= 0 || warnDays <= 0) continue;
+                if (recycleDays == null || recycleDays <= 0 || warnDays <= 0) continue;
                 LocalDateTime threshold = LocalDateTime.now().minusDays(recycleDays);
                 LocalDateTime warnThreshold = LocalDateTime.now().minusDays(Math.max(0, recycleDays - warnDays));
                 LocalDateTime active = activeAt(client);
@@ -921,12 +942,16 @@ public class ClientAllocationService {
         return sent;
     }
 
-    private int recycleDays(ResourcePoolConfig cfg, String tag) {
-        if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1) return 0;
+    /**
+     * 按标签解析回收天数（2026-10-19 语义）。
+     *
+     * @return 生效天数（0 = 当天回收）；null = 未配置，不限制（该标签不参与超期回收）。
+     *         终态标签（成交/已签约/无需求）不允许配置，自然落在「未配置 → 不回收」。
+     */
+    private Integer recycleDays(ResourcePoolConfig cfg, String tag) {
+        if (cfg == null || cfg.getRecycleEnabled() == null || cfg.getRecycleEnabled() != 1) return null;
         String normalized = StringUtils.hasText(tag) ? tag.trim().toUpperCase() : "NEW";
-        if ("DEAL".equals(normalized) || "SIGNED".equals(normalized) || "NO_NEED".equals(normalized)) return 0;
-        Integer days = resourcePoolConfigService.parseStatusDays(cfg).get(normalized);
-        return days == null ? (cfg.getRecycleDays() == null ? 0 : cfg.getRecycleDays()) : days;
+        return resourcePoolConfigService.parseStatusDays(cfg).get(normalized);
     }
 
     private LocalDateTime activeAt(ClientProfile client) {
@@ -1097,6 +1122,14 @@ public class ClientAllocationService {
         String from = client.getOwnerStaffCode();
         Staff owner = StringUtils.hasText(from) ? staffMapper.selectOne(new LambdaQueryWrapper<Staff>()
                 .eq(Staff::getStaffCode, from).last("LIMIT 1")) : null;
+        // 回纳目标（2026-10-19 认领设置 return_target）：自动回收时可配置回归属人原部门团队池；
+        // 默认 PUBLIC 维持现状（公司公海）。手动回收/释放不受此配置影响。
+        if ("AUTO_RECYCLE".equals(reasonCode)
+                && "ORIGINAL".equalsIgnoreCase(claimQuotaService.returnTargetOf(ClaimQuotaService.SCOPE_CLIENT))
+                && owner != null && StringUtils.hasText(owner.getDeptCode())) {
+            seaLevel = "TEAM";
+            seaDeptCode = owner.getDeptCode();
+        }
         ResourcePoolConfig poolCfg = resourcePoolConfigService.resolve(from, owner == null ? null : owner.getDeptCode());
         int cooldown = (poolCfg != null && poolCfg.getCooldownDays() != null && poolCfg.getCooldownDays() >= 0)
                 ? poolCfg.getCooldownDays() : 7;

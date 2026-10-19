@@ -101,7 +101,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="建档时间" width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="ownClientActions(row)" />
           </template>
@@ -209,6 +209,45 @@
         <el-form-item label="信用代码" prop="creditCode">
           <el-input v-model="editForm.creditCode" placeholder="统一社会信用代码（留空或含 * 则不修改）" />
         </el-form-item>
+        <el-form-item label="报告初筛条件">
+          <span class="fact-hint">以下经营数据用于报告初筛与智能匹配规则取数，填写越全初筛越准。</span>
+        </el-form-item>
+        <div class="fact-grid">
+          <el-form-item label="地区">
+            <el-input v-model="editForm.region" placeholder="如 武汉市" />
+          </el-form-item>
+          <el-form-item label="行业">
+            <el-input v-model="editForm.industry" placeholder="如 建筑工程" />
+          </el-form-item>
+          <el-form-item label="成立年限">
+            <el-input-number v-model="editForm.establishYears" :min="0" :max="100" :controls="false" placeholder="年" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="注册资本">
+            <el-input v-model="editForm.registeredCapital" placeholder="如 500万" />
+          </el-form-item>
+          <el-form-item label="经营状态">
+            <el-select v-model="editForm.bizStatus" clearable placeholder="请选择" style="width: 100%">
+              <el-option label="在业" value="在业" />
+              <el-option label="存续" value="存续" />
+              <el-option label="注销" value="注销" />
+              <el-option label="吊销" value="吊销" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="纳税等级">
+            <el-select v-model="editForm.taxGrade" clearable placeholder="如 A / B / M" style="width: 100%">
+              <el-option v-for="g in ['A', 'B', 'C', 'D', 'M']" :key="g" :label="g" :value="g" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="年纳税额">
+            <el-input v-model="editForm.annualTaxAmount" placeholder="如 50万" />
+          </el-form-item>
+          <el-form-item label="年开票额">
+            <el-input v-model="editForm.annualInvoiceAmount" placeholder="如 2000万" />
+          </el-form-item>
+          <el-form-item label="社保人数">
+            <el-input-number v-model="editForm.socialCount" :min="0" :controls="false" placeholder="人" style="width: 100%" />
+          </el-form-item>
+        </div>
         <el-divider content-position="left">个人档案</el-divider>
         <el-form-item label="身份证号" prop="idCardNo">
           <el-input v-model="editForm.idCardNo" placeholder="身份证号（录入后加密存储）" />
@@ -500,9 +539,15 @@ async function loadHistory(code) {
   }
 }
 
-/** 我的客户列表操作列：查看档案 +（顾问）跟进 / 释放回公海 */
+/** 我的客户列表操作列：查看档案 / 编辑档案 / 发起初筛 + 视角相关动作（超量自动收进更多） */
 function ownClientActions(row) {
   const actions = [{ key: 'detail', label: '查看档案', onClick: () => openChannelClient(row) }];
+  // 编辑档案：列表直开既有编辑弹窗（写权限由后端 requireWritable 兜底校验）
+  actions.push({ key: 'edit', label: '编辑档案', onClick: () => openEditForRow(row) });
+  // 发起初筛：与详情页顶部按钮同一权限门控，带客户预选直达初筛中心
+  if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_SCREENING)) {
+    actions.push({ key: 'screening', label: '发起初筛', type: 'primary', onClick: () => goScreeningForRow(row) });
+  }
   if (['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope.value)) {
     if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {
       actions.push({ key: 'assign-pool', label: '分配归属', type: 'primary', onClick: () => openAssignForRow(row) });
@@ -553,6 +598,18 @@ function openAssignForRow(row) {
   clientCode.value = row.clientCode;
   loadDetail(row.clientCode);
   openAssign();
+}
+
+/** 列表直开编辑档案：先拉详情填 detail，再打开既有编辑弹窗。 */
+async function openEditForRow(row) {
+  clientCode.value = row.clientCode;
+  await loadDetail(row.clientCode);
+  openEdit();
+}
+
+/** 列表发起初筛：带客户编码预选直达初筛中心。 */
+function goScreeningForRow(row) {
+  router.push({ path: '/screening', query: { clientCode: row.clientCode } });
 }
 
 async function onClaimPoolClient(row) {
@@ -634,6 +691,8 @@ const detail = reactive({
   authStatus: '',
   enterpriseName: '',
   creditCode: '',
+  /** 企业经营事实（报告初筛数据条件，field_code → value，后端 t_client_business_fact） */
+  enterpriseFacts: {},
   realName: '',
   idCardNo: '',
   city: '',
@@ -699,6 +758,7 @@ async function loadDetail(code) {
       authStatus: d.authStatus ?? d.certStatus ?? d.verificationStatus,
       enterpriseName: ent.enterpriseName ?? d.enterpriseName,
       creditCode: ent.creditCode ?? d.creditCode,
+      enterpriseFacts: ent.facts || {},
       realName: per.realName ?? d.realName,
       idCardNo: per.idCardNo ?? d.idCardNo,
       city: per.city ?? d.city,
@@ -729,6 +789,7 @@ const sourceMap = { MINI: '小程序注册', INVITE: '小程序·邀请', WEB: '
 const customerTagMap = { NEW: '新用户', APPOINTED: '已预约', INTENTION: '意向客户', POTENTIAL: '潜在客户', VISITED: '已来访', DEAL: '已成交', NO_ANSWER: '无人接听', NO_NEED: '无需求' };
 const customerTagSegmentSpecs = [
   { value: '', label: '全部客户', tone: 'all' },
+  { value: 'NEW', label: '新用户', tone: 'info' },
   { value: 'APPOINTED', label: '已预约', tone: 'info' },
   { value: 'VISITED', label: '已来访', tone: 'visit' },
   { value: 'INTENTION', label: '意向客户', tone: 'intent' },
@@ -811,6 +872,16 @@ const editForm = reactive({
   customerTag: '',
   enterpriseName: '',
   creditCode: '',
+  // 企业经营事实（报告初筛数据条件，落 t_client_business_fact）
+  region: '',
+  industry: '',
+  establishYears: null,
+  registeredCapital: '',
+  bizStatus: '',
+  taxGrade: '',
+  annualTaxAmount: '',
+  annualInvoiceAmount: '',
+  socialCount: null,
   realName: '',
   idCardNo: '',
   city: '',
@@ -829,12 +900,22 @@ const flagFields = [
 const editRules = {};
 
 function openEdit() {
+  const facts = detail.enterpriseFacts || {};
   Object.assign(editForm, {
     contactName: detail.name,
     source: detail.source,
     customerTag: detail.customerTag,
     enterpriseName: detail.enterpriseName,
     creditCode: detail.creditCode,
+    region: facts.region ?? '',
+    industry: facts.industry ?? '',
+    establishYears: facts.establish_years != null ? Number(facts.establish_years) : null,
+    registeredCapital: facts.registered_capital ?? '',
+    bizStatus: facts.biz_status ?? '',
+    taxGrade: facts.tax_grade ?? '',
+    annualTaxAmount: facts.annual_tax ?? '',
+    annualInvoiceAmount: facts.annual_invoice ?? '',
+    socialCount: facts.social_count != null ? Number(facts.social_count) : null,
     realName: detail.realName,
     idCardNo: detail.idCardNo,
     city: detail.city,
@@ -1027,6 +1108,14 @@ watch(
   grid-template-columns: 1fr 1fr;
   gap: 0 16px;
 }
+/* 企业经营事实（报告初筛条件）：两列栅格 + 说明文字 */
+.fact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+.fact-grid .el-form-item { min-width: 0; }
+.fact-hint { color: var(--loan-text-muted, #909399); font-size: 12px; line-height: 1.5; }
 .flag-grid .el-form-item { min-width: 0; }
 .flag-grid .el-select,
 .flag-grid .el-input { width: 100%; }

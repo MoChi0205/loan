@@ -23,6 +23,10 @@ export function pageResourcePools(params) {
 export function listResourcePools() {
   return request({ url: '/api/admin/resource-pool/list', method: 'get' });
 }
+/** 规则页专用：全量池（含停用）+ 后端判定的 canManage（权限单一真源，前端不再本地判角色）。 */
+export function fetchPoolRules() {
+  return request({ url: '/api/admin/resource-pool/rules', method: 'get' });
+}
 export function createResourcePool(data) {
   return request({ url: '/api/admin/resource-pool', method: 'post', data });
 }

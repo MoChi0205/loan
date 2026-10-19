@@ -87,7 +87,7 @@
               <span v-if="s.joinWithNext === 'OR'" class="loan-tag loan-tag-warning">或</span>
               <span v-else-if="s.joinWithNext === 'AND'" class="loan-tag loan-tag-info">且</span>
               <span v-if="s.isDryRun === 1" class="loan-tag loan-tag-danger" title="空跑模式：Handler REJECT 时不阻断流程">空跑</span>
-              <span v-if="s.conditionOperator" class="tpl-step-condition" :title="`前置条件：${s.conditionField} ${s.conditionOperator} ${s.conditionValue || ''}`">{{ s.conditionField }} {{ s.conditionOperator }} {{ s.conditionValue || '' }}</span>
+              <span v-if="s.conditionOperator" class="tpl-step-condition" :title="`前置条件：${conditionFieldLabel(s.conditionField)} ${operatorLabel(s.conditionOperator)} ${s.conditionValue || ''}`">{{ conditionFieldLabel(s.conditionField) }} {{ operatorLabel(s.conditionOperator) }} {{ s.conditionValue || '' }}</span>
               <div class="tpl-step-actions">
                 <el-button link type="primary" @click="openStepDialog(m, s)">编辑</el-button>
                 <el-button link type="danger" @click="onDeleteStep(m, s)">删除</el-button>
@@ -151,25 +151,28 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-divider content-position="left">步骤前置条件（字段与运算符来自规则，条件值可按策略填写）</el-divider>
+        <el-divider content-position="left">步骤前置条件（字段来自规则；运算符可下拉调整，条件值按策略填写）</el-divider>
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item label="条件字段">
-              <el-input v-model="stepDialog.form.conditionField" disabled placeholder="选择规则后自动带出" style="width: 100%" />
+              <!-- 显示中文字段名（fieldCode → fieldName），提交仍是英文 fieldCode -->
+              <el-input :model-value="conditionFieldLabel(stepDialog.form.conditionField)" disabled placeholder="选择规则后自动带出" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="运算符">
-              <el-input v-model="stepDialog.form.conditionOperator" disabled placeholder="选择规则后自动带出" style="width: 100%" />
+              <el-select v-model="stepDialog.form.conditionOperator" placeholder="选择规则后自动带出" style="width: 100%">
+                <el-option v-for="op in OPERATOR_OPTIONS" :key="op.value" :label="op.label" :value="op.value" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="条件值">
-              <el-input v-model="stepDialog.form.conditionValue" :disabled="noManualCondition" :placeholder="noManualCondition ? '该规则无需条件值' : '请输入条件值'" style="width: 100%" />
+              <el-input v-model="stepDialog.form.conditionValue" :disabled="noManualCondition" :placeholder="noManualCondition ? '该运算符无需条件值' : '请输入条件值'" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
-        <p class="tpl-condition-hint">条件字段 / 运算符 / 条件值 由所选规则自动带出（只读），运行时条件不满足将标记为 SKIP 并继续后续步骤。</p>
+        <p class="tpl-condition-hint">条件字段由所选规则带出（显示中文名，实际提交字段编码）；运算符可在支持范围内调整，为空 / 不为空无需条件值；运行时条件不满足将标记为 SKIP 并继续后续步骤。</p>
       </el-form>
     </AppDialog>
 
@@ -254,15 +257,36 @@ const OP_MAP = {
   'not_null': 'IS_NOT_BLANK',
 };
 
+/** 运算符下拉（2026-10-19 放开编辑）：与后端 StepConditionEvaluator.OPERATORS 白名单一致。 */
+const OPERATOR_OPTIONS = [
+  { value: 'EQ', label: '等于' },
+  { value: 'NE', label: '不等于' },
+  { value: 'IN', label: '属于（逗号分隔列表）' },
+  { value: 'NOT_IN', label: '不属于（逗号分隔列表）' },
+  { value: 'IS_BLANK', label: '为空' },
+  { value: 'IS_NOT_BLANK', label: '不为空' },
+];
+const OPERATOR_LABELS = Object.fromEntries(OPERATOR_OPTIONS.map((o) => [o.value, o.label]));
+function operatorLabel(op) { return OPERATOR_LABELS[op] || op || ''; }
+
+/** fieldCode → 中文条件字段名（数据源：规则列表自带 fieldName），映射不到回退原码。 */
+function conditionFieldLabel(fieldCode) {
+  if (!fieldCode) return '';
+  const hit = (rules.value || []).find((r) => (r.fieldCode || '') === fieldCode);
+  return hit?.fieldName || fieldCode;
+}
+
 const route = useRoute();
 const router = useRouter();
 const rules = ref([]);
 const channels = ref([]);
 const selectedRule = computed(() => (rules.value || []).find((r) => String(r.id) === String(stepDialog.form.ruleId)) || null);
+/** 条件值是否无需手填：为空/不为空运算符、布尔型规则、黑名单/失信类规则（2026-10-19 改为按步骤运算符判定）。 */
 const noManualCondition = computed(() => {
+  if (['IS_BLANK', 'IS_NOT_BLANK'].includes(stepDialog.form.conditionOperator)) return true;
   const r = selectedRule.value;
-  return !r || ['is_null', 'not_null'].includes(String(r.operator || '').toLowerCase())
-    || String(r.valueType || '').toUpperCase() === 'BOOLEAN'
+  if (!r) return true;
+  return String(r.valueType || '').toUpperCase() === 'BOOLEAN'
     || /blacklist|dishonest|失信|黑名单/i.test(`${r.ruleCode || ''}${r.name || ''}`);
 });
 const { loading, data, total, query, load, onSearch, onReset } = useTable(pageTemplate, { customerGroup: route.query.cg || '', keyword: '' });

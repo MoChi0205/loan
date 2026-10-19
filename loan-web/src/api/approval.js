@@ -49,6 +49,10 @@ export function auditAllocationApproval(approvalNo, data) {
   const action = data && data.approve ? 'approve' : 'reject';
   return request({ url: `/api/admin/approval/allocation/${approvalNo}/${action}`, method: 'post', data });
 }
+/** 一键审批（批量）：逐条复用单条逻辑，返回逐条结果明细；批量驳回 opinion 必填。 */
+export function batchAuditAllocationApprovals(data) {
+  return request({ url: '/api/admin/approval/allocation/batch-audit', method: 'post', data });
+}
 
 export function pageContentApprovals(type, params = {}) {
   return request({ url: '/api/admin/approval/unified/pending', method: 'get', params: { ...params, type } });
