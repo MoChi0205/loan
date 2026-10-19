@@ -307,11 +307,10 @@ public class OrderService {
         List<String> clientCodes = orders.stream().map(ServiceOrder::getClientProfileCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
         Map<String, String> clientNameMap = businessNameService.clientNames(clientCodes);
-        Map<String, String> clientPhoneMap = clientCodes.isEmpty() ? java.util.Collections.emptyMap()
+        Map<String, ClientProfile> clientMap = clientCodes.isEmpty() ? java.util.Collections.emptyMap()
                 : clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
                         .in(ClientProfile::getClientCode, clientCodes)).stream()
-                        .collect(Collectors.toMap(ClientProfile::getClientCode,
-                                c -> DesensitizeUtils.phone(c.getPhone()), (a, b) -> a));
+                        .collect(Collectors.toMap(ClientProfile::getClientCode, c -> c, (a, b) -> a));
 
         List<String> productCodes = orders.stream().map(ServiceOrder::getBankProductCode)
                 .filter(StringUtils::hasText).distinct().collect(Collectors.toList());
@@ -326,7 +325,10 @@ public class OrderService {
             m.put("orderNo", o.getOrderNo());
             m.put("clientProfileCode", o.getClientProfileCode());
             m.put("clientName", clientNameMap.get(o.getClientProfileCode()));
-            m.put("contactPhoneMasked", clientPhoneMap.get(o.getClientProfileCode()));
+            ClientProfile orderClient = clientMap.get(o.getClientProfileCode());
+            m.put("enterpriseName", orderClient == null ? null : orderClient.getEnterpriseName());
+            m.put("contactName", orderClient == null ? null : orderClient.getContactName());
+            m.put("contactPhoneMasked", orderClient == null ? null : DesensitizeUtils.phone(orderClient.getPhone()));
             m.put("customerGroup", o.getCustomerGroup());
             m.put("bankProductCode", o.getBankProductCode());
             m.put("bankProductName", productNameMap.get(o.getBankProductCode()));

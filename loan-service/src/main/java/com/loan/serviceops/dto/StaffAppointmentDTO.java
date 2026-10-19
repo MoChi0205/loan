@@ -14,6 +14,8 @@ public class StaffAppointmentDTO implements Serializable {
     private String clientCode;
     private String customerGroup;
     private String customerName;
+    /** 企业名称（企业客群；个人客群为空）。 */
+    private String enterpriseName;
     private String contactName;
     private String contactPhoneMasked;
     private String hostStaffCode;

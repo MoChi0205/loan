@@ -59,7 +59,7 @@ public class DailyServiceWorkbenchService {
         LocalDate end = dateTo == null ? day : dateTo;
         scopeService.resolveScope(user, requestedScope);
         // v2：列表 DTO 已强制装配客户/员工/部门展示名，隔离旧缓存中只有业务编码的数据。
-        String cacheKey = "service:workbench:daily:v4:" + scopeKey(user, requestedScope) + ":"
+        String cacheKey = "service:workbench:daily:v5:" + scopeKey(user, requestedScope) + ":"
                 + safe(requestedDeptCode) + ":" + safe(requestedStaffCode) + ":" + day + ":" + end + ":" + includeUnfinished + ":" + page + ":" + size;
         if (refresh) {
             DailyServiceWorkbenchDTO current = loadDaily(day, end, includeUnfinished, requestedScope, requestedDeptCode, requestedStaffCode, user, page, size);
@@ -110,6 +110,7 @@ public class DailyServiceWorkbenchService {
             row.setClientCode(item.getClientCode());
             ClientProfile client = clients.get(item.getClientCode());
             row.setCustomerName(displayName(client));
+            row.setEnterpriseName(client == null ? null : client.getEnterpriseName());
             row.setStaffCode(item.getStaffCode());
             row.setNextAction(item.getNextAction());
             row.setNextFollowAt(item.getNextFollowAt());
@@ -133,6 +134,8 @@ public class DailyServiceWorkbenchService {
             row.setOrderNo(item.getOrderNo());
             row.setClientCode(item.getClientProfileCode());
             row.setCustomerName(displayName(clients.get(item.getClientProfileCode())));
+            row.setEnterpriseName(clients.get(item.getClientProfileCode()) == null
+                    ? null : clients.get(item.getClientProfileCode()).getEnterpriseName());
             row.setOwnerStaffCode(item.getOwnerStaffCode());
             row.setStatus(item.getStatus());
             row.setUpdatedAt(item.getUpdatedAt() == null ? item.getCreatedAt() : item.getUpdatedAt());

@@ -13,6 +13,8 @@ public class DailyOrderDTO implements Serializable {
     private String orderNo;
     private String clientCode;
     private String customerName;
+    /** 企业名称（企业客群；个人客群为空）。 */
+    private String enterpriseName;
     private String ownerStaffCode;
     private String status;
     private LocalDateTime updatedAt;

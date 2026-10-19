@@ -552,6 +552,7 @@ public class AppointmentService {
                 dto.setCustomerGroup(client.getCustomerGroup());
                 dto.setCustomerName(StringUtils.hasText(client.getEnterpriseName())
                         ? client.getEnterpriseName() : client.getContactName());
+                dto.setEnterpriseName(client.getEnterpriseName());
                 dto.setContactName(client.getContactName());
                 dto.setContactPhoneMasked(DesensitizeUtils.phone(client.getPhone()));
             }

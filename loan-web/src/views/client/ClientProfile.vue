@@ -79,6 +79,7 @@
         <el-table-column label="客户" min-width="180">
           <template #default="{ row }">
             <div class="cell-main">{{ row.enterpriseName || row.contactName || '—' }}</div>
+            <div v-if="row.customerGroup !== 'PERSONAL' && row.contactName && row.enterpriseName" class="cell-sub">联系人：{{ row.contactName }}</div>
           </template>
         </el-table-column>
         <el-table-column label="联系方式" width="190">

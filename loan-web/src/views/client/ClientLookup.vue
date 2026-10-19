@@ -9,7 +9,8 @@
       </el-input>
       <el-empty v-if="searched && !result" description="未查询到已存在用户" />
       <el-descriptions v-if="result" :column="2" border class="result">
-        <el-descriptions-item label="客户">{{ result.entName || result.contactName || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="企业名称">{{ result.entName || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="联系人">{{ result.contactName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="联系电话"><span>{{ desensitizePhone(result.contactPhone) }}</span><el-button v-if="!phoneRevealed" link type="primary" size="small" @click="requestPhoneView">申请查看</el-button><span v-else class="phone-revealed">已授权查看</span></el-descriptions-item>
         <el-descriptions-item label="当前归属">{{ result.hasOwner ? (result.ownerStaffName || '已有顾问') : '未分配' }}</el-descriptions-item>
         <el-descriptions-item label="处理方式">{{ actionHint }}</el-descriptions-item>

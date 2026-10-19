@@ -22,6 +22,8 @@ public class StaffOutingDTO implements Serializable {
     private String deptName;
     private String clientCode;
     private String customerName;
+    /** 企业名称（企业客群；个人客群为空）。 */
+    private String enterpriseName;
     private String appointmentNo;
     private String orderNo;
     private LocalDateTime plannedStart;

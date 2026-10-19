@@ -434,6 +434,7 @@ public class OutingService {
             if (client != null) {
                 dto.setCustomerName(StringUtils.hasText(client.getEnterpriseName())
                         ? client.getEnterpriseName() : client.getContactName());
+                dto.setEnterpriseName(client.getEnterpriseName());
             }
             dto.setAppointmentNo(item.getAppointmentNo());
             dto.setOrderNo(item.getOrderNo());
@@ -542,6 +543,7 @@ public class OutingService {
         if (client != null) {
             dto.setCustomerName(StringUtils.hasText(client.getEnterpriseName())
                     ? client.getEnterpriseName() : client.getContactName());
+            dto.setEnterpriseName(client.getEnterpriseName());
         }
         dto.setPlannedStart(item.getPlannedStart());
         dto.setPlannedEnd(item.getPlannedEnd());
