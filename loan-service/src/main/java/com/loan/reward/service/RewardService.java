@@ -361,7 +361,7 @@ public class RewardService {
             if (rule.getValidFrom() == null) {
                 rule.setValidFrom(LocalDateTime.now());
             }
-            rule.setRuleVersion(BizIdGenerator.generate("rule"));
+            rule.setRuleVersion(BizIdGenerator.generate("rule", 32));
             rule.setCreatedBy(operator);
             rule.setUpdatedBy(operator);
             try {

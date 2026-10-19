@@ -107,9 +107,9 @@ public class ClientController {
                                                @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
         String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
-        if (!java.util.Arrays.asList("DEPT_MANAGER", "BOSS", "SUPER_ADMIN", "SUPER").contains(role)) {
+        if (!java.util.Arrays.asList("DEPT_MANAGER", "OPERATOR", "BOSS", "SUPER_ADMIN", "SUPER").contains(role)) {
             throw new com.loan.exception.BusinessException(
-                    com.loan.common.ResultCode.FORBIDDEN, "仅部门经理、老板或超级管理员可直接指定客户归属人");
+                    com.loan.common.ResultCode.FORBIDDEN, "仅部门经理、运营、老板或超级管理员可直接指定客户归属人");
         }
         // 兼容旧参数名 adviserStaffCode，新参数为 targetStaffCode
         String target = body == null ? null : body.get("targetStaffCode");

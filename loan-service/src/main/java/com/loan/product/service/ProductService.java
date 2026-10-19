@@ -256,7 +256,7 @@ public class ProductService {
         BankChannel channel = bankChannelMapper.selectOne(wrapper);
         if (channel == null) {
             channel = new BankChannel();
-            channel.setChannelCode(BizIdGenerator.generate("ch"));
+            channel.setChannelCode(BizIdGenerator.generate("ch", 32));
             channel.setBankName(bankName);
             channel.setStatus("ACTIVE");
             bankChannelMapper.insert(channel);
