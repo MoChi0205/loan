@@ -29,7 +29,10 @@ import com.loan.mini.service.MiniClientService;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
 import com.loan.partner.service.PartnerProductService;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import com.loan.serviceops.entity.StaffOuting;
@@ -37,6 +40,7 @@ import com.loan.serviceops.service.OutingService;
 import com.loan.sensitive.entity.SensitiveViewApproval;
 import com.loan.sensitive.mapper.SensitiveViewApprovalMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,11 +69,24 @@ import java.util.stream.Collectors;
  *
  * @author loan-platform
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApprovalService {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    /**
+     * 审批快照专用解析器：
+     * <ul>
+     *   <li>注册 JavaTimeModule —— 兼容 LocalDateTime 的 ISO 字符串读写（快照含创建/更新时间）；</li>
+     *   <li>序列化日期输出 ISO 文本而非时间戳数组；</li>
+     *   <li>反序列化忽略未知字段 —— 兼容早期手工/测试快照的旧结构（如 quotaDesc/interestRate），
+     *       避免历史工单审核时报「变更快照无法应用」。</li>
+     * </ul>
+     */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     /** 允许排序字段（白名单，防注入） */
     private static final java.util.Map<String, com.baomidou.mybatisplus.core.toolkit.support.SFunction<ProductApproval, ?>> ORDER_FIELDS =
@@ -309,6 +326,9 @@ public class ApprovalService {
 
     /** 审批通过后应用变更快照（仅覆盖业务字段，状态/归属保持原值）。 */
     private void applyProductUpdate(BankProduct product, String snapshotJson, String operator) {
+        if (!StringUtils.hasText(snapshotJson)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "审批单缺少变更快照，无法应用");
+        }
         try {
             BankProduct target = OBJECT_MAPPER.readValue(snapshotJson, BankProduct.class);
             product.setProductName(target.getProductName());
@@ -326,8 +346,11 @@ public class ApprovalService {
             product.setUpdatedBy(operator);
             product.setUpdatedAt(LocalDateTime.now());
             bankProductMapper.updateById(product);
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "变更快照无法应用");
+            log.error("应用产品变更快照失败 approvalNo={} productCode={}", product.getProductCode(), snapshotJson, e);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "变更快照无法应用：" + e.getMessage());
         }
     }
 

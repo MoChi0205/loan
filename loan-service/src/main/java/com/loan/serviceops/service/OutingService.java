@@ -462,13 +462,44 @@ public class OutingService {
     /**
      * 外出待审批列表：不受“当天”限制，按当前角色数据范围返回全部待审核申请。
      * 部门经理仅本部门，运营/老板/超管为公司范围；服务端审批时仍会再次校验并禁止自审。
+     *
+     * @param keyword 关键字（申请人姓名 / 客户名称）
+     * @param dateFrom 外出开始日期下限（含）
+     * @param dateTo   外出开始日期上限（含）
      */
-    public PageResult<StaffOutingDTO> pending(LoanUser user, int page, int size) {
+    public PageResult<StaffOutingDTO> pending(LoanUser user, int page, int size,
+                                              String keyword, LocalDate dateFrom, LocalDate dateTo) {
         LambdaQueryWrapper<StaffOuting> wrapper = new LambdaQueryWrapper<StaffOuting>()
                 .eq(StaffOuting::getStatus, OutingStatus.PENDING_REVIEW.name())
-                .ne(StaffOuting::getStaffCode, user == null ? null : user.getUserNo())
-                .orderByAsc(StaffOuting::getSubmittedAt)
-                .orderByAsc(StaffOuting::getPlannedStart);
+                .ne(StaffOuting::getStaffCode, user == null ? null : user.getUserNo());
+        if (dateFrom != null) {
+            wrapper.ge(StaffOuting::getPlannedStart, dateFrom.atStartOfDay());
+        }
+        if (dateTo != null) {
+            wrapper.le(StaffOuting::getPlannedStart, dateTo.plusDays(1).atStartOfDay().minusSeconds(1));
+        }
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            List<String> staffCodes = staffMapper.selectList(new LambdaQueryWrapper<Staff>()
+                            .like(Staff::getStaffName, kw))
+                    .stream().map(Staff::getStaffCode).filter(StringUtils::hasText).collect(Collectors.toList());
+            List<String> clientCodes = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+                            .and(w -> w.like(ClientProfile::getEnterpriseName, kw)
+                                    .or().like(ClientProfile::getContactName, kw)))
+                    .stream().map(ClientProfile::getClientCode).filter(StringUtils::hasText).collect(Collectors.toList());
+            if (staffCodes.isEmpty() && clientCodes.isEmpty()) {
+                return PageResult.build(page, size, 0, Collections.emptyList());
+            }
+            wrapper.and(w -> {
+                if (!staffCodes.isEmpty()) {
+                    w.in(StaffOuting::getStaffCode, staffCodes);
+                }
+                if (!clientCodes.isEmpty()) {
+                    w.or().in(StaffOuting::getClientCode, clientCodes);
+                }
+            });
+        }
+        wrapper.orderByAsc(StaffOuting::getSubmittedAt).orderByAsc(StaffOuting::getPlannedStart);
         scopeService.applyOutingListScope(wrapper, user);
         Page<StaffOuting> result = outingMapper.selectPage(new Page<>(page, size), wrapper);
         return toPageResult(result, page, size);

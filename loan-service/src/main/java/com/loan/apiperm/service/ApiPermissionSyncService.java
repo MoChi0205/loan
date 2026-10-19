@@ -142,6 +142,8 @@ public class ApiPermissionSyncService implements ApplicationRunner {
             "mini:notification:mine", "mini:notification:unreadCount", "mini:notification:readAll",
             // 部门经理专属（15-规则 §10/§32/§34）：团队客户视图 + 本团队回收
             "mini:client:teamClients", "mini:client:recycleClient",
+            // 资源池管理（2026-10-19）：经理可创建资源池并按池维护回收规则（对齐 tse ADMIN/MANAGER）
+            "resource-pool:page", "resource-pool:create", "resource-pool:toggle", "resource-pool:updateRecycle",
     };
 
     private final RequestMappingHandlerMapping handlerMapping;

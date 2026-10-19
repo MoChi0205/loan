@@ -5,34 +5,35 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.loan.client.entity.ClientRecycleConfig;
 import com.loan.client.mapper.ClientRecycleConfigMapper;
+import com.loan.client.pool.ResourcePool;
+import com.loan.client.pool.ResourcePoolMapper;
 import com.loan.resourcepool.entity.ResourcePoolConfig;
-import com.loan.resourcepool.mapper.ResourcePoolConfigMapper;
-import com.loan.staff.entity.Staff;
-import com.loan.staff.mapper.StaffMapper;
-import com.loan.org.entity.Department;
-import com.loan.org.mapper.DepartmentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** 资源池规则读取：员工池优先，团队池次之，公司公共池兜底。 */
+/**
+ * 资源池回收规则读取（按池一条规则，参考 tse t_resource_pool 内嵌回收字段）。
+ *
+ * <p>解析口径：客户/线索归属人的部门若绑定了团队池则用该池规则，否则回落公司公共池规则。
+ * 兼容遗留 {@code t_client_recycle_config} 全局配置作为兜底，避免迁移未执行时行为回退。</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class ResourcePoolConfigService {
-    private final ResourcePoolConfigMapper mapper;
+    private final ResourcePoolMapper poolMapper;
     private final ClientRecycleConfigMapper legacyMapper;
-    private final StaffMapper staffMapper;
-    private final DepartmentMapper departmentMapper;
 
     /**
-     * resolve 结果本地缓存（不经常变更的配置数据，短 TTL 防穿透；写后 save 会失效全部）。
+     * resolve 结果本地缓存（不经常变更的配置数据，短 TTL 防穿透）。
      * value 用 Optional 包裹以兼容「查不到返回 null」。
      */
     private final Cache<String, Optional<ResourcePoolConfig>> resolveCache = Caffeine.newBuilder()
@@ -40,31 +41,32 @@ public class ResourcePoolConfigService {
             .expireAfterWrite(Duration.ofMinutes(5))
             .build();
 
+    /** 解析某员工/部门生效的资源池回收规则：部门绑定团队池优先，否则公司公共池。 */
     public ResourcePoolConfig resolve(String staffCode, String deptCode) {
         String key = (staffCode == null ? "" : staffCode) + "|" + (deptCode == null ? "" : deptCode);
         return resolveCache.get(key, k -> Optional.ofNullable(doResolve(staffCode, deptCode))).orElse(null);
     }
 
     private ResourcePoolConfig doResolve(String staffCode, String deptCode) {
-        ResourcePoolConfig row = null;
-        if (StringUtils.hasText(staffCode)) {
-            row = mapper.selectOne(new LambdaQueryWrapper<ResourcePoolConfig>()
-                    .eq(ResourcePoolConfig::getScopeType, "STAFF")
-                    .eq(ResourcePoolConfig::getScopeKey, staffCode)
-                    .eq(ResourcePoolConfig::getEnabled, 1).last("LIMIT 1"));
+        ResourcePool teamPool = null;
+        if (StringUtils.hasText(deptCode)) {
+            teamPool = poolMapper.selectOne(new LambdaQueryWrapper<ResourcePool>()
+                    .eq(ResourcePool::getPoolType, "TEAM")
+                    .eq(ResourcePool::getDeptCode, deptCode)
+                    .eq(ResourcePool::getStatus, "ACTIVE").last("LIMIT 1"));
         }
-        if (row == null && StringUtils.hasText(deptCode)) {
-            row = mapper.selectOne(new LambdaQueryWrapper<ResourcePoolConfig>()
-                    .eq(ResourcePoolConfig::getScopeType, "TEAM")
-                    .eq(ResourcePoolConfig::getScopeKey, deptCode)
-                    .eq(ResourcePoolConfig::getEnabled, 1).last("LIMIT 1"));
+        ResourcePool pool = teamPool;
+        if (pool == null) {
+            pool = poolMapper.selectOne(new LambdaQueryWrapper<ResourcePool>()
+                    .eq(ResourcePool::getPoolCode, "POOL_COMPANY")
+                    .eq(ResourcePool::getStatus, "ACTIVE").last("LIMIT 1"));
         }
-        if (row == null) {
-            row = mapper.selectOne(new LambdaQueryWrapper<ResourcePoolConfig>()
-                    .eq(ResourcePoolConfig::getScopeType, "COMPANY")
-                    .eq(ResourcePoolConfig::getEnabled, 1).last("LIMIT 1"));
+        if (pool == null) {
+            pool = poolMapper.selectOne(new LambdaQueryWrapper<ResourcePool>()
+                    .eq(ResourcePool::getPoolType, "COMPANY")
+                    .eq(ResourcePool::getStatus, "ACTIVE").last("LIMIT 1"));
         }
-        if (row != null) return row;
+        if (pool != null) return fromPool(pool);
         // 兼容已存在的全局配置，避免迁移未执行时改变行为。
         ClientRecycleConfig legacy = legacyMapper.selectOne(new LambdaQueryWrapper<ClientRecycleConfig>()
                 .eq(ClientRecycleConfig::getConfigKey, "GLOBAL").last("LIMIT 1"));
@@ -76,53 +78,34 @@ public class ResourcePoolConfigService {
         return fallback;
     }
 
+    /**
+     * 每个资源池一行规则（poolCode 唯一；scopeType 由池类型映射：TEAM→TEAM / COMPANY→COMPANY）。
+     * 供客户列表等只需要「池名/规则概览」的场景一次性批量读取。
+     */
     public List<ResourcePoolConfig> list() {
-        return mapper.selectList(new LambdaQueryWrapper<ResourcePoolConfig>().orderByAsc(ResourcePoolConfig::getScopeType)
-                .orderByAsc(ResourcePoolConfig::getScopeKey));
+        List<ResourcePool> pools = poolMapper.selectList(new LambdaQueryWrapper<ResourcePool>()
+                .orderByAsc(ResourcePool::getId));
+        List<ResourcePoolConfig> rows = new ArrayList<>(pools.size());
+        for (ResourcePool pool : pools) {
+            rows.add(fromPool(pool));
+        }
+        return rows;
     }
 
-    public void save(ResourcePoolConfig req, String operator) {
-        if (req == null || !StringUtils.hasText(req.getPoolCode()) || !StringUtils.hasText(req.getScopeType())) {
-            throw new IllegalArgumentException("资源池编码和范围类型不能为空");
-        }
-        if (req.getEnabled() == null) req.setEnabled(1);
-        if (req.getRecycleEnabled() == null) req.setRecycleEnabled(0);
-        if (req.getWarnDays() == null) req.setWarnDays(15);
-        if (req.getCooldownDays() == null) req.setCooldownDays(7);
-        String scope = req.getScopeType().trim().toUpperCase();
-        if (!java.util.Arrays.asList("COMPANY", "TEAM", "STAFF").contains(scope)) {
-            throw new IllegalArgumentException("资源池范围必须为公司、团队或员工");
-        }
-        req.setScopeType(scope);
-        if ("COMPANY".equals(scope)) req.setScopeKey(null);
-        if ("TEAM".equals(scope)) {
-            if (!StringUtils.hasText(req.getScopeKey()) || departmentMapper.selectCount(new LambdaQueryWrapper<Department>()
-                    .eq(Department::getDeptCode, req.getScopeKey()).eq(Department::getStatus, "ACTIVE")) == 0) {
-                throw new IllegalArgumentException("团队资源池必须选择有效团队");
-            }
-        }
-        if ("STAFF".equals(scope)) {
-            if (!StringUtils.hasText(req.getScopeKey()) || staffMapper.selectCount(new LambdaQueryWrapper<Staff>()
-                    .eq(Staff::getStaffCode, req.getScopeKey()).eq(Staff::getStatus, "ACTIVE")) == 0) {
-                throw new IllegalArgumentException("员工资源池必须选择在职员工");
-            }
-        }
-        if (req.getRecycleEnabled() == 1) {
-            if (req.getRecycleDays() == null || req.getRecycleDays() <= 0 || req.getWarnDays() < 0 || req.getCooldownDays() < 0) {
-                throw new IllegalArgumentException("回收、预警和冷却天数必须为有效非负数，回收天数必须大于 0");
-            }
-            Map<String, Integer> days = parseStatusDays(req);
-            if (days.containsKey("DEAL") || days.containsKey("SIGNED") || days.containsKey("NO_NEED")) {
-                throw new IllegalArgumentException("成交、已签约、无需求客户不可配置自动回收");
-            }
-        }
-        ResourcePoolConfig old = mapper.selectOne(new LambdaQueryWrapper<ResourcePoolConfig>()
-                .eq(ResourcePoolConfig::getPoolCode, req.getPoolCode()).last("LIMIT 1"));
-        req.setUpdatedBy(operator);
-        if (old == null) mapper.insert(req);
-        else { req.setId(old.getId()); req.setCreatedAt(old.getCreatedAt()); mapper.updateById(req); }
-        // 写后失效本地缓存，避免旧配置继续生效
-        resolveCache.invalidateAll();
+    /** 池实体 → 规则视图（兼容旧 ResourcePoolConfig 形状，scope 语义映射自池类型）。 */
+    private ResourcePoolConfig fromPool(ResourcePool pool) {
+        ResourcePoolConfig row = new ResourcePoolConfig();
+        row.setPoolCode(pool.getPoolCode());
+        row.setPoolName(pool.getPoolName());
+        row.setScopeType("TEAM".equals(pool.getPoolType()) ? "TEAM" : "COMPANY");
+        row.setScopeKey(pool.getDeptCode());
+        row.setEnabled("ACTIVE".equals(pool.getStatus()) ? 1 : 0);
+        row.setRecycleEnabled(pool.getRecycleEnabled() == null ? 1 : pool.getRecycleEnabled());
+        row.setRecycleDays(pool.getRecycleDays() == null ? 30 : pool.getRecycleDays());
+        row.setWarnDays(pool.getWarnDays() == null ? 15 : pool.getWarnDays());
+        row.setCooldownDays(pool.getCooldownDays() == null ? 7 : pool.getCooldownDays());
+        row.setStatusDaysJson(pool.getStatusDaysJson());
+        return row;
     }
 
     public Map<String, Integer> parseStatusDays(ResourcePoolConfig config) {

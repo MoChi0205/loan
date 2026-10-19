@@ -81,13 +81,17 @@ public class AdminOutingController {
                 includeUnfinished, clientKeyword));
     }
 
-    /** 外出待审批：经理按部门，运营/老板/超管按公司范围。 */
+    /** 外出待审批：经理按部门，运营/老板/超管按公司范围；支持按申请人/客户关键字与外出日期区间过滤。 */
     @GetMapping("/pending")
     public Result<PageResult<StaffOutingDTO>> pending(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @CurrentUser LoanUser user) {
-        return Result.ok(outingService.pending(user, PageParams.page(page), PageParams.size(size)));
+        return Result.ok(outingService.pending(user, PageParams.page(page), PageParams.size(size),
+                keyword, dateFrom, dateTo));
     }
 
     /** 提交外出申请（本人）。 */

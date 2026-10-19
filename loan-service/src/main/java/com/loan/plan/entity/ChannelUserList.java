@@ -40,6 +40,9 @@ public class ChannelUserList {
     /** 名单键：PERSONAL=手机号MD5；ENTERPRISE=统一社会信用代码 */
     private String listKey;
 
+    /** 名单键明文（可读回显）：PERSONAL=手机号原文；ENTERPRISE=统一社会信用代码原文 */
+    private String rawKey;
+
     /** 创建人 */
     private String createdBy;
 

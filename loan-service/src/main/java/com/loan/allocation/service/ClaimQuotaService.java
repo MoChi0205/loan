@@ -66,7 +66,7 @@ public class ClaimQuotaService {
     private final Map<String, CachedConfig> configCache = new ConcurrentHashMap<>();
 
     /**
-     * 读取某资源池的每日认领上限。
+     * 读取某公海类型的每日认领上限（按人计数，口径对齐 tse daily_assign_limit_per_user）。
      *
      * @param scope {@link #SCOPE_LEAD} 或 {@link #SCOPE_CLIENT}
      * @return 上限；0 或负数表示不限
@@ -76,7 +76,7 @@ public class ClaimQuotaService {
     }
 
     /**
-     * 读取某资源池的持有上限。
+     * 读取某公海类型的持有上限（按人名下归属对象计数）。
      *
      * @param scope {@link #SCOPE_LEAD} 或 {@link #SCOPE_CLIENT}
      * @return 上限；0 或负数表示不限
@@ -85,7 +85,7 @@ public class ClaimQuotaService {
         return configOf(scope).maxHolding;
     }
 
-    /** 读取并缓存某资源池的配额配置；配置表缺失/读写异常时回退兜底值，不阻断认领。 */
+    /** 读取并缓存某公海类型的配额配置；配置表缺失/读写异常时回退兜底值，不阻断认领。 */
     private CachedConfig configOf(String scope) {
         long now = System.currentTimeMillis();
         CachedConfig cached = configCache.get(scope);

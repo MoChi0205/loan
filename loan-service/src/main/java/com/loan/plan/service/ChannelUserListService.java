@@ -22,6 +22,7 @@ import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -93,29 +94,32 @@ public class ChannelUserListService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "单次最多处理 " + MAX_BATCH_SIZE + " 条名单");
         }
 
-        Set<String> normalizedKeys = new LinkedHashSet<>();
+        // key（归一化键）→ 原文，去重同时保留明文用于回显
+        Map<String, String> keyToRaw = new LinkedHashMap<>();
         for (String raw : rawKeys) {
             if (StringUtils.hasText(raw)) {
-                normalizedKeys.add(normalizeKey(raw.trim(), customerGroup));
+                String trimmed = raw.trim();
+                keyToRaw.putIfAbsent(normalizeKey(trimmed, customerGroup), trimmed);
             }
         }
-        if (normalizedKeys.isEmpty()) {
+        if (keyToRaw.isEmpty()) {
             return 0;
         }
 
         LocalDateTime now = LocalDateTime.now();
         List<ChannelUserList> toInsert = new ArrayList<>();
-        for (String key : normalizedKeys) {
+        keyToRaw.forEach((key, raw) -> {
             ChannelUserList item = new ChannelUserList();
             item.setListCode(BizIdGenerator.generate("culist", BIZ_CODE_LENGTH));
             item.setChannelCode(channelCode.trim());
             item.setCustomerGroup(customerGroup.trim());
             item.setListType(listType.trim());
             item.setListKey(key);
+            item.setRawKey(rawKeyOf(raw, customerGroup));
             item.setCreatedBy(operator);
             item.setCreatedAt(now);
             toInsert.add(item);
-        }
+        });
         return listMapper.insertIgnoreBatch(toInsert);
     }
 
@@ -158,6 +162,7 @@ public class ChannelUserListService {
         }
         if (hasListKey) {
             wrapper.set(ChannelUserList::getListKey, normalizeKey(request.getListKey().trim(), targetGroup));
+            wrapper.set(ChannelUserList::getRawKey, rawKeyOf(request.getListKey().trim(), targetGroup));
         }
         try {
             listMapper.update(null, wrapper);
@@ -203,12 +208,22 @@ public class ChannelUserListService {
         if (StringUtils.hasText(query.getKeyword())) {
             String keyword = query.getKeyword().trim();
             if (keyword.matches("\\d{11}")) {
-                wrapper.in(ChannelUserList::getListKey, keyword, md5(keyword));
+                wrapper.and(w -> w.in(ChannelUserList::getListKey, keyword, md5(keyword))
+                        .or().eq(ChannelUserList::getRawKey, keyword));
             } else {
-                wrapper.like(ChannelUserList::getListKey, keyword);
+                wrapper.and(w -> w.like(ChannelUserList::getListKey, keyword)
+                        .or().like(ChannelUserList::getRawKey, keyword));
             }
         }
         return wrapper;
+    }
+
+    /** 名单键明文：个人=手机号原文；企业=统一社会信用代码原文（大写）。 */
+    private String rawKeyOf(String raw, String customerGroup) {
+        if (raw == null) {
+            return null;
+        }
+        return GROUP_PERSONAL.equals(customerGroup) ? raw.trim() : raw.trim().toUpperCase();
     }
 
     /** 名单键归一化：个人=手机号 MD5；企业=统一社会信用代码。 */

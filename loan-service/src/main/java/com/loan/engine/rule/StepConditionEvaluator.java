@@ -56,10 +56,20 @@ public final class StepConditionEvaluator {
      * 与 mds 不同，loan-main 的事实来自 {@code t_client_business_fact}（DB 驱动、开放式），
      * 故运行期 {@link #evaluate} 对未知字段保持宽容（取不到即视为空白，与 mds「未知字段抛错」语义不同）；
      * 但保存期须用本白名单拦截非法字段（「配置错误、保存拒绝」，对齐 mds）。
+     * <p>
+     * 白名单 = 引擎固定事实字段 + 规则目录（{@code RuleCatalog}）全部字段码：
+     * 规则目录的字段（region/industry/establish_years/…）是通用条件规则的取数键，
+     * 步骤前置条件应能围绕「当前规则字段」配置，故统一放行（2026-10-19 与用户对齐）。
      */
     private static final Set<String> FACT_FIELDS = Collections.unmodifiableSet(new LinkedHashSet<>(Arrays.asList(
             "channelCode", "customerGroup", "strategyCode", "submissionId", "clientProfileId",
-            "blacklist", "dishonest", "fraud", "lawsuit")));
+            "blacklist", "dishonest", "fraud", "lawsuit",
+            // 规则目录通用条件字段（RuleCatalog 全量 fieldCode）
+            "region", "industry", "establish_years", "annual_tax", "annual_invoice",
+            "tax_grade", "debt_ratio", "invoice_continuity", "tax_continuity",
+            "biz_status", "registered_capital", "social_count", "social_security_count",
+            "age", "monthly_income", "social_security_months", "fund_months",
+            "house_flag", "car_flag", "credit_status", "work_years", "city", "education")));
 
     private StepConditionEvaluator() {
     }

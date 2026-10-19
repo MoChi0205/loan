@@ -15,6 +15,16 @@ public class ResourcePool {
     private String description;
     /** ACTIVE 启用 / INACTIVE 停用 */
     private String status;
+    /** 自动回收开关（1=开启；参考 tse t_resource_pool.auto_recycle_enabled：规则内嵌在池上） */
+    private Integer recycleEnabled;
+    /** 默认回收天数（客户标签未命中按状态天数时使用） */
+    private Integer recycleDays;
+    /** 提前预警天数 */
+    private Integer warnDays;
+    /** 回收冷却天数 */
+    private Integer cooldownDays;
+    /** 按跟进状态的无活跃回收天数 JSON（如 {"NEW":30,"NO_ANSWER":15}） */
+    private String statusDaysJson;
     private String createdBy;
     private String updatedBy;
     private LocalDateTime createdAt;
