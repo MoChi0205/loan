@@ -20,7 +20,7 @@
         <el-select v-if="isManagerRole" v-model="query.ownerStaffCode" placeholder="归属顾问" clearable filterable style="width: 150px">
           <el-option v-for="s in staffOptions" :key="s.staffCode" :label="s.staffName" :value="s.staffCode" />
         </el-select>
-        <AppDateTime v-model="query.createdAtRange" type="daterange" style="width: 250px" @update:model-value="syncDateRange" />
+        <AppDateTime v-model="query.createdAtRange" type="daterange" width="250px" @update:model-value="syncDateRange" />
         <el-checkbox v-if="isManagerRole" v-model="query.mineOnly" style="margin-right: 8px">仅我的工单</el-checkbox>
       </AppSearchBar>
 
@@ -138,7 +138,7 @@
           <el-input-number v-model="dealForm.dealAmount" :min="0.01" :precision="2" :controls="false" style="width: 200px" placeholder="元" />
         </el-form-item>
         <el-form-item label="成交时间">
-          <AppDateTime v-model="dealForm.dealTime" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm:ss" placeholder="缺省当前时间" style="width: 220px" />
+          <AppDateTime v-model="dealForm.dealTime" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm:ss" placeholder="缺省当前时间" width="220px" />
         </el-form-item>
         <el-form-item label="奖励金额">
           <el-input-number v-model="dealForm.rewardAmount" :min="0" :precision="2" :controls="false" style="width: 200px" placeholder="留空按规则比例自动算" />

@@ -192,7 +192,19 @@
       <p class="assign-hint">
         {{ assignBatchMode ? `将选中的 ${selectedRows.length} 条线索` : `将「${currentLead?.contactName}」` }}指派给员工（仅顾问/主管可被指派）
       </p>
-      <el-select v-model="targetStaffCode" filterable remote :remote-method="searchAssignableStaff" :loading="staffLoading" placeholder="输入员工姓名搜索" style="width: 100%" @visible-change="(v) => { if (v) searchAssignableStaff('') }">
+      <el-select
+        v-model="targetStaffCode"
+        filterable
+        remote
+        :remote-method="searchAssignableStaff"
+        :loading="staffLoading"
+        placeholder="输入员工姓名搜索"
+        style="width: 100%"
+        fit-input-width
+        :teleported="false"
+        popper-class="dialog-select-popper"
+        @visible-change="(v) => { if (v) searchAssignableStaff('') }"
+      >
         <el-option
           v-for="s in staffOptions"
           :key="s.value"
@@ -212,6 +224,9 @@
         :loading="adviserLoading"
         placeholder="输入顾问姓名搜索"
         style="width: 100%"
+        fit-input-width
+        :teleported="false"
+        popper-class="dialog-select-popper"
       >
         <el-option v-for="s in adviserOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>

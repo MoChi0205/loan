@@ -46,7 +46,12 @@
             <span class="loan-tag" :class="row.listType === 'LOCAL_BLACK' ? 'loan-tag-danger' : 'loan-tag-success'">{{ row.listType === 'LOCAL_BLACK' ? '黑名单' : '白名单' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="listKey" label="名单键" min-width="220" show-overflow-tooltip />
+        <el-table-column label="名单键" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div class="cl-key">{{ row.rawKey || row.listKey }}</div>
+            <div v-if="row.customerGroup === 'PERSONAL' && row.rawKey && row.listKey && row.rawKey !== row.listKey" class="cl-key-sub">匹配键 {{ row.listKey }}</div>
+          </template>
+        </el-table-column>
         <el-table-column prop="createdBy" label="创建人" width="110" />
         <el-table-column label="创建时间" width="170">
           <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
@@ -229,4 +234,6 @@ onMounted(async () => {
 .cl-batch-bar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; margin-bottom: 8px; background: var(--loan-surface); border: 1px solid var(--loan-border); border-radius: var(--loan-radius); }
 .cl-batch-count { font-size: 13px; color: var(--loan-text-secondary); }
 .cl-tip { font-size: 12px; color: var(--loan-text-muted); line-height: 1.6; }
+.cl-key { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
+.cl-key-sub { margin-top: 2px; font-size: 11px; color: var(--loan-text-muted); font-family: "SF Mono", Menlo, Consolas, monospace; }
 </style>

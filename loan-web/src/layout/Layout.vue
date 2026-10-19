@@ -253,10 +253,17 @@ const BASE_MENU_GROUPS = [
       { path: '/client/company-sea', title: '客户公海', icon: 'sea', indent: true },
       { path: '/client/team-sea', title: '团队公海', icon: 'sea', indent: true },
       { path: '/client/lookup', title: '客户检索', icon: 'search' },
-      { path: '/client/import-tasks', title: '客户导入进度', icon: 'clock', indent: true },
-      { path: '/client/resource-pool-config', title: '资源池回收规则', icon: 'setting', indent: true },
-      { path: '/allocation-quota', title: '认领设置', icon: 'setting', indent: true },
       { path: '/client/ocr', title: '客户材料', icon: 'ocr' },
+    ],
+  },
+  {
+    title: '运营管理',
+    short: '运营',
+    icon: 'setting',
+    items: [
+      { path: '/client/import-tasks', title: '客户导入进度', icon: 'clock' },
+      { path: '/client/resource-pool-config', title: '资源池回收规则', icon: 'setting' },
+      { path: '/allocation-quota', title: '认领设置', icon: 'setting' },
     ],
   },
   {
@@ -460,7 +467,11 @@ function isActive(path) {
   if (path.includes('?')) {
     return route.fullPath === path || route.path === target;
   }
-  return route.path === path || route.path.startsWith(path + '/');
+  // 精确命中当前路由的菜单项优先，避免前缀项（如 /screening）在子项（/screening/report）访问时也被误高亮。
+  if (route.path === target) return true;
+  const exactHit = menus.value.some((m) => m.path && m.path.split('?')[0] === route.path);
+  if (exactHit) return false;
+  return route.path.startsWith(target + '/');
 }
 
 /** 合并菜单的页内 Tab 仍高亮所属主菜单。 */

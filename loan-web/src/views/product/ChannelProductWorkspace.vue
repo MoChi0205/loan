@@ -62,7 +62,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="合作有效期">
-          <AppDateTime v-model="dialog.form.cooperateUntil" type="date" value-format="YYYY-MM-DD" placeholder="请选择有效期" style="width:100%" />
+          <AppDateTime v-model="dialog.form.cooperateUntil" type="date" value-format="YYYY-MM-DD" placeholder="请选择有效期" />
         </el-form-item>
         <el-form-item label="额度下限(万)">
           <el-input-number v-model="dialog.form.amountMin" :min="0" :controls="false" style="width:100%" />

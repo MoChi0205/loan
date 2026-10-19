@@ -122,9 +122,16 @@
           </el-select>
         </el-form-item>
         <el-form-item label="规则" prop="ruleId">
-          <el-select v-model="stepDialog.form.ruleId" :placeholder="stepDialog.form.categoryCode ? '选择规则' : '请先选择规则分类'" filterable :disabled="!stepDialog.form.categoryCode" style="width: 100%" teleported>
-            <el-option v-for="r in filteredRules" :key="r.ruleId || r.ruleCode" :label="r.ruleName || '规则名称待补充'" :value="r.ruleId || r.ruleCode" />
-          </el-select>
+          <div class="rule-select-wrap">
+            <el-select v-model="stepDialog.form.ruleId" :placeholder="stepDialog.form.categoryCode ? '选择规则' : '请先选择规则分类'" filterable :disabled="!stepDialog.form.categoryCode" style="width: 100%" teleported @change="onRuleChange">
+              <el-option v-for="r in filteredRules" :key="r.ruleId || r.ruleCode" :label="r.ruleName || '规则名称待补充'" :value="r.ruleId || r.ruleCode" />
+            </el-select>
+            <span v-if="selectedRule" class="rule-selected-name">
+              <AppIcon name="rule" :size="13" />
+              {{ selectedRule.ruleName || '规则名称待补充' }}
+              <span v-if="selectedRule.expression" class="rule-selected-expr">{{ selectedRule.expression }}</span>
+            </span>
+          </div>
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="8">
@@ -162,7 +169,24 @@
           </el-col>
           <el-col :span="11">
             <el-form-item label="条件值">
+              <el-select
+                v-if="isListValueType"
+                v-model="conditionValueArray"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                clearable
+                collapse-tags
+                :disabled="valueDisabled"
+                placeholder="选择或输入枚举值"
+                style="width: 100%"
+                teleported
+              >
+                <el-option v-for="v in conditionValueOptions" :key="v" :label="v" :value="v" />
+              </el-select>
               <el-input
+                v-else
                 v-model="stepDialog.form.conditionValue"
                 :disabled="valueDisabled"
                 :placeholder="valueDisabled ? 'IS_BLANK 可不填' : '输入条件值'"
@@ -454,7 +478,18 @@ function initColumnDrag() {
   });
 }
 
-/** 条件字段候选：来自规则库 fieldCode（去重）+ 可输入自定义 fact 字段码 */
+/** 引擎事实字段 / 规则目录字段 → 中文名（后端白名单对齐） */
+const FACT_FIELD_TEXT = {
+  channelCode: '渠道编码', customerGroup: '客群', strategyCode: '策略编码', submissionId: '进件编号', clientProfileId: '客户档案',
+  blacklist: '黑名单', dishonest: '失信', fraud: '欺诈', lawsuit: '司法诉讼',
+  region: '注册区域', industry: '行业', establish_years: '成立年限', annual_tax: '年纳税额', annual_invoice: '年开票额',
+  tax_grade: '纳税等级', debt_ratio: '资产负债率', invoice_continuity: '开票连续性', tax_continuity: '纳税连续性',
+  biz_status: '经营状态', registered_capital: '注册资本', social_count: '社保人数', social_security_count: '社保人数',
+  age: '年龄', monthly_income: '月收入', social_security_months: '社保月数', fund_months: '公积金月数',
+  house_flag: '房产', car_flag: '车辆', credit_status: '征信状态', work_years: '工作年限', city: '城市', education: '学历',
+};
+
+/** 条件字段候选：规则库 fieldCode（中文 fieldName 优先）+ 引擎固定事实字段兜底。 */
 const conditionFieldOptions = computed(() => {
   const seen = new Set();
   const opts = [];
@@ -462,7 +497,13 @@ const conditionFieldOptions = computed(() => {
     const code = r.fieldCode;
     if (code && !seen.has(code)) {
       seen.add(code);
-      opts.push({ value: code, label: code });
+      opts.push({ value: code, label: r.fieldName || FACT_FIELD_TEXT[code] || code });
+    }
+  });
+  Object.entries(FACT_FIELD_TEXT).forEach(([code, label]) => {
+    if (!seen.has(code)) {
+      seen.add(code);
+      opts.push({ value: code, label });
     }
   });
   return opts;
@@ -473,6 +514,39 @@ const filteredRules = computed(() => {
   const cat = stepDialog.form.categoryCode;
   if (!cat) return [];
   return (rules.value || []).filter((r) => r.categoryCode === cat);
+});
+
+/** 当前选中的规则（ruleId 或 ruleCode 兼容匹配） */
+const selectedRule = computed(() => {
+  const id = stepDialog.form.ruleId;
+  if (id == null) return null;
+  return (rules.value || []).find((r) => (r.ruleId && String(r.ruleId) === String(id)) || r.ruleCode === id) || null;
+});
+
+/** 当前规则为多值列表（LIST）时，条件值按 valueText 枚举下拉 */
+const isListValueType = computed(() => selectedRule.value?.valueType === 'LIST');
+
+function splitEnumValues(text) {
+  if (!text) return [];
+  let t = String(text).trim();
+  if (t.startsWith('[') && t.endsWith(']')) t = t.slice(1, -1);
+  return t.split(/[,，;；]/).map((s) => s.trim()).filter(Boolean);
+}
+const conditionValueOptions = computed(() => (selectedRule.value ? splitEnumValues(selectedRule.value.valueText) : []));
+
+/** 切换规则：条件字段随规则联动、条件值清空（对齐 mds 规则配置交互） */
+function onRuleChange() {
+  const r = selectedRule.value;
+  if (r) {
+    stepDialog.form.conditionField = r.fieldCode || '';
+    stepDialog.form.conditionValue = '';
+  }
+}
+
+/** 条件值（多选枚举下拉 ↔ 逗号字符串 双向绑定） */
+const conditionValueArray = computed({
+  get: () => (stepDialog.form.conditionValue ? String(stepDialog.form.conditionValue).split(/[,，]/).filter(Boolean) : []),
+  set: (v) => { stepDialog.form.conditionValue = (v || []).join(','); },
 });
 
 /** 切换分类时清空已选规则 */
@@ -1127,4 +1201,8 @@ onMounted(async () => {
 
 /* 步骤弹窗表单 */
 .step-dialog-form .el-col:last-child .el-form-item { margin-bottom: 0; }
+.rule-select-wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.rule-selected-name { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--loan-primary); line-height: 1.5; }
+.rule-selected-name :deep(svg) { flex-shrink: 0; }
+.rule-selected-expr { color: var(--loan-text-muted); font-family: "SF Mono", Menlo, Consolas, monospace; }
 </style>

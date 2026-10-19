@@ -6,21 +6,24 @@
         <p class="loan-page-subtitle">{{ servicePageSubtitle }}</p>
       </div>
       <div class="header-actions">
-        <el-select v-if="scopeOptions.length > 1" v-model="selectedScope" class="scope-select" aria-label="数据范围" @change="onScopeChange">
-          <el-option v-for="item in scopeOptions" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-        <el-select v-if="selectedScope === 'COMPANY'" v-model="filterDeptCode" clearable filterable placeholder="全部团队" class="scope-select" @change="onDepartmentFilterChange">
-          <el-option v-for="item in departmentOptions" :key="item.code" :label="item.name" :value="item.code" />
-        </el-select>
-        <el-select v-if="selectedScope !== 'SELF'" v-model="filterStaffCode" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" placeholder="全部员工" class="scope-select" @change="onStaffFilterChange">
-          <el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" />
-        </el-select>
-        <AppDateTime v-model="selectedDateRange" type="daterange" :clearable="false" @update:model-value="onDateRangeChange" />
-        <el-checkbox v-model="includeUnfinished" @change="refreshCurrent">包含未完成</el-checkbox>
         <el-button :loading="refreshing" @click="refreshCurrent">刷新</el-button>
         <el-button type="primary" @click="openCreateAppointment">创建预约</el-button>
         <el-button v-if="activeTab === 'outings'" @click="openCreateGeneralOuting">普通外出</el-button>
       </div>
+    </div>
+
+    <div class="scope-toolbar loan-card">
+      <el-select v-if="scopeOptions.length > 1" v-model="selectedScope" class="scope-select" aria-label="数据范围" @change="onScopeChange">
+        <el-option v-for="item in scopeOptions" :key="item.value" :label="item.label" :value="item.value" />
+      </el-select>
+      <el-select v-if="selectedScope === 'COMPANY'" v-model="filterDeptCode" clearable filterable placeholder="全部团队" class="scope-select" @change="onDepartmentFilterChange">
+        <el-option v-for="item in departmentOptions" :key="item.code" :label="item.name" :value="item.code" />
+      </el-select>
+      <el-select v-if="selectedScope !== 'SELF'" v-model="filterStaffCode" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" placeholder="全部员工" class="scope-select" @change="onStaffFilterChange">
+        <el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" />
+      </el-select>
+      <AppDateTime v-model="selectedDateRange" type="daterange" :clearable="false" width="280px" @update:model-value="onDateRangeChange" />
+      <el-checkbox v-model="includeUnfinished" @change="refreshCurrent">包含未完成</el-checkbox>
     </div>
 
     <div v-if="activeTab === 'daily'" class="metric-grid" v-loading="workbenchLoading">
@@ -281,7 +284,7 @@
         <el-form-item label="跟进结果" required><el-input v-model="followForm.resultCode" placeholder="例如：已沟通、待补充材料" /></el-form-item>
         <el-form-item label="跟进内容" required><el-input v-model="followForm.content" type="textarea" :rows="3" placeholder="仅员工内部查看的完整记录" /></el-form-item>
         <el-form-item label="下步安排"><el-input v-model="followForm.nextAction" placeholder="下一次要做什么" /></el-form-item>
-        <el-form-item label="下次跟进"><AppDateTime v-model="followForm.nextFollowAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item>
+        <el-form-item label="下次跟进"><AppDateTime v-model="followForm.nextFollowAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm:ss" /></el-form-item>
         <el-form-item label="客户可见"><el-switch v-model="followCustomerVisible" active-text="显示摘要" inactive-text="仅员工可见" /></el-form-item>
         <el-form-item v-if="followCustomerVisible" label="客户摘要" required><el-input v-model="followForm.customerVisibleSummary" type="textarea" :rows="2" placeholder="仅填写适合客户查看的服务进展，不含内部判断" /></el-form-item>
       </el-form>
@@ -938,17 +941,19 @@ onMounted(async () => {
 
 <style scoped>
 .service-operations { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.service-header { align-items: flex-start; }
+.service-header { align-items: center; }
 .header-actions, .filter-row, .action-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.header-actions { flex: 0 1 auto; justify-content: flex-end; max-width: min(100%, 760px); }
-.header-actions .scope-select { width: 142px; }
+.header-actions { flex: 0 0 auto; justify-content: flex-end; }
+/* 数据范围筛选条：从 header 下沉为独立工具条，左对齐一行，控件统一高度 */
+.scope-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px; }
+.scope-toolbar .scope-select { width: 150px; }
 /* 日期范围必须容纳开始日期、分隔符和结束日期，避免出现“2026- 至 2026-”的截断显示。 */
-.header-actions :deep(.el-date-editor.el-range-editor) {
+.scope-toolbar :deep(.el-date-editor.el-range-editor) {
   width: 280px;
   min-width: 280px;
 }
-.header-actions :deep(.el-select__wrapper),
-.header-actions :deep(.el-input__wrapper) { min-height: 34px; }
+.scope-toolbar :deep(.el-select__wrapper),
+.scope-toolbar :deep(.el-input__wrapper) { min-height: 34px; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .metric-card { border: 1px solid var(--loan-border); padding: 18px; text-align: left; cursor: pointer; transition: transform var(--loan-transition), border-color var(--loan-transition); }
 .metric-card:hover { transform: translateY(-2px); border-color: var(--loan-primary); }
@@ -1005,6 +1010,5 @@ onMounted(async () => {
 /* 表格内的「照片」按钮紧跟在打卡时间后面，留一点间距 */
 .cell-sub .text-link, td .text-link { margin-left: 6px; }
 @media (max-width: 1100px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } .replay-layout { grid-template-columns: 240px minmax(0, 1fr); } }
-@media (max-width: 980px) { .header-actions { width: 100%; justify-content: flex-start; max-width: none; } }
-@media (max-width: 760px) { .service-header { align-items: flex-start; } .header-actions .scope-select, .header-actions :deep(.el-date-editor.el-range-editor) { width: calc(50% - 4px); min-width: 0; } .metric-grid, .list-grid, .replay-layout { grid-template-columns: 1fr; } .client-picker { padding-right: 0; padding-bottom: 14px; border-right: 0; border-bottom: 1px solid var(--loan-border); } }
+@media (max-width: 760px) { .service-header { align-items: flex-start; } .scope-toolbar .scope-select, .scope-toolbar :deep(.el-date-editor.el-range-editor) { width: calc(50% - 5px); min-width: 0; } .metric-grid, .list-grid, .replay-layout { grid-template-columns: 1fr; } .client-picker { padding-right: 0; padding-bottom: 14px; border-right: 0; border-bottom: 1px solid var(--loan-border); } }
 </style>

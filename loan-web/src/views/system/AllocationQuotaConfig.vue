@@ -4,7 +4,7 @@
       <div>
         <h2 class="loan-page-title">认领设置</h2>
         <p class="loan-page-subtitle">
-          各资源池的每日认领上限与持有上限 · 0 表示不限 · 保存后即时生效（无需重启或发版）
+          每人每日认领上限与持有客户上限 · 线索公海 / 客户公海各一行 · 0 表示不限 · 保存后即时生效（无需重启或发版）
         </p>
       </div>
       <el-button type="primary" :loading="saving" @click="onSave">保存设置</el-button>
@@ -15,10 +15,10 @@
         <template #empty>
           <AppEmpty
             title="暂无配额配置"
-            desc="执行 db/migrate-allocation-quota-config-2026-09-14.sql 后，线索与客户两行会自动出现"
+            desc="保存后自动创建配置行（线索公海 / 客户公海各一行，无需执行脚本）"
           />
         </template>
-        <el-table-column prop="scopeName" label="资源池" width="140">
+        <el-table-column prop="scopeName" label="适用公海" width="140">
           <template #default="{ row }">
             <span class="loan-tag loan-tag-info">{{ row.scopeName || ({ SELF: '本人', DEPARTMENT: '本团队', COMPANY: '全公司' }[row.scope] || '未指定范围') }}</span>
           </template>
@@ -59,8 +59,8 @@
       </el-table>
 
       <ul class="quota-tip">
-        <li><b>每日认领上限</b>：按「员工 × 资源池 × 自然日」计数，跨天自动清零；超出后当天不可再认领（提示「已达到今日认领上限」）。</li>
-        <li><b>持有上限</b>：该员工名下归属对象的总数上限；<b>线索侧无持有上限概念，保持 0（不限）</b>。</li>
+        <li><b>每日认领上限</b>：按「员工 × 公海类型 × 自然日」计数，跨天自动清零（口径对齐 tse <code>daily_assign_limit_per_user</code>，按人计数、不分资源池）；超出后当天不可再认领（提示「已达到今日认领上限」）。</li>
+        <li><b>持有上限</b>：该员工名下归属客户 / 线索的总数上限（口径对齐 tse <code>max_new_customers_per_user</code>）；<b>线索侧无持有上限概念，保持 0（不限）</b>。</li>
         <li><b>不计数的情况</b>：管理员 / 主管的手动指派与转移审批通过，不占用被分配人的每日认领额度。</li>
       </ul>
     </div>

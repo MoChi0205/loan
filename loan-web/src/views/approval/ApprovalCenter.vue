@@ -6,7 +6,7 @@
         <p class="loan-page-subtitle">{{ approvalPageCopy.subtitle }}</p>
       </div>
       <div class="header-actions">
-        <el-button v-if="canCreateAnyApplication" type="primary" @click="openApplicationChooser"><AppIcon name="plus" :size="15" /> 新增申请</el-button>
+        <el-button v-if="canCreateAnyApplication && activeTab === 'mine'" type="primary" @click="openApplicationChooser"><AppIcon name="plus" :size="15" /> 新增申请</el-button>
       </div>
     </div>
 
@@ -15,14 +15,16 @@
         <button v-if="canApplyDownload" type="button" class="application-choice" @click="openDownloadApplication"><AppIcon name="download" :size="22" /><span><strong>资料下载申请</strong><small>申请无水印资料下载并查看审批进度</small></span><span>→</span></button>
         <button v-if="canCreateAppointment" type="button" class="application-choice" @click="goCreateAppointment"><AppIcon name="clock" :size="22" /><span><strong>客户预约</strong><small>进入预约页面创建客户服务安排</small></span><span>→</span></button>
         <button v-if="canCreateOuting" type="button" class="application-choice" @click="goCreateOuting"><AppIcon name="lead" :size="22" /><span><strong>员工外出申请</strong><small>进入外出页面填写计划并提交审批</small></span><span>→</span></button>
+        <button type="button" class="application-choice" @click="goCreateProduct"><AppIcon name="product" :size="22" /><span><strong>产品提交审核</strong><small>新增产品并提交入全量库审批</small></span><span>→</span></button>
+        <button type="button" class="application-choice" @click="goClientSea"><AppIcon name="org" :size="22" /><span><strong>客户认领 / 转移</strong><small>进入客户公海认领客户并发起归属流转</small></span><span>→</span></button>
       </div>
     </AppDialog>
 
     <div v-show="activeTab === 'mine'" class="loan-card">
+      <div class="mine-type-tabs" role="tablist" aria-label="申请类型">
+        <button v-for="t in mineTypeTabs" :key="t.value" type="button" class="mine-type-tab" :class="{ active: mineQuery.type === t.value }" role="tab" :aria-selected="mineQuery.type === t.value ? 'true' : 'false'" @click="selectMineType(t.value)">{{ t.label }}</button>
+      </div>
       <AppSearchBar :loading="mineLoading" @search="searchMine" @reset="resetMine">
-        <el-select v-model="mineQuery.type" placeholder="申请类型" clearable style="width: 160px">
-          <el-option v-for="item in mineTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
         <el-select v-model="mineQuery.status" placeholder="申请状态" clearable style="width: 130px">
           <el-option v-for="(label, value) in statusText" :key="value" :label="label" :value="value" />
         </el-select>
@@ -51,6 +53,10 @@
     </div>
 
     <div v-show="activeTab === 'outing'" class="loan-card">
+      <AppSearchBar :loading="outingLoading" @search="searchOutings" @reset="resetOutings">
+        <el-input v-model="outingQuery.keyword" placeholder="申请人 / 客户名称" clearable style="width: 220px" @keyup.enter="searchOutings" />
+        <AppDateRange v-model="outingDateRange" start-placeholder="外出开始日期" end-placeholder="外出结束日期" width="260px" />
+      </AppSearchBar>
       <el-table :data="outingRows" v-loading="outingLoading" stripe row-key="outingNo">
         <template #empty><AppEmpty title="暂无待审批外出" desc="当前权限范围内没有待处理的外出申请" /></template>
         <el-table-column label="申请人" width="140"><template #default="{ row }">{{ row.staffName || '姓名待补充' }}</template></el-table-column>
@@ -163,7 +169,7 @@
       <AppSearchBar :loading="loadingCL" @search="searchCL" @reset="resetCL">
         <el-input v-model="queryCL.keyword" placeholder="联系人 / 手机号 / 渠道名称" style="width: 260px" clearable @keyup.enter="searchCL" />
         <el-select v-model="queryCL.leadType" placeholder="客群" clearable style="width: 120px"><el-option label="个人" value="PERSONAL" /><el-option label="企业" value="ENTERPRISE" /></el-select>
-        <AppDateTime v-model="queryCL.dateRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="提交开始" end-placeholder="提交结束" style="width: 250px" @update:model-value="syncChannelDateRange" />
+        <AppDateTime v-model="queryCL.dateRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="提交开始" end-placeholder="提交结束" width="250px" @update:model-value="syncChannelDateRange" />
       </AppSearchBar>
       <AppTableState :error="errorCL" @retry="loadCL">
         <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo" style="height: calc(100vh - 320px); min-height: 360px">
@@ -382,6 +388,8 @@ function openApplicationChooser() {
 function openDownloadApplication() { applicationChooserVisible.value = false; activeTab.value = 'download'; openApply(); }
 function goCreateAppointment() { applicationChooserVisible.value = false; router.push({ path: '/service-operations/appointments', query: { create: '1' } }); }
 function goCreateOuting() { applicationChooserVisible.value = false; router.push({ path: '/service-operations/outings', query: { create: '1' } }); }
+function goCreateProduct() { applicationChooserVisible.value = false; router.push({ path: '/product/all', query: { create: '1' } }); }
+function goClientSea() { applicationChooserVisible.value = false; router.push({ path: '/client/company-sea' }); }
 
 const approvalView = String(route.path.split('/').pop() || 'mine');
 const approvalViewMap = Object.freeze({ 'channel-lead': 'channelLead', 'sms-template': 'smsTemplate', 'report-template': 'reportTemplate', 'sensitive-phone': 'sensitivePhone' });
@@ -419,6 +427,14 @@ const mineTypeOptions = computed(() => {
   if (contentManager) values.push('SMS_TEMPLATE', 'REPORT_TEMPLATE');
   return values.map((value) => ({ value, label: typeText[value] }));
 });
+/** 类型子 tab：前置「全部」，点击即切换并刷新，无需再从下拉逐次选择。 */
+const mineTypeTabs = computed(() => [{ value: '', label: '全部' }, ...mineTypeOptions.value]);
+function selectMineType(type) {
+  if (mineQuery.type === type) return;
+  mineQuery.type = type;
+  if (type !== 'SENSITIVE_VIEW') mineQuery.approvalStage = '';
+  loadMine();
+}
 function mineParams() {
   const params = {
     type: mineQuery.type || undefined,
@@ -514,14 +530,30 @@ async function auditSensitive(row, approve) {
   ElMessage.success(approve ? '审批已通过' : '审批已驳回');
   await loadSensitiveApprovals();
 }
-const outingQuery = reactive({ page: 1, size: 20 });
+const outingQuery = reactive({ page: 1, size: 20, keyword: '', dateFrom: '', dateTo: '' });
+const outingDateRange = computed({
+  get: () => (outingQuery.dateFrom && outingQuery.dateTo ? [outingQuery.dateFrom, outingQuery.dateTo] : []),
+  set: (v) => {
+    outingQuery.dateFrom = v?.[0] || '';
+    outingQuery.dateTo = v?.[1] || '';
+  },
+});
 async function loadOutings() {
   outingLoading.value = true;
   try {
-    const res = await pagePendingOutings(outingQuery);
+    const params = { page: outingQuery.page, size: outingQuery.size };
+    if (outingQuery.keyword.trim()) params.keyword = outingQuery.keyword.trim();
+    if (outingQuery.dateFrom) params.dateFrom = outingQuery.dateFrom;
+    if (outingQuery.dateTo) params.dateTo = outingQuery.dateTo;
+    const res = await pagePendingOutings(params);
     outingRows.value = res.data?.records || [];
     outingTotal.value = Number(res.data?.total || 0);
   } finally { outingLoading.value = false; }
+}
+function searchOutings() { outingQuery.page = 1; loadOutings(); }
+function resetOutings() {
+  Object.assign(outingQuery, { page: 1, size: 20, keyword: '', dateFrom: '', dateTo: '' });
+  loadOutings();
 }
 async function onApproveOuting(row) {
   await approveOuting(row.outingNo, '审批通过');
@@ -789,6 +821,21 @@ watch(activeTab, async (tab) => {
 .application-choice small { margin-top: 3px; color: var(--loan-text-muted); font-size: 12px; line-height: 18px; }
 .application-choice > span:last-child { color: var(--loan-primary); font-size: 18px; text-align: right; }
 .remote-more { min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--loan-primary); cursor: pointer; font-size: 13px; }
+.mine-type-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 14px; border-bottom: 1px solid var(--loan-border); margin-bottom: 14px; }
+.mine-type-tab {
+  appearance: none;
+  border: 1px solid var(--loan-border);
+  background: var(--loan-surface);
+  color: var(--loan-text-secondary);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: border-color var(--loan-transition), background var(--loan-transition), color var(--loan-transition);
+}
+.mine-type-tab:hover { border-color: var(--loan-primary); color: var(--loan-primary); }
+.mine-type-tab.active { border-color: var(--loan-primary); background: var(--loan-primary-soft); color: var(--loan-primary); font-weight: 600; }
 :global(.download-apply-dialog .el-dialog) { max-width: calc(100vw - 32px); overflow: visible; }
 :global(.download-apply-dialog .el-dialog__body) { overflow: visible; }
 :global(.download-apply-dialog .attachment-select-popper) { max-width: 490px; }

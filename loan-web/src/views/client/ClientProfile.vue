@@ -53,7 +53,7 @@
           start-placeholder="建档起始"
           end-placeholder="建档截止"
           value-format="YYYY-MM-DD HH:mm:ss"
-          style="width: 260px"
+          width="260px"
         />
         </template>
         <AppDateTime
@@ -62,7 +62,7 @@
           start-placeholder="成交起始"
           end-placeholder="成交截止"
           value-format="YYYY-MM-DD HH:mm:ss"
-          style="width: 260px"
+          width="260px"
         />
       </AppSearchBar>
       <div v-if="['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope)" class="batch-bar">
@@ -189,7 +189,7 @@
       </div>
     </div>
 
-    <!-- 编辑弹窗：基础信息 + 个人档案合并编辑 -->
+    <!-- 编辑弹窗：基础信息 + 企业信息 + 个人档案合并编辑 -->
     <AppDialog v-model:visible="editVisible" title="编辑客户档案" width="640px" :loading="saving" @confirm="onSave">
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="110px" label-position="right">
         <el-divider content-position="left">基础信息</el-divider>
@@ -197,14 +197,18 @@
           <el-input v-model="editForm.contactName" placeholder="客户姓名" />
         </el-form-item>
         <el-form-item label="来源" prop="source">
-          <el-select v-model="editForm.source" clearable placeholder="来源" style="width: 100%">
-            <el-option v-for="(v, k) in sourceMap" :key="k" :label="v" :value="k" />
-          </el-select>
+          <el-radio-group v-model="editForm.source" class="source-picker">
+            <el-radio-button v-for="(v, k) in sourceMap" :key="k" :value="k">{{ v }}</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-divider content-position="left">企业信息</el-divider>
+        <el-form-item label="企业名称" prop="enterpriseName">
+          <el-input v-model="editForm.enterpriseName" placeholder="企业名称（个人客户可留空）" />
+        </el-form-item>
+        <el-form-item label="信用代码" prop="creditCode">
+          <el-input v-model="editForm.creditCode" placeholder="统一社会信用代码（留空或含 * 则不修改）" />
         </el-form-item>
         <el-divider content-position="left">个人档案</el-divider>
-        <el-form-item label="姓名" prop="realName">
-          <el-input v-model="editForm.realName" placeholder="实名姓名" />
-        </el-form-item>
         <el-form-item label="身份证号" prop="idCardNo">
           <el-input v-model="editForm.idCardNo" placeholder="身份证号（录入后加密存储）" />
         </el-form-item>
@@ -804,6 +808,8 @@ const editForm = reactive({
   contactName: '',
   source: '',
   customerTag: '',
+  enterpriseName: '',
+  creditCode: '',
   realName: '',
   idCardNo: '',
   city: '',
@@ -826,6 +832,8 @@ function openEdit() {
     contactName: detail.name,
     source: detail.source,
     customerTag: detail.customerTag,
+    enterpriseName: detail.enterpriseName,
+    creditCode: detail.creditCode,
     realName: detail.realName,
     idCardNo: detail.idCardNo,
     city: detail.city,
@@ -842,7 +850,12 @@ async function onSave() {
   await editFormRef.value.validate();
   saving.value = true;
   try {
-    await updateClientDetail(clientCode.value, { ...editForm });
+    const payload = { ...editForm };
+    // 信用代码后端返回的是脱敏值（含 *），未改动时不回传，避免把掩码当作真实值落库。
+    if (!payload.creditCode || /\*/.test(payload.creditCode)) delete payload.creditCode;
+    // 个人客户「客户姓名」与「个人档案-姓名」为同一人：编辑只保留基础信息里的姓名，保存时同步个人档案姓名。
+    if (!payload.enterpriseName && payload.contactName) payload.realName = payload.contactName;
+    await updateClientDetail(clientCode.value, payload);
     ElMessage.success('档案已更新');
     editVisible.value = false;
     loadDetail(clientCode.value);
@@ -1025,4 +1038,8 @@ watch(
   font-size: 13px;
   line-height: 1.6;
 }
+/* 来源快速点选：radio-button 换行铺开，替代下拉 */
+.source-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.source-picker :deep(.el-radio-button) { margin: 0; }
+.source-picker :deep(.el-radio-button__inner) { border-radius: 6px; border: 1px solid var(--loan-border); box-shadow: none; }
 </style>

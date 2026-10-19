@@ -45,3 +45,8 @@ export function pageImportTasks(params = {}) {
 export function getImportTask(taskNo) {
   return request({ url: '/api/admin/import/task', method: 'get', params: { taskNo } });
 }
+
+/** 维护单个资源池的回收规则（一个池一条规则，参考 tse；仅经理/老板/超管）。 */
+export function savePoolRecycle(poolCode, data) {
+  return request({ url: `/api/admin/resource-pool/${poolCode}/recycle`, method: 'put', data });
+}

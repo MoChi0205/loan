@@ -33,7 +33,7 @@
             <el-option label="有异常" :value="1" />
             <el-option label="无异常" :value="0" />
           </el-select>
-          <AppDateTime v-model="timeRange" type="datetimerange" value-format="YYYY-MM-DD HH:mm:ss" start-placeholder="开始时间" end-placeholder="结束时间" style="width: 360px" />
+          <AppDateTime v-model="timeRange" type="datetimerange" value-format="YYYY-MM-DD HH:mm:ss" start-placeholder="开始时间" end-placeholder="结束时间" width="360px" />
           <el-select v-model="query.ownerDeptCode" placeholder="归属团队" clearable filterable style="width: 170px">
             <el-option v-for="d in deptOptions" :key="d.deptCode" :label="d.deptName" :value="d.deptCode" />
           </el-select>

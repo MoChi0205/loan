@@ -641,6 +641,11 @@ body {
   box-shadow: 0 24px 56px -8px rgba(15, 23, 42, 0.2);
   border: 1px solid var(--loan-border);
   background: var(--loan-card-bg);
+  /* 窗口缩小时弹窗不超出视口，footer 的确认/取消按钮始终可点（预约/改期弹窗溢出修复） */
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
 }
 
 .el-dialog__header {
@@ -648,6 +653,7 @@ body {
   margin: 0;
   background: var(--loan-card-bg);
   border-bottom: 1px solid var(--loan-border);
+  flex-shrink: 0;
 }
 
 .el-dialog__title {
@@ -662,12 +668,16 @@ body {
   padding: 22px 24px;
   color: var(--loan-text);
   font-size: 14px;
+  /* 弹窗高度受 max-height 约束后，body 内部滚动，footer 常驻可点 */
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .el-dialog__footer {
   padding: 14px 24px;
   background: var(--loan-surface);
   border-top: 1px solid var(--loan-border);
+  flex-shrink: 0;
 }
 
 .el-dialog__headerbtn {
@@ -1287,4 +1297,21 @@ body {
 .el-dialog .el-input,
 .el-dialog .el-select {
   --el-component-size: 32px;
+}
+
+/* ============ 弹窗内 el-select 下拉收口 ============ */
+/* teleported=false 时下拉渲染在弹窗内；限制宽度不超过触发框、高度最多 5 项，
+   避免下拉列表超出弹窗边界（指派/分配弹窗 2026-10-19 反馈） */
+.el-dialog .dialog-select-popper {
+  max-width: 100%;
+}
+
+.dialog-select-popper .el-select-dropdown__wrap {
+  max-height: 190px;
+}
+
+.dialog-select-popper .el-select-dropdown__item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
