@@ -14,6 +14,10 @@
     <div class="loan-card">
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
         <el-input v-model="query.keyword" placeholder="模板名称" style="width: 220px" clearable @keyup.enter="onSearch" />
+        <el-select v-model="query.status" placeholder="状态" clearable style="width: 130px">
+          <el-option label="已发布" value="ACTIVE" />
+          <el-option label="已停用" value="INACTIVE" />
+        </el-select>
       </AppSearchBar>
 
       <el-table :data="data" v-loading="loading" stripe row-key="templateCode" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -79,7 +83,7 @@ import { useTable } from '@/composables/useTable';
 import { formatDateTime } from '@/utils/format';
 import { pageReportTemplates, saveReportTemplate, toggleReportTemplate } from '@/api/report-template';
 
-const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageReportTemplates, { keyword: '' });
+const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageReportTemplates, { keyword: '', status: '' });
 
 function rowActions(row) {
   return [

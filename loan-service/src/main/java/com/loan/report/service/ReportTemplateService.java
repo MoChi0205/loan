@@ -36,12 +36,15 @@ public class ReportTemplateService {
     /**
      * 模板分页。
      */
-    public PageResult<Map<String, Object>> page(String keyword, int page, int size) {
+    public PageResult<Map<String, Object>> page(String keyword, String status, int page, int size) {
         LambdaQueryWrapper<ReportTemplate> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
             wrapper.and(w -> w.like(ReportTemplate::getTemplateCode, kw)
                     .or().like(ReportTemplate::getTemplateName, kw));
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(ReportTemplate::getStatus, status.trim());
         }
         wrapper.orderByDesc(ReportTemplate::getCreatedAt);
         Page<ReportTemplate> result = templateMapper.selectPage(new Page<>(page, size), wrapper);

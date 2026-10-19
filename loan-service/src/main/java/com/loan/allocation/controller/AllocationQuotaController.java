@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.allocation.entity.ClaimQuotaConfig;
 import com.loan.allocation.mapper.ClaimQuotaConfigMapper;
 import com.loan.allocation.service.ClaimQuotaService;
+import com.loan.client.pool.ResourcePool;
+import com.loan.client.pool.ResourcePoolMapper;
 import com.loan.common.Result;
 import com.loan.common.ResultCode;
 import com.loan.context.CurrentUser;
@@ -20,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,11 +44,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AllocationQuotaController {
 
-    /** 支持的资源池范围。 */
-    private static final List<String> SCOPES = Arrays.asList(
-            ClaimQuotaService.SCOPE_LEAD, ClaimQuotaService.SCOPE_CLIENT);
+    /** scope 前缀：资源池维度（POOL:<poolCode>），与公海类型（LEAD/CLIENT）并存。 */
+    private static final String POOL_SCOPE_PREFIX = "POOL:";
 
-    /** 范围中文名，用于前端展示。 */
+    /** 范围中文名（公海类型固定映射；资源池维度动态取资源池名）。 */
     private static final Map<String, String> SCOPE_NAMES = new LinkedHashMap<>();
 
     static {
@@ -57,11 +57,12 @@ public class AllocationQuotaController {
 
     private final ClaimQuotaConfigMapper configMapper;
     private final ClaimQuotaService claimQuotaService;
+    private final ResourcePoolMapper resourcePoolMapper;
 
     /**
-     * 查询认领设置（两个资源池各一行）。
+     * 查询认领设置（全部已配置行；未配置公海类型时补 LEAD/CLIENT 默认两行）。
      *
-     * @return 配置列表（scope/scopeName/dailyClaimLimit/maxHolding/remark/updatedBy/updatedAt）
+     * @return 配置列表（scope/scopeName/dailyClaimLimit/maxHolding/protectDays/dailyCooldownLimit/returnTarget/remark/updatedBy/updatedAt）
      */
     @GetMapping("/list")
     public Result<List<Map<String, Object>>> list() {
@@ -69,20 +70,27 @@ public class AllocationQuotaController {
         for (ClaimQuotaConfig row : configMapper.selectList(null)) {
             existing.put(row.getScope(), row);
         }
-        List<Map<String, Object>> rows = new ArrayList<>(SCOPES.size());
-        for (String scope : SCOPES) {
-            rows.add(toView(scope, existing.get(scope)));
+        // 公海类型两行常驻（即使尚未配置也显示默认行，便于直接编辑）
+        List<Map<String, Object>> rows = new ArrayList<>();
+        rows.add(toView(ClaimQuotaService.SCOPE_LEAD, existing.get(ClaimQuotaService.SCOPE_LEAD)));
+        rows.add(toView(ClaimQuotaService.SCOPE_CLIENT, existing.get(ClaimQuotaService.SCOPE_CLIENT)));
+        // 追加资源池维度专属配置行
+        for (Map.Entry<String, ClaimQuotaConfig> entry : existing.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().startsWith(POOL_SCOPE_PREFIX)) {
+                rows.add(toView(entry.getKey(), entry.getValue()));
+            }
         }
         return Result.ok(rows);
     }
 
     /**
-     * 保存认领设置（按 scope 幂等 upsert）。
+     * 保存认领设置（按 scope 幂等 upsert；支持新增资源池维度行与删除行）。
      *
      * <p>{@code dailyClaimLimit} / {@code maxHolding} 传 0 表示不限。保存后清本地缓存，
      * 配额规则<b>即时生效</b>，无需重启或发版。</p>
      *
-     * @param body 配置项列表，形如 { items: [{ scope, dailyClaimLimit, maxHolding, remark }] }
+     * @param body { items: [{ scope, dailyClaimLimit, maxHolding, protectDays, dailyCooldownLimit, returnTarget, remark }],
+     *               deleteScopes: [scope...] 要删除的行（LEAD/CLIENT 不可删除，仅可删资源池维度行） }
      * @param user 当前用户（记录更新人）
      * @return ok
      */
@@ -102,11 +110,8 @@ public class AllocationQuotaController {
             }
             @SuppressWarnings("unchecked")
             Map<String, Object> row = (Map<String, Object>) item;
-            String scope = StringUtils.hasText((String) row.get("scope"))
-                    ? ((String) row.get("scope")).trim().toUpperCase() : null;
-            if (scope == null || !SCOPES.contains(scope)) {
-                throw new BusinessException(ResultCode.PARAM_ERROR, "不支持的适用范围：" + row.get("scope"));
-            }
+            String scope = normalizeScope(row.get("scope"));
+            validateScope(scope);
             int dailyClaimLimit = readNonNegative(row.get("dailyClaimLimit"), "每日认领上限");
             int maxHolding = readNonNegative(row.get("maxHolding"), "持有上限");
             int protectDays = readNonNegative(row.get("protectDays"), "数据保护期天数");
@@ -119,8 +124,51 @@ public class AllocationQuotaController {
             upsert(scope, dailyClaimLimit, maxHolding, protectDays, dailyCooldownLimit, returnTarget,
                     (String) row.get("remark"), operatorName);
         }
+        // 删除行（仅资源池维度，LEAD/CLIENT 常驻不可删）
+        Object deleteRaw = body == null ? null : body.get("deleteScopes");
+        if (deleteRaw instanceof List) {
+            for (Object del : (List<?>) deleteRaw) {
+                String scope = normalizeScope(del);
+                if (scope == null || !scope.startsWith(POOL_SCOPE_PREFIX)) {
+                    throw new BusinessException(ResultCode.PARAM_ERROR, "仅资源池维度配置可删除");
+                }
+                configMapper.delete(new LambdaQueryWrapper<ClaimQuotaConfig>()
+                        .eq(ClaimQuotaConfig::getScope, scope));
+            }
+        }
         claimQuotaService.evictCache();
         return Result.ok("ok");
+    }
+
+    /** 归一化 scope：去除首尾空白并大写；保留 POOL: 前缀。 */
+    private String normalizeScope(Object raw) {
+        if (raw == null || "".equals(String.valueOf(raw).trim())) {
+            return null;
+        }
+        return String.valueOf(raw).trim().toUpperCase();
+    }
+
+    /** 校验 scope 合法：LEAD / CLIENT / POOL:<存在的资源池编码>。 */
+    private void validateScope(String scope) {
+        if (scope == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "适用范围 scope 不能为空");
+        }
+        if (ClaimQuotaService.SCOPE_LEAD.equals(scope) || ClaimQuotaService.SCOPE_CLIENT.equals(scope)) {
+            return;
+        }
+        if (scope.startsWith(POOL_SCOPE_PREFIX)) {
+            String poolCode = scope.substring(POOL_SCOPE_PREFIX.length());
+            if (!StringUtils.hasText(poolCode)) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "资源池编码不能为空");
+            }
+            ResourcePool pool = resourcePoolMapper.selectOne(new LambdaQueryWrapper<ResourcePool>()
+                    .eq(ResourcePool::getPoolCode, poolCode).last("LIMIT 1"));
+            if (pool == null) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "资源池不存在：" + poolCode);
+            }
+            return;
+        }
+        throw new BusinessException(ResultCode.PARAM_ERROR, "不支持的适用范围：" + scope);
     }
 
     /** 解析非负整数（null / 空串按 0 处理；非数字或负数直接拒绝）。 */
@@ -175,7 +223,7 @@ public class AllocationQuotaController {
     private Map<String, Object> toView(String scope, ClaimQuotaConfig row) {
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("scope", scope);
-        view.put("scopeName", SCOPE_NAMES.get(scope));
+        view.put("scopeName", scopeNameOf(scope));
         view.put("dailyClaimLimit", row != null && row.getDailyClaimLimit() != null
                 ? row.getDailyClaimLimit() : claimQuotaService.limitOf(scope));
         view.put("maxHolding", row != null && row.getMaxHolding() != null
@@ -191,5 +239,20 @@ public class AllocationQuotaController {
         view.put("updatedAt", row == null || row.getUpdatedAt() == null
                 ? null : row.getUpdatedAt().toString().replace('T', ' '));
         return view;
+    }
+
+    /** scope → 展示名：公海类型固定映射；资源池维度动态取资源池名。 */
+    private String scopeNameOf(String scope) {
+        if (SCOPE_NAMES.containsKey(scope)) {
+            return SCOPE_NAMES.get(scope);
+        }
+        if (scope != null && scope.startsWith(POOL_SCOPE_PREFIX)) {
+            String poolCode = scope.substring(POOL_SCOPE_PREFIX.length());
+            ResourcePool pool = resourcePoolMapper.selectOne(new LambdaQueryWrapper<ResourcePool>()
+                    .eq(ResourcePool::getPoolCode, poolCode).last("LIMIT 1"));
+            return pool != null && StringUtils.hasText(pool.getPoolName())
+                    ? pool.getPoolName() : "资源池(" + poolCode + ")";
+        }
+        return scope;
     }
 }

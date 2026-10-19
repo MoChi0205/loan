@@ -4,23 +4,28 @@
       <div>
         <h2 class="loan-page-title">认领设置</h2>
         <p class="loan-page-subtitle">
-          每人每日认领上限与持有客户上限 · 线索公海 / 客户公海各一行 · 0 表示不限 · 保存后即时生效（无需重启或发版）
+          每人每日认领上限与持有上限 · 线索公海 / 客户公海常驻各一行，可按资源池追加专属配置 · 0 表示不限 · 保存后即时生效
         </p>
       </div>
-      <el-button type="primary" :loading="saving" @click="onSave">保存设置</el-button>
+      <div class="header-actions">
+        <el-input v-model="filterKeyword" placeholder="筛选：公海 / 资源池名称" clearable style="width: 220px" />
+        <el-button @click="openAddDialog">新增配置</el-button>
+        <el-button type="primary" :loading="saving" @click="onSave">保存设置</el-button>
+      </div>
     </div>
 
     <div class="loan-card">
-      <el-table :data="rows" v-loading="loading" stripe>
+      <el-table :data="filteredRows" v-loading="loading" stripe>
         <template #empty>
           <AppEmpty
             title="暂无配额配置"
             desc="保存后自动创建配置行（线索公海 / 客户公海各一行，无需执行脚本）"
           />
         </template>
-        <el-table-column prop="scopeName" label="适用公海" width="140">
+        <el-table-column prop="scopeName" label="适用公海" width="160">
           <template #default="{ row }">
-            <span class="loan-tag loan-tag-info">{{ row.scopeName || ({ SELF: '本人', DEPARTMENT: '本团队', COMPANY: '全公司' }[row.scope] || '未指定范围') }}</span>
+            <span class="loan-tag loan-tag-info">{{ row.scopeName || '未指定范围' }}</span>
+            <span v-if="isPoolScope(row.scope)" class="cell-sub">资源池专属</span>
           </template>
         </el-table-column>
         <el-table-column label="每日认领上限" width="210">
@@ -86,7 +91,30 @@
             <span v-else class="cell-sub">—</span>
           </template>
         </el-table-column>
+        <el-table-column label="操作" width="90" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="isPoolScope(row.scope)" link type="danger" @click="onDeleteRow(row)">删除</el-button>
+            <span v-else class="cell-sub">常驻</span>
+          </template>
+        </el-table-column>
       </el-table>
+
+      <!-- 新增配置弹窗：公海类型常驻不可重复新增，仅资源池维度可追加 -->
+      <AppDialog v-model:visible="addDialogVisible" title="新增认领配置" width="480px" :loading="adding" @confirm="onAddConfirm">
+        <el-form label-width="90px">
+          <el-form-item label="适用范围">
+            <el-radio-group v-model="addForm.scopeType">
+              <el-radio value="POOL">指定资源池</el-radio>
+            </el-radio-group>
+            <p class="add-hint">线索公海 / 客户公海为常驻行，无需新增；此处仅用于给某个资源池单独配置认领上限。</p>
+          </el-form-item>
+          <el-form-item label="资源池" required>
+            <el-select v-model="addForm.poolCode" placeholder="选择资源池" filterable style="width: 100%">
+              <el-option v-for="p in poolOptions" :key="p.poolCode" :label="p.poolName" :value="p.poolCode" :disabled="usedPoolCodes.has(p.poolCode)" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </AppDialog>
 
       <ul class="quota-tip">
         <li><b>每日认领上限</b>：按「员工 × 公海类型 × 自然日」计数，跨天自动清零（口径对齐 tse <code>daily_assign_limit_per_user</code>，按人计数、不分资源池）；超出后当天不可再认领（提示「已达到今日认领上限」）。</li>
@@ -101,9 +129,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ref, computed, onMounted } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { listAllocationQuota, saveAllocationQuota } from '@/api/allocationQuota';
+import { listResourcePools } from '@/api/importing';
+import AppDialog from '@/components/AppDialog.vue';
 import { appConfirm } from '@/utils/confirm';
 
 const rows = ref([]);
@@ -111,6 +141,72 @@ const rows = ref([]);
 const origin = ref([]);
 const loading = ref(false);
 const saving = ref(false);
+const filterKeyword = ref('');
+/** 本次待删除的资源池维度 scope（保存时一并提交）。 */
+const pendingDeletes = ref([]);
+
+const isPoolScope = (scope) => typeof scope === 'string' && scope.startsWith('POOL:');
+
+/** 资源池下拉（新增用）。 */
+const poolOptions = ref([]);
+const addDialogVisible = ref(false);
+const adding = ref(false);
+const addForm = ref({ scopeType: 'POOL', poolCode: '' });
+
+/** 已配置的资源池 scope（禁用重复新增）。 */
+const usedPoolCodes = computed(() => {
+  const set = new Set();
+  rows.value.forEach((r) => { if (isPoolScope(r.scope)) set.add(r.scope.slice(5)); });
+  return set;
+});
+
+/** 关键词过滤后的展示行。 */
+const filteredRows = computed(() => {
+  const kw = filterKeyword.value.trim().toLowerCase();
+  if (!kw) return rows.value;
+  return rows.value.filter((r) => (r.scopeName || '').toLowerCase().includes(kw) || (r.scope || '').toLowerCase().includes(kw));
+});
+
+async function loadPoolOptions() {
+  try { poolOptions.value = (await listResourcePools()).data || []; } catch { poolOptions.value = []; }
+}
+
+function openAddDialog() {
+  addForm.value = { scopeType: 'POOL', poolCode: '' };
+  addDialogVisible.value = true;
+}
+
+/** 新增资源池维度配置行（仅本地追加，随保存提交）。 */
+function onAddConfirm() {
+  if (!addForm.value.poolCode) return ElMessage.warning('请选择资源池');
+  const pool = poolOptions.value.find((p) => p.poolCode === addForm.value.poolCode);
+  const scope = 'POOL:' + addForm.value.poolCode;
+  if (rows.value.some((r) => r.scope === scope)) return ElMessage.warning('该资源池已配置');
+  rows.value.push({
+    scope,
+    scopeName: pool?.poolName || addForm.value.poolCode,
+    dailyClaimLimit: 0,
+    maxHolding: 0,
+    protectDays: 0,
+    dailyCooldownLimit: 0,
+    returnTarget: 'PUBLIC',
+    remark: '',
+    updatedBy: null,
+    updatedAt: null,
+  });
+  addDialogVisible.value = false;
+  ElMessage.success('已添加，保存后生效');
+}
+
+/** 删除资源池维度行（本地标记，随保存提交）。 */
+async function onDeleteRow(row) {
+  try {
+    await ElMessageBox.confirm(`确认删除「${row.scopeName}」的专属认领配置？删除后该资源池将回落使用公海类型默认配额。`, '删除配置', { type: 'warning' });
+  } catch (e) { return; }
+  rows.value = rows.value.filter((r) => r.scope !== row.scope);
+  pendingDeletes.value.push(row.scope);
+  ElMessage.success('已标记删除，保存后生效');
+}
 
 /** 拉取配额配置。 */
 async function load() {
@@ -126,6 +222,7 @@ async function load() {
       returnTarget: item.returnTarget || 'PUBLIC',
     }));
     origin.value = snapshot();
+    pendingDeletes.value = [];
   } catch (e) {
     rows.value = [];
     origin.value = [];
@@ -182,13 +279,19 @@ function diffOf() {
  */
 async function onSave() {
   const changes = diffOf();
-  if (!changes.length) {
+  const hasNew = rows.value.some((r) => !origin.value.some((o) => o.scope === r.scope));
+  const hasDelete = pendingDeletes.value.length > 0;
+  if (!changes.length && !hasNew && !hasDelete) {
     ElMessage.info('没有需要保存的修改');
     return;
   }
+  const summary = [];
+  if (changes.length) summary.push(`修改 ${changes.length} 项`);
+  if (hasNew) summary.push('新增配置行');
+  if (hasDelete) summary.push(`删除 ${pendingDeletes.value.length} 行`);
   try {
     await appConfirm(
-      `保存后立即生效，0 表示不限。确认修改以下 ${changes.length} 项？<br>· ${changes.join('<br>· ')}`,
+      `保存后立即生效，0 表示不限。本次将${summary.join('、')}。<br>${changes.length ? '· ' + changes.join('<br>· ') : ''}`,
       '确认保存认领设置？',
       { confirmButtonText: '确认保存', dangerouslyUseHTMLString: true },
     );
@@ -207,6 +310,7 @@ async function onSave() {
         returnTarget: row.returnTarget || 'PUBLIC',
         remark: row.remark,
       })),
+      pendingDeletes.value,
     );
     ElMessage.success('已保存，配额即时生效');
     await load();
@@ -215,10 +319,21 @@ async function onSave() {
   }
 }
 
-onMounted(load);
+onMounted(() => { load(); loadPoolOptions(); });
 </script>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.add-hint {
+  margin: 4px 0 0;
+  color: var(--loan-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
 .quota-tip {
   margin: 18px 0 0;
   padding-left: 20px;

@@ -245,13 +245,13 @@ const BASE_MENU_GROUPS = [
     items: [
       { title: '线索管理', icon: 'lead', isSection: true },
       { path: '/lead/my', title: '我的线索', icon: 'lead', indent: true },
-      { path: '/lead/pool', title: '线索公海', icon: 'sea', indent: true },
+      { path: '/lead/pool', title: '线索公海', icon: 'layers', indent: true },
       { title: '客户档案', icon: 'client', isSection: true },
       { path: '/client/my', title: '我的客户', icon: 'client', indent: true },
       { path: '/client/team', title: '团队客户', icon: 'client', indent: true },
       { path: '/client/company', title: '客户列表', icon: 'client', indent: true },
-      { path: '/client/company-sea', title: '客户公海', icon: 'sea', indent: true },
-      { path: '/client/team-sea', title: '团队公海', icon: 'sea', indent: true },
+      { path: '/client/company-sea', title: '客户公海', icon: 'layers', indent: true },
+      { path: '/client/team-sea', title: '团队公海', icon: 'layers', indent: true },
       { path: '/client/lookup', title: '客户检索', icon: 'search' },
       { path: '/client/ocr', title: '客户材料', icon: 'ocr' },
     ],
@@ -259,7 +259,7 @@ const BASE_MENU_GROUPS = [
   {
     title: '运营管理',
     short: '运营',
-    icon: 'setting',
+    icon: 'settings',
     items: [
       { path: '/client/import-tasks', title: '客户导入进度', icon: 'clock' },
       { path: '/client/resource-pool-config', title: '资源池回收规则', icon: 'setting' },

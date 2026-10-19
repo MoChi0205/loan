@@ -18,6 +18,10 @@
           <el-option label="个人" value="PERSONAL" />
         </el-select>
         <el-input v-model="query.keyword" placeholder="模版名称" clearable style="width: 200px" @keyup.enter="onSearch" />
+        <el-select v-model="query.status" placeholder="状态" clearable style="width: 130px">
+          <el-option label="已上线" value="ACTIVE" />
+          <el-option label="草稿" value="DRAFT" />
+        </el-select>
       </AppSearchBar>
 
       <el-table :data="data" v-loading="loading" stripe row-key="templateCode">
@@ -157,7 +161,7 @@ const FIELD_TYPES = ['STRING', 'NUMBER', 'DATE', 'LIST'];
 const OPERATORS = ['==', '!=', '>', '<', '>=', '<=', 'in', 'not_in', 'contains', 'not_contains', 'between', 'is_null', 'not_null'];
 
 const categoryList = ref([]);
-const { loading, data, total, query, load, onSearch, onReset } = useTable(pageTemplate, { customerGroup: '', keyword: '' });
+const { loading, data, total, query, load, onSearch, onReset } = useTable(pageTemplate, { customerGroup: '', keyword: '', status: '' });
 
 const categoryMap = computed(() => Object.fromEntries(categoryList.value.map((c) => [c.id, c.categoryName])));
 function categoryName(id) {

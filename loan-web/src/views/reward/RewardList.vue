@@ -16,11 +16,12 @@
           {{ showMore ? '收起筛选 ▴' : '更多筛选 ▾' }}
         </el-button>
         <template v-if="showMore">
-          <AppDateRange
+          <AppDateTime
             v-model="query.dateRange"
+            type="daterange"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
-            width="250px"
+            width="260px"
             style="margin-left: 8px"
           />
         </template>
@@ -119,7 +120,7 @@ defineOptions({ name: '_reward' });
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
-import AppDateRange from '@/components/AppDateRange.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';

@@ -136,12 +136,13 @@ public class OrgController {
             @RequestParam(required = false) String deptCode,
             @RequestParam(required = false) String roleCode,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
             @CurrentUser LoanUser user) {
-        return Result.ok(orgService.pageStaff(deptCode, roleCode, keyword, page, size, orderBy, orderDir, user));
+        return Result.ok(orgService.pageStaff(deptCode, roleCode, keyword, status, page, size, orderBy, orderDir, user));
     }
 
     // ============================================================

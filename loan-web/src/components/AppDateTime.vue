@@ -9,6 +9,8 @@
     :value-format="valueFormat"
     :format="format"
     :range-separator="rangeSeparator"
+    :time-format="timeFormat"
+    :default-time="defaultTime"
     :shortcuts="resolvedShortcuts"
     :disabled-date="disabledDate"
     :clearable="clearable"
@@ -42,6 +44,10 @@ const props = defineProps({
   valueFormat: { type: String, default: 'YYYY-MM-DD' },
   format: { type: String, default: 'YYYY-MM-DD' },
   rangeSeparator: { type: String, default: '至' },
+  /** datetimerange 面板时间列格式（如 HH:mm） */
+  timeFormat: { type: String, default: 'HH:mm:ss' },
+  /** datetimerange 起止默认时刻（[startDate, endDate]，仅带时分秒） */
+  defaultTime: { type: Array, default: undefined },
   clearable: { type: Boolean, default: true },
   /** 宽度（如 '260px'）；数字按 px 处理；缺省 100%（配合 el-form-item 等流式布局）。 */
   width: { type: [String, Number], default: '' },

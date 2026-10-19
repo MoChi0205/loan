@@ -64,12 +64,18 @@ public class SmsAdminService {
     /**
      * 模板分页。
      */
-    public PageResult<Map<String, Object>> templatePage(String keyword, int page, int size, String orderBy, String orderDir) {
+    public PageResult<Map<String, Object>> templatePage(String keyword, String smsType, Integer enabled, int page, int size, String orderBy, String orderDir) {
         LambdaQueryWrapper<SmsTemplate> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
             wrapper.and(w -> w.like(SmsTemplate::getTemplateCode, kw)
                     .or().like(SmsTemplate::getTemplateName, kw));
+        }
+        if (StringUtils.hasText(smsType)) {
+            wrapper.eq(SmsTemplate::getSmsType, smsType.trim());
+        }
+        if (enabled != null) {
+            wrapper.eq(SmsTemplate::getEnabled, enabled);
         }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, SmsTemplate::getCreatedAt);
         Page<SmsTemplate> result = smsTemplateMapper.selectPage(new Page<>(page, size), wrapper);

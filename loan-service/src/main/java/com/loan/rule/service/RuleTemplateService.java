@@ -57,7 +57,7 @@ public class RuleTemplateService {
     /**
      * 分页查询模板。
      */
-    public PageResult<RuleTemplate> page(String customerGroup, String keyword, int page, int size) {
+    public PageResult<RuleTemplate> page(String customerGroup, String keyword, String status, int page, int size) {
         LambdaQueryWrapper<RuleTemplate> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(customerGroup)) {
             wrapper.eq(RuleTemplate::getCustomerGroup, customerGroup);
@@ -65,6 +65,9 @@ public class RuleTemplateService {
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(RuleTemplate::getTemplateCode, keyword)
                     .or().like(RuleTemplate::getTemplateName, keyword));
+        }
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(RuleTemplate::getStatus, status.trim());
         }
         wrapper.orderByDesc(RuleTemplate::getId);
         Page<RuleTemplate> result = templateMapper.selectPage(new Page<>(page, size), wrapper);

@@ -26,6 +26,10 @@
           <el-option label="企业" value="ENTERPRISE" />
           <el-option label="个人" value="PERSONAL" />
         </el-select>
+        <el-select v-model="query.status" placeholder="状态" clearable style="width: 130px">
+          <el-option label="已上线" value="ACTIVE" />
+          <el-option label="草稿/未上线" value="DRAFT" />
+        </el-select>
         <el-input v-model="query.keyword" placeholder="模版名称" clearable style="width: 200px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
@@ -289,7 +293,7 @@ const noManualCondition = computed(() => {
   return String(r.valueType || '').toUpperCase() === 'BOOLEAN'
     || /blacklist|dishonest|失信|黑名单/i.test(`${r.ruleCode || ''}${r.name || ''}`);
 });
-const { loading, data, total, query, load, onSearch, onReset } = useTable(pageTemplate, { customerGroup: route.query.cg || '', keyword: '' });
+const { loading, data, total, query, load, onSearch, onReset } = useTable(pageTemplate, { customerGroup: route.query.cg || '', keyword: '', status: '' });
 
 /** 客群页内切换（6合3 · T10：企业/个贷单入口，URL ?cg= 同步） */
 const cgOptions = [

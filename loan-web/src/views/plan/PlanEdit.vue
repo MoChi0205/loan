@@ -17,6 +17,11 @@
     <div class="loan-card">
       <AppSearchBar :loading="loading" @search="onSearch" @reset="onReset">
         <el-input v-model="query.keyword" placeholder="计划名称" clearable style="width: 260px" @keyup.enter="onSearch" />
+        <el-select v-model="query.status" placeholder="状态" clearable style="width: 130px" @change="onSearch">
+          <el-option label="草稿" value="DRAFT" />
+          <el-option label="已启用" value="ACTIVE" />
+          <el-option label="已停用" value="INACTIVE" />
+        </el-select>
         <template #append>
           <el-button type="primary" @click="openPlanDialog()">
             <AppIcon name="add" :size="14" />
@@ -370,7 +375,7 @@ const loading = ref(false);
 const detailCache = new Map();
 
 /** 搜索关键字 + 排序参数（跨页后端排序） */
-const query = reactive({ keyword: '', sortBy: '', sortDir: '' });
+const query = reactive({ keyword: '', status: '', sortBy: '', sortDir: '' });
 
 /** 列表表格实例 */
 const planTableRef = ref();
@@ -384,14 +389,8 @@ const columns = ref([
   { key: 'updatedAt', label: '更新时间', width: 170, sortable: 'custom' },
 ]);
 
-/** 过滤后的计划列表 */
-const filteredPlans = computed(() => {
-  if (!query.keyword) return plans.value;
-  const kw = query.keyword.toLowerCase();
-  return plans.value.filter((p) =>
-    p.planName?.toLowerCase().includes(kw) || p.planCode?.toLowerCase().includes(kw),
-  );
-});
+/** 计划列表（keyword/status 已由服务端筛选，此处直接透传） */
+const filteredPlans = computed(() => plans.value);
 
 /** 切换客群时：清空选中、重新加载计划和规则（URL ?cg= 同步） */
 function onCustomerGroupChange(val) {
@@ -436,11 +435,13 @@ function selectPlan(p) {
 }
 
 function onSearch() {
-  // 搜索已通过 computed 实时过滤
+  loadPlans();
 }
 
 function onReset() {
   query.keyword = '';
+  query.status = '';
+  loadPlans();
 }
 
 /** 列头排序（时间列走后端跨页排序：sortBy/sortDir 传 list 接口） */
@@ -882,6 +883,8 @@ async function loadPlans() {
   loading.value = true;
   try {
     const params = { customerGroup: activeCustomerGroup.value };
+    if (query.keyword) params.keyword = query.keyword.trim();
+    if (query.status) params.status = query.status;
     if (query.sortBy) {
       params.orderBy = query.sortBy;
       params.orderDir = query.sortDir || 'desc';

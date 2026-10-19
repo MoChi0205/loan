@@ -15,6 +15,13 @@
     <div v-show="activeTab === 'template'" class="loan-card">
       <AppSearchBar :loading="loadingT" @search="searchT" @reset="resetT">
         <el-input v-model="queryT.keyword" placeholder="模板编码 / 名称" style="width: 220px" clearable @keyup.enter="searchT" />
+        <el-select v-model="queryT.smsType" placeholder="类型" clearable style="width: 140px">
+          <el-option v-for="(t, k) in typeText" :key="k" :label="t" :value="k" />
+        </el-select>
+        <el-select v-model="queryT.enabled" placeholder="启停" clearable style="width: 120px">
+          <el-option label="启用" :value="1" />
+          <el-option label="停用" :value="0" />
+        </el-select>
         <template #append>
           <el-button type="primary" plain @click="openTemplate()">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
@@ -171,7 +178,7 @@ const statusText = { PENDING: '待发送', SENT: '已发送', SUCCESS: '成功',
 const statusTag = (s) => ({ PENDING: 'loan-tag-muted', SENT: 'loan-tag-info', SUCCESS: 'loan-tag-success', FAIL: 'loan-tag-danger' }[s] || 'loan-tag-muted');
 
 const { loading: loadingT, data: dataT, total: totalT, query: queryT, load: loadT, onSearch: searchT, onReset: resetT, handleSortChange } =
-  useTable(pageSmsTemplates, { keyword: '' });
+  useTable(pageSmsTemplates, { keyword: '', smsType: '', enabled: null });
   const { loading: loadingR, data: dataR, total: totalR, query: queryR, load: loadR, onSearch: searchR, onReset: resetR, handleSortChange: handleSortChangeR } =
     useTable(pageSmsRecords, { smsType: '', status: '', phone: '' });
 

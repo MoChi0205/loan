@@ -22,7 +22,7 @@
     <el-alert v-if="lastResult" :title="`最近导入：成功 ${lastResult.success || 0} 条，失败 ${lastResult.failed || 0} 条`" :type="lastResult.failed ? 'warning' : 'success'" show-icon style="margin-bottom: 12px" />
     <el-button v-if="lastResult?.failures?.length" link type="primary" @click="downloadFailures" style="margin-bottom: 12px">导出失败明细</el-button>
     <div class="loan-card">
-      <AppSearchBar :loading="loading" @search="load" @reset="reset"><el-select v-model="query.importType" placeholder="导入类型" clearable style="width: 140px"><el-option label="客户资源池" value="LEAD" /><el-option label="产品" value="PRODUCT" /></el-select></AppSearchBar>
+      <AppSearchBar :loading="loading" @search="load" @reset="reset"><el-select v-model="query.importType" placeholder="导入类型" clearable style="width: 140px"><el-option label="客户资源池" value="LEAD" /><el-option label="产品" value="PRODUCT" /></el-select><el-select v-model="query.status" placeholder="任务状态" clearable style="width: 130px"><el-option label="待处理" value="PENDING" /><el-option label="处理中" value="PROCESSING" /><el-option label="已完成" value="COMPLETED" /><el-option label="失败" value="FAILED" /></el-select></AppSearchBar>
       <el-table :data="rows" stripe v-loading="loading" row-key="taskNo">
         <el-table-column label="导入任务" min-width="180"><template #default="{ row }">{{ row.fileName || (row.importType === 'LEAD' ? '客户资源导入' : '产品导入') }}</template></el-table-column>
         <el-table-column label="导入类型" width="120"><template #default="{ row }">{{ row.importType === 'LEAD' ? '客户资源池' : '产品' }}</template></el-table-column>
@@ -58,11 +58,11 @@ async function loadPools() {
 }
 function poolName(code) { return poolMap.value[code]; }
 loadPools();
-const query = reactive({ page: 1, size: 20, importType: '' });
+const query = reactive({ page: 1, size: 20, importType: '', status: '' });
 const statusText = { PENDING: '待处理', PROCESSING: '处理中', COMPLETED: '已完成', FAILED: '失败' };
 const importType = ref('LEAD'); const fileRef = ref(); const lastResult = ref(null);
 async function load() { loading.value = true; try { const res = await pageImportTasks(query); rows.value = res.data?.records || []; total.value = Number(res.data?.total || 0); } finally { loading.value = false; } }
-function reset() { query.page = 1; query.importType = ''; load(); }
+function reset() { query.page = 1; query.importType = ''; query.status = ''; load(); }
 async function preview(e) {
   const file = e.target.files?.[0]; e.target.value = ''; if (!file) return;
   if (!poolCode.value) return ElMessage.warning('请先选择导入资源池');

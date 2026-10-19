@@ -50,6 +50,7 @@ public class BatchImportController {
 
     @GetMapping("/tasks")
     public Result<PageResult<Map<String, Object>>> tasks(@RequestParam(required = false) String importType,
+                                                         @RequestParam(required = false) String status,
                                                          @RequestParam(defaultValue = "1") int page,
                                                          @RequestParam(defaultValue = "20") int size,
                                                          @CurrentUser LoanUser user) {
@@ -58,6 +59,7 @@ public class BatchImportController {
                 .eq(BatchImportTask::getApplicantStaffCode, user.getUserNo())
                 .orderByDesc(BatchImportTask::getCreatedAt);
         if (org.springframework.util.StringUtils.hasText(importType)) query.eq(BatchImportTask::getImportType, importType.toUpperCase());
+        if (org.springframework.util.StringUtils.hasText(status)) query.eq(BatchImportTask::getStatus, status.trim());
         Page<BatchImportTask> result = taskMapper.selectPage(new Page<>(page, size), query);
         List<Map<String, Object>> rows = new ArrayList<>();
         for (BatchImportTask task : result.getRecords()) {

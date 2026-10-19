@@ -407,7 +407,7 @@ public class LeadService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "回收冷却期内不可认领");
         }
         // 数据保护期：进入公海后 N 天内所有人不可认领（认领设置 LEAD 行 protect_days，0 = 不启用）
-        int protectDays = claimQuotaService.protectDaysOf(ClaimQuotaService.SCOPE_LEAD);
+        int protectDays = claimQuotaService.protectDaysOf(ClaimQuotaService.SCOPE_LEAD, lead.getPoolCode());
         if (protectDays > 0) {
             LeadAllocationRecord lastEnter = allocationRecordMapper.selectOne(
                     new LambdaQueryWrapper<LeadAllocationRecord>()
@@ -421,7 +421,7 @@ public class LeadService {
             }
         }
         // 每日认领上限（参考 tse daily_assign_limit_per_user）：先预占额度，失败回滚
-        claimQuotaService.consume(ClaimQuotaService.SCOPE_LEAD, staffCode, 1);
+        claimQuotaService.consume(ClaimQuotaService.SCOPE_LEAD, lead.getPoolCode(), staffCode, 1);
         int updated;
         try {
             updated = leadMapper.claimIfUnowned(leadNo, staffCode, staffName);

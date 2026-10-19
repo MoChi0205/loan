@@ -38,11 +38,13 @@ public class SmsAdminController {
     @GetMapping("/template/page")
     public Result<PageResult<Map<String, Object>>> templatePage(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String smsType,
+            @RequestParam(required = false) Integer enabled,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir) {
-        return Result.ok(smsAdminService.templatePage(keyword,
+        return Result.ok(smsAdminService.templatePage(keyword, smsType, enabled,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir));
     }
 

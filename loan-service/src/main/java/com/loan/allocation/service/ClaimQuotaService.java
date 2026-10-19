@@ -100,6 +100,71 @@ public class ClaimQuotaService {
         return configOf(scope).returnTarget;
     }
 
+    // —— 资源池维度重载（2026-10-20 scope 扩展：资源池专属配置优先，无则回落公海类型配置） ——
+
+    /** 读取并缓存某 scope key 的专属配置行；无行返回 null（不回落默认，供资源池优先逻辑用）。 */
+    private CachedConfig configRowOf(String scopeKey) {
+        long now = System.currentTimeMillis();
+        CachedConfig cached = configCache.get(scopeKey);
+        if (cached != null && cached.expiresAt > now) {
+            return cached;
+        }
+        CachedConfig value = null;
+        try {
+            ClaimQuotaConfig row = configMapper.selectOne(new LambdaQueryWrapper<ClaimQuotaConfig>()
+                    .eq(ClaimQuotaConfig::getScope, scopeKey).last("LIMIT 1"));
+            if (row != null) {
+                value = new CachedConfig(
+                        row.getDailyClaimLimit() == null ? 0 : row.getDailyClaimLimit(),
+                        row.getMaxHolding() == null ? 0 : row.getMaxHolding(),
+                        row.getProtectDays() == null ? 0 : Math.max(0, row.getProtectDays()),
+                        row.getDailyCooldownLimit() == null ? 0 : Math.max(0, row.getDailyCooldownLimit()),
+                        StringUtils.hasText(row.getReturnTarget()) ? row.getReturnTarget().trim().toUpperCase() : "PUBLIC",
+                        now + CACHE_TTL_MS);
+                configCache.put(scopeKey, value);
+            }
+        } catch (Exception e) {
+            log.warn("认领配额配置读取失败 scopeKey={}", scopeKey, e);
+        }
+        return value;
+    }
+
+    /** 解析生效配置：资源池专属配置（POOL:<poolCode>）优先，无则回落公海类型配置。 */
+    private CachedConfig resolveConfig(String scope, String poolCode) {
+        if (StringUtils.hasText(poolCode)) {
+            CachedConfig poolCfg = configRowOf("POOL:" + poolCode);
+            if (poolCfg != null) {
+                return poolCfg;
+            }
+        }
+        return configOf(scope);
+    }
+
+    /** 资源池维度每日认领上限（资源池专属优先）。 */
+    public int limitOf(String scope, String poolCode) {
+        return resolveConfig(scope, poolCode).dailyClaimLimit;
+    }
+
+    /** 资源池维度持有上限（资源池专属优先）。 */
+    public int holdingLimitOf(String scope, String poolCode) {
+        return resolveConfig(scope, poolCode).maxHolding;
+    }
+
+    /** 资源池维度数据保护期天数（资源池专属优先）。 */
+    public int protectDaysOf(String scope, String poolCode) {
+        return resolveConfig(scope, poolCode).protectDays;
+    }
+
+    /** 资源池维度每日认领冷却条数（资源池专属优先）。 */
+    public int cooldownLimitOf(String scope, String poolCode) {
+        return resolveConfig(scope, poolCode).cooldownLimit;
+    }
+
+    /** 资源池维度退回/回收回纳目标（资源池专属优先）。 */
+    public String returnTargetOf(String scope, String poolCode) {
+        return resolveConfig(scope, poolCode).returnTarget;
+    }
+
     /** 读取并缓存某公海类型的配额配置；配置表缺失/读写异常时回退兜底值，不阻断认领。 */
     private CachedConfig configOf(String scope) {
         long now = System.currentTimeMillis();
@@ -150,12 +215,25 @@ public class ClaimQuotaService {
      * @param count     本次预占条数（批量认领传批量数）
      */
     public void consume(String scope, String staffCode, int count) {
+        consume(scope, null, staffCode, count);
+    }
+
+    /**
+     * 预占当日认领额度（资源池维度）：poolCode 非空时按资源池专属上限，无则回落公海类型上限。
+     * 计数 key 仍按员工 × 公海类型维度（不按资源池隔离），超限抛业务异常。
+     *
+     * @param scope     {@link #SCOPE_LEAD} 或 {@link #SCOPE_CLIENT}
+     * @param poolCode  目标资源池编码（可为 null，表示公海类型维度）
+     * @param staffCode 认领人工号
+     * @param count     本次预占条数（批量认领传批量数）
+     */
+    public void consume(String scope, String poolCode, String staffCode, int count) {
         if (count <= 0 || !StringUtils.hasText(staffCode)) {
             return;
         }
-        int limit = limitOf(scope);
+        int limit = limitOf(scope, poolCode);
         // 每日认领冷却条数：与每日认领上限取较小值生效（0 = 不启用，2026-10-19）
-        int cooldownLimit = cooldownLimitOf(scope);
+        int cooldownLimit = cooldownLimitOf(scope, poolCode);
         if (cooldownLimit > 0) {
             limit = limit <= 0 ? cooldownLimit : Math.min(limit, cooldownLimit);
         }

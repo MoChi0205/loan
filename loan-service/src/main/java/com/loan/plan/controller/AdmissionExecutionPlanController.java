@@ -75,12 +75,21 @@ public class AdmissionExecutionPlanController {
     @GetMapping("/page")
     public Result<PageResult<AdmissionExecutionPlan>> page(
             @RequestParam(value = "customerGroup", required = false) String customerGroup,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "status", required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         LambdaQueryWrapper<AdmissionExecutionPlan> wrapper = new LambdaQueryWrapper<>();
         if (org.springframework.util.StringUtils.hasText(customerGroup) && !"COMMON".equalsIgnoreCase(customerGroup)) {
             wrapper.and(w -> w.eq(AdmissionExecutionPlan::getCustomerGroup, customerGroup)
                     .or().eq(AdmissionExecutionPlan::getCustomerGroup, "COMMON"));
+        }
+        if (org.springframework.util.StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like(AdmissionExecutionPlan::getPlanCode, keyword.trim())
+                    .or().like(AdmissionExecutionPlan::getPlanName, keyword.trim()));
+        }
+        if (org.springframework.util.StringUtils.hasText(status)) {
+            wrapper.eq(AdmissionExecutionPlan::getStatus, status.trim());
         }
         wrapper.orderByDesc(AdmissionExecutionPlan::getUpdatedAt);
         Page<AdmissionExecutionPlan> result = planMapper.selectPage(

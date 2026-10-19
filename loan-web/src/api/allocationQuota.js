@@ -15,8 +15,9 @@ export function listAllocationQuota() {
 /**
  * 保存认领配额配置（按 scope 幂等 upsert，保存后即时生效）。
  *
- * @param {Array<{scope: string, dailyClaimLimit: number, maxHolding: number, remark?: string}>} items 配置项
+ * @param {Array<{scope: string, dailyClaimLimit: number, maxHolding: number, protectDays?: number, dailyCooldownLimit?: number, returnTarget?: string, remark?: string}>} items 配置项
+ * @param {string[]} deleteScopes 要删除的 scope（仅资源池维度 POOL:xxx 可删）
  */
-export function saveAllocationQuota(items) {
-  return request({ url: '/api/admin/allocation-quota/save', method: 'put', data: { items } });
+export function saveAllocationQuota(items, deleteScopes = []) {
+  return request({ url: '/api/admin/allocation-quota/save', method: 'put', data: { items, deleteScopes } });
 }

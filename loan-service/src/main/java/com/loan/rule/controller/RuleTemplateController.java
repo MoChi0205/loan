@@ -39,9 +39,10 @@ public class RuleTemplateController {
     public Result<PageResult<RuleTemplate>> page(
             @RequestParam(required = false) String customerGroup,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(templateService.page(customerGroup, keyword, page, size));
+        return Result.ok(templateService.page(customerGroup, keyword, status, page, size));
     }
 
     /** 按模板业务编码批量查询（去重、保序，最多100条）。 */

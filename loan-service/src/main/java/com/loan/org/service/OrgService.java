@@ -194,7 +194,7 @@ public class OrgService {
      * @param size      每页大小
      * @return 员工分页结果
      */
-    public PageResult<Map<String, Object>> pageStaff(String deptCode, String roleCode, String keyword, int page, int size, String orderBy, String orderDir, LoanUser user) {
+    public PageResult<Map<String, Object>> pageStaff(String deptCode, String roleCode, String keyword, String status, int page, int size, String orderBy, String orderDir, LoanUser user) {
         LambdaQueryWrapper<Staff> wrapper = new LambdaQueryWrapper<>();
         String role = user == null || user.getRoleCode() == null ? "" : user.getRoleCode().trim().toUpperCase();
         boolean companyWide = "BOSS".equals(role) || "OPERATOR".equals(role)
@@ -222,7 +222,8 @@ public class OrgService {
         if (keyword != null && !keyword.isEmpty()) {
             wrapper.and(w -> w.like(Staff::getStaffName, keyword).or().like(Staff::getStaffCode, keyword));
         }
-        wrapper.eq(Staff::getStatus, "ACTIVE").orderByAsc(Staff::getId);
+        // 状态筛选：默认仅在职；显式传 ALL/具体状态时按传值筛（2026-10-20 支持离职等视角）
+        wrapper.eq(Staff::getStatus, StringUtils.hasText(status) ? status.trim() : "ACTIVE").orderByAsc(Staff::getId);
 
         Page<Staff> result = staffMapper.selectPage(new Page<>(page, size), wrapper);
 

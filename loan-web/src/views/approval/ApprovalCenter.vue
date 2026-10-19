@@ -32,7 +32,7 @@
           <el-option label="部门经理审批" value="MANAGER_REVIEW" />
           <el-option label="老板/超管审批" value="BOSS_REVIEW" />
         </el-select>
-        <AppDateRange v-model="mineQuery.dateRange" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="260px" />
+        <AppDateTime v-model="mineQuery.dateRange" type="daterange" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="260px" />
         <el-input v-model="mineQuery.keyword" placeholder="申请事项 / 审批意见" clearable style="width: 220px" @keyup.enter="searchMine" />
       </AppSearchBar>
       <el-table :data="mineRows" v-loading="mineLoading" stripe row-key="approvalNo">
@@ -55,7 +55,7 @@
     <div v-show="activeTab === 'outing'" class="loan-card">
       <AppSearchBar :loading="outingLoading" @search="searchOutings" @reset="resetOutings">
         <el-input v-model="outingQuery.keyword" placeholder="申请人 / 客户名称" clearable style="width: 220px" @keyup.enter="searchOutings" />
-        <AppDateRange v-model="outingDateRange" start-placeholder="外出开始日期" end-placeholder="外出结束日期" width="260px" />
+        <AppDateTime v-model="outingDateRange" type="daterange" start-placeholder="外出开始日期" end-placeholder="外出结束日期" width="260px" />
       </AppSearchBar>
       <el-table :data="outingRows" v-loading="outingLoading" stripe row-key="outingNo">
         <template #empty><AppEmpty title="暂无待审批外出" desc="当前权限范围内没有待处理的外出申请" /></template>
@@ -109,7 +109,7 @@
         <el-select v-model="queryP.submitStaffCode" placeholder="提交人" clearable filterable style="width: 150px">
           <el-option v-for="st in staffOptionsP" :key="st.staffCode" :label="st.staffName" :value="st.staffCode" />
         </el-select>
-        <AppDateRange v-model="dateRangeP" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="260px" />
+        <AppDateTime v-model="dateRangeP" type="daterange" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="260px" />
       </AppSearchBar>
 
       <AppTableState :error="errorP" @retry="loadP">
@@ -345,7 +345,6 @@ import { ref, reactive, computed, watch , onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
-import AppDateRange from '@/components/AppDateRange.vue';
 import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';

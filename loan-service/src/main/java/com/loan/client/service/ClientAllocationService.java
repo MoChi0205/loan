@@ -205,8 +205,8 @@ public class ClientAllocationService {
                 }
             }
             // 数据保护期：进入公海后 N 天内所有人不可认领（认领设置 protect_days，0 = 不启用）
-            enforceClaimProtectDays(clientCode);
-            enforceClaimQuota(targetStaffCode);
+            enforceClaimProtectDays(clientCode, client.getPoolCode());
+            enforceClaimQuota(targetStaffCode, client.getPoolCode());
             // 公海认领即时生效，不进入审批；乐观更新避免多人并发认领覆盖。
             return directAssign(clientCode, targetStaffCode, operator);
         }
@@ -255,8 +255,8 @@ public class ClientAllocationService {
      * 数据保护期校验：客户进入公海后 N 天内所有人不可认领。
      * N 读认领设置 CLIENT 行 protect_days（0 = 不启用）；进入公海时间取最近一次 ENTER_*_SEA 生命周期事件。
      */
-    private void enforceClaimProtectDays(String clientCode) {
-        int protectDays = claimQuotaService.protectDaysOf(ClaimQuotaService.SCOPE_CLIENT);
+    private void enforceClaimProtectDays(String clientCode, String poolCode) {
+        int protectDays = claimQuotaService.protectDaysOf(ClaimQuotaService.SCOPE_CLIENT, poolCode);
         if (protectDays <= 0) return;
         ClientLifecycleEvent lastEnter = lifecycleEventMapper.selectOne(new LambdaQueryWrapper<ClientLifecycleEvent>()
                 .eq(ClientLifecycleEvent::getClientCode, clientCode)
@@ -275,15 +275,15 @@ public class ClientAllocationService {
      * {@code max_new_customers_per_user} / {@code daily_assign_limit_per_user}，不再写死在代码里）。
      * 持有上限 0 = 不限。
      */
-    private void enforceClaimQuota(String staffCode) {
+    private void enforceClaimQuota(String staffCode, String poolCode) {
         if (!StringUtils.hasText(staffCode)) return;
         long holding = clientProfileMapper.selectCount(new LambdaQueryWrapper<ClientProfile>()
                 .eq(ClientProfile::getOwnerStaffCode, staffCode));
-        int maxHolding = claimQuotaService.holdingLimitOf(ClaimQuotaService.SCOPE_CLIENT);
+        int maxHolding = claimQuotaService.holdingLimitOf(ClaimQuotaService.SCOPE_CLIENT, poolCode);
         if (maxHolding > 0 && holding >= maxHolding) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "已达到客户持有上限（" + maxHolding + " 个）");
         }
-        claimQuotaService.consume(ClaimQuotaService.SCOPE_CLIENT, staffCode, 1);
+        claimQuotaService.consume(ClaimQuotaService.SCOPE_CLIENT, poolCode, staffCode, 1);
     }
 
     /**

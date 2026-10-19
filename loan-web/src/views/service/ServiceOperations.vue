@@ -216,7 +216,7 @@
         <el-form-item label="客户" prop="clientCode"><el-select v-model="appointmentForm.clientCode" filterable remote :remote-method="loadClientOptions" :loading="clientSelectLoading" placeholder="搜索姓名、企业名或手机号" style="width:100%" @visible-change="(v) => v && loadClientOptions('')"><el-option v-for="row in appointmentClientOptions" :key="row.clientCode" :label="`${row.enterpriseName || row.contactName || '未命名客户'} · ${row.contactName || '联系人待补充'}`" :value="row.clientCode" /></el-select></el-form-item>
         <el-form-item label="服务顾问" prop="hostStaffCode"><el-input v-if="isAdviser" :model-value="userStore.displayName || '当前顾问'" disabled /><el-select v-else v-model="appointmentForm.hostStaffCode" filterable remote :remote-method="loadStaffOptions" :loading="staffLoading" placeholder="搜索顾问姓名" style="width:100%" @visible-change="(v) => v && loadStaffOptions('')"><el-option v-for="row in staffOptions" :key="row.staffCode" :label="row.staffName || '顾问姓名待补充'" :value="row.staffCode" /></el-select></el-form-item>
         <el-form-item label="服务方式" prop="serviceMethod"><el-radio-group v-model="appointmentForm.serviceMethod"><el-radio-button v-for="(label, code) in methodText" :key="code" :label="code">{{ label }}</el-radio-button></el-radio-group></el-form-item>
-        <el-form-item label="服务时间" prop="timeRange"><ServiceDateTimeRange v-model="appointmentForm.timeRange" :default-time="defaultAppointmentTime" /></el-form-item>
+        <el-form-item label="服务时间" prop="timeRange"><AppDateTime v-model="appointmentForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" /></el-form-item>
         <el-form-item v-if="needsLocation" label="地点名称" prop="locationName"><el-input v-model="appointmentForm.locationName" placeholder="公司或拜访地点名称" /></el-form-item>
         <el-form-item v-if="needsLocation" label="详细地址"><el-input v-model="appointmentForm.locationDetail" placeholder="详细地址（客户可见）" /></el-form-item>
         <el-form-item label="客户提示"><el-input v-model="appointmentForm.customerVisibleNote" type="textarea" :rows="2" placeholder="客户可见的下一步安排" /></el-form-item>
@@ -226,7 +226,7 @@
 
     <AppDialog v-model:visible="changeVisible" :title="changeMode.includes('reschedule') ? '预约改期' : '取消预约'" width="560px" :loading="saving" @confirm="submitChange">
       <el-form label-width="90px">
-        <el-form-item v-if="changeMode.includes('reschedule')" label="新时间" required><ServiceDateTimeRange v-model="changeForm.timeRange" :default-time="defaultAppointmentTime" /></el-form-item>
+        <el-form-item v-if="changeMode.includes('reschedule')" label="新时间" required><AppDateTime v-model="changeForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" /></el-form-item>
         <el-form-item v-if="changeMode.includes('reschedule')" label="地点名称"><el-input v-model="changeForm.locationName" /></el-form-item>
         <el-form-item label="原因" :required="changeMode.startsWith('exception')"><el-input v-model="changeForm.reason" type="textarea" :rows="3" :placeholder="changeMode.startsWith('exception') ? '异常处理原因必填' : '请填写变更原因'" /></el-form-item>
       </el-form>
@@ -271,7 +271,7 @@
       <el-alert title="提交后需主管审核通过，才能出发与返回打卡；照片和单点位置均为必填。" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="dialog-form">
         <el-form-item v-if="outingCreateTarget" label="客户"><span>{{ outingCreateTarget?.customerName || '客户名称待补充' }}</span></el-form-item>
-        <el-form-item v-else label="计划时间" required><ServiceDateTimeRange v-model="outingCreateForm.timeRange" :default-time="defaultAppointmentTime" /></el-form-item>
+        <el-form-item v-else label="计划时间" required><AppDateTime v-model="outingCreateForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" /></el-form-item>
         <el-form-item label="目的地" required><el-input v-model="outingCreateForm.destination" placeholder="上门服务地点" /></el-form-item>
         <el-form-item label="拜访目的" required><el-input v-model="outingCreateForm.purpose" placeholder="例如：经营资料梳理" /></el-form-item>
         <el-form-item label="内部备注"><el-input v-model="outingCreateForm.internalNote" type="textarea" :rows="2" placeholder="仅公司员工可见" /></el-form-item>
@@ -302,7 +302,6 @@ import AppDialog from '@/components/AppDialog.vue';
 import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppIcon from '@/components/AppIcon.vue';
-import ServiceDateTimeRange from '@/components/ServiceDateTimeRange.vue';
 import { pageClients, getClientDetail } from '@/api/client';
 import { staffPage, departmentTree } from '@/api/org';
 import {
