@@ -90,7 +90,7 @@
         </el-table-column>
         <el-table-column label="类型" width="100"><template #default="{ row }">{{ row.customerGroup === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
         <el-table-column label="来源" width="130"><template #default="{ row }">{{ sourceText(row.source) }}</template></el-table-column>
-        <el-table-column label="客户标签" min-width="180"><template #default="{ row }"><span class="loan-tag loan-tag-info customer-row-tag">{{ customerTagText(row.customerTag) }}</span></template></el-table-column>
+        <el-table-column label="客户标签" width="110" align="center"><template #default="{ row }"><span class="loan-tag loan-tag-info customer-row-tag">{{ customerTagText(row.customerTag) }}</span></template></el-table-column>
         <el-table-column label="资源池" width="150"><template #default="{ row }">{{ row.poolName || '—' }}</template></el-table-column>
         <el-table-column label="冷静期" width="130"><template #default="{ row }">{{ row.cooldownRemainingDays > 0 ? `剩余 ${row.cooldownRemainingDays} 天` : '可认领' }}</template></el-table-column>
         <el-table-column label="归属顾问" width="140"><template #default="{ row }">{{ row.ownerStaffName || '待分配' }}</template></el-table-column>
@@ -101,9 +101,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="建档时间" width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <AppTableActions :actions="ownClientActions(row)" />
+            <AppTableActions :actions="ownClientActions(row)" :max-inline="3" />
           </template>
         </el-table-column>
       </el-table>
@@ -226,17 +226,17 @@
             <el-input v-model="editForm.registeredCapital" placeholder="如 500万" />
           </el-form-item>
           <el-form-item label="经营状态">
-            <el-select v-model="editForm.bizStatus" clearable placeholder="请选择" style="width: 100%">
+            <AppSelect v-model="editForm.bizStatus" clearable placeholder="请选择" style="width: 100%">
               <el-option label="在业" value="在业" />
               <el-option label="存续" value="存续" />
               <el-option label="注销" value="注销" />
               <el-option label="吊销" value="吊销" />
-            </el-select>
+            </AppSelect>
           </el-form-item>
           <el-form-item label="纳税等级">
-            <el-select v-model="editForm.taxGrade" clearable placeholder="如 A / B / M" style="width: 100%">
+            <AppSelect v-model="editForm.taxGrade" clearable placeholder="如 A / B / M" style="width: 100%">
               <el-option v-for="g in ['A', 'B', 'C', 'D', 'M']" :key="g" :label="g" :value="g" />
-            </el-select>
+            </AppSelect>
           </el-form-item>
           <el-form-item label="年纳税额">
             <el-input v-model="editForm.annualTaxAmount" placeholder="如 50万" />
@@ -260,12 +260,12 @@
         </el-form-item>
         <div class="flag-grid">
           <el-form-item v-for="f in flagFields" :key="f.key" :label="f.label">
-            <el-select v-model="editForm[f.key]" clearable placeholder="未填写" style="width: 100%">
+            <AppSelect v-model="editForm[f.key]" clearable placeholder="未填写" style="width: 100%">
               <el-option label="是" :value="1" />
               <el-option label="否" :value="0" />
-            </el-select>
+            </AppSelect>
           </el-form-item>
-          <el-form-item label="客户标签"><el-select v-model="editForm.customerTag" clearable placeholder="请选择客户标签" style="width: 100%"><el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" /></el-select></el-form-item>
+          <el-form-item label="客户标签"><AppSelect v-model="editForm.customerTag" clearable placeholder="请选择客户标签" style="width: 100%"><el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" /></AppSelect></el-form-item>
         </div>
       </el-form>
     </AppDialog>
@@ -275,7 +275,7 @@
       <p class="assign-dialog-hint">从我司在职人员中选择归属人，支持按姓名或工号搜索；分配后立即生效。</p>
       <el-form label-width="72px" label-position="right">
         <el-form-item label="归属人">
-          <el-select
+          <AppSelect
             v-model="assignTarget"
             filterable
             remote
@@ -293,7 +293,7 @@
               :value="o.staffCode"
               :disabled="o.status && o.status !== 'ACTIVE'"
             />
-          </el-select>
+          </AppSelect>
         </el-form-item>
       </el-form>
     </AppDialog>
@@ -308,9 +308,9 @@
           <el-input v-model="followForm.enterpriseName" placeholder="修改企业名称（个人客户可留空）" maxlength="120" />
         </el-form-item>
         <el-form-item label="意向标签">
-          <el-select v-model="followForm.customerTag" clearable placeholder="选择意向标签" style="width: 100%">
+          <AppSelect v-model="followForm.customerTag" clearable placeholder="选择意向标签" style="width: 100%">
             <el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="跟进内容">
           <el-input v-model="followForm.content" type="textarea" :rows="3" placeholder="记录本次跟进情况（可选）" />
@@ -321,6 +321,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_client_profile' });
 import { ref, reactive, computed, watch } from 'vue';

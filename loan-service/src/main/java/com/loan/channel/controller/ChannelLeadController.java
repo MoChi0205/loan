@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+
 /** 合作渠道 Web 工作区：本人线索录入与查询。 */
 @RestController
 @RequestMapping("/api/channel/lead")
@@ -44,9 +47,11 @@ public class ChannelLeadController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtEnd,
             @CurrentUser LoanUser user) {
         String channelNo = channelDataScopeService.requireChannel(user);
         return Result.ok(leadService.pageByRecorder(channelNo, leadType, followStatus, keyword,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, createdAtStart, createdAtEnd));
     }
 }

@@ -68,6 +68,7 @@
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
         <el-input v-model="queryR.phone" placeholder="手机号（精确）" style="width: 180px" clearable @keyup.enter="searchR" />
+        <AppDateTime v-model="queryR.createdAtRange" type="daterange" start-placeholder="发送起" end-placeholder="发送止" :shortcuts="true" />
       </AppSearchBar>
 
       <el-table :data="dataR" v-loading="loadingR" stripe @sort-change="handleSortChangeR">
@@ -114,11 +115,11 @@
           <el-input v-model="templateForm.signName" placeholder="如 资金服务平台" />
         </el-form-item>
         <el-form-item label="短信类型">
-          <el-select v-model="templateForm.smsType" style="width: 100%">
+          <AppSelect v-model="templateForm.smsType" style="width: 100%">
             <el-option label="登录验证" value="LOGIN_VERIFY" />
             <el-option label="通知" value="NOTIFICATION" />
             <el-option label="业务营销" value="MARKETING" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="腾讯云模板ID">
           <el-input v-model="templateForm.providerTemplateId" placeholder="可选" />
@@ -136,9 +137,9 @@
           <el-input v-model="sendForm.phone" placeholder="11 位手机号" />
         </el-form-item>
         <el-form-item label="模板" required>
-          <el-select v-model="sendForm.templateCode" filterable placeholder="选择模板" style="width: 100%">
+          <AppSelect v-model="sendForm.templateCode" filterable placeholder="选择模板" style="width: 100%">
             <el-option v-for="t in templateOptions" :key="t.templateCode" :label="t.templateName || '短信模板名称待补充'" :value="t.templateCode" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="内容">
           <el-input v-model="sendForm.content" type="textarea" :rows="2" placeholder="缺省用模板内容" />
@@ -149,12 +150,14 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_sms' });
 import { ref, reactive, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
@@ -180,7 +183,13 @@ const statusTag = (s) => ({ PENDING: 'loan-tag-muted', SENT: 'loan-tag-info', SU
 const { loading: loadingT, data: dataT, total: totalT, query: queryT, load: loadT, onSearch: searchT, onReset: resetT, handleSortChange } =
   useTable(pageSmsTemplates, { keyword: '', smsType: '', enabled: null });
   const { loading: loadingR, data: dataR, total: totalR, query: queryR, load: loadR, onSearch: searchR, onReset: resetR, handleSortChange: handleSortChangeR } =
-    useTable(pageSmsRecords, { smsType: '', status: '', phone: '' });
+    useTable(
+      (q) => {
+        const [start, end] = q.createdAtRange || [];
+        return pageSmsRecords({ ...q, sendTimeStart: start || undefined, sendTimeEnd: end || undefined });
+      },
+      { smsType: '', status: '', phone: '', createdAtRange: [] },
+    );
 
 async function onToggle(row, v) {
   try {

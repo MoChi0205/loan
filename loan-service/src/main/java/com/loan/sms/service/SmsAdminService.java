@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -170,7 +171,7 @@ public class SmsAdminService {
     /**
      * 发送记录分页（手机号按 hash 查询）。
      */
-    public PageResult<Map<String, Object>> recordPage(String smsType, String status, String phone, int page, int size, String orderBy, String orderDir) {
+    public PageResult<Map<String, Object>> recordPage(String smsType, String status, String phone, int page, int size, String orderBy, String orderDir, LocalDate sendTimeStart, LocalDate sendTimeEnd) {
         LambdaQueryWrapper<SmsRecord> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(smsType)) {
             wrapper.eq(SmsRecord::getSmsType, smsType);
@@ -180,6 +181,12 @@ public class SmsAdminService {
         }
         if (StringUtils.hasText(phone)) {
             wrapper.eq(SmsRecord::getPhoneHash, sha256(phone.trim()));
+        }
+        if (sendTimeStart != null) {
+            wrapper.ge(SmsRecord::getSendTime, sendTimeStart.atStartOfDay());
+        }
+        if (sendTimeEnd != null) {
+            wrapper.lt(SmsRecord::getSendTime, sendTimeEnd.plusDays(1).atStartOfDay());
         }
         PageOrder.apply(wrapper, orderBy, orderDir, RECORD_ORDER_FIELDS, SmsRecord::getCreatedAt);
         Page<SmsRecord> result = smsRecordMapper.selectPage(new Page<>(page, size), wrapper);

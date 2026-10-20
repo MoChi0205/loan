@@ -27,6 +27,7 @@ import com.loan.exception.BusinessException;
 import com.loan.product.entity.BankProduct;
 import com.loan.product.mapper.BankProductMapper;
 import com.loan.report.entity.ClientScreening;
+import java.time.LocalDate;
 import com.loan.report.dto.StaffReportDetail;
 import com.loan.report.mapper.ClientScreeningMapper;
 import com.loan.reward.entity.RewardRecord;
@@ -1180,13 +1181,13 @@ public class ReportService {
     public PageResult<Map<String, Object>> screeningPage(String status, String grade, String keyword,
                                                           int page, int size, String orderBy, String orderDir,
                                                           LoanUser user) {
-        return screeningPage(status, grade, keyword, null, page, size, orderBy, orderDir, user);
+        return screeningPage(status, grade, keyword, null, page, size, orderBy, orderDir, user, null, null);
     }
 
     public PageResult<Map<String, Object>> screeningPage(String status, String grade, String keyword,
                                                           String ownerStaffCodeFilter,
                                                           int page, int size, String orderBy, String orderDir,
-                                                          LoanUser user) {
+                                                          LoanUser user, LocalDate createdAtStart, LocalDate createdAtEnd) {
         LambdaQueryWrapper<ClientScreening> wrapper = new LambdaQueryWrapper<>();
         // 角色数据可见范围：按归属客户过滤（老板/运营/超管全量；顾问本人；部门主管本部门）
         Set<String> scope = buildOwnerScope(user);
@@ -1243,6 +1244,12 @@ public class ReportService {
                             .lt(ClientScreening::getCreatedAt, dateRange[1].atStartOfDay());
                 }
             });
+        }
+        if (createdAtStart != null) {
+            wrapper.ge(ClientScreening::getCreatedAt, createdAtStart.atStartOfDay());
+        }
+        if (createdAtEnd != null) {
+            wrapper.lt(ClientScreening::getCreatedAt, createdAtEnd.plusDays(1).atStartOfDay());
         }
         long total = screeningMapper.selectCount(wrapper);
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, ClientScreening::getCreatedAt);

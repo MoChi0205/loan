@@ -239,10 +239,10 @@
           <RemoteProductSelect v-model="strategyDialog.form.bankProductCode" :customer-group="strategyDialog.form.customerGroup" />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
-          <el-select v-model="strategyDialog.form.customerGroup" style="width: 100%">
+          <AppSelect v-model="strategyDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="策略编码" prop="strategyCode">
           <el-input v-model="strategyDialog.form.strategyCode" placeholder="渠道内唯一" :disabled="strategyDialog.editing" />
@@ -251,9 +251,9 @@
           <el-input v-model="strategyDialog.form.strategyName" />
         </el-form-item>
         <el-form-item label="执行计划" prop="executionPlanCode">
-          <el-select v-model="strategyDialog.form.executionPlanCode" placeholder="选择计划(1:1)" filterable style="width: 100%">
+          <AppSelect v-model="strategyDialog.form.executionPlanCode" placeholder="选择计划(1:1)" filterable style="width: 100%">
             <el-option v-for="p in plans" :key="p.planCode" :label="p.planName || '执行计划名称待补充'" :value="p.planCode" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
       </el-form>
     </AppDialog>
@@ -273,16 +273,16 @@
         <el-form-item label="模块编码" prop="moduleCode"><el-input v-model="moduleDialog.form.moduleCode" placeholder="模块内唯一" /></el-form-item>
         <el-form-item label="模块名称" prop="moduleName"><el-input v-model="moduleDialog.form.moduleName" /></el-form-item>
         <el-form-item label="逻辑">
-          <el-select v-model="moduleDialog.form.logicType" style="width: 100%">
+          <AppSelect v-model="moduleDialog.form.logicType" style="width: 100%">
             <el-option label="AND（模块内遇FAIL短路）" value="AND" />
             <el-option label="OR（模块内遇PASS短路）" value="OR" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="连接下模块">
-          <el-select v-model="moduleDialog.form.joinWithNextModule" style="width: 100%">
+          <AppSelect v-model="moduleDialog.form.joinWithNextModule" style="width: 100%">
             <el-option label="AND（串行，任一FAIL即短路）" value="AND" />
             <el-option label="OR（并行，全FAIL才失败）" value="OR" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="全局风控">
           <el-switch v-model="moduleDialog.form.isGlobalPre" :active-value="1" :inactive-value="0" />
@@ -295,9 +295,9 @@
     <AppDialog v-model:visible="stepDialog.visible" :title="stepDialog.title" :loading="stepDialog.saving" @confirm="onSaveStep">
       <el-form ref="stepFormRef" :model="stepDialog.form" :rules="stepRules" label-width="100px">
         <el-form-item label="规则" prop="ruleId">
-          <el-select v-model="stepDialog.form.ruleId" placeholder="选择规则（必选）" filterable :disabled="!!stepDialog.editingId" style="width: 100%" @change="onRuleChange">
+          <AppSelect v-model="stepDialog.form.ruleId" placeholder="选择规则（必选）" filterable :disabled="!!stepDialog.editingId" style="width: 100%" @change="onRuleChange">
             <el-option v-for="r in availableRules" :key="r.id" :label="r.ruleName || '规则名称待补充'" :value="r.id" />
-          </el-select>
+          </AppSelect>
           <p v-if="stepDialog.editingId" class="step-edit-hint">编辑模式下不可更换规则；如需替换请新建步骤</p>
         </el-form-item>
         <el-row :gutter="12">
@@ -306,10 +306,10 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="与下一步">
-              <el-select v-model="stepDialog.form.joinWithNext" clearable style="width: 100%">
+              <AppSelect v-model="stepDialog.form.joinWithNext" clearable style="width: 100%">
                 <el-option label="AND（串行，FAIL即短路）" value="AND" />
                 <el-option label="OR（本步PASS短路后续）" value="OR" />
-              </el-select>
+              </AppSelect>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -344,9 +344,9 @@
     <AppDialog v-model:visible="importDialog.visible" title="从其他渠道复制策略" :loading="importDialog.saving" @confirm="onImportFromChannel">
       <el-form label-width="110px">
         <el-form-item label="源渠道">
-          <el-select v-model="importDialog.sourceChannel" placeholder="选择源渠道" filterable style="width: 100%" @change="onSourceChannelChange">
+          <AppSelect v-model="importDialog.sourceChannel" placeholder="选择源渠道" filterable style="width: 100%" @change="onSourceChannelChange">
             <el-option v-for="c in sourceChannels" :key="c.channelCode" :label="c.bankName || '渠道名称待补充'" :value="c.channelCode" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="源策略">
           <RemoteStrategySelect v-model="importDialog.sourceStrategyCode" :channel-code="importDialog.sourceChannel" />
@@ -374,10 +374,10 @@
           <el-input v-model="tplImportDialog.form.strategyName" placeholder="缺省用模版名" />
         </el-form-item>
         <el-form-item label="客群">
-          <el-select v-model="tplImportDialog.form.customerGroup" style="width: 100%">
+          <AppSelect v-model="tplImportDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <p class="condition-hint">将已上线模版的模块/步骤/规则实例化为本渠道的执行计划并绑定为新策略，复制后为草稿状态。</p>
       </el-form>
@@ -386,6 +386,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_channel_config_wizard' });
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';

@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+
 import java.util.List;
 import java.util.Map;
 
@@ -35,9 +38,11 @@ public class ChannelReportController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderDir,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtEnd,
             @CurrentUser LoanUser user) {
         return Result.ok(channelDataScopeService.reportPage(status, grade, keyword,
-                PageParams.page(page), PageParams.size(size), orderDir, user));
+                PageParams.page(page), PageParams.size(size), orderDir, user, createdAtStart, createdAtEnd));
     }
 
     /** 按报告业务编号批量查询本人客户报告摘要，保持请求顺序并忽略未命中项。 */

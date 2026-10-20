@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+
 /**
  * 线索 HTTP 接口（Web 管理端）。
  *
@@ -77,12 +80,14 @@ public class LeadController {
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String orderBy,
             @RequestParam(required = false) String orderDir,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtEnd,
             @CurrentUser LoanUser user) {
         // 渠道沙箱强制本人隔离：渠道按录入主体查询而不是按归属人查询（渠道线索归属为空）。
         boolean isChannel = user != null && LoanUser.TYPE_CHANNEL.equals(user.getUserType());
         if (isChannel) {
             return Result.ok(leadService.pageByRecorder(user.getUserNo(), leadType, followStatus, keyword,
-                    page, size, orderBy, orderDir));
+                    page, size, orderBy, orderDir, createdAtStart, createdAtEnd));
         }
         // 「我的线索」只按当前归属人；创建人作为独立字段展示。释放后仅出现在公司公海。
         String selfNo = pool ? null : (user == null ? null : user.getUserNo());
@@ -96,7 +101,7 @@ public class LeadController {
             seaDeptCode = user == null ? null : user.getDeptCode();
         }
         return Result.ok(leadService.page(selfNo, leadType, followStatus, keyword, page, size, roleCode, userNo,
-                poolCode, seaScope, seaDeptCode, orderBy, orderDir));
+                poolCode, seaScope, seaDeptCode, orderBy, orderDir, createdAtStart, createdAtEnd));
     }
 
     /**

@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+
 import java.util.List;
 import java.util.Map;
 
@@ -90,9 +93,11 @@ public class SmsAdminController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
-            @RequestParam(required = false) String orderDir) {
+            @RequestParam(required = false) String orderDir,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sendTimeStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate sendTimeEnd) {
         return Result.ok(smsAdminService.recordPage(smsType, status, phone,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, sendTimeStart, sendTimeEnd));
     }
 
     /**

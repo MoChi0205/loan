@@ -1307,5 +1307,19 @@ body {
 /* （D83 根因 A，2026-10-20 重写）
    旧实现用 :teleported="false" 把下拉塞进弹窗，会被 .el-dialog__body 的 overflow 裁掉，
    且弹窗内滚动时 popper 位置不重算 → "下拉被隐藏 / 随滚动折叠"。
-   现统一由 components/DialogSelect.vue 托管：浮层挂 body + fit-input-width +
-   列表 max-height 240px 内部滚动 + flip/preventOverflow，样式集中在 .loan-dialog-select-popper。 */
+   现统一由 components/AppSelect.vue / DialogSelect.vue 托管：浮层挂 body + fit-input-width +
+   以所属 .el-dialog 为 popper 边界 + flip/preventOverflow + 列表内部滚动。 */
+
+/* ============ 统一下拉组件 AppSelect（第四批 #3，2026-10-20） ============ */
+/* 高度由组件按「弹窗内可用空间」写入 --loan-popper-max-h（120~280px）；
+   限制的是列表滚动区，触发器/筛选输入框始终留在表单内，不随列表滚动位移。 */
+.loan-app-select-popper.el-popper {
+  max-height: var(--loan-popper-max-h, 280px) !important;
+  overflow: hidden !important;
+}
+.loan-app-select-popper .el-select-dropdown__wrap {
+  max-height: calc(var(--loan-popper-max-h, 280px) - 8px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+}

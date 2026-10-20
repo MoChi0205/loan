@@ -24,6 +24,7 @@
           <el-option v-for="s in ownerOptions" :key="s.staffCode" :label="s.staffName" :value="s.staffCode" />
         </el-select>
         <el-input v-model="queryS.keyword" placeholder="企业名称 / 客户姓名 / 手机号 / 生成日期" style="width: 360px" clearable @keyup.enter="searchS" />
+        <AppDateTime v-model="queryS.createdAtRange" type="daterange" start-placeholder="生成起" end-placeholder="生成止" :shortcuts="true" />
       </AppSearchBar>
 
       <el-table :data="dataS" v-loading="loadingS" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -151,6 +152,7 @@ defineOptions({ name: '_report_screening' });
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import StaffAggregatedReport from '@/components/report/StaffAggregatedReport.vue';
@@ -195,7 +197,13 @@ const detailStarLabel = computed(() => {
 });
 
 const { loading: loadingS, data: dataS, total: totalS, query: queryS, load: loadS, onSearch: searchS, onReset: resetS, handleSortChange } =
-  useTable(pageScreenings, { grade: '', status: '', source: '', keyword: '', ownerStaffCode: '' });
+  useTable(
+    (q) => {
+      const [start, end] = q.createdAtRange || [];
+      return pageScreenings({ ...q, createdAtStart: start || undefined, createdAtEnd: end || undefined });
+    },
+    { grade: '', status: '', source: '', keyword: '', ownerStaffCode: '', createdAtRange: [] },
+  );
 
 /** 管理角色才提供「归属顾问」筛选（org:staffPage 仅经理及以上授权，顾问请求会 403） */
 const isManagerRole = ['BOSS', 'DEPT_MANAGER', 'OPERATOR', 'SUPER_ADMIN', 'SUPER']

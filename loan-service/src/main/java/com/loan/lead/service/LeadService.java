@@ -33,6 +33,7 @@ import org.springframework.util.StringUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -208,7 +209,8 @@ public class LeadService {
     public PageResult<Lead> page(String selfStaffCode, String leadType, String followStatus,
                                  String keyword, int page, int size, String roleCode, String userNo,
                                  String poolCode, String seaScope, String seaDeptCode,
-                                 String orderBy, String orderDir) {
+                                 String orderBy, String orderDir,
+                                 LocalDate createdAtStart, LocalDate createdAtEnd) {
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
         // 按资源池隔离：导入/认领只作用于指定池的线索。
         if (StringUtils.hasText(poolCode)) {
@@ -252,6 +254,12 @@ public class LeadService {
                 wrapper.and(w -> w.like(Lead::getContactName, kw).or().like(Lead::getLeadNo, kw));
             }
         }
+        if (createdAtStart != null) {
+            wrapper.ge(Lead::getCreatedAt, createdAtStart.atStartOfDay());
+        }
+        if (createdAtEnd != null) {
+            wrapper.lt(Lead::getCreatedAt, createdAtEnd.plusDays(1).atStartOfDay());
+        }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, Lead::getCreatedAt);
         Page<Lead> result = leadMapper.selectPage(new Page<>(page, size), wrapper);
         // 列表出参一律脱敏；明文仅允许通过敏感查看服务的授权、限额和审计链路读取。
@@ -265,7 +273,8 @@ public class LeadService {
 
     /** 渠道本人录入线索分页；录入与归属两个维度不可混用。 */
     public PageResult<Lead> pageByRecorder(String recorderCode, String leadType, String followStatus,
-                                           String keyword, int page, int size, String orderBy, String orderDir) {
+                                           String keyword, int page, int size, String orderBy, String orderDir,
+                                           LocalDate createdAtStart, LocalDate createdAtEnd) {
         if (!StringUtils.hasText(recorderCode)) {
             return PageResult.build(page, size, 0L, java.util.Collections.emptyList());
         }
@@ -274,6 +283,12 @@ public class LeadService {
                 .and(w -> w.eq(Lead::getRecorderStaffCode, recorderCode)
                         .or().apply("JSON_UNQUOTE(JSON_EXTRACT(ext_json, '$.recorderChannelNo')) = {0}", recorderCode));
         applyLeadFilters(wrapper, leadType, followStatus, keyword);
+        if (createdAtStart != null) {
+            wrapper.ge(Lead::getCreatedAt, createdAtStart.atStartOfDay());
+        }
+        if (createdAtEnd != null) {
+            wrapper.lt(Lead::getCreatedAt, createdAtEnd.plusDays(1).atStartOfDay());
+        }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, Lead::getCreatedAt);
         Page<Lead> result = leadMapper.selectPage(new Page<>(page, size), wrapper);
         result.getRecords().forEach(lead -> {
@@ -451,16 +466,11 @@ public class LeadService {
         if (!staffCode.equals(lead.getOwnerStaffCode())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "只能释放归属自己的线索");
         }
-        // 团队分层：释放进释放人所在部门的「团队公海」；无部门则进「公司公海」。
-        String releaseDept = null;
-        try {
-            com.loan.staff.entity.Staff releaseStaff = staffMapper.selectOne(new LambdaQueryWrapper<com.loan.staff.entity.Staff>()
-                    .eq(com.loan.staff.entity.Staff::getStaffCode, staffCode).last("limit 1"));
-            releaseDept = releaseStaff == null ? null : releaseStaff.getDeptCode();
-        } catch (Exception ignored) { releaseDept = null; }
-        boolean toTeam = StringUtils.hasText(releaseDept);
+        // 手动释放统一进「公司公海」，与客户侧手动回收、以及自动回收（recycleOverdue）口径一致。
+        // 历史问题：此前按释放人部门写入 TEAM 团队池，而「公司公海」查询对普通角色排除 TEAM、
+        // 且团队公海页签仅部门经理可见 → 顾问释放后在任何页签都查不到自己的线索。
         int updated = leadMapper.releaseOwned(leadNo.trim(), staffCode, staffName, LocalDateTime.now().plusDays(7),
-                toTeam ? "TEAM" : "COMPANY", toTeam ? releaseDept : null);
+                "COMPANY", null);
         if (updated == 0) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "线索归属已变化，请刷新后重试");
         }

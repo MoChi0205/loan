@@ -34,6 +34,8 @@ import com.loan.importing.entity.BatchImportTask;
 import com.loan.importing.mapper.BatchImportTaskMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.api.dto.PageResult;
 
@@ -53,6 +55,8 @@ public class BatchImportController {
                                                          @RequestParam(required = false) String status,
                                                          @RequestParam(defaultValue = "1") int page,
                                                          @RequestParam(defaultValue = "20") int size,
+                                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtStart,
+                                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtEnd,
                                                          @CurrentUser LoanUser user) {
         roleGuard.requireImportAdmin(user);
         LambdaQueryWrapper<BatchImportTask> query = new LambdaQueryWrapper<BatchImportTask>()
@@ -60,6 +64,8 @@ public class BatchImportController {
                 .orderByDesc(BatchImportTask::getCreatedAt);
         if (org.springframework.util.StringUtils.hasText(importType)) query.eq(BatchImportTask::getImportType, importType.toUpperCase());
         if (org.springframework.util.StringUtils.hasText(status)) query.eq(BatchImportTask::getStatus, status.trim());
+        if (createdAtStart != null) query.ge(BatchImportTask::getCreatedAt, createdAtStart.atStartOfDay());
+        if (createdAtEnd != null) query.lt(BatchImportTask::getCreatedAt, createdAtEnd.plusDays(1).atStartOfDay());
         Page<BatchImportTask> result = taskMapper.selectPage(new Page<>(page, size), query);
         List<Map<String, Object>> rows = new ArrayList<>();
         for (BatchImportTask task : result.getRecords()) {

@@ -20,6 +20,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -63,6 +66,8 @@ public class ProductController {
             @RequestParam(defaultValue = "all") String scope,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtEnd,
             @CurrentUser LoanUser user) {
         int p = PageParams.page(page);
         int s = PageParams.size(size);
@@ -73,7 +78,7 @@ public class ProductController {
                 return Result.ok(PageResult.build(p, s, 0, java.util.Collections.emptyList()));
             }
             return Result.ok(productQueryService.queryProductsForAdmin(
-                    customerGroup, status, productName, null, null, "channel-self", channelCode, null, p, s));
+                    customerGroup, status, productName, null, null, "channel-self", channelCode, null, p, s, createdAtStart, createdAtEnd));
         }
         boolean manager = isProductManager(user);
         // 全量库可见角色：老板/超管/运营看全量；其余员工仅可见本人创建的产品
@@ -83,7 +88,7 @@ public class ProductController {
         }
         String visibleStatus = fullScope ? status : null;
         String staffNo = fullScope ? null : (user == null ? null : user.getUserNo());
-        return Result.ok(productQueryService.queryProductsForAdmin(customerGroup, visibleStatus, productName, bankName, city, scope, null, staffNo, p, s));
+        return Result.ok(productQueryService.queryProductsForAdmin(customerGroup, visibleStatus, productName, bankName, city, scope, null, staffNo, p, s, createdAtStart, createdAtEnd));
     }
 
     /**

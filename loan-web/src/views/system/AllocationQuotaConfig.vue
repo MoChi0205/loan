@@ -109,9 +109,9 @@
             <p class="add-hint">线索公海 / 客户公海为常驻行，无需新增；此处仅用于给某个资源池单独配置认领上限。</p>
           </el-form-item>
           <el-form-item label="资源池" required>
-            <el-select v-model="addForm.poolCode" placeholder="选择资源池" filterable style="width: 100%">
+            <AppSelect v-model="addForm.poolCode" placeholder="选择资源池" filterable style="width: 100%">
               <el-option v-for="p in poolOptions" :key="p.poolCode" :label="p.poolName" :value="p.poolCode" :disabled="usedPoolCodes.has(p.poolCode)" />
-            </el-select>
+            </AppSelect>
           </el-form-item>
           <el-form-item label="每日认领上限">
             <el-input-number v-model="addForm.dailyClaimLimit" :min="0" :step="10" controls-position="right" style="width: 160px" />
@@ -126,10 +126,10 @@
             <el-input-number v-model="addForm.dailyCooldownLimit" :min="0" :step="1" controls-position="right" style="width: 160px" />
           </el-form-item>
           <el-form-item label="退回/回纳目标">
-            <el-select v-model="addForm.returnTarget" style="width: 160px">
+            <AppSelect v-model="addForm.returnTarget" style="width: 160px">
               <el-option label="公司公海" value="PUBLIC" />
               <el-option label="原部门团队池" value="ORIGINAL" />
-            </el-select>
+            </AppSelect>
           </el-form-item>
           <el-form-item label="说明">
             <el-input v-model="addForm.remark" placeholder="选填" maxlength="100" show-word-limit />
@@ -150,6 +150,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { listAllocationQuota, saveAllocationQuota } from '@/api/allocationQuota';

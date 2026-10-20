@@ -20,6 +20,7 @@
           <el-input v-model="queryAll.bankName" placeholder="所属银行" style="width: 160px" clearable @keyup.enter="searchAll" />
           <el-input v-model="queryAll.city" placeholder="服务城市" style="width: 130px" clearable @keyup.enter="searchAll" />
           <DictSelect v-model="queryAll.status" type="productStatus" placeholder="状态" style="width: 120px" />
+          <AppDateTime v-model="queryAll.createdAtRange" type="daterange" start-placeholder="录入起" end-placeholder="录入止" :shortcuts="true" />
           <template #append>
             <el-button :loading="exporting" @click="onExport">
               <AppIcon name="download" :size="14" />
@@ -223,9 +224,9 @@
           />
         </el-form-item>
         <el-form-item label="初始状态" prop="status">
-          <el-select v-model="partnerDialog.form.status" style="width: 100%">
+          <AppSelect v-model="partnerDialog.form.status" style="width: 100%">
             <el-option v-for="(v, k) in partnerStatusMap" :key="k" :label="v" :value="k" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
       </el-form>
     </AppDialog>
@@ -269,6 +270,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_product' });
 import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -319,8 +321,11 @@ const {
   loading: loadingAll, error: errorAll, data: dataAll, total: totalAll,
   query: queryAll, load: loadAll, onSearch: searchAll, onReset: resetAll, handleSortChange: handleSortChangeAll,
 } = useTable(
-  (q) => pageProducts({ ...q, scope: 'all' }),
-  { productName: '', bankName: '', city: '', status: '' },
+  (q) => {
+    const [start, end] = q.createdAtRange || [];
+    return pageProducts({ ...q, scope: 'all', createdAtStart: start || undefined, createdAtEnd: end || undefined });
+  },
+  { productName: '', bankName: '', city: '', status: '', createdAtRange: [] },
 );
 
 // ============================================================

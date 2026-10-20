@@ -157,6 +157,7 @@
           <el-option label="邀请提交" value="INVITE" />
         </el-select>
         <el-input v-model="queryR.keyword" placeholder="企业/客户姓名 / 日期" clearable style="width: 300px" @keyup.enter="searchR" />
+        <AppDateTime v-model="queryR.createdAtRange" type="daterange" start-placeholder="初筛起" end-placeholder="初筛止" :shortcuts="true" />
       </AppSearchBar>
 
       <el-table :data="dataR" v-loading="loadingR" stripe row-key="reportNo" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -208,6 +209,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
@@ -340,7 +342,13 @@ function goMaterial() {
 // 最近初筛记录（P0-4：小程序提交 / Web 录入统一可见）
 // ============================================================
 const { loading: loadingR, data: dataR, total: totalR, query: queryR, load: loadR, onSearch: searchR, onReset: resetR, handleSortChange } =
-  useTable(pageScreenings, { source: '', keyword: '' });
+  useTable(
+    (q) => {
+      const [start, end] = q.createdAtRange || [];
+      return pageScreenings({ ...q, createdAtStart: start || undefined, createdAtEnd: end || undefined });
+    },
+    { source: '', keyword: '', createdAtRange: [] },
+  );
 
 const screeningSourceMap = { MINI: '小程序提交', WEB: 'Web 录入', INVITE: '邀请提交' };
 function screeningSourceText(code) {

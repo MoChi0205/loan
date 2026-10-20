@@ -116,14 +116,14 @@
           <el-input v-model="staffForm.staffName" placeholder="员工姓名" />
         </el-form-item>
         <el-form-item label="部门">
-          <el-select v-model="staffForm.deptCode" clearable filterable placeholder="选择部门" style="width: 100%">
+          <AppSelect v-model="staffForm.deptCode" clearable filterable placeholder="选择部门" style="width: 100%">
             <el-option v-for="d in deptFlat" :key="d.code" :label="d.name" :value="d.code" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="角色" prop="roleCode">
-          <el-select v-model="staffForm.roleCode" style="width: 100%">
+          <AppSelect v-model="staffForm.roleCode" style="width: 100%">
             <el-option v-for="r in roles" :key="r.roleCode" :label="r.roleName" :value="r.roleCode" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="staffForm.phone" placeholder="11 位手机号" />
@@ -144,9 +144,9 @@
           <el-input v-model="deptForm.deptName" placeholder="如 咨询部" />
         </el-form-item>
         <el-form-item label="上级部门">
-          <el-select v-model="deptForm.parentCode" clearable filterable placeholder="顶级" style="width: 100%">
+          <AppSelect v-model="deptForm.parentCode" clearable filterable placeholder="顶级" style="width: 100%">
             <el-option v-for="d in deptFlat" :key="d.code" :label="d.name" :value="d.code" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="负责人">
           <el-input v-model="deptForm.leaderStaffCode" placeholder="负责人工号" />
@@ -236,6 +236,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_org' });
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';

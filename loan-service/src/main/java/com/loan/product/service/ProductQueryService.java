@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -163,7 +164,8 @@ public class ProductQueryService {
      */
     public PageResult<ProductDTO> queryProductsForAdmin(String customerGroup, String status,
                                                         String productName, String bankName, String city, String scope,
-                                                        String bankChannelCode, String createdStaffNo, int page, int size) {
+                                                        String bankChannelCode, String createdStaffNo, int page, int size,
+                                                        LocalDate createdAtStart, LocalDate createdAtEnd) {
         LambdaQueryWrapper<BankProduct> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(customerGroup)) {
             wrapper.eq(BankProduct::getCustomerGroup, customerGroup);
@@ -212,6 +214,12 @@ public class ProductQueryService {
                 return PageResult.build(page, size, 0, Collections.emptyList());
             }
             wrapper.in(BankProduct::getProductCode, cityProductCodes);
+        }
+        if (createdAtStart != null) {
+            wrapper.ge(BankProduct::getCreatedAt, createdAtStart.atStartOfDay());
+        }
+        if (createdAtEnd != null) {
+            wrapper.lt(BankProduct::getCreatedAt, createdAtEnd.plusDays(1).atStartOfDay());
         }
         wrapper.orderByDesc(BankProduct::getUpdatedAt);
 

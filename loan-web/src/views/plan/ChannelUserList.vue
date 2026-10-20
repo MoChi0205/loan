@@ -25,6 +25,7 @@
           <el-option label="白名单" value="LOCAL_WHITE" />
         </el-select>
         <el-input v-model="query.keyword" placeholder="名单键 / 手机号" clearable style="width: 200px" @keyup.enter="onSearch" />
+        <AppDateTime v-model="query.createdAtRange" type="daterange" start-placeholder="导入起" end-placeholder="导入止" :shortcuts="true" />
       </AppSearchBar>
 
       <div v-if="selection.length" class="cl-batch-bar">
@@ -73,21 +74,21 @@
     <AppDialog v-model:visible="addDialog.visible" title="新增名单" :loading="addDialog.saving" @confirm="onAdd">
       <el-form :model="addDialog.form" label-width="90px">
         <el-form-item label="渠道">
-          <el-select v-model="addDialog.form.channelCode" placeholder="选择渠道" filterable style="width: 100%">
+          <AppSelect v-model="addDialog.form.channelCode" placeholder="选择渠道" filterable style="width: 100%">
             <el-option v-for="c in channels" :key="c.channelCode" :label="c.bankName" :value="c.channelCode" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="客群">
-          <el-select v-model="addDialog.form.customerGroup" style="width: 100%">
+          <AppSelect v-model="addDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="名单类型">
-          <el-select v-model="addDialog.form.listType" style="width: 100%">
+          <AppSelect v-model="addDialog.form.listType" style="width: 100%">
             <el-option label="黑名单" value="LOCAL_BLACK" />
             <el-option label="白名单" value="LOCAL_WHITE" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="名单键">
           <el-input v-model="addDialog.keys" type="textarea" :rows="5" :placeholder="addDialog.form.customerGroup === 'PERSONAL' ? '每行一个手机号' : '每行一个统一社会信用代码（18位）'" />
@@ -100,21 +101,21 @@
     <AppDialog v-model:visible="editDialog.visible" title="编辑名单" :loading="editDialog.saving" @confirm="onEdit">
       <el-form :model="editDialog.form" label-width="90px">
         <el-form-item label="渠道">
-          <el-select v-model="editDialog.form.channelCode" placeholder="选择渠道" filterable style="width: 100%">
+          <AppSelect v-model="editDialog.form.channelCode" placeholder="选择渠道" filterable style="width: 100%">
             <el-option v-for="c in channels" :key="c.channelCode" :label="c.bankName" :value="c.channelCode" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="客群">
-          <el-select v-model="editDialog.form.customerGroup" style="width: 100%">
+          <AppSelect v-model="editDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="名单类型">
-          <el-select v-model="editDialog.form.listType" style="width: 100%">
+          <AppSelect v-model="editDialog.form.listType" style="width: 100%">
             <el-option label="黑名单" value="LOCAL_BLACK" />
             <el-option label="白名单" value="LOCAL_WHITE" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="新名单键">
           <el-input v-model="editDialog.form.listKey" :placeholder="editKeyPlaceholder" />
@@ -126,11 +127,13 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_channel_user_list' });
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
@@ -142,7 +145,13 @@ import { pageUserList, addUserList, updateUserList, deleteUserList, batchDeleteU
 
 
 const channels = ref([]);
-const { loading, data, total, query, load, onSearch, onReset } = useTable(pageUserList, { channelCode: '', customerGroup: '', listType: '', keyword: '' });
+const { loading, data, total, query, load, onSearch, onReset } = useTable(
+  (q) => {
+    const [start, end] = q.createdAtRange || [];
+    return pageUserList({ ...q, createdAtStart: start || undefined, createdAtEnd: end || undefined });
+  },
+  { channelCode: '', customerGroup: '', listType: '', keyword: '', createdAtRange: [] },
+);
 
 const channelMap = computed(() => Object.fromEntries(channels.value.map((c) => [c.channelCode, c.bankName])));
 function channelName(code) {

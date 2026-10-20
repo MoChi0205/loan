@@ -56,16 +56,16 @@
         <el-form-item label="模版编码" prop="templateCode"><el-input v-model="tplDialog.form.templateCode" placeholder="唯一编码" /></el-form-item>
         <el-form-item label="模版名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" /></el-form-item>
         <el-form-item label="分类">
-          <el-select v-model="tplDialog.form.categoryId" clearable placeholder="选择分类" style="width: 100%">
+          <AppSelect v-model="tplDialog.form.categoryId" clearable placeholder="选择分类" style="width: 100%">
             <el-option v-for="c in categoryList" :key="c.id" :label="c.categoryName" :value="c.id" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
-          <el-select v-model="tplDialog.form.customerGroup" style="width: 100%">
+          <AppSelect v-model="tplDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
             <el-option label="通用" value="COMMON" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="说明"><el-input v-model="tplDialog.form.description" type="textarea" /></el-form-item>
       </el-form>
@@ -108,14 +108,14 @@
         <el-form-item label="字段编码" prop="fieldCode"><el-input v-model="fieldDialog.form.fieldCode" /></el-form-item>
         <el-form-item label="字段名称" prop="fieldName"><el-input v-model="fieldDialog.form.fieldName" /></el-form-item>
         <el-form-item label="类型" prop="fieldType">
-          <el-select v-model="fieldDialog.form.fieldType" style="width: 100%">
+          <AppSelect v-model="fieldDialog.form.fieldType" style="width: 100%">
             <el-option v-for="t in FIELD_TYPES" :key="t" :label="t" :value="t" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="运算符" prop="operator">
-          <el-select v-model="fieldDialog.form.operator" filterable style="width: 100%">
+          <AppSelect v-model="fieldDialog.form.operator" filterable style="width: 100%">
             <el-option v-for="o in OPERATORS" :key="o" :label="o" :value="o" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="默认值"><el-input v-model="fieldDialog.form.defaultValue" /></el-form-item>
         <el-form-item label="必填">
@@ -129,9 +129,9 @@
     <AppDialog v-model:visible="importDialog.visible" title="导入为规则" :loading="importDialog.saving" @confirm="onImport">
       <el-form label-width="90px">
         <el-form-item label="选择字段">
-          <el-select v-model="importDialog.fieldCode" placeholder="选择字段定义（缺省取第一个）" clearable style="width: 100%">
+          <AppSelect v-model="importDialog.fieldCode" placeholder="选择字段定义（缺省取第一个）" clearable style="width: 100%">
             <el-option v-for="f in importFields" :key="f.fieldBizCode" :label="`${f.fieldName}（${f.fieldCode}）`" :value="f.fieldBizCode" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <div class="rt-import-tip">将按所选字段定义实例化一条「规则目录」规则（草稿态），字段编码/名称/运算符/默认值均来自模版。</div>
       </el-form>
@@ -140,6 +140,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_rule_template' });
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';

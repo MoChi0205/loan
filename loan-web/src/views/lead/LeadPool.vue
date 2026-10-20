@@ -35,6 +35,7 @@
           <el-option v-for="(v, k) in followStatusMap" :key="k" :label="v.label" :value="k" />
         </el-select>
         <el-input v-model="query.keyword" :placeholder="activeTab === 'clients' ? '客户姓名 / 企业名称' : '联系人 / 手机号 / 企业名称'" clearable style="width: 220px" @keyup.enter="onSearch" />
+        <AppDateTime v-if="activeTab !== 'clients'" v-model="query.createdAtRange" type="daterange" start-placeholder="录入起" end-placeholder="录入止" :shortcuts="true" />
       </AppSearchBar>
 
       <template v-if="loading && !data.length">
@@ -146,15 +147,15 @@
           <el-input v-model="form.phone" placeholder="手机号" />
         </el-form-item>
         <el-form-item label="客群">
-          <el-select v-model="form.leadType" style="width: 100%">
+          <AppSelect v-model="form.leadType" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
             <el-option label="个人" value="PERSONAL" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="客户标签">
-          <el-select v-model="form.customerTag" clearable placeholder="可选，默认新用户" style="width: 100%">
+          <AppSelect v-model="form.customerTag" clearable placeholder="可选，默认新用户" style="width: 100%">
             <el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item v-if="!isChannel" label="归属">
           <el-input model-value="创建后自动归属本人" disabled />
@@ -224,9 +225,9 @@
     <AppDialog v-model:visible="followVisible" title="填写线索跟进" width="520px" :loading="following" @confirm="onFollowSubmit">
       <el-form ref="followFormRef" :model="followForm" :rules="followRules" label-width="86px">
         <el-form-item label="跟进结果" prop="followStatus">
-          <el-select v-model="followForm.followStatus" style="width: 100%">
+          <AppSelect v-model="followForm.followStatus" style="width: 100%">
             <el-option v-for="(item, code) in followEditableStatusMap" :key="code" :label="item.label" :value="code" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="跟进内容" prop="content">
           <el-input v-model="followForm.content" type="textarea" :rows="4" maxlength="240" show-word-limit placeholder="填写沟通结果、客户需求及下一步安排" />
@@ -237,6 +238,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_lead' });
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -246,6 +248,7 @@ import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import DialogSelect from '@/components/DialogSelect.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
@@ -404,10 +407,26 @@ async function loadPoolOptions() {
 loadPoolOptions();
 
 const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(
-  (q) => activeTab.value === 'clients'
-    ? pageUnassignedClients({ keyword: q.keyword, page: q.page, size: q.size })
-    : pageLead({ ...q, pool: activeTab.value === 'pool', scope: activeTab.value === 'pool' ? (seaScope.value === 'team' ? 'team_sea' : 'company_sea') : undefined }),
-  { leadType: '', source: '', followStatus: '', keyword: '', poolCode: '' },
+  (q) => {
+    if (activeTab.value === 'clients') {
+      return pageUnassignedClients({ keyword: q.keyword, page: q.page, size: q.size });
+    }
+    const [start, end] = q.createdAtRange || [];
+    return pageLead({
+      leadType: q.leadType,
+      source: q.source,
+      followStatus: q.followStatus,
+      keyword: q.keyword,
+      poolCode: q.poolCode,
+      createdAtStart: start || undefined,
+      createdAtEnd: end || undefined,
+      pool: activeTab.value === 'pool',
+      scope: activeTab.value === 'pool' ? (seaScope.value === 'team' ? 'team_sea' : 'company_sea') : undefined,
+      page: q.page,
+      size: q.size,
+    });
+  },
+  { leadType: '', source: '', followStatus: '', keyword: '', poolCode: '', createdAtRange: [] },
 );
 watch(activeTab, () => {
   query.page = 1;

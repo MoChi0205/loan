@@ -64,15 +64,15 @@
           <el-input v-model="poolForm.poolName" placeholder="必填" maxlength="30" style="flex: 1" />
         </label>
         <label class="pool-form-item"><span class="pool-form-label">池类型<i class="req">*</i></span>
-          <el-select v-model="poolForm.poolType" style="flex: 1" @change="poolForm.deptCode = ''">
+          <AppSelect v-model="poolForm.poolType" style="flex: 1" @change="poolForm.deptCode = ''">
             <el-option label="公司池" value="COMPANY" />
             <el-option label="团队池" value="TEAM" />
-          </el-select>
+          </AppSelect>
         </label>
         <label v-if="poolForm.poolType === 'TEAM'" class="pool-form-item"><span class="pool-form-label">关联部门<i class="req">*</i></span>
-          <el-select v-model="poolForm.deptCode" placeholder="必选" clearable filterable style="flex: 1">
+          <AppSelect v-model="poolForm.deptCode" placeholder="必选" clearable filterable style="flex: 1">
             <el-option v-for="d in deptOptions" :key="d.deptCode" :label="d.deptName" :value="d.deptCode" />
-          </el-select>
+          </AppSelect>
         </label>
         <label class="pool-form-item"><span class="pool-form-label">池说明</span>
           <el-input v-model="poolForm.description" placeholder="可选" maxlength="60" style="flex: 1" />
@@ -96,6 +96,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { createResourcePool, toggleResourcePool, savePoolRecycle, fetchPoolRules } from '@/api/importing';

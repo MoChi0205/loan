@@ -20,6 +20,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.Map;
 
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+
 /**
  * 风控黑名单 HTTP 接口（Web 管理端）。
  *
@@ -43,9 +46,11 @@ public class BlacklistController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
-            @RequestParam(required = false) String orderDir) {
+            @RequestParam(required = false) String orderDir,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtStart,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtEnd) {
         return Result.ok(blacklistService.page(dimension, status, keyword,
-                PageParams.page(page), PageParams.size(size), orderBy, orderDir));
+                PageParams.page(page), PageParams.size(size), orderBy, orderDir, createdAtStart, createdAtEnd));
     }
 
     /**

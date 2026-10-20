@@ -82,10 +82,10 @@
     <AppDialog v-model:visible="planDialog.visible" :title="planDialog.title" :loading="planDialog.saving" @confirm="onSavePlan">
       <el-form ref="planFormRef" :model="planDialog.form" :rules="planRules" label-width="90px">
         <el-form-item label="客群" prop="customerGroup">
-          <el-select v-model="planDialog.form.customerGroup" style="width: 100%" teleported>
+          <AppSelect v-model="planDialog.form.customerGroup" style="width: 100%" teleported>
             <el-option label="企业贷（ENTERPRISE）" value="ENTERPRISE" />
             <el-option label="个贷（PERSONAL）" value="PERSONAL" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="计划编码" prop="planCode"><el-input v-model="planDialog.form.planCode" placeholder="如 ENT_TAX_PLAN_V2" /></el-form-item>
         <el-form-item label="计划名称" prop="planName"><el-input v-model="planDialog.form.planName" placeholder="计划名称" /></el-form-item>
@@ -99,16 +99,16 @@
         <el-form-item label="模块编码" prop="moduleCode"><el-input v-model="moduleDialog.form.moduleCode" placeholder="如 OPERATION" /></el-form-item>
         <el-form-item label="模块名称" prop="moduleName"><el-input v-model="moduleDialog.form.moduleName" placeholder="模块名称" /></el-form-item>
         <el-form-item label="逻辑">
-          <el-select v-model="moduleDialog.form.logicType" style="width: 100%" teleported>
+          <AppSelect v-model="moduleDialog.form.logicType" style="width: 100%" teleported>
             <el-option label="AND（模块内遇FAIL短路）" value="AND" />
             <el-option label="OR（模块内遇PASS短路）" value="OR" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="连接下模块">
-          <el-select v-model="moduleDialog.form.joinWithNextModule" style="width: 100%" teleported>
+          <AppSelect v-model="moduleDialog.form.joinWithNextModule" style="width: 100%" teleported>
             <el-option label="AND（串行，任一FAIL即短路）" value="AND" />
             <el-option label="OR（并行，全FAIL才失败）" value="OR" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="全局风控">
           <el-switch v-model="moduleDialog.form.isGlobalPre" :active-value="1" :inactive-value="0" />
@@ -122,15 +122,15 @@
       <el-form ref="stepFormRef" :model="stepDialog.form" :rules="stepRules" label-width="100px" class="step-dialog-form">
         <!-- 规则选择：按分类级联 -->
         <el-form-item label="规则分类" prop="categoryCode">
-          <el-select v-model="stepDialog.form.categoryCode" placeholder="先选择规则分类" clearable style="width: 100%" @change="onCategoryChange">
+          <AppSelect v-model="stepDialog.form.categoryCode" placeholder="先选择规则分类" clearable style="width: 100%" @change="onCategoryChange">
             <el-option v-for="c in ruleCategories" :key="c.code" :label="c.name" :value="c.code" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="规则" prop="ruleId">
           <div class="rule-select-wrap">
-            <el-select v-model="stepDialog.form.ruleId" :placeholder="stepDialog.form.categoryCode ? '选择规则' : '请先选择规则分类'" filterable :disabled="!stepDialog.form.categoryCode" style="width: 100%" teleported @change="onRuleChange">
+            <AppSelect v-model="stepDialog.form.ruleId" :placeholder="stepDialog.form.categoryCode ? '选择规则' : '请先选择规则分类'" filterable :disabled="!stepDialog.form.categoryCode" style="width: 100%" teleported @change="onRuleChange">
               <el-option v-for="r in filteredRules" :key="r.ruleId || r.ruleCode" :label="r.ruleName || '规则名称待补充'" :value="r.ruleId || r.ruleCode" />
-            </el-select>
+            </AppSelect>
             <span v-if="selectedRule" class="rule-selected-name">
               <AppIcon name="rule" :size="13" />
               {{ selectedRule.ruleName || '规则名称待补充' }}
@@ -144,10 +144,10 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="与下一步">
-              <el-select v-model="stepDialog.form.joinWithNext" clearable style="width: 100%" teleported>
+              <AppSelect v-model="stepDialog.form.joinWithNext" clearable style="width: 100%" teleported>
                 <el-option label="AND（串行，FAIL即短路）" value="AND" />
                 <el-option label="OR（本步PASS短路后续）" value="OR" />
-              </el-select>
+              </AppSelect>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -160,21 +160,21 @@
         <el-row :gutter="16">
           <el-col :span="7">
             <el-form-item label="条件字段">
-              <el-select v-model="stepDialog.form.conditionField" filterable allow-create default-first-option clearable placeholder="fact 字段码" style="width: 100%" teleported>
+              <AppSelect v-model="stepDialog.form.conditionField" filterable allow-create default-first-option clearable placeholder="fact 字段码" style="width: 100%" teleported>
                 <el-option v-for="f in conditionFieldOptions" :key="f.value" :label="f.label" :value="f.value" />
-              </el-select>
+              </AppSelect>
             </el-form-item>
           </el-col>
           <el-col :span="6">
             <el-form-item label="运算符">
-              <el-select v-model="stepDialog.form.conditionOperator" clearable placeholder="如 EQ" style="width: 100%" teleported>
+              <AppSelect v-model="stepDialog.form.conditionOperator" clearable placeholder="如 EQ" style="width: 100%" teleported>
                 <el-option v-for="o in OPERATORS" :key="o.value" :label="o.label" :value="o.value" />
-              </el-select>
+              </AppSelect>
             </el-form-item>
           </el-col>
           <el-col :span="11">
             <el-form-item label="条件值">
-              <el-select
+              <AppSelect
                 v-if="isListValueType"
                 v-model="conditionValueArray"
                 multiple
@@ -189,7 +189,7 @@
                 teleported
               >
                 <el-option v-for="v in conditionValueOptions" :key="v" :label="v" :value="v" />
-              </el-select>
+              </AppSelect>
               <el-input
                 v-else
                 v-model="stepDialog.form.conditionValue"
@@ -318,6 +318,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_plan_edit' });
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';

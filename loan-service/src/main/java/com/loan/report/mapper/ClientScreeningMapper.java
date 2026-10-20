@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
 import org.apache.ibatis.annotations.Mapper;
 import org.springframework.util.StringUtils;
 import java.util.*;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 /** 渠道客户范围与报告查询共享同一 Wrapper 权限来源。 */
 @Mapper
@@ -17,7 +18,8 @@ public interface ClientScreeningMapper extends BaseMapper<ClientScreening> {
         return SqlHelper.execute(ClientProfile.class, mapper -> ((ClientProfileMapper) mapper).channelOwnedClients(channelNo));
     }
     default Page<ClientScreening> selectChannelOwnedPage(Page<ClientScreening> page, String channelNo,
-            String status, String grade, String keyword, String phoneHash, String orderDir) {
+            String status, String grade, String keyword, String phoneHash, String orderDir,
+            LocalDate createdAtStart, LocalDate createdAtEnd) {
         List<ClientProfile> clients = channelClients(channelNo);
         if (clients.isEmpty()) { page.setTotal(0); page.setRecords(Collections.emptyList()); return page; }
         List<String> codes = clients.stream().map(ClientProfile::getClientCode).collect(Collectors.toList());
@@ -39,6 +41,12 @@ public interface ClientScreeningMapper extends BaseMapper<ClientScreening> {
                     w.or().ge(ClientScreening::getCreatedAt, day.atStartOfDay()).lt(ClientScreening::getCreatedAt, day.plusDays(1).atStartOfDay());
                 } catch (java.time.format.DateTimeParseException ignored) { }
             });
+        }
+        if (createdAtStart != null) {
+            q.ge(ClientScreening::getCreatedAt, createdAtStart.atStartOfDay());
+        }
+        if (createdAtEnd != null) {
+            q.lt(ClientScreening::getCreatedAt, createdAtEnd.plusDays(1).atStartOfDay());
         }
         q.orderBy(true, "asc".equalsIgnoreCase(orderDir), ClientScreening::getCreatedAt);
         return selectPage(page, q);

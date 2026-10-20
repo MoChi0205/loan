@@ -20,6 +20,7 @@
           <el-option label="生效" value="EFFECTIVE" /><el-option label="已解禁" value="RELEASED" />
         </el-select>
         <el-input v-model="query.keyword" placeholder="手机号 / 证件 / 信用代码（精确）" style="width: 240px" clearable @keyup.enter="onSearch" />
+        <AppDateTime v-model="query.createdAtRange" type="daterange" start-placeholder="录入起" end-placeholder="录入止" :shortcuts="true" />
       </AppSearchBar>
 
       <el-table :data="data" v-loading="loading" stripe row-key="id" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -64,17 +65,17 @@
     <AppDialog v-model:visible="addVisible" title="新增黑名单" :loading="adding" @confirm="onAdd">
       <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="100px" label-position="right">
         <el-form-item label="维度" prop="dimension">
-          <el-select v-model="addForm.dimension" style="width: 100%">
+          <AppSelect v-model="addForm.dimension" style="width: 100%">
             <el-option v-for="(t, k) in dimensionText" :key="k" :label="t" :value="k" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="命中值" prop="value">
           <el-input v-model="addForm.value" placeholder="手机号 / 身份证 / 统一信用代码 / 法人姓名" />
         </el-form-item>
         <el-form-item label="原因分类" prop="reasonType">
-          <el-select v-model="addForm.reasonType" style="width: 100%">
+          <AppSelect v-model="addForm.reasonType" style="width: 100%">
             <el-option v-for="(t, k) in reasonText" :key="k" :label="t" :value="k" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="原因说明">
           <el-input v-model="addForm.reasonRemark" type="textarea" :rows="2" placeholder="可选" />
@@ -85,11 +86,13 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_blacklist' });
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppEmpty from '@/components/AppEmpty.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
@@ -104,9 +107,13 @@ const dimensionText = { PHONE: '手机号', ID_CARD: '身份证', CREDIT_CODE: '
 const reasonText = { FRAUD: '欺诈', DISHONEST: '失信', SENSITIVE: '敏感', OTHER: '其他' };
 const userStore = useUserStore();
 
-const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageBlacklist, {
-  dimension: '', status: '', keyword: '',
-});
+const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(
+  (q) => {
+    const [start, end] = q.createdAtRange || [];
+    return pageBlacklist({ ...q, createdAtStart: start || undefined, createdAtEnd: end || undefined });
+  },
+  { dimension: '', status: '', keyword: '', createdAtRange: [] },
+);
 
 function rowActions(row) {
   if (row.status !== 'EFFECTIVE') return [];

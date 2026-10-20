@@ -14,6 +14,7 @@ import com.loan.exception.BusinessException;
 import com.loan.infrastructure.security.HashUtils;
 import com.loan.report.entity.ClientScreening;
 import com.loan.report.mapper.ClientScreeningMapper;
+import java.time.LocalDate;
 import com.loan.report.service.ReportService;
 import com.loan.utils.DesensitizeUtils;
 import lombok.RequiredArgsConstructor;
@@ -84,12 +85,13 @@ public class ChannelDataScopeService {
     }
 
     public PageResult<Map<String, Object>> reportPage(String status, String grade, String keyword,
-                                                       int page, int size, String orderDir, LoanUser user) {
+                                                       int page, int size, String orderDir, LoanUser user,
+                                                       LocalDate createdAtStart, LocalDate createdAtEnd) {
         String channelNo = requireChannel(user);
         String normalizedKeyword = normalize(keyword);
         String phoneHash = isPhone(normalizedKeyword) ? HashUtils.sha256Hex(normalizedKeyword) : null;
         Page<ClientScreening> result = screeningMapper.selectChannelOwnedPage(new Page<>(page, size), channelNo,
-                normalize(status), normalize(grade), normalizedKeyword, phoneHash, normalizeOrderDir(orderDir));
+                normalize(status), normalize(grade), normalizedKeyword, phoneHash, normalizeOrderDir(orderDir), createdAtStart, createdAtEnd);
 
         List<Map<String, Object>> records = reportSummaries(result.getRecords());
         return PageResult.build(page, size, result.getTotal(), records);

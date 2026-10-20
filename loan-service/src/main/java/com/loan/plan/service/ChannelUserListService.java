@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -214,6 +215,12 @@ public class ChannelUserListService {
                 wrapper.and(w -> w.like(ChannelUserList::getListKey, keyword)
                         .or().like(ChannelUserList::getRawKey, keyword));
             }
+        }
+        if (query.getCreatedAtStart() != null) {
+            wrapper.ge(ChannelUserList::getCreatedAt, query.getCreatedAtStart().atStartOfDay());
+        }
+        if (query.getCreatedAtEnd() != null) {
+            wrapper.lt(ChannelUserList::getCreatedAt, query.getCreatedAtEnd().plusDays(1).atStartOfDay());
         }
         return wrapper;
     }

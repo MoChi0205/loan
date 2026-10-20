@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,7 +56,7 @@ public class BlacklistService {
      * @param size      每页大小
      * @return 黑名单分页
      */
-    public PageResult<Map<String, Object>> page(String dimension, String status, String keyword, int page, int size, String orderBy, String orderDir) {
+    public PageResult<Map<String, Object>> page(String dimension, String status, String keyword, int page, int size, String orderBy, String orderDir, LocalDate createdAtStart, LocalDate createdAtEnd) {
         LambdaQueryWrapper<Blacklist> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(dimension)) {
             wrapper.eq(Blacklist::getDimension, dimension);
@@ -65,6 +66,12 @@ public class BlacklistService {
         }
         if (StringUtils.hasText(keyword)) {
             wrapper.eq(Blacklist::getValueHash, sha256(keyword.trim()));
+        }
+        if (createdAtStart != null) {
+            wrapper.ge(Blacklist::getCreatedAt, createdAtStart.atStartOfDay());
+        }
+        if (createdAtEnd != null) {
+            wrapper.lt(Blacklist::getCreatedAt, createdAtEnd.plusDays(1).atStartOfDay());
         }
         PageOrder.apply(wrapper, orderBy, orderDir, ORDER_FIELDS, Blacklist::getCreatedAt);
         Page<Blacklist> result = blacklistMapper.selectPage(new Page<>(page, size), wrapper);

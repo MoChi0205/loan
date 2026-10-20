@@ -360,10 +360,10 @@
     <AppDialog v-model:visible="applyVisible" title="发起无水印下载申请" width="640px" modal-class="loan-app-dialog download-apply-dialog" :loading="applying" @confirm="onApply">
       <el-form ref="applyFormRef" :model="applyForm" :rules="applyRules" label-width="110px" label-position="right">
         <el-form-item label="资料清单" prop="attachmentIds">
-          <el-select v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或客户名称搜索" style="width: 100%" fit-input-width popper-class="attachment-select-popper" @visible-change="onAttachmentVisible">
+          <AppSelect v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或客户名称搜索" style="width: 100%" fit-input-width popper-class="attachment-select-popper" @visible-change="onAttachmentVisible">
             <el-option v-for="item in attachmentOptions" :key="item.value" :label="item.label" :value="item.value" />
             <div v-if="!attachmentFinished && attachmentOptions.length" class="remote-more" @mousedown.prevent @click="loadMoreAttachments">{{ attachmentLoading ? '加载中…' : '加载更多' }}</div>
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="用途说明" prop="purpose">
           <el-input v-model="applyForm.purpose" type="textarea" :rows="2" placeholder="如 报送银行 / 纸质留存" />
@@ -377,6 +377,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_approval' });
 import { ref, reactive, computed, watch , onMounted } from 'vue';

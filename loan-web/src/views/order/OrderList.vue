@@ -82,7 +82,7 @@
     <AppDialog v-model:visible="createVisible" title="新建工单" :loading="creating" @confirm="onCreate">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px" label-position="right">
         <el-form-item label="客户" prop="clientCode">
-          <el-select
+          <AppSelect
             v-model="createForm.clientCode"
             filterable
             remote
@@ -92,7 +92,7 @@
             style="width: 100%"
           >
             <el-option v-for="c in clientOptions" :key="c.clientCode" :label="clientLabel(c)" :value="c.clientCode" />
-          </el-select>
+          </AppSelect>
           <div class="field-help">
             仅显示本人名下客户；未找到时请先
             <el-link type="primary" :underline="false" @click="goToLead">新建线索</el-link>
@@ -109,10 +109,10 @@
           <RemoteProductSelect v-model="createForm.bankProductCode" scope="cooperate" :customer-group="createForm.customerGroup" placeholder="可选，输入产品名称搜索（仅合作中且未到期）" />
         </el-form-item>
         <el-form-item label="来源">
-          <el-select v-model="createForm.source" style="width: 100%">
+          <AppSelect v-model="createForm.source" style="width: 100%">
             <el-option label="手工建单" value="MANUAL" />
             <el-option label="线下补录" value="OFFLINE_SUPPLEMENT" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="来源单号">
           <el-input v-model="createForm.sourceOrderNo" placeholder="CRM 合同号 / 线下成交单号" />
@@ -172,6 +172,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 import { enumLabel } from '@/utils/enumDisplay';
 defineOptions({ name: '_order' });
 import { ref, reactive, onMounted } from 'vue';

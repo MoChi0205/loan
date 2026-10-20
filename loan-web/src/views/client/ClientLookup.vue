@@ -42,9 +42,9 @@
       <p class="assign-dialog-hint">跨团队转移需提交申请：第一步选择非本团队的目标团队，第二步选择该团队的目标员工；提交后由目标团队负责人初审、老板终审。</p>
       <el-form label-width="90px" label-position="right">
         <el-form-item label="目标团队" required>
-          <el-select v-model="transferApplyForm.deptCode" filterable placeholder="选择非本团队的团队" style="width: 100%" @change="onTransferDeptChange">
+          <AppSelect v-model="transferApplyForm.deptCode" filterable placeholder="选择非本团队的团队" style="width: 100%" @change="onTransferDeptChange">
             <el-option v-for="d in transferDeptOptions" :key="d.value" :label="d.label" :value="d.value" />
-          </el-select>
+          </AppSelect>
         </el-form-item>
         <el-form-item label="目标员工" required>
           <DialogSelect v-model="transferApplyForm.targetStaffCode" :fetcher="fetchTransferTargetStaff" :disabled="!transferApplyForm.deptCode" placeholder="先选择团队，再搜索该团队员工" />
@@ -55,6 +55,7 @@
 </template>
 
 <script setup>
+import AppSelect from '@/components/AppSelect.vue';
 import { computed, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { lookupClient, claimUnassignedClient, assignClient } from '@/api/client';
