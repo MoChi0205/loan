@@ -14,8 +14,8 @@ description: >-
    从**最新条目往下**读（台账按时间倒序，最新在最上方）；**命中即遵守**；状态为「已被 Dxx 替代」则跳读 Dxx。
    > ⚠️ 取号前必须自己刚跑 `grep -o "^| D[0-9-]*" docs/knowledge-base/10-历史结论与决策日志.md` 取实时最大编号（禁采信转述 / 记忆 / 分配表）。
 2. **无结论且不确定 → 停下来问用户**，禁止臆断。
-   > ⚠️ **分工红线（D0-1）**：前端（loan-web / 小程序）由**用户自己**负责，助手默认只做后端 `loan-service`。
-   > 助手被明确要求改前端时，仍须先过本门禁并按用户指定范围改动，不得顺带扩大改动面。
+   > ⚠️ **分工（D83 已更新，取代 D0-1）**：自 2026-10-20 起，**loan-web UI 缺陷修复已授权助手**（后端仍以助手为主）。
+   > 改前端仍须先过本门禁并按用户指定范围改动；用户发截图反馈时**必须请其用文字补现象，禁止猜测截图内容**（助手读图会被过滤）。
 3. **再读元技能** `loan-knowledge`（`.workbuddy/skills/loan-knowledge/SKILL.md`），按其 Step 1–5 执行。
 4. 回复开头输出：`【结论核对】命中 Dx-x（…）/ 未命中（grep 关键词：…）`。
 
@@ -101,6 +101,18 @@ src/
 - [ ] 数据范围过滤是否由后端完成（前端不做安全边界）？
 - [ ] 用户、企业、产品、部门等关联数据是否名称主显，内部 ID / 业务编码仅作必要的次要信息？
 - [ ] 名称是否由后端批量补齐，前端无逐行查询名称的 N+1 请求？
+
+## 实战坑位清单（2026-10-20 沉淀，改代码前必扫）
+
+- **弹窗内下拉用 `DialogSelect`，禁 `:teleported="false"`**：popper 塞进 `.el-dialog__body` 会被其 overflow 裁掉，且 body 滚动时 popper 位置不重算 → 表现为"下拉被隐藏 / 随滚动折叠"。统一走 `components/DialogSelect.vue`（挂 body + `fit-input-width` + 列表 max-height 240 内部滚动 + flip/preventOverflow）。同一控件绝不能出现"塞进弹窗 vs 放出去"两套矛盾实现。
+- **日期控件 `AppDateTime` 缺省宽度已按 type 定死**（date 200 / datetime 220 / daterange 260 / datetimerange 360），根元素带 `flex:0 0 auto`。**筛选条里不要漏传也不会铺满**；只有表单内（el-form-item）需要铺满时才显式 `width="100%"`。别再在页面 style 里用 `:deep` 覆盖日期宽度（与组件 prop 打架）。
+- **图标名必须真实存在**：`icons.js` 里没有的名字（`setting`、`success`、`sea` 等）会让 `AppIcon` 静默渲染空白，不报错。新增/改菜单 icon 前 grep 确认；`setting`→`settings`、`success`→`check`、`sea`→`layers`。
+- **`useTable` 的 query 会自动透传为请求参数**，但**后端不接收的参数就是假筛选**（前端加了"筛了无效"）。加筛选前先核对后端 Controller 是否 `@RequestParam` 接收；后端没加就联动后端。
+- **chip/计数与列表过滤必须同口径**：标签 chip 的 count 与点击后列表的 where 条件若口径不一致（如计数含 NULL 而列表精确匹配），会出现"计数 1、点进去 0"。
+- **后端哨兵值不要裸显**：`remaining=-1` 等"不限/豁免"语义的哨兵值，前端展示前要判断（`< 0` → 显示"不限次数"），别直接打在 UI 上。
+- **`Layout.initializeLayout` 先恢复标签再查权限**：顺序反了会导致"刷新任何非工作台页面都被弹回工作台"（权限兜底判断时 openTabs 还没从 localStorage 恢复）。
+- **表格只有一列弹性（min-width）时，它会吸收全部剩余宽度**，观感就是"某列占了大半屏"。多个相关列一起 `min-width` 分摊，短字段固定 `width` + `show-overflow-tooltip`，操作列 `fixed="right"`。
+- **错误分支按后端 `code` 判断，禁匹配中文文案**：`e.message.includes('跨团队')` 一类写法在文案变化 / 异常包装后即失效，落到静默兜底（用户只见"系统错误"）。后端业务异常会返回明确 `code`，前端 `e.code === 1005` 这类判断才稳。
 
 ## 相关文档
 

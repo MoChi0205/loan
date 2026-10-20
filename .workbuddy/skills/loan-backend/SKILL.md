@@ -113,6 +113,16 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - [ ] 重要写接口的幂等、状态 CAS、锁与线程安全是否有明确设计和并发验证？
 - [ ] 限流/熔断/traceId/日志分流与脱敏是否符合 `loan-code-standard` 后端验收清单？
 
+## 实战坑位清单（2026-10-20 沉淀，改代码前必扫）
+
+- **筛选参数必须后端显式 `@RequestParam` 接收**：前端 `useTable` 会把 query 整体透传，但后端不接收就是"假筛选"（前端加了下拉/日期却筛不动）。补筛选 = 前端控件 + 后端参数 + `LambdaQueryWrapper` 条件三件套一起做，禁只改前端。
+- **分页链路改动要逐层打通**：`Controller → (MiniClientService) → XxxService → Mapper` 多层委派时，加参数要每层签名一起改，别只改到中间层漏了调用点（编译能过但逻辑丢参）。
+- **统计口径与列表口径必须一致**：chip 计数 / 角标数量 与对应列表的 where 条件若口径分裂（如计数把 `NULL/空` 归入某类，列表用精确 `eq`），会出现"计数 1、列表 0"。改计数 SQL 时同步核对列表过滤。
+- **业务异常返回明确 code，禁止前端靠文案匹配分支**：新增专属语义码（如 `CLIENT_CROSS_TEAM=1005`）到 `ResultCode`，`BusinessException(ResultCode.XXX, msg)` 抛出；全局兜底（`Exception.class`）不得吞掉业务 message。前端按 `e.code` 分支。
+- **`LoanUser.userNo` 对员工就是工号（staff_code）**：申请认领/指派类接口传目标人时，`user.getUserNo()` 即工号，不要另寻 `staffCode` 字段（字段注释已写明）；跨团队转移申请的目标人经 `body.targetStaffCode` 传入、缺省回落申请人本人。
+- **哨兵值要有明确语义**：`remaining = -1` 表示"豁免角色不限次"，返回给前端时要能区分（配套 `unlimited=true` 之类标志），别让前端裸显 -1。
+- **本地编译必须带 `-pl loan-service -am`**：`loan-service` 依赖 `loan-api` 模块，直接在 loan-service 目录 `mvn compile` 会用本地仓库旧 jar（报 `找不到符号 setXxx`）。正确姿势：`mvn -pl loan-service -am compile -DskipTests`，且 `JAVA_HOME` 指向 JDK8（否则报 `No compiler is provided...`）。
+
 ## 相关文档
 
 - `docs/knowledge-base/10-历史结论与决策日志.md#结论台账`（**Step 0 必查**，D0-1 / D0-3 / D0-4 为后端高频红线）
