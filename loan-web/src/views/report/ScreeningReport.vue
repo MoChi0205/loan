@@ -137,7 +137,7 @@
 
         <!-- 合规声明 -->
         <div class="report-compliance">
-          <AppIcon name="success" :size="16" />
+          <AppIcon name="check" :size="16" />
           <span>本报告仅供资金参考，不构成任何银行通过承诺；具体产品额度与利率以顾问跟进为准。</span>
         </div>
       </template>

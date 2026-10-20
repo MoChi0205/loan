@@ -170,6 +170,8 @@ public class ApprovalController {
     public Result<PageResult<Map<String, Object>>> downloadPage(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderBy,
@@ -177,7 +179,7 @@ public class ApprovalController {
             @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
         String applicantScope = miniRoleGuard.isApprovalRole(user) ? null : user.getUserNo();
-        return Result.ok(approvalService.downloadPage(status, keyword,
+        return Result.ok(approvalService.downloadPage(status, keyword, startDate, endDate,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir, applicantScope));
     }
 
@@ -222,11 +224,14 @@ public class ApprovalController {
     public Result<PageResult<Map<String, Object>>> allocationPending(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
             @CurrentUser LoanUser user) {
         // D39：部门经理可审本人团队分配，其余管理角色按既有范围审批。
         miniRoleGuard.requireApprover(user);
         return Result.ok(miniClientService.pendingAllocations(
-                PageParams.page(page), PageParams.size(size)));
+                PageParams.page(page), PageParams.size(size), keyword, startDate, endDate));
     }
 
     /**
@@ -334,10 +339,14 @@ public class ApprovalController {
             @RequestParam(defaultValue = "ALL") String type,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String applicantStaffCode,
             @CurrentUser LoanUser user) {
         requireApprovalRole("DOWNLOAD", user);
-        return Result.ok(approvalService.unifiedPending(type, page, size,
-                miniRoleGuard.isChannelFinalApprover(user)));
+        return Result.ok(approvalService.unifiedPending(type, page, size, keyword, startDate, endDate,
+                applicantStaffCode, miniRoleGuard.isChannelFinalApprover(user)));
     }
 
     /**

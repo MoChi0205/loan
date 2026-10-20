@@ -19,22 +19,35 @@
         <!-- 未分配：任何角色直接认领（无需审批） -->
         <el-button v-if="!result.hasOwner && !result.ownedByMe" type="primary" @click="claim">直接认领</el-button>
         <template v-else-if="result.hasOwner && !result.ownedByMe">
-          <!-- 经理/老板/超管/运营：本团队可强制转移；跨团队走申请（负责人初审+老板终审，2026-10-19 规则） -->
+          <!-- 经理/老板/超管/运营：本团队可强制转移；跨团队走申请（目标团队初审+老板终审，D83 规则） -->
           <el-button v-if="canForceAssign" @click="openForceTransfer">强制转移（本团队直接生效）</el-button>
-          <el-button type="primary" @click="claim">申请转移{{ canForceAssign ? '（跨团队）' : '' }}</el-button>
+          <el-button type="primary" @click="openTransferApply">申请转移（跨团队）</el-button>
         </template>
         <el-tag v-if="result.ownedByMe" type="success" size="large">当前已是我的客户</el-tag>
       </div>
     </div>
 
-    <!-- 强制转移弹窗：经理/老板/超管/运营选目标顾问，直接落归属（本团队） -->
+    <!-- 强制转移弹窗：经理/老板/超管/运营选本团队目标顾问，直接落归属（D83：目标排除原归属人） -->
     <AppDialog v-model:visible="transferVisible" title="强制转移客户归属" width="560px" :loading="transferring" @confirm="onForceTransferConfirm">
-      <p class="assign-dialog-hint">从在职人员中选择新归属人；本团队内直接生效，跨团队需走转移申请审批。</p>
+      <p class="assign-dialog-hint">从本团队在职人员中选择新归属人（不含原归属人）；本团队内直接生效，跨团队需走转移申请审批。</p>
       <el-form label-width="72px" label-position="right">
         <el-form-item label="新归属人">
-          <el-select v-model="transferTarget" filterable remote :remote-method="searchTransferStaff" :loading="transferStaffLoading" placeholder="搜索姓名或工号" style="width: 100%" placement="bottom-start" @visible-change="(v) => { if (v) searchTransferStaff('') }">
-            <el-option v-for="o in transferStaffOptions" :key="o.staffCode" :label="`${o.staffName || '员工姓名待补充'}（${o.roleName || '员工'} · ${o.deptName || '未分部门'}）`" :value="o.staffCode" :disabled="o.status && o.status !== 'ACTIVE'" />
+          <DialogSelect v-model="transferTarget" :fetcher="fetchForceAssignStaff" placeholder="搜索本团队姓名或工号" />
+        </el-form-item>
+      </el-form>
+    </AppDialog>
+
+    <!-- 申请转移弹窗（跨团队）：先选非本团队目标团队，再选该团队目标员工（D83 规则） -->
+    <AppDialog v-model:visible="transferApplyVisible" title="申请转移客户（跨团队）" width="560px" :loading="transferApplying" @confirm="onTransferApplyConfirm">
+      <p class="assign-dialog-hint">跨团队转移需提交申请：第一步选择非本团队的目标团队，第二步选择该团队的目标员工；提交后由目标团队负责人初审、老板终审。</p>
+      <el-form label-width="90px" label-position="right">
+        <el-form-item label="目标团队" required>
+          <el-select v-model="transferApplyForm.deptCode" filterable placeholder="选择非本团队的团队" style="width: 100%" @change="onTransferDeptChange">
+            <el-option v-for="d in transferDeptOptions" :key="d.value" :label="d.label" :value="d.value" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="目标员工" required>
+          <DialogSelect v-model="transferApplyForm.targetStaffCode" :fetcher="fetchTransferTargetStaff" :disabled="!transferApplyForm.deptCode" placeholder="先选择团队，再搜索该团队员工" />
         </el-form-item>
       </el-form>
     </AppDialog>
@@ -47,20 +60,21 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { lookupClient, claimUnassignedClient, assignClient } from '@/api/client';
 import { desensitizePhone } from '@/utils/format';
 import { applyClientPhoneView } from '@/api/sensitive';
-import { staffPage } from '@/api/org';
+import { staffPage, departmentTree } from '@/api/org';
 import { useUserStore } from '@/store/user';
 import AppDialog from '@/components/AppDialog.vue';
+import DialogSelect from '@/components/DialogSelect.vue';
 const keyword = ref(''); const loading = ref(false); const searched = ref(false); const result = ref(null); const phoneRevealed = ref(false);
 const userStore = useUserStore();
+/** 当前登录员工所属部门编码（本团队）。 */
+const myDeptCode = computed(() => userStore.user?.deptCode || '');
 /** 强制转移角色：部门经理 / 老板 / 运营 / 超管（与后端 directAssign 可操作角色一致）。 */
 const canForceAssign = computed(() => ['DEPT_MANAGER', 'BOSS', 'OPERATOR', 'SUPER_ADMIN', 'SUPER'].includes(userStore.roleCode));
 const actionHint = computed(() => {
   if (!result.value) return '—';
   if (result.value.ownedByMe) return '已归属本人，无需重复认领';
   if (!result.value.hasOwner) return '直接认领，无需审批';
-  // 预计审批链路（2026-10-19 规则）：同团队单级审批；跨团队两级审批。
-  const ownerDept = result.value.ownerDeptName ? `（现归属部门：${result.value.ownerDeptName}）` : '';
-  return `提交转移申请${ownerDept}：同团队由本团队负责人审批；跨团队由负责人初审 + 老板终审`;
+  return `跨团队转移申请：先选非本团队目标团队，再选该团队目标员工；由目标团队负责人初审、老板终审`;
 });
 async function search() {
   if (keyword.value.trim().length < 2) return ElMessage.warning('请输入至少 2 个字符');
@@ -71,60 +85,47 @@ async function search() {
 async function requestPhoneView() {
   if (!result.value?.clientCode) return;
   const data = (await applyClientPhoneView(result.value.clientCode)).data || {};
-  if (data.phonePlain) { result.value.contactPhone = data.phonePlain; phoneRevealed.value = true; ElMessage.success(`已授权查看，本日剩余 ${data.remaining ?? '—'} 次`); }
+  if (data.phonePlain) { result.value.contactPhone = data.phonePlain; phoneRevealed.value = true; ElMessage.success(`已授权查看，${(data.unlimited || data.remaining < 0) ? '当前角色不受次数限制' : `本日剩余 ${data.remaining} 次`}`); }
   else if (data.approvalNo) ElMessage.warning(data.message || '已提交审批，审批通过后可再次查看');
 }
+/** 未归属：直接认领（确认后提交）。 */
 async function claim() {
-  const direct = !result.value.hasOwner;
-  await ElMessageBox.confirm(direct ? '确认将该用户直接认领到自己名下？' : '该用户已有顾问，确认提交认领申请？', direct ? '确认认领' : '申请转移');
+  await ElMessageBox.confirm('确认将该用户直接认领到自己名下？', '确认认领');
   const res = await claimUnassignedClient(result.value.clientCode);
   ElMessage.success(res.data?.direct ? '认领成功' : '申请已提交，请等待审批');
   await search();
 }
-// ============ 强制转移（经理/老板/超管/运营） ============
+
+// ============ 强制转移（经理/老板/超管/运营，本团队内直接生效） ============
 const transferVisible = ref(false);
 const transferring = ref(false);
 const transferTarget = ref('');
-const transferStaffOptions = ref([]);
-const transferStaffLoading = ref(false);
-let transferSeq = 0;
-let transferTimer;
+/** 强制转移候选人：本团队在职顾问/经理，排除原归属人。 */
+async function fetchForceAssignStaff(keyword = '') {
+  const kw = String(keyword || '').trim() || undefined;
+  const owner = result.value?.ownerStaffCode;
+  const [advisers, managers] = await Promise.all([
+    staffPage({ roleCode: 'ADVISER', deptCode: myDeptCode.value || undefined, keyword: kw, page: 1, size: 50 }),
+    staffPage({ roleCode: 'DEPT_MANAGER', deptCode: myDeptCode.value || undefined, keyword: kw, page: 1, size: 50 }),
+  ]);
+  const merged = new Map();
+  [...(advisers.data?.records || []), ...(managers.data?.records || [])].forEach((s) => {
+    if (owner && s.staffCode === owner) return; // D83：排除原归属人
+    merged.set(s.staffCode, s);
+  });
+  return [...merged.values()].map((s) => ({
+    value: s.staffCode,
+    label: s.staffName || '员工姓名待补充',
+    sub: [s.roleName || '员工', s.deptName].filter(Boolean).join(' · '),
+  }));
+}
 function openForceTransfer() {
   transferTarget.value = '';
-  transferStaffOptions.value = [];
   transferVisible.value = true;
-  searchTransferStaff('');
-}
-function searchTransferStaff(keyword) {
-  clearTimeout(transferTimer);
-  transferTimer = setTimeout(async () => {
-    const seq = ++transferSeq;
-    transferStaffLoading.value = true;
-    try {
-      const query = { keyword: keyword.trim() || undefined, page: 1, size: 50 };
-      const [advisers, managers] = await Promise.all([
-        staffPage({ ...query, roleCode: 'ADVISER' }),
-        staffPage({ ...query, roleCode: 'DEPT_MANAGER' }),
-      ]);
-      if (seq !== transferSeq) return;
-      const merged = new Map();
-      [...(advisers.data?.records || []), ...(managers.data?.records || [])].forEach((s) => merged.set(s.staffCode, s));
-      transferStaffOptions.value = [...merged.values()].map((s) => ({
-        staffCode: s.staffCode, staffName: s.staffName, deptName: s.deptName, roleCode: s.roleCode, roleName: s.roleName, status: s.status,
-      }));
-    } catch (e) {
-      if (seq === transferSeq) transferStaffOptions.value = [];
-    } finally {
-      if (seq === transferSeq) transferStaffLoading.value = false;
-    }
-  }, 250);
 }
 async function onForceTransferConfirm() {
   if (!transferTarget.value) return ElMessage.warning('请选择新归属人');
-  const picked = transferStaffOptions.value.find((o) => o.staffCode === transferTarget.value);
-  try {
-    await ElMessageBox.confirm(`确认将客户【${result.value?.entName || result.value?.contactName || '未命名客户'}】强制转移给「${picked ? picked.staffName : '目标顾问'}」？本团队内立即生效。`, '强制转移确认', { type: 'warning' });
-  } catch { return; }
+  await ElMessageBox.confirm(`确认将客户【${result.value?.entName || result.value?.contactName || '未命名客户'}】强制转移给目标员工？本团队内立即生效。`, '强制转移确认', { type: 'warning' });
   transferring.value = true;
   try {
     await assignClient(result.value.clientCode, transferTarget.value);
@@ -132,19 +133,71 @@ async function onForceTransferConfirm() {
     transferVisible.value = false;
     await search();
   } catch (e) {
-    // 跨团队客户不可直接分配：降级引导转为提交转移申请（负责人初审 + 老板终审）
-    if (String(e?.message || '').includes('跨团队')) {
-      try {
-        await ElMessageBox.confirm('该客户属于其他团队，不能直接分配。是否转为提交转移申请？本团队负责人初审通过后由老板终审。', '转为转移申请？', { type: 'warning', confirmButtonText: '提交申请' });
-        const res = await claimUnassignedClient(result.value.clientCode);
-        ElMessage.success(res.data?.direct ? '已直接认领' : '转移申请已提交，等待审批');
-        transferVisible.value = false;
-        await search();
-      } catch (e2) { /* 用户取消或提交失败，拦截器已提示 */ }
+    // D83：按后端 code 分支（1005 = CLIENT_CROSS_TEAM），禁止按中文文案匹配。
+    if (e?.code === 1005) {
+      transferVisible.value = false;
+      ElMessage.warning('该客户属于其他团队，不能直接分配，请改走跨团队转移申请');
+      openTransferApply();
+      return;
     }
-    /* 其余错误拦截器已提示 */
+    ElMessage.error(e?.message || '强制转移失败，请稍后重试');
+  } finally {
+    transferring.value = false;
   }
-  finally { transferring.value = false; }
+}
+
+// ============ 申请转移（跨团队，两段式：非本团队 → 该团队员工） ============
+const transferApplyVisible = ref(false);
+const transferApplying = ref(false);
+const transferApplyForm = ref({ deptCode: '', targetStaffCode: '' });
+const transferDeptOptions = ref([]);
+/** 目标团队候选：全部部门中排除本团队。 */
+async function loadTransferDepts() {
+  try {
+    const res = await departmentTree();
+    const flat = [];
+    const walk = (list) => {
+      (list || []).forEach((d) => { flat.push(d); if (d.children?.length) walk(d.children); });
+    };
+    walk(res.data || []);
+    transferDeptOptions.value = flat
+      .filter((d) => d.code && d.code !== myDeptCode.value)
+      .map((d) => ({ value: d.code, label: d.name || d.code }));
+  } catch { transferDeptOptions.value = []; }
+}
+/** 目标员工候选：所选团队在职员工，排除原归属人。 */
+async function fetchTransferTargetStaff(keyword = '') {
+  if (!transferApplyForm.value.deptCode) return [];
+  const kw = String(keyword || '').trim() || undefined;
+  const owner = result.value?.ownerStaffCode;
+  const res = await staffPage({ deptCode: transferApplyForm.value.deptCode, keyword: kw, page: 1, size: 50 });
+  return (res.data?.records || [])
+    .filter((s) => !owner || s.staffCode !== owner)
+    .map((s) => ({ value: s.staffCode, label: s.staffName || '员工姓名待补充', sub: [s.roleName || '员工', s.deptName].filter(Boolean).join(' · ') }));
+}
+function onTransferDeptChange() {
+  transferApplyForm.value.targetStaffCode = '';
+}
+function openTransferApply() {
+  transferApplyForm.value = { deptCode: '', targetStaffCode: '' };
+  loadTransferDepts();
+  transferApplyVisible.value = true;
+}
+async function onTransferApplyConfirm() {
+  const f = transferApplyForm.value;
+  if (!f.deptCode) return ElMessage.warning('请先选择非本团队的目标团队');
+  if (!f.targetStaffCode) return ElMessage.warning('请选择该团队的目标员工');
+  transferApplying.value = true;
+  try {
+    const res = await claimUnassignedClient(result.value.clientCode, f.targetStaffCode);
+    ElMessage.success(res.data?.direct ? '已直接认领' : '转移申请已提交，等待审批');
+    transferApplyVisible.value = false;
+    await search();
+  } catch (e) {
+    ElMessage.error(e?.message || '提交失败，请稍后重试');
+  } finally {
+    transferApplying.value = false;
+  }
 }
 </script>
 <style scoped>

@@ -1,5 +1,6 @@
 package com.loan.client.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -13,6 +14,7 @@ import java.io.Serializable;
  * @author loan-platform
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ClientUpdateRequest implements Serializable {
 
     private static final long serialVersionUID = 1L;

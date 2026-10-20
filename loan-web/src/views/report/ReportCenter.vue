@@ -303,7 +303,7 @@ const statCards = computed(() => {
     { label: '成交客户', value: conversion.deals ?? '-', icon: 'success', tone: 'green' },
     { label: '成交金额', value: fmtWan(conversion.dealAmount) + '万', icon: 'trend', tone: 'orange' },
     { label: '初筛报告', value: conversion.screenings ?? '-', icon: 'reportDoc', tone: 'blue' },
-    { label: '公司公海', value: assets.companySea ?? '-', icon: 'sea', tone: 'red' },
+    { label: '公司公海', value: assets.companySea ?? '-', icon: 'layers', tone: 'red' },
   ];
 });
 

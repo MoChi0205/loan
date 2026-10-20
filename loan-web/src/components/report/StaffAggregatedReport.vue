@@ -108,7 +108,7 @@
 
     <section class="report-section">
       <h3>5. 报告说明</h3>
-      <div class="data-notice"><AppIcon name="success" :size="16" /><span>{{ detail.dataSourceNotice }}</span></div>
+      <div class="data-notice"><AppIcon name="check" :size="16" /><span>{{ detail.dataSourceNotice }}</span></div>
       <div class="compliance-notice">本报告用于公司员工开展经营咨询和风险提示，不构成授信、额度、利率或审批结果承诺。</div>
     </section>
   </div>

@@ -12,15 +12,15 @@
 
       <ul class="brand-points">
         <li>
-          <AppIcon name="success" :size="16" />
+          <AppIcon name="check" :size="16" />
           <span>多银行产品库统一匹配</span>
         </li>
         <li>
-          <AppIcon name="success" :size="16" />
+          <AppIcon name="check" :size="16" />
           <span>经营数据驱动准入分析</span>
         </li>
         <li>
-          <AppIcon name="success" :size="16" />
+          <AppIcon name="check" :size="16" />
           <span>专业顾问一对一咨询</span>
         </li>
       </ul>

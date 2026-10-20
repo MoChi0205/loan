@@ -37,6 +37,12 @@ public class ReportTemplateService {
      * 模板分页。
      */
     public PageResult<Map<String, Object>> page(String keyword, String status, int page, int size) {
+        return page(keyword, status, null, null, null, page, size);
+    }
+
+    /** 模板分页（带创建日期范围与创建人，D83-三批#11；creator 按姓名 like 反查工号后匹配 createdBy/publishedBy）。 */
+    public PageResult<Map<String, Object>> page(String keyword, String status, String startDate, String endDate,
+                                                String creator, int page, int size) {
         LambdaQueryWrapper<ReportTemplate> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
@@ -45,6 +51,16 @@ public class ReportTemplateService {
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(ReportTemplate::getStatus, status.trim());
+        }
+        if (StringUtils.hasText(startDate)) {
+            wrapper.ge(ReportTemplate::getCreatedAt, java.time.LocalDate.parse(startDate).atStartOfDay());
+        }
+        if (StringUtils.hasText(endDate)) {
+            wrapper.le(ReportTemplate::getCreatedAt, java.time.LocalDate.parse(endDate).atTime(java.time.LocalTime.MAX));
+        }
+        if (StringUtils.hasText(creator)) {
+            String c = creator.trim();
+            wrapper.and(w -> w.like(ReportTemplate::getCreatedBy, c).or().like(ReportTemplate::getPublishedBy, c));
         }
         wrapper.orderByDesc(ReportTemplate::getCreatedAt);
         Page<ReportTemplate> result = templateMapper.selectPage(new Page<>(page, size), wrapper);

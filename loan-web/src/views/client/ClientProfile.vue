@@ -932,17 +932,43 @@ async function onSave() {
   await editFormRef.value.validate();
   saving.value = true;
   try {
-    const payload = { ...editForm };
-    // 信用代码后端返回的是脱敏值（含 *），未改动时不回传，避免把掩码当作真实值落库。
-    if (!payload.creditCode || /\*/.test(payload.creditCode)) delete payload.creditCode;
-    // 个人客户「客户姓名」与「个人档案-姓名」为同一人：编辑只保留基础信息里的姓名，保存时同步个人档案姓名。
+    const f = editForm;
+    // 白名单构造 payload（D83 #7）：只回传后端 ClientUpdateRequest 承认的字段；
+    // 空串归一为 null，避免把空值当"有值"提交、也避免 {...editForm} 带入前端特有字段。
+    const payload = {
+      contactName: f.contactName || null,
+      source: f.source || null,
+      customerTag: f.customerTag || null,
+      enterpriseName: f.enterpriseName || null,
+      // 信用代码后端返回的是脱敏值（含 *），未改动时不回传，避免把掩码当作真实值落库。
+      creditCode: (!f.creditCode || /\*/.test(f.creditCode)) ? null : f.creditCode,
+      region: f.region || null,
+      industry: f.industry || null,
+      establishYears: f.establishYears ?? null,
+      registeredCapital: f.registeredCapital || null,
+      bizStatus: f.bizStatus || null,
+      taxGrade: f.taxGrade || null,
+      annualTaxAmount: f.annualTaxAmount || null,
+      annualInvoiceAmount: f.annualInvoiceAmount || null,
+      socialCount: f.socialCount ?? null,
+      realName: f.realName || null,
+      idCardNo: f.idCardNo || null,
+      city: f.city || null,
+      age: f.age ?? null,
+      houseFlag: f.houseFlag ?? null,
+      carFlag: f.carFlag ?? null,
+      socialSecurityFlag: f.socialSecurityFlag ?? null,
+      fundFlag: f.fundFlag ?? null,
+    };
+    // 个人客户「客户姓名」与「个人档案-姓名」为同一人：保存时同步个人档案姓名。
     if (!payload.enterpriseName && payload.contactName) payload.realName = payload.contactName;
     await updateClientDetail(clientCode.value, payload);
     ElMessage.success('档案已更新');
     editVisible.value = false;
     loadDetail(clientCode.value);
   } catch (e) {
-    // 拦截器已提示
+    // 后端业务 message 由响应拦截器统一弹出；此处显式兜底，避免个别场景被静默。
+    if (e && !e.__loanHandledRequestError) ElMessage.error(e?.message || '保存失败，请稍后重试');
   } finally {
     saving.value = false;
   }

@@ -73,12 +73,16 @@ public class ClientController {
     }
 
     /**
-     * 顾问申请认领：未归属客户直接认领，已归属本人幂等通过，
+     * 顾问申请认领 / 跨团队转移申请：未归属客户直接认领，已归属本人幂等通过，
      * 已归属他人则创建转移审批，任何场景都不允许顾问直接覆盖归属。
+     *
+     * <p>D83（2026-10-20）：跨团队转移申请改为「先选非本团队目标团队 → 再选该团队目标员工」，
+     * 目标员工经 {@code body.targetStaffCode} 传入；缺省时回落申请人本人（同团队认领场景）。</p>
      */
     @PostMapping("/{clientCode}/claim")
     @OpLog(bizType = "客户归属", action = "CLAIM_APPLY")
     public Result<Map<String, Object>> claim(@PathVariable String clientCode,
+                                              @RequestBody(required = false) Map<String, String> body,
                                               @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
         String role = user.getRoleCode() == null ? "" : user.getRoleCode().toUpperCase();
@@ -86,7 +90,11 @@ public class ClientController {
             throw new com.loan.exception.BusinessException(
                     com.loan.common.ResultCode.FORBIDDEN, "当前角色无权从客户公海申请认领");
         }
-        return Result.ok(clientAllocationService.applyTransfer(clientCode, user.getUserNo(), user));
+        String target = body == null ? null : body.get("targetStaffCode");
+        if (!org.springframework.util.StringUtils.hasText(target)) {
+            target = user.getUserNo();
+        }
+        return Result.ok(clientAllocationService.applyTransfer(clientCode, target, user));
     }
 
     /**

@@ -38,9 +38,12 @@ public class ReportTemplateController {
     public Result<PageResult<Map<String, Object>>> page(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String creator,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return Result.ok(templateService.page(keyword, status,
+        return Result.ok(templateService.page(keyword, status, startDate, endDate, creator,
                 PageParams.page(page), PageParams.size(size)));
     }
 

@@ -5,7 +5,7 @@
       <div class="header-actions">
         <span class="action-group">
           <span class="action-label">导入类型</span>
-          <el-radio-group v-model="importType"><el-radio-button value="LEAD">客户资源池</el-radio-button><el-radio-button value="PRODUCT">产品</el-radio-button></el-radio-group>
+          <span class="action-label">客户资源池</span>
         </span>
         <span class="action-divider" aria-hidden="true"></span>
         <span class="action-group">
@@ -75,7 +75,7 @@ async function preview(e) {
 async function downloadTemplate() {
   const blob = await downloadImportTemplate(importType.value);
   const url = URL.createObjectURL(blob); const a = document.createElement('a');
-  a.href = url; a.download = `${importType.value === 'LEAD' ? '客户资源池' : '产品'}-导入模板.xlsx`;
+  a.href = url; a.download = '客户资源池-导入模板.xlsx';
   a.click(); URL.revokeObjectURL(url);
 }
 async function downloadFailures() {

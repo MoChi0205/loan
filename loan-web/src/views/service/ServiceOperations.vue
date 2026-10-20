@@ -216,7 +216,7 @@
         <el-form-item label="客户" prop="clientCode"><el-select v-model="appointmentForm.clientCode" filterable remote :remote-method="loadClientOptions" :loading="clientSelectLoading" placeholder="搜索姓名、企业名或手机号" style="width:100%" @visible-change="(v) => v && loadClientOptions('')"><el-option v-for="row in appointmentClientOptions" :key="row.clientCode" :label="`${row.enterpriseName || row.contactName || '未命名客户'} · ${row.contactName || '联系人待补充'}`" :value="row.clientCode" /></el-select></el-form-item>
         <el-form-item label="服务顾问" prop="hostStaffCode"><el-input v-if="isAdviser" :model-value="userStore.displayName || '当前顾问'" disabled /><el-select v-else v-model="appointmentForm.hostStaffCode" filterable remote :remote-method="loadStaffOptions" :loading="staffLoading" placeholder="搜索顾问姓名" style="width:100%" @visible-change="(v) => v && loadStaffOptions('')"><el-option v-for="row in staffOptions" :key="row.staffCode" :label="row.staffName || '顾问姓名待补充'" :value="row.staffCode" /></el-select></el-form-item>
         <el-form-item label="服务方式" prop="serviceMethod"><el-radio-group v-model="appointmentForm.serviceMethod"><el-radio-button v-for="(label, code) in methodText" :key="code" :label="code">{{ label }}</el-radio-button></el-radio-group></el-form-item>
-        <el-form-item label="服务时间" prop="timeRange"><AppDateTime v-model="appointmentForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" /></el-form-item>
+        <el-form-item label="服务时间" prop="timeRange"><AppDateTime v-model="appointmentForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" width="100%" /></el-form-item>
         <el-form-item v-if="needsLocation" label="地点名称" prop="locationName"><el-input v-model="appointmentForm.locationName" placeholder="公司或拜访地点名称" /></el-form-item>
         <el-form-item v-if="needsLocation" label="详细地址"><el-input v-model="appointmentForm.locationDetail" placeholder="详细地址（客户可见）" /></el-form-item>
         <el-form-item label="客户提示"><el-input v-model="appointmentForm.customerVisibleNote" type="textarea" :rows="2" placeholder="客户可见的下一步安排" /></el-form-item>
@@ -226,7 +226,7 @@
 
     <AppDialog v-model:visible="changeVisible" :title="changeMode.includes('reschedule') ? '预约改期' : '取消预约'" width="560px" :loading="saving" @confirm="submitChange">
       <el-form label-width="90px">
-        <el-form-item v-if="changeMode.includes('reschedule')" label="新时间" required><AppDateTime v-model="changeForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" /></el-form-item>
+        <el-form-item v-if="changeMode.includes('reschedule')" label="新时间" required><AppDateTime v-model="changeForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" width="100%" /></el-form-item>
         <el-form-item v-if="changeMode.includes('reschedule')" label="地点名称"><el-input v-model="changeForm.locationName" /></el-form-item>
         <el-form-item label="原因" :required="changeMode.startsWith('exception')"><el-input v-model="changeForm.reason" type="textarea" :rows="3" :placeholder="changeMode.startsWith('exception') ? '异常处理原因必填' : '请填写变更原因'" /></el-form-item>
       </el-form>
@@ -271,7 +271,7 @@
       <el-alert title="提交后需主管审核通过，才能出发与返回打卡；照片和单点位置均为必填。" type="warning" :closable="false" show-icon />
       <el-form label-width="90px" class="dialog-form">
         <el-form-item v-if="outingCreateTarget" label="客户"><span>{{ outingCreateTarget?.customerName || '客户名称待补充' }}</span></el-form-item>
-        <el-form-item v-else label="计划时间" required><AppDateTime v-model="outingCreateForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" /></el-form-item>
+        <el-form-item v-else label="计划时间" required><AppDateTime v-model="outingCreateForm.timeRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ss" time-format="HH:mm" :default-time="defaultAppointmentTime" width="100%" /></el-form-item>
         <el-form-item label="目的地" required><el-input v-model="outingCreateForm.destination" placeholder="上门服务地点" /></el-form-item>
         <el-form-item label="拜访目的" required><el-input v-model="outingCreateForm.purpose" placeholder="例如：经营资料梳理" /></el-form-item>
         <el-form-item label="内部备注"><el-input v-model="outingCreateForm.internalNote" type="textarea" :rows="2" placeholder="仅公司员工可见" /></el-form-item>
@@ -284,7 +284,7 @@
         <el-form-item label="跟进结果" required><el-input v-model="followForm.resultCode" placeholder="例如：已沟通、待补充材料" /></el-form-item>
         <el-form-item label="跟进内容" required><el-input v-model="followForm.content" type="textarea" :rows="3" placeholder="仅员工内部查看的完整记录" /></el-form-item>
         <el-form-item label="下步安排"><el-input v-model="followForm.nextAction" placeholder="下一次要做什么" /></el-form-item>
-        <el-form-item label="下次跟进"><AppDateTime v-model="followForm.nextFollowAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm:ss" /></el-form-item>
+        <el-form-item label="下次跟进"><AppDateTime v-model="followForm.nextFollowAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm:ss" width="100%" /></el-form-item>
         <el-form-item label="客户可见"><el-switch v-model="followCustomerVisible" active-text="显示摘要" inactive-text="仅员工可见" /></el-form-item>
         <el-form-item v-if="followCustomerVisible" label="客户摘要" required><el-input v-model="followForm.customerVisibleSummary" type="textarea" :rows="2" placeholder="仅填写适合客户查看的服务进展，不含内部判断" /></el-form-item>
       </el-form>
@@ -946,11 +946,8 @@ onMounted(async () => {
 /* 数据范围筛选条：从 header 下沉为独立工具条，左对齐一行，控件统一高度 */
 .scope-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px; }
 .scope-toolbar .scope-select { width: 150px; }
-/* 日期范围必须容纳开始日期、分隔符和结束日期，避免出现“2026- 至 2026-”的截断显示。 */
-.scope-toolbar :deep(.el-date-editor.el-range-editor) {
-  width: 280px;
-  min-width: 280px;
-}
+/* 日期宽度由 AppDateTime 的 width prop 统一控制（D83 根因 B），此处不再用 :deep 重复约束，
+   避免页面级规则与组件 prop 打架、也避免漏改一处就复发。 */
 .scope-toolbar :deep(.el-select__wrapper),
 .scope-toolbar :deep(.el-input__wrapper) { min-height: 34px; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }

@@ -238,6 +238,10 @@ body {
 /*
  * 日期范围控件统一尺寸：范围选择器至少需要展示两端日期、分隔符和清除按钮。
  * 页面仍可通过更大的显式 width 覆盖；窄屏在下方媒体查询中恢复为容器宽度。
+ *
+ * 注（D83 根因 B）：这里的 260px 仅为**兜底**（防未来有人裸用 el-date-picker）。
+ * 正常链路一律走 AppDateTime 的 width prop（缺省按 type 定死、且带 flex:0 0 auto），
+ * 内联样式优先级高于本规则，因此不会与组件 prop 打架。
  */
 .el-date-editor.el-range-editor {
   width: 260px;
@@ -1300,18 +1304,8 @@ body {
 }
 
 /* ============ 弹窗内 el-select 下拉收口 ============ */
-/* teleported=false 时下拉渲染在弹窗内；限制宽度不超过触发框、高度最多 5 项，
-   避免下拉列表超出弹窗边界（指派/分配弹窗 2026-10-19 反馈） */
-.el-dialog .dialog-select-popper {
-  max-width: 100%;
-}
-
-.dialog-select-popper .el-select-dropdown__wrap {
-  max-height: 190px;
-}
-
-.dialog-select-popper .el-select-dropdown__item {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* （D83 根因 A，2026-10-20 重写）
+   旧实现用 :teleported="false" 把下拉塞进弹窗，会被 .el-dialog__body 的 overflow 裁掉，
+   且弹窗内滚动时 popper 位置不重算 → "下拉被隐藏 / 随滚动折叠"。
+   现统一由 components/DialogSelect.vue 托管：浮层挂 body + fit-input-width +
+   列表 max-height 240px 内部滚动 + flip/preventOverflow，样式集中在 .loan-dialog-select-popper。 */

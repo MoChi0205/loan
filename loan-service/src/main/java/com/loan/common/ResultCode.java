@@ -25,6 +25,8 @@ public enum ResultCode {
     TOO_FREQUENT(1003, "操作过于频繁，请稍后重试"),
     /** 敏感数据查看达日限额 */
     SENSITIVE_QUOTA_EXCEEDED(1004, "今日敏感数据查看次数已用完"),
+    /** 跨团队客户不可直接分配（需提交转移申请） */
+    CLIENT_CROSS_TEAM(1005, "跨团队客户不可直接分配"),
 
     /** 未登录 / 会话过期 */
     UNAUTHORIZED(2000, "未登录或会话已过期"),

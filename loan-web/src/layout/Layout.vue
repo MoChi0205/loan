@@ -262,8 +262,8 @@ const BASE_MENU_GROUPS = [
     icon: 'settings',
     items: [
       { path: '/client/import-tasks', title: '客户导入进度', icon: 'clock' },
-      { path: '/client/resource-pool-config', title: '资源池回收规则', icon: 'setting' },
-      { path: '/allocation-quota', title: '认领设置', icon: 'setting' },
+      { path: '/client/resource-pool-config', title: '资源池回收规则', icon: 'settings' },
+      { path: '/allocation-quota', title: '认领设置', icon: 'settings' },
     ],
   },
   {
@@ -637,10 +637,12 @@ function onMenuClick(ev, item) {
 }
 
 async function initializeLayout() {
-  // 菜单树完成后再读取标签和初始化分组，避免首次登录的临时菜单状态
-  // 覆盖用户的展开状态或把当前页面误判成“无所属分组”。
-  await loadRoleMenu();
+  // 先恢复持久化标签，再拉菜单树（D83-三批#4）：
+  // loadRoleMenu 内有「当前 fullPath 不在 openTabs 则回退工作台」的兜底，
+  // 若先跑 loadRoleMenu，此时 loadTabs 尚未恢复标签（空+工作台），
+  // 刷新任何非工作台页面都会被误判为“无标签”而强制弹回工作台。
   loadTabs();
+  await loadRoleMenu();
   ensureTab(route.fullPath);
 }
 

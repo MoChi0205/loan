@@ -54,9 +54,17 @@ export function lookupClient(keyword) {
   return request({ url: '/api/admin/client/lookup', method: 'get', params: { keyword } });
 }
 
-/** 顾问申请认领未分配客户，审核通过后才建立归属。 */
-export function claimUnassignedClient(clientCode) {
-  return request({ url: `/api/admin/client/${clientCode}/claim`, method: 'post' });
+/**
+ * 顾问申请认领 / 跨团队转移申请。
+ * 未归属 → 直接认领；已归属本人 → 幂等；已归属他人 → 创建转移审批。
+ * 跨团队转移时传 targetStaffCode（目标团队的目标员工），同团队认领可省略。
+ */
+export function claimUnassignedClient(clientCode, targetStaffCode) {
+  return request({
+    url: `/api/admin/client/${clientCode}/claim`,
+    method: 'post',
+    data: targetStaffCode ? { targetStaffCode } : {},
+  });
 }
 
 export function batchClaimClients(clientCodes) {

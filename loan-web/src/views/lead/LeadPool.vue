@@ -164,11 +164,8 @@
 
     <AppDialog v-model:visible="importVisible" title="批量导入" width="760px" :show-footer="false">
       <div class="import-toolbar">
-        <el-radio-group v-model="importType" :disabled="importing">
-          <el-radio-button value="LEAD">客户/线索</el-radio-button>
-          <el-radio-button value="PRODUCT">产品</el-radio-button>
-        </el-radio-group>
-        <el-button link type="primary" @click="downloadTemplate">下载{{ importType === 'LEAD' ? '客户线索' : '产品' }}模板</el-button>
+        <span class="import-type-label">客户/线索</span>
+        <el-button link type="primary" @click="downloadTemplate">下载客户线索模板</el-button>
         <input ref="importFileRef" type="file" accept=".xlsx" hidden @change="onImportFileChange" />
         <el-button type="primary" :loading="importing" @click="importFileRef?.click()">选择 Excel</el-button>
       </div>
@@ -192,44 +189,12 @@
       <p class="assign-hint">
         {{ assignBatchMode ? `将选中的 ${selectedRows.length} 条线索` : `将「${currentLead?.contactName}」` }}指派给员工（仅顾问/主管可被指派）
       </p>
-      <el-select
-        v-model="targetStaffCode"
-        filterable
-        remote
-        :remote-method="searchAssignableStaff"
-        :loading="staffLoading"
-        placeholder="输入员工姓名搜索"
-        style="width: 100%"
-        fit-input-width
-        :teleported="false"
-        popper-class="dialog-select-popper"
-        @visible-change="(v) => { if (v) searchAssignableStaff('') }"
-      >
-        <el-option
-          v-for="s in staffOptions"
-          :key="s.value"
-          :label="`${s.label}（${s.role}）`"
-          :value="s.value"
-        />
-      </el-select>
+      <DialogSelect v-model="targetStaffCode" :fetcher="loadStaffOptions" placeholder="输入员工姓名搜索" />
     </AppDialog>
 
     <AppDialog v-model:visible="clientAssignVisible" title="为客户分配顾问" width="480px" :loading="assigningClient" @confirm="onAssignClient">
       <p class="assign-hint">为「{{ currentClient?.enterpriseName || currentClient?.customerName || '微信客户' }}」选择服务顾问，提交后立即生效。</p>
-      <el-select
-        v-model="targetAdviserCode"
-        filterable
-        remote
-        :remote-method="searchAdvisers"
-        :loading="adviserLoading"
-        placeholder="输入顾问姓名搜索"
-        style="width: 100%"
-        fit-input-width
-        :teleported="false"
-        popper-class="dialog-select-popper"
-      >
-        <el-option v-for="s in adviserOptions" :key="s.value" :label="s.label" :value="s.value" />
-      </el-select>
+      <DialogSelect v-model="targetAdviserCode" :fetcher="loadAdvisers" placeholder="输入顾问姓名搜索" />
     </AppDialog>
 
     <AppDialog v-model:visible="leadProfileVisible" title="线索档案" width="680px" :show-footer="false">
@@ -281,6 +246,7 @@ import AppSearchBar from '@/components/AppSearchBar.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
+import DialogSelect from '@/components/DialogSelect.vue';
 import { useTable } from '@/composables/useTable';
 import { formatDateTime, desensitizePhone } from '@/utils/format';
 import { listResourcePools } from '@/api/importing';
@@ -315,21 +281,20 @@ const rowKey = (row) => row.leadNo || row.clientCode;
 
 const importVisible = ref(false);
 const importing = ref(false);
-const importType = ref('LEAD');
 const importFile = ref(null);
 const importFileRef = ref();
 const previewRows = ref([]);
 const importResult = ref(null);
 const previewColumns = computed(() => previewRows.value.length ? Object.keys(previewRows.value[0]) : []);
 function openImport() {
-  importType.value = 'LEAD'; importFile.value = null; previewRows.value = []; importResult.value = null; importVisible.value = true;
+  importFile.value = null; previewRows.value = []; importResult.value = null; importVisible.value = true;
 }
 async function onImportFileChange(event) {
   const file = event.target.files?.[0]; event.target.value = '';
   if (!file) return;
   importFile.value = file; importResult.value = null; importing.value = true;
   try {
-    const result = await previewImport(importType.value, file);
+    const result = await previewImport('LEAD', file);
     previewRows.value = result.data?.rows || [];
     ElMessage.success(`已预览 ${previewRows.value.length} 行，可确认导入`);
   } catch { previewRows.value = []; }
@@ -339,7 +304,7 @@ async function executeCurrentImport() {
   if (!importFile.value) return;
   importing.value = true;
   try {
-    const result = await executeImport(importType.value, importFile.value);
+    const result = await executeImport('LEAD', importFile.value);
     importResult.value = result.data || {};
     ElMessage.success('批量导入处理完成');
     await load();
@@ -348,9 +313,9 @@ async function executeCurrentImport() {
 }
 async function downloadTemplate() {
   try {
-    const blob = await downloadImportTemplate(importType.value);
+    const blob = await downloadImportTemplate('LEAD');
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
-    a.href = url; a.download = `${importType.value === 'LEAD' ? '客户线索' : '产品'}-导入模板.xlsx`; a.click(); URL.revokeObjectURL(url);
+    a.href = url; a.download = '客户线索-导入模板.xlsx'; a.click(); URL.revokeObjectURL(url);
   } catch { /* 请求层已提示 */ }
 }
 async function downloadFailures() {
@@ -370,7 +335,7 @@ const revealedPhones = reactive(new Map());
 async function requestLeadPhoneView(row) {
   try {
     const data = (await applyLeadPhoneView(row.leadNo)).data || {};
-    if (data.phonePlain) { revealedPhones.set(row.leadNo, data.phonePlain); ElMessage.success(`已授权查看，本日剩余 ${data.remaining ?? '—'} 次`); }
+    if (data.phonePlain) { revealedPhones.set(row.leadNo, data.phonePlain); ElMessage.success(`已授权查看，${(data.unlimited || data.remaining < 0) ? '当前角色不受次数限制' : `本日剩余 ${data.remaining} 次`}`); }
     else if (data.approvalNo) ElMessage.warning(data.message || '已提交审批，审批通过后可再次查看');
   } catch (e) { /* 拦截器已提示 */ }
 }
@@ -509,25 +474,26 @@ const targetAdviserCode = ref('');
 const adviserOptions = ref([]);
 const adviserLoading = ref(false);
 let adviserSearchSequence = 0;
-let adviserSearchTimer;
 
+/** 拉可指派顾问；作为 DialogSelect 的 fetcher 使用，须 return 选项数组（D83 根因 A）。 */
 async function loadAdvisers(keyword = '') {
   const sequence = ++adviserSearchSequence;
   adviserLoading.value = true;
   try {
     const res = await staffPage({ roleCode: 'ADVISER', keyword: keyword.trim() || undefined, page: 1, size: 50 });
-    if (sequence !== adviserSearchSequence) return;
-    adviserOptions.value = (res.data?.records || []).map((s) => ({ value: s.staffCode, label: s.staffName }));
+    if (sequence !== adviserSearchSequence) return adviserOptions.value;
+    adviserOptions.value = (res.data?.records || []).map((s) => ({
+      value: s.staffCode,
+      label: s.staffName,
+      sub: [s.roleName || '顾问', s.deptName].filter(Boolean).join(' · '),
+    }));
+    return adviserOptions.value;
   } catch (e) {
     if (sequence === adviserSearchSequence) adviserOptions.value = [];
+    return adviserOptions.value;
   } finally {
     if (sequence === adviserSearchSequence) adviserLoading.value = false;
   }
-}
-
-function searchAdvisers(keyword) {
-  clearTimeout(adviserSearchTimer);
-  adviserSearchTimer = setTimeout(() => loadAdvisers(keyword), 250);
 }
 
 function openClientAssign(row) {
@@ -687,9 +653,13 @@ const staffOptions = ref([]);
 const staffLoading = ref(false);
 const assignBatchMode = ref(false);
 let staffSearchSequence = 0;
-let staffSearchTimer;
 
-/** 拉可指派员工（顾问 ADVISER + 主管 DEPT_MANAGER），值为工号（业务编码） */
+/**
+ * 拉可指派员工（顾问 ADVISER + 主管 DEPT_MANAGER），值为工号（业务编码）。
+ *
+ * <p>作为 {@link DialogSelect} 的 fetcher 使用：<b>必须 return 选项数组</b>，
+ * 由 DialogSelect 统一托管选项、防抖与 loading（D83 根因 A）。
+ */
 async function loadStaffOptions(keyword = '') {
   const sequence = ++staffSearchSequence;
   staffLoading.value = true;
@@ -698,24 +668,22 @@ async function loadStaffOptions(keyword = '') {
       staffPage({ roleCode: 'ADVISER', keyword: keyword.trim() || undefined, page: 1, size: 20 }),
       staffPage({ roleCode: 'DEPT_MANAGER', keyword: keyword.trim() || undefined, page: 1, size: 20 }),
     ]);
-    if (sequence !== staffSearchSequence) return;
+    if (sequence !== staffSearchSequence) return staffOptions.value;
     const merged = new Map();
     [...(advisers.data?.records || []), ...(managers.data?.records || [])].forEach((s) => merged.set(s.staffCode, s));
     staffOptions.value = [...merged.values()].map((s) => ({
       value: s.staffCode,
       label: s.staffName,
-      role: s.roleName || '员工',
+      // 副标题承载角色/部门，避免长文案横向撑爆下拉（D83 根因 A）
+      sub: [s.roleName || '员工', s.deptName].filter(Boolean).join(' · '),
     }));
+    return staffOptions.value;
   } catch (e) {
     if (sequence === staffSearchSequence) staffOptions.value = [];
+    return staffOptions.value;
   } finally {
     if (sequence === staffSearchSequence) staffLoading.value = false;
   }
-}
-
-function searchAssignableStaff(keyword) {
-  clearTimeout(staffSearchTimer);
-  staffSearchTimer = setTimeout(() => loadStaffOptions(keyword), 250);
 }
 
 function openAssign(row) {

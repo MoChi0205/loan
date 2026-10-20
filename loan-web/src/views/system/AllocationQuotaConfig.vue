@@ -80,9 +80,9 @@
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="说明" min-width="200">
+        <el-table-column label="说明" min-width="220">
           <template #default="{ row }">
-            <span :class="{ 'cell-sub': !row.remark }">{{ row.remark || '—' }}</span>
+            <el-input v-model="row.remark" placeholder="选填，如 新人保护期放宽" maxlength="100" show-word-limit />
           </template>
         </el-table-column>
         <el-table-column label="最近更新" width="200">
@@ -99,9 +99,9 @@
         </el-table-column>
       </el-table>
 
-      <!-- 新增配置弹窗：公海类型常驻不可重复新增，仅资源池维度可追加 -->
-      <AppDialog v-model:visible="addDialogVisible" title="新增认领配置" width="480px" :loading="adding" @confirm="onAddConfirm">
-        <el-form label-width="90px">
+      <!-- 新增配置弹窗：公海类型常驻不可重复新增，仅资源池维度可追加；数值字段创建即填（D83 #7） -->
+      <AppDialog v-model:visible="addDialogVisible" title="新增认领配置" width="520px" :loading="adding" @confirm="onAddConfirm">
+        <el-form label-width="110px" label-position="right">
           <el-form-item label="适用范围">
             <el-radio-group v-model="addForm.scopeType">
               <el-radio value="POOL">指定资源池</el-radio>
@@ -112,6 +112,27 @@
             <el-select v-model="addForm.poolCode" placeholder="选择资源池" filterable style="width: 100%">
               <el-option v-for="p in poolOptions" :key="p.poolCode" :label="p.poolName" :value="p.poolCode" :disabled="usedPoolCodes.has(p.poolCode)" />
             </el-select>
+          </el-form-item>
+          <el-form-item label="每日认领上限">
+            <el-input-number v-model="addForm.dailyClaimLimit" :min="0" :step="10" controls-position="right" style="width: 160px" />
+          </el-form-item>
+          <el-form-item label="持有上限">
+            <el-input-number v-model="addForm.maxHolding" :min="0" :step="10" controls-position="right" style="width: 160px" />
+          </el-form-item>
+          <el-form-item label="数据保护期(天)">
+            <el-input-number v-model="addForm.protectDays" :min="0" :step="1" controls-position="right" style="width: 160px" />
+          </el-form-item>
+          <el-form-item label="每日认领冷却(条)">
+            <el-input-number v-model="addForm.dailyCooldownLimit" :min="0" :step="1" controls-position="right" style="width: 160px" />
+          </el-form-item>
+          <el-form-item label="退回/回纳目标">
+            <el-select v-model="addForm.returnTarget" style="width: 160px">
+              <el-option label="公司公海" value="PUBLIC" />
+              <el-option label="原部门团队池" value="ORIGINAL" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="说明">
+            <el-input v-model="addForm.remark" placeholder="选填" maxlength="100" show-word-limit />
           </el-form-item>
         </el-form>
       </AppDialog>
@@ -151,7 +172,7 @@ const isPoolScope = (scope) => typeof scope === 'string' && scope.startsWith('PO
 const poolOptions = ref([]);
 const addDialogVisible = ref(false);
 const adding = ref(false);
-const addForm = ref({ scopeType: 'POOL', poolCode: '' });
+const addForm = ref({ scopeType: 'POOL', poolCode: '', dailyClaimLimit: 0, maxHolding: 0, protectDays: 0, dailyCooldownLimit: 0, returnTarget: 'PUBLIC', remark: '' });
 
 /** 已配置的资源池 scope（禁用重复新增）。 */
 const usedPoolCodes = computed(() => {
@@ -172,25 +193,26 @@ async function loadPoolOptions() {
 }
 
 function openAddDialog() {
-  addForm.value = { scopeType: 'POOL', poolCode: '' };
+  addForm.value = { scopeType: 'POOL', poolCode: '', dailyClaimLimit: 0, maxHolding: 0, protectDays: 0, dailyCooldownLimit: 0, returnTarget: 'PUBLIC', remark: '' };
   addDialogVisible.value = true;
 }
 
 /** 新增资源池维度配置行（仅本地追加，随保存提交）。 */
 function onAddConfirm() {
-  if (!addForm.value.poolCode) return ElMessage.warning('请选择资源池');
-  const pool = poolOptions.value.find((p) => p.poolCode === addForm.value.poolCode);
-  const scope = 'POOL:' + addForm.value.poolCode;
+  const f = addForm.value;
+  if (!f.poolCode) return ElMessage.warning('请选择资源池');
+  const pool = poolOptions.value.find((p) => p.poolCode === f.poolCode);
+  const scope = 'POOL:' + f.poolCode;
   if (rows.value.some((r) => r.scope === scope)) return ElMessage.warning('该资源池已配置');
   rows.value.push({
     scope,
-    scopeName: pool?.poolName || addForm.value.poolCode,
-    dailyClaimLimit: 0,
-    maxHolding: 0,
-    protectDays: 0,
-    dailyCooldownLimit: 0,
-    returnTarget: 'PUBLIC',
-    remark: '',
+    scopeName: pool?.poolName || f.poolCode,
+    dailyClaimLimit: Number(f.dailyClaimLimit) || 0,
+    maxHolding: Number(f.maxHolding) || 0,
+    protectDays: Number(f.protectDays) || 0,
+    dailyCooldownLimit: Number(f.dailyCooldownLimit) || 0,
+    returnTarget: f.returnTarget || 'PUBLIC',
+    remark: f.remark || '',
     updatedBy: null,
     updatedAt: null,
   });
@@ -240,6 +262,7 @@ function snapshot() {
     protectDays: Number(row.protectDays),
     dailyCooldownLimit: Number(row.dailyCooldownLimit),
     returnTarget: row.returnTarget || 'PUBLIC',
+    remark: row.remark || '',
   }));
 }
 
@@ -266,6 +289,9 @@ function diffOf() {
     if ((before.returnTarget || 'PUBLIC') !== (row.returnTarget || 'PUBLIC')) {
       const label = { PUBLIC: '公司公海', ORIGINAL: '原部门团队池' };
       changes.push(`${name}：回纳目标 ${label[before.returnTarget] || before.returnTarget} → ${label[row.returnTarget] || row.returnTarget}`);
+    }
+    if ((before.remark || '') !== (row.remark || '')) {
+      changes.push(`${name}：说明 ${before.remark || '—'} → ${row.remark || '—'}`);
     }
   });
   return changes;

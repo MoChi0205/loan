@@ -219,7 +219,7 @@
             placeholder="到期后自动下架"
             value-format="YYYY-MM-DDTHH:mm:ss"
             format="YYYY-MM-DD HH:mm:ss"
-            style="width: 100%"
+            width="100%"
           />
         </el-form-item>
         <el-form-item label="初始状态" prop="status">
@@ -241,7 +241,7 @@
             placeholder="选择新的合作到期日"
             value-format="YYYY-MM-DDTHH:mm:ss"
             format="YYYY-MM-DD HH:mm:ss"
-            style="width: 100%"
+            width="100%"
           />
         </el-form-item>
       </el-form>

@@ -12,7 +12,11 @@
     </div>
 
     <div class="loan-card">
-      <el-table :data="rows" v-loading="loading" stripe row-key="channelCode" @expand-change="onExpandChange">
+      <div class="cc-filter">
+        <el-input v-model="filterKeyword" placeholder="银行渠道名称" clearable style="width: 220px" />
+        <span class="cc-filter-tip">渠道档案数量较少，按关键字本地过滤</span>
+      </div>
+      <el-table :data="filteredRows" v-loading="loading" stripe row-key="channelCode" @expand-change="onExpandChange">
         <el-table-column type="expand" width="44">
           <template #default="{ row }">
             <div class="cc-expand">
@@ -78,7 +82,7 @@
 
 <script setup>
 defineOptions({ name: '_channel_config' });
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
@@ -89,6 +93,13 @@ import { listPlans } from '@/api/plan';
 
 const router = useRouter();
 const rows = ref([]);
+const filterKeyword = ref('');
+/** 渠道档案数量少，按银行渠道名称本地过滤（D83-三批#13）。 */
+const filteredRows = computed(() => {
+  const kw = filterKeyword.value.trim().toLowerCase();
+  if (!kw) return rows.value;
+  return rows.value.filter((r) => (r.bankName || '').toLowerCase().includes(kw));
+});
 const loading = ref(false);
 const strategyMap = ref({});
 const strategyLoading = ref({});
@@ -205,4 +216,6 @@ onMounted(async () => {
 .cc-empty { padding: 12px; color: var(--loan-text-muted); font-size: 13px; }
 .cc-active { color: var(--loan-success); font-weight: 600; }
 .cc-muted { color: var(--loan-text-muted); }
+.cc-filter { display: flex; align-items: center; gap: 10px; padding: 4px 0 14px; }
+.cc-filter-tip { color: var(--loan-text-muted, #94a3b8); font-size: 12px; }
 </style>

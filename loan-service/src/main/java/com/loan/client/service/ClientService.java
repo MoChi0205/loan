@@ -206,8 +206,16 @@ public class ClientService {
                         + " AND (a.actual_arrived_at IS NOT NULL OR a.status IN ('ARRIVED','SERVING','COMPLETED'))")
                         .notExists("SELECT 1 FROM t_service_order o WHERE o.client_profile_code = t_client_profile.client_code AND o.status = 'DEAL'");
             } else {
-                wrapper.eq(ClientProfile::getCustomerTag, tag)
-                        .notExists(DEAL_EXISTS_SQL)
+                // D83-三批#1：NEW 口径与 tagCounts 对齐——customer_tag 为 NULL/空串也计入新用户
+                // （Mapper.tagCountKey 把空/未知 tag 归入 newCount），否则出现"chip 计数 1、点进去列表 0"。
+                if ("NEW".equals(tag)) {
+                    wrapper.and(w -> w.eq(ClientProfile::getCustomerTag, "NEW")
+                            .or().isNull(ClientProfile::getCustomerTag)
+                            .or().eq(ClientProfile::getCustomerTag, ""));
+                } else {
+                    wrapper.eq(ClientProfile::getCustomerTag, tag);
+                }
+                wrapper.notExists(DEAL_EXISTS_SQL)
                         .notExists("SELECT 1 FROM t_client_appointment a WHERE a.client_code = t_client_profile.client_code"
                                 + " AND (a.actual_arrived_at IS NOT NULL OR a.status IN ('REQUESTED','CONFIRMED','ARRIVED','SERVING','COMPLETED'))");
             }

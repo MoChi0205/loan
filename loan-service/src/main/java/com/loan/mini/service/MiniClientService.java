@@ -280,6 +280,12 @@ public class MiniClientService {
         return clientAllocationService.pendingPage(page, size);
     }
 
+    /** 分配待审分页（带 keyword/日期，D83-三批#6）。 */
+    public com.loan.api.dto.PageResult<Map<String, Object>> pendingAllocations(int page, int size,
+                                                                               String keyword, String startDate, String endDate) {
+        return clientAllocationService.pendingPage(page, size, keyword, startDate, endDate);
+    }
+
     /**
      * 通过分配审批：客户归属流转给申请人。
      *

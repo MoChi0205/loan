@@ -56,13 +56,16 @@
       <AppSearchBar :loading="outingLoading" @search="searchOutings" @reset="resetOutings">
         <el-input v-model="outingQuery.keyword" placeholder="申请人 / 客户名称" clearable style="width: 220px" @keyup.enter="searchOutings" />
         <AppDateTime v-model="outingDateRange" type="daterange" start-placeholder="外出开始日期" end-placeholder="外出结束日期" width="260px" />
+        <el-button :disabled="!genericSelections.outing.value.length" @click="batchAuditGeneric('outing', true)">一键通过（{{ genericSelections.outing.value.length }}）</el-button>
+        <el-button type="danger" :disabled="!genericSelections.outing.value.length" @click="batchAuditGeneric('outing', false)">一键驳回（{{ genericSelections.outing.value.length }}）</el-button>
       </AppSearchBar>
-      <el-table :data="outingRows" v-loading="outingLoading" stripe row-key="outingNo">
+      <el-table :data="outingRows" v-loading="outingLoading" stripe row-key="outingNo" @selection-change="onGenericSelection('outing', $event)">
         <template #empty><AppEmpty title="暂无待审批外出" desc="当前权限范围内没有待处理的外出申请" /></template>
+        <el-table-column type="selection" width="44" :selectable="(row) => genericSelectable('outing', row)" />
         <el-table-column label="申请人" width="140"><template #default="{ row }">{{ row.staffName || '姓名待补充' }}</template></el-table-column>
         <el-table-column label="部门" width="150"><template #default="{ row }">{{ row.deptName || '未分部门' }}</template></el-table-column>
         <el-table-column label="客户" min-width="170"><template #default="{ row }">{{ row.customerName || '未关联客户' }}</template></el-table-column>
-        <el-table-column label="外出时间" width="300"><template #default="{ row }">{{ formatDateTime(row.plannedStart) }} 至 {{ formatDateTime(row.plannedEnd) }}</template></el-table-column>
+        <el-table-column label="外出时间" width="220"><template #default="{ row }">{{ formatDateTime(row.plannedStart) }} 至 {{ formatDateTime(row.plannedEnd) }}</template></el-table-column>
         <el-table-column prop="destination" label="目的地" min-width="180" show-overflow-tooltip />
         <el-table-column prop="purpose" label="事由" min-width="180" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right"><template #default="{ row }">
@@ -74,19 +77,40 @@
     </div>
 
     <div v-show="activeTab === 'sensitivePhone'" class="loan-card">
-      <el-table :data="sensitiveRows" v-loading="sensitiveLoading" stripe row-key="approvalNo">
+      <div class="batch-toolbar">
+        <el-input v-model="sensitiveQuery" placeholder="申请人 / 客户名称" clearable style="width: 200px" />
+        <AppDateTime v-model="sensitiveDateRange" type="daterange" start-placeholder="触发开始日期" end-placeholder="触发结束日期" width="260px" />
+        <span class="batch-spacer" />
+        <el-button :disabled="!genericSelections.sensitivePhone.value.length" @click="batchAuditGeneric('sensitivePhone', true)">一键通过（{{ genericSelections.sensitivePhone.value.length }}）</el-button>
+        <el-button type="danger" :disabled="!genericSelections.sensitivePhone.value.length" @click="batchAuditGeneric('sensitivePhone', false)">一键驳回（{{ genericSelections.sensitivePhone.value.length }}）</el-button>
+      </div>
+      <el-table :data="filteredSensitiveRows" v-loading="sensitiveLoading" stripe row-key="approvalNo" @selection-change="onGenericSelection('sensitivePhone', $event)">
         <template #empty><AppEmpty title="暂无手机号查看审批" desc="超过查看额度的申请会显示在这里" /></template>
-        <el-table-column label="申请人" width="130"><template #default="{ row }">{{ row.applicantName || '姓名待补充' }}</template></el-table-column>
+        <el-table-column type="selection" width="44" :selectable="(row) => genericSelectable('sensitivePhone', row)" />
+        <el-table-column label="申请人" min-width="130" show-overflow-tooltip><template #default="{ row }">{{ row.applicantName || '姓名待补充' }}</template></el-table-column>
         <el-table-column label="客户" min-width="180"><template #default="{ row }"><el-button link type="primary" @click="router.push({ path: '/client/my', query: { clientCode: row.clientCode } })">{{ row.clientName || '客户名称待补充' }}</el-button></template></el-table-column>
-        <el-table-column label="审批级别" width="130"><template #default="{ row }">{{ row.approvalStage === 'BOSS_REVIEW' ? '老板审批' : '部门经理审批' }}</template></el-table-column>
+        <el-table-column label="审批级别" min-width="130"><template #default="{ row }">{{ row.approvalStage === 'BOSS_REVIEW' ? '老板审批' : '部门经理审批' }}</template></el-table-column>
         <el-table-column label="触发日期" prop="viewDate" width="130" />
         <el-table-column label="操作" width="150" fixed="right"><template #default="{ row }"><el-button link type="success" @click="auditSensitive(row, true)">通过</el-button><el-button link type="danger" @click="auditSensitive(row, false)">驳回</el-button></template></el-table-column>
       </el-table>
     </div>
 
     <div v-for="kind in ['smsTemplate','reportTemplate']" :key="kind" v-show="activeTab === kind" class="loan-card">
-      <el-table :data="contentRows[kind]" v-loading="contentLoading[kind]" stripe row-key="approvalNo">
+      <div class="batch-toolbar">
+        <el-input v-model="contentQuery[kind].keyword" placeholder="模板名称" clearable style="width: 180px" @keyup.enter="searchContent(kind)" />
+        <AppDateTime v-model="contentQuery[kind].dateRange" type="daterange" start-placeholder="提交开始" end-placeholder="提交结束" width="260px" @update:model-value="onContentDate(kind)" />
+        <el-select v-model="contentQuery[kind].staffCode" placeholder="提交人" clearable filterable style="width: 150px">
+          <el-option v-for="st in staffOptionsP" :key="st.staffCode" :label="st.staffName" :value="st.staffCode" />
+        </el-select>
+        <el-button link type="primary" @click="searchContent(kind)">查询</el-button>
+        <el-button link @click="resetContent(kind)">重置</el-button>
+        <span class="batch-spacer" />
+        <el-button :disabled="!genericSelections[kind].value.length" @click="batchAuditGeneric(kind, true)">一键通过（{{ genericSelections[kind].value.length }}）</el-button>
+        <el-button type="danger" :disabled="!genericSelections[kind].value.length" @click="batchAuditGeneric(kind, false)">一键驳回（{{ genericSelections[kind].value.length }}）</el-button>
+      </div>
+      <el-table :data="contentRows[kind]" v-loading="contentLoading[kind]" stripe row-key="approvalNo" @selection-change="onGenericSelection(kind, $event)">
         <template #empty><AppEmpty title="暂无待审核模板" desc="运营提交后将在此等待审核" /></template>
+        <el-table-column type="selection" width="44" :selectable="(row) => genericSelectable(kind, row)" />
         <el-table-column label="审核事项" min-width="180"><template #default>模板发布审核</template></el-table-column>
         <el-table-column label="模板名称" prop="templateName" min-width="180" />
         <el-table-column label="版本" prop="versionNo" width="90" />
@@ -110,13 +134,16 @@
           <el-option v-for="st in staffOptionsP" :key="st.staffCode" :label="st.staffName" :value="st.staffCode" />
         </el-select>
         <AppDateTime v-model="dateRangeP" type="daterange" start-placeholder="提交开始日期" end-placeholder="提交结束日期" width="260px" />
+        <el-button :disabled="!genericSelections.product.value.length" @click="batchAuditGeneric('product', true)">一键通过（{{ genericSelections.product.value.length }}）</el-button>
+        <el-button type="danger" :disabled="!genericSelections.product.value.length" @click="batchAuditGeneric('product', false)">一键驳回（{{ genericSelections.product.value.length }}）</el-button>
       </AppSearchBar>
 
       <AppTableState :error="errorP" @retry="loadP">
-      <el-table :data="dataP" v-loading="loadingP" stripe row-key="approvalNo" @sort-change="handleSortChange">
+      <el-table :data="dataP" v-loading="loadingP" stripe row-key="approvalNo" @selection-change="onGenericSelection('product', $event)" @sort-change="handleSortChange">
         <template #empty>
           <AppEmpty title="暂无产品审核" desc="新产品申请入全量库后将在此等待审核" />
         </template>
+        <el-table-column type="selection" width="44" :selectable="(row) => genericSelectable('product', row)" />
         <el-table-column label="审核事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'product') }}</template></el-table-column>
         <el-table-column label="产品" min-width="170">
           <template #default="{ row }">
@@ -170,18 +197,24 @@
         <el-input v-model="queryCL.keyword" placeholder="联系人 / 手机号 / 渠道名称" style="width: 260px" clearable @keyup.enter="searchCL" />
         <el-select v-model="queryCL.leadType" placeholder="客群" clearable style="width: 120px"><el-option label="个人" value="PERSONAL" /><el-option label="企业" value="ENTERPRISE" /></el-select>
         <AppDateTime v-model="queryCL.dateRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="提交开始" end-placeholder="提交结束" width="260px" @update:model-value="syncChannelDateRange" />
+        <el-button :disabled="!genericSelections.channelLead.value.length" @click="batchAuditGeneric('channelLead', true)">一键通过（{{ genericSelections.channelLead.value.length }}）</el-button>
+        <el-button type="danger" :disabled="!genericSelections.channelLead.value.length" @click="batchAuditGeneric('channelLead', false)">一键驳回（{{ genericSelections.channelLead.value.length }}）</el-button>
       </AppSearchBar>
       <AppTableState :error="errorCL" @retry="loadCL">
-        <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo" style="height: calc(100vh - 320px); min-height: 360px">
+        <el-table :data="dataCL" v-loading="loadingCL" stripe row-key="leadNo" @selection-change="onGenericSelection('channelLead', $event)">
           <template #empty><AppEmpty title="暂无渠道线索审核" desc="渠道录入新线索后将在此等待终审" /></template>
-          <el-table-column prop="contactName" label="联系人" width="130" />
+          <el-table-column type="selection" width="44" :selectable="(row) => genericSelectable('channelLead', row)" />
+          <el-table-column prop="contactName" label="联系人" width="120" />
           <el-table-column label="手机号" width="140">
             <template #default="{ row }">{{ desensitizePhone(row.phone) }}</template>
           </el-table-column>
-          <el-table-column prop="createdBy" label="创建人" min-width="150" />
-          <el-table-column prop="leadType" label="客群" width="100"><template #default="{ row }">{{ row.leadType === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
-          <el-table-column prop="createdAt" label="提交时间" width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="120" fixed="right">
+          <el-table-column prop="createdBy" label="创建人" width="130" show-overflow-tooltip />
+          <el-table-column prop="leadType" label="客群" width="90"><template #default="{ row }">{{ row.leadType === 'PERSONAL' ? '个人' : '企业' }}</template></el-table-column>
+          <el-table-column label="审核状态" width="100">
+            <template #default="{ row }"><span class="loan-tag" :class="statusTag(row.approveStatus)">{{ enumLabel(statusText, row.approveStatus) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="createdAt" label="提交时间" min-width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column label="操作" width="110" fixed="right">
             <template #default="{ row }">
               <AppTableActions :actions="[{ key: 'audit', label: '审核', type: 'success', onClick: () => openAudit('channelLead', { ...row, approvalNo: row.leadNo }) }]" />
             </template>
@@ -198,6 +231,9 @@
           <el-option v-for="(t, k) in statusText" :key="k" :label="t" :value="k" />
         </el-select>
         <el-input v-model="queryD.keyword" placeholder="申请人姓名 / 用途说明" style="width: 220px" clearable @keyup.enter="searchD" />
+        <AppDateTime v-model="downloadDateRange" type="daterange" start-placeholder="申请开始日期" end-placeholder="申请结束日期" width="260px" />
+        <el-button :disabled="!genericSelections.download.value.length" @click="batchAuditGeneric('download', true)">一键通过（{{ genericSelections.download.value.length }}）</el-button>
+        <el-button type="danger" :disabled="!genericSelections.download.value.length" @click="batchAuditGeneric('download', false)">一键驳回（{{ genericSelections.download.value.length }}）</el-button>
         <template #append>
           <el-button v-permission="ACTION_PERMISSION.DOWNLOAD_APPLY" type="primary" plain @click="openApply">
             <AppIcon name="add" :size="14" />
@@ -207,10 +243,11 @@
       </AppSearchBar>
 
       <AppTableState :error="errorD" @retry="loadD">
-      <el-table :data="dataD" v-loading="loadingD" stripe row-key="approvalNo" @sort-change="handleSortChangeD" style="height: calc(100vh - 320px); min-height: 360px">
+      <el-table :data="dataD" v-loading="loadingD" stripe row-key="approvalNo" @selection-change="onGenericSelection('download', $event)" @sort-change="handleSortChangeD">
         <template #empty>
           <AppEmpty title="暂无下载审核" desc="员工发起无水印下载申请后将在此审核" />
         </template>
+        <el-table-column type="selection" width="44" :selectable="(row) => genericSelectable('download', row)" />
         <el-table-column label="审核事项" min-width="220" show-overflow-tooltip><template #default="{ row }">{{ approvalMatter(row, 'download') }}</template></el-table-column>
         <el-table-column prop="applicantStaffName" label="申请人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.applicantStaffName || '姓名待补充' }}</template>
@@ -255,6 +292,7 @@
     <div v-show="activeTab === 'allocation'" class="loan-card">
       <AppSearchBar :loading="loadingA" @search="searchA" @reset="resetA">
         <el-input v-model="queryA.keyword" placeholder="企业名称 / 客户姓名 / 申请人" style="width: 240px" clearable @keyup.enter="searchA" />
+        <AppDateTime v-model="allocationDateRange" type="daterange" start-placeholder="申请开始日期" end-placeholder="申请结束日期" width="260px" />
         <el-button :disabled="!allocationSelection.length || batchAuditing" @click="onBatchAuditAllocation(true)">一键通过（{{ allocationSelection.length }}）</el-button>
         <el-button type="danger" :disabled="!allocationSelection.length || batchAuditing" @click="onBatchAuditAllocation(false)">一键驳回（{{ allocationSelection.length }}）</el-button>
       </AppSearchBar>
@@ -322,7 +360,7 @@
     <AppDialog v-model:visible="applyVisible" title="发起无水印下载申请" width="640px" modal-class="loan-app-dialog download-apply-dialog" :loading="applying" @confirm="onApply">
       <el-form ref="applyFormRef" :model="applyForm" :rules="applyRules" label-width="110px" label-position="right">
         <el-form-item label="资料清单" prop="attachmentIds">
-          <el-select v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或客户名称搜索" style="width: 100%" placement="bottom-start" :teleported="false" popper-class="attachment-select-popper" @visible-change="onAttachmentVisible">
+          <el-select v-model="applyForm.attachmentIds" multiple filterable remote :remote-method="searchAttachments" :loading="attachmentLoading" placeholder="输入文件名、资料类型或客户名称搜索" style="width: 100%" fit-input-width popper-class="attachment-select-popper" @visible-change="onAttachmentVisible">
             <el-option v-for="item in attachmentOptions" :key="item.value" :label="item.label" :value="item.value" />
             <div v-if="!attachmentFinished && attachmentOptions.length" class="remote-more" @mousedown.prevent @click="loadMoreAttachments">{{ attachmentLoading ? '加载中…' : '加载更多' }}</div>
           </el-select>
@@ -465,10 +503,35 @@ function openRelated(row) {
 watch(() => mineQuery.type, (type) => { if (type !== 'SENSITIVE_VIEW') mineQuery.approvalStage = ''; });
 const contentRows = reactive({ smsTemplate: [], reportTemplate: [] });
 const contentLoading = reactive({ smsTemplate: false, reportTemplate: false });
+const contentQuery = reactive({
+  smsTemplate: { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '' },
+  reportTemplate: { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '' },
+});
+function onContentDate(kind) {
+  const r = contentQuery[kind].dateRange;
+  contentQuery[kind].startDate = r?.[0] || '';
+  contentQuery[kind].endDate = r?.[1] || '';
+}
 async function loadContent(kind) {
   contentLoading[kind] = true;
-  try { const type = kind === 'smsTemplate' ? 'SMS_TEMPLATE' : 'REPORT_TEMPLATE'; const res = await pageContentApprovals(type, { page: 1, size: 100 }); contentRows[kind] = res?.records || res?.data?.records || []; }
+  try {
+    const type = kind === 'smsTemplate' ? 'SMS_TEMPLATE' : 'REPORT_TEMPLATE';
+    const q = contentQuery[kind];
+    const res = await pageContentApprovals(type, {
+      page: 1, size: 100,
+      keyword: q.keyword.trim() || undefined,
+      startDate: q.startDate || undefined,
+      endDate: q.endDate || undefined,
+      applicantStaffCode: q.staffCode || undefined,
+    });
+    contentRows[kind] = res?.records || res?.data?.records || [];
+  }
   finally { contentLoading[kind] = false; }
+}
+function searchContent(kind) { loadContent(kind); }
+function resetContent(kind) {
+  contentQuery[kind] = { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '' };
+  loadContent(kind);
 }
 const statusText = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' };
 const statusTag = (s) => ({ PENDING: 'loan-tag-warning', APPROVED: 'loan-tag-success', REJECTED: 'loan-tag-danger' }[s] || 'loan-tag-muted');
@@ -508,11 +571,19 @@ const { loading: loadingP, error: errorP, data: dataP, total: totalP, query: que
 
 /** 下载审核表 */
 const { loading: loadingD, error: errorD, data: dataD, total: totalD, query: queryD, load: loadD, onSearch: searchD, onReset: resetD, handleSortChange: handleSortChangeD } =
-  useTable(pageDownloadApprovals, { status: '', keyword: '' });
+  useTable(pageDownloadApprovals, { status: '', keyword: '', startDate: '', endDate: '' });
+const downloadDateRange = computed({
+  get: () => (queryD.startDate && queryD.endDate ? [queryD.startDate, queryD.endDate] : []),
+  set: (v) => { queryD.startDate = v?.[0] || ''; queryD.endDate = v?.[1] || ''; },
+});
 
 /** 客户分配审核表 */
 const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA, handleSortChange: handleSortChangeA } =
-  useTable(pageAllocationApprovals, { keyword: '' });
+  useTable(pageAllocationApprovals, { keyword: '', startDate: '', endDate: '' });
+const allocationDateRange = computed({
+  get: () => (queryA.startDate && queryA.endDate ? [queryA.startDate, queryA.endDate] : []),
+  set: (v) => { queryA.startDate = v?.[0] || ''; queryA.endDate = v?.[1] || ''; },
+});
 
 /** 一键审批（批量，2026-10-19）：勾选后批量通过/驳回，逐条结果汇总展示。 */
 const allocationSelection = ref([]);
@@ -565,6 +636,26 @@ function syncChannelDateRange(range) {
 
 const outingRows = ref([]); const outingTotal = ref(0); const outingLoading = ref(false);
 const sensitiveRows = ref([]); const sensitiveLoading = ref(false);
+const sensitiveQuery = ref('');
+const sensitiveDateRange = ref(null);
+/** 手机号查看审批：后端无筛选参数、待审量小，前端本地按申请人/客户名/触发日期过滤。 */
+const filteredSensitiveRows = computed(() => {
+  let rows = sensitiveRows.value;
+  const kw = sensitiveQuery.value.trim().toLowerCase();
+  if (kw) {
+    rows = rows.filter((r) => (r.applicantName || '').toLowerCase().includes(kw) || (r.clientName || '').toLowerCase().includes(kw));
+  }
+  const range = sensitiveDateRange.value;
+  if (Array.isArray(range) && range[0] && range[1]) {
+    const start = `${range[0]}T00:00:00`;
+    const end = `${range[1]}T23:59:59`;
+    rows = rows.filter((r) => {
+      const t = String(r.viewDate || r.createdAt || '');
+      return !t || (t >= start && t <= end);
+    });
+  }
+  return rows;
+});
 async function loadSensitiveApprovals() { sensitiveLoading.value = true; try { sensitiveRows.value = (await pendingSensitiveViewApprovals()).data || []; } finally { sensitiveLoading.value = false; } }
 async function auditSensitive(row, approve) {
   let opinion = null;
@@ -732,6 +823,70 @@ async function onVoid(row) {
 }
 
 // ============================================================
+// 通用批量审批（D83 #9）：除 allocation 外各 tab 的一键通过/驳回
+// allocation 走后端 batchAuditAllocationApprovals（onBatchAuditAllocation）；
+// 其余 tab 后端暂无批量接口，前端逐条复用单条接口并汇总结果（非原子，失败逐条提示）。
+// ============================================================
+const genericSelections = {
+  product: ref([]), download: ref([]), channelLead: ref([]),
+  smsTemplate: ref([]), reportTemplate: ref([]), sensitivePhone: ref([]), outing: ref([]),
+};
+function onGenericSelection(kind, rows) { genericSelections[kind].value = rows || []; }
+
+/** 单条审批分派（复用既有单条接口）。 */
+async function auditOne(kind, row, approve, opinion) {
+  const payload = { approve, opinion: opinion || null };
+  if (kind === 'product') await auditProductApproval(row.approvalNo, payload);
+  else if (kind === 'download') await auditDownloadApproval(row.approvalNo, payload);
+  else if (kind === 'channelLead') await auditChannelLeadApproval(row.leadNo || row.approvalNo, payload);
+  else if (kind === 'smsTemplate') await auditContentApproval('SMS_TEMPLATE', row.approvalNo, payload);
+  else if (kind === 'reportTemplate') await auditContentApproval('REPORT_TEMPLATE', row.approvalNo, payload);
+  else if (kind === 'sensitivePhone') await auditSensitiveViewApproval(row.approvalNo, payload);
+  else if (kind === 'outing') {
+    if (approve) await approveOuting(row.outingNo, '审批通过');
+    else await rejectOuting(row.outingNo, opinion || '批量驳回');
+  }
+}
+function reloadGeneric(kind) {
+  if (kind === 'product') loadP();
+  else if (kind === 'download') loadD();
+  else if (kind === 'channelLead') loadCL();
+  else if (kind === 'smsTemplate') loadContent('smsTemplate');
+  else if (kind === 'reportTemplate') loadContent('reportTemplate');
+  else if (kind === 'sensitivePhone') loadSensitiveApprovals();
+  else if (kind === 'outing') loadOutings();
+}
+async function batchAuditGeneric(kind, approve) {
+  const rows = genericSelections[kind].value || [];
+  if (!rows.length) return ElMessage.warning('请先勾选待审批项');
+  let opinion = '';
+  if (approve) {
+    try { await appConfirm(`确认一键通过选中的 ${rows.length} 条？`, '确认批量通过？', { confirmButtonText: '确认通过' }); } catch { return; }
+  } else {
+    try {
+      const { value } = await ElMessageBox.prompt(`即将驳回选中的 ${rows.length} 条`, '批量驳回意见（必填）', {
+        confirmButtonText: '确认驳回', cancelButtonText: '取消',
+        inputPlaceholder: '请填写统一的驳回原因', inputValidator: (v) => !!(v && v.trim()) || '驳回原因必填',
+      });
+      opinion = value.trim();
+    } catch { return; }
+  }
+  let ok = 0; const fails = [];
+  for (const row of rows) {
+    try { await auditOne(kind, row, approve, opinion); ok++; }
+    catch (e) { fails.push(`${approvalMatter(row, kind)}：${e?.message || '失败'}`); }
+  }
+  genericSelections[kind].value = [];
+  reloadGeneric(kind);
+  if (fails.length) ElMessage.warning(`批量处理完成：成功 ${ok} 条，失败 ${fails.length} 条（如：${fails[0]}）`);
+  else ElMessage.success(approve ? `已批量通过 ${ok} 条` : `已批量驳回 ${ok} 条`);
+}
+function genericSelectable(kind, row) {
+  if (kind === 'outing') return row.status === 'PENDING_REVIEW';
+  return row.approveStatus === 'PENDING';
+}
+
+// ============================================================
 // 发起下载申请
 // ============================================================
 const applyVisible = ref(false);
@@ -829,6 +984,8 @@ watch(activeTab, async (tab) => {
 </script>
 
 <style scoped>
+.batch-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0 14px; }
+.batch-spacer { flex: 1; }
 .cell-main { font-weight: 500; }
 .cell-sub { font-size: 12px; color: var(--loan-text-secondary, var(--loan-text-muted)); }
 .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
@@ -885,9 +1042,10 @@ watch(activeTab, async (tab) => {
 .mine-type-tab.active { border-color: var(--loan-primary); background: var(--loan-primary-soft); color: var(--loan-primary); font-weight: 600; }
 :global(.download-apply-dialog .el-dialog) { max-width: calc(100vw - 32px); overflow: visible; }
 :global(.download-apply-dialog .el-dialog__body) { overflow: visible; }
-:global(.download-apply-dialog .attachment-select-popper) { max-width: 490px; }
-:global(.download-apply-dialog .attachment-select-popper .el-select-dropdown__wrap) { max-height: 220px; }
-:global(.download-apply-dialog .attachment-select-popper .el-select-dropdown__item) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* popper 现已挂到 body（D83 根因 A），不能再以 .download-apply-dialog 为前缀选择 */
+:global(.attachment-select-popper) { max-width: 490px; }
+:global(.attachment-select-popper .el-select-dropdown__wrap) { max-height: 220px; }
+:global(.attachment-select-popper .el-select-dropdown__item) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 640px) {
   .application-choice { grid-template-columns: 30px minmax(0, 1fr) 16px; padding: 11px 12px; }
 }

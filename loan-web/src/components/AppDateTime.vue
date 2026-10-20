@@ -14,7 +14,7 @@
     :shortcuts="resolvedShortcuts"
     :disabled-date="disabledDate"
     :clearable="clearable"
-    :style="{ width: resolvedWidth }"
+    :style="resolvedStyle"
     @update:model-value="(v) => $emit('update:modelValue', v)"
   />
 </template>
@@ -25,15 +25,20 @@ import { computed } from 'vue';
 /**
  * 日期/时间选择器（公共组件）。
  *
- * <p>统一 el-date-picker 的常用配置：默认宽度 100%、valueFormat、format、快捷选项。
+ * <p>统一 el-date-picker 的常用配置：默认宽度、valueFormat、format、快捷选项。
  * type 支持 date / datetime / daterange / datetimerange / month / year 等。
  *
- * <p>宽度用 {@link width} prop 控制（2026-10-19）：组件内部宽度不再写死 width:100%，
- * 通过 style 透传的宽度会被内部 100% 覆盖导致筛选框撑满整行（客户列表成交起始/截止 bug）。
+ * <p><b>宽度策略（2026-10-20 第二次收口，见 D83 根因 B）</b>：
+ * 缺省宽度<b>按 type 定死</b>，不再回落 100%。原因：上一版把 3 个日期组件收敛成 1 个之后，
+ * 缺省仍是 100%，导致"是否铺满"完全依赖每个调用处记得传 width —— 漏一处就复发一处
+ * （服务总览日期框连修 4 次仍铺满，即此因）。现在漏传 width 也只会是固定窄宽，不会撑满整行。
+ *
+ * <p>表单内（el-form-item）需要铺满时显式传 <code>width="100%"</code>；
+ * 筛选条/工具栏直接用缺省值即可。
  *
  * 用法：
- *   <AppDateTime v-model="form.startTime" type="datetime" placeholder="选择时间" />
- *   <AppDateTime v-model="range" type="daterange" width="260px" />
+ *   <AppDateTime v-model="form.startTime" type="datetime" width="100%" />
+ *   <AppDateTime v-model="range" type="daterange" />
  */
 const props = defineProps({
   modelValue: { type: [String, Array, Date, Number], default: null },
@@ -49,7 +54,11 @@ const props = defineProps({
   /** datetimerange 起止默认时刻（[startDate, endDate]，仅带时分秒） */
   defaultTime: { type: Array, default: undefined },
   clearable: { type: Boolean, default: true },
-  /** 宽度（如 '260px'）；数字按 px 处理；缺省 100%（配合 el-form-item 等流式布局）。 */
+  /**
+   * 宽度（如 '260px'）；数字按 px 处理。
+   * 缺省<b>不再回落 100%</b>，而是按 type 取 {@link DEFAULT_WIDTH} 的固定值（D83 根因 B）。
+   * 表单内需要铺满时显式传 '100%'。
+   */
   width: { type: [String, Number], default: '' },
   /** 是否使用默认快捷选项（今日/近 7 天/近 30 天） */
   shortcuts: { type: Boolean, default: false },
@@ -58,11 +67,37 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 
-/** 解析宽度：数字 → px；空串回落 100%。 */
+/**
+ * 各 type 的缺省宽度（D83 根因 B）。
+ * 取值原则：刚好容纳该 type 的完整内容，既不铺满整行、也不截断。
+ */
+const DEFAULT_WIDTH = Object.freeze({
+  date: '200px',
+  datetime: '220px',
+  daterange: '260px',
+  datetimerange: '360px',
+  month: '180px',
+  year: '180px',
+  dates: '260px',
+  monthrange: '300px',
+});
+
+/** 解析宽度：数字 → px；空串按 type 取缺省固定值（不再回落 100%）。 */
 const resolvedWidth = computed(() => {
-  if (props.width === '' || props.width == null) return '100%';
+  if (props.width === '' || props.width == null) {
+    return DEFAULT_WIDTH[props.type] || '200px';
+  }
   return typeof props.width === 'number' ? `${props.width}px` : String(props.width);
 });
+
+/**
+ * flex 容器里 inline width 会被 flex-grow 拉伸覆盖（服务总览日期框铺满的第二个成因），
+ * 这里显式声明不参与伸缩。
+ */
+const resolvedStyle = computed(() => ({
+  width: resolvedWidth.value,
+  flex: '0 0 auto',
+}));
 
 /** 默认快捷选项（按 valueFormat 输出） */
 const resolvedShortcuts = computed(() => {

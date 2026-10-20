@@ -460,12 +460,24 @@ public class ApprovalService {
     /** 下载审批分页；applicantScope 非空时强制限定为本人申请，避免普通员工读取全量。 */
     public PageResult<Map<String, Object>> downloadPage(String status, String keyword, int page, int size,
                                                          String orderBy, String orderDir, String applicantScope) {
+        return downloadPage(status, keyword, null, null, page, size, orderBy, orderDir, applicantScope);
+    }
+
+    /** 下载审批分页（带提交日期范围，D83-三批#5；startDate/endDate 格式 yyyy-MM-dd）。 */
+    public PageResult<Map<String, Object>> downloadPage(String status, String keyword, String startDate, String endDate,
+                                                         int page, int size, String orderBy, String orderDir, String applicantScope) {
         LambdaQueryWrapper<AttachmentDownloadApproval> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(applicantScope)) {
             wrapper.eq(AttachmentDownloadApproval::getApplicantStaffCode, applicantScope);
         }
         if (StringUtils.hasText(status)) {
             wrapper.eq(AttachmentDownloadApproval::getApproveStatus, status);
+        }
+        if (StringUtils.hasText(startDate)) {
+            wrapper.ge(AttachmentDownloadApproval::getCreatedAt, java.time.LocalDate.parse(startDate).atStartOfDay());
+        }
+        if (StringUtils.hasText(endDate)) {
+            wrapper.le(AttachmentDownloadApproval::getCreatedAt, java.time.LocalDate.parse(endDate).atTime(java.time.LocalTime.MAX));
         }
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
@@ -780,11 +792,23 @@ public class ApprovalService {
      * @return { page, size, total, records（每条含 type 字段）, paginationHint }
      */
     public Map<String, Object> unifiedPending(String type, int page, int size) {
-        return unifiedPending(type, page, size, true);
+        return unifiedPending(type, page, size, null, null, null, null, true);
     }
 
     /** 按当前角色能力聚合待审列表；非渠道终审人不返回 PRODUCT 待办。 */
     public Map<String, Object> unifiedPending(String type, int page, int size, boolean includeProduct) {
+        return unifiedPending(type, page, size, null, null, null, null, includeProduct);
+    }
+
+    /** 带 keyword 的聚合待审列表（D83 #9：SMS/REPORT 模板审核按模板名过滤）。 */
+    public Map<String, Object> unifiedPending(String type, int page, int size, String keyword, boolean includeProduct) {
+        return unifiedPending(type, page, size, keyword, null, null, null, includeProduct);
+    }
+
+    /** 聚合待审列表（keyword/提交日期范围/提交人，SMS/REPORT 生效，D83-三批#9/#10）。 */
+    public Map<String, Object> unifiedPending(String type, int page, int size, String keyword,
+                                              String startDate, String endDate, String applicantStaffCode,
+                                              boolean includeProduct) {
         int p = normalizePage(page);
         int s = normalizeSize(size);
         List<Map<String, Object>> merged = new ArrayList<>();
@@ -796,7 +820,7 @@ public class ApprovalService {
             if (!typeEnabled(t)) {
                 continue;
             }
-            PageResult<Map<String, Object>> slice = pendingSlice(t, p, s);
+            PageResult<Map<String, Object>> slice = pendingSlice(t, p, s, keyword, startDate, endDate, applicantStaffCode);
             List<Map<String, Object>> rows = slice.getRecords() == null
                     ? Collections.<Map<String, Object>>emptyList() : slice.getRecords();
             for (Map<String, Object> row : rows) {
@@ -1000,6 +1024,17 @@ public class ApprovalService {
 
     /** 按类型取一页待审数据（PRODUCT / DOWNLOAD / MATERIAL_REVIEW 均按 status=PENDING 过滤，保证 total 即待审数）。 */
     private PageResult<Map<String, Object>> pendingSlice(String type, int page, int size) {
+        return pendingSlice(type, page, size, null);
+    }
+
+    /** 带 keyword 的待审分页（当前仅 SMS/REPORT 模板审核按模板名过滤，D83 #9）。 */
+    private PageResult<Map<String, Object>> pendingSlice(String type, int page, int size, String keyword) {
+        return pendingSlice(type, page, size, keyword, null, null, null);
+    }
+
+    /** 待审分页（keyword/提交日期范围/提交人，SMS/REPORT 生效，D83-三批#9/#10）。 */
+    private PageResult<Map<String, Object>> pendingSlice(String type, int page, int size, String keyword,
+                                                         String startDate, String endDate, String applicantStaffCode) {
         if (TYPE_PRODUCT.equals(type)) {
             return productPage(STATUS_PENDING, null, null, null, null, null, page, size, null, "DESC");
         }
@@ -1010,8 +1045,30 @@ public class ApprovalService {
             return materialReviewPage(MaterialReviewService.STATUS_PENDING, null, page, size);
         }
         if (TYPE_SMS_TEMPLATE.equals(type) || TYPE_REPORT_TEMPLATE.equals(type)) {
-            Page<ContentApproval> p = contentApprovalMapper.selectPage(new Page<>(page, size), new LambdaQueryWrapper<ContentApproval>()
-                    .eq(ContentApproval::getApprovalType, type).eq(ContentApproval::getStatus, STATUS_PENDING)
+            LambdaQueryWrapper<ContentApproval> wrapper = new LambdaQueryWrapper<ContentApproval>()
+                    .eq(ContentApproval::getApprovalType, type).eq(ContentApproval::getStatus, STATUS_PENDING);
+            if (StringUtils.hasText(applicantStaffCode)) {
+                wrapper.eq(ContentApproval::getApplicantStaffCode, applicantStaffCode.trim());
+            }
+            if (StringUtils.hasText(startDate)) {
+                wrapper.ge(ContentApproval::getCreatedAt, java.time.LocalDate.parse(startDate).atStartOfDay());
+            }
+            if (StringUtils.hasText(endDate)) {
+                wrapper.le(ContentApproval::getCreatedAt, java.time.LocalDate.parse(endDate).atTime(java.time.LocalTime.MAX));
+            }
+            if (StringUtils.hasText(keyword)) {
+                String kw = keyword.trim();
+                List<String> hitCodes = TYPE_SMS_TEMPLATE.equals(type)
+                        ? smsTemplateMapper.selectList(new LambdaQueryWrapper<SmsTemplate>()
+                                .like(SmsTemplate::getTemplateName, kw)).stream().map(SmsTemplate::getTemplateCode).collect(Collectors.toList())
+                        : reportTemplateMapper.selectList(new LambdaQueryWrapper<ReportTemplate>()
+                                .like(ReportTemplate::getTemplateName, kw)).stream().map(ReportTemplate::getTemplateCode).collect(Collectors.toList());
+                if (hitCodes.isEmpty()) {
+                    return PageResult.build(page, size, 0L, Collections.emptyList());
+                }
+                wrapper.in(ContentApproval::getTargetCode, hitCodes);
+            }
+            Page<ContentApproval> p = contentApprovalMapper.selectPage(new Page<>(page, size), wrapper
                     .orderByDesc(ContentApproval::getCreatedAt));
             List<String> codes = p.getRecords().stream().map(ContentApproval::getTargetCode).collect(Collectors.toList());
             Map<String,String> names = codes.isEmpty() ? Collections.emptyMap()

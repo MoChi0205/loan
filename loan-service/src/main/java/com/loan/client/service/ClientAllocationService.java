@@ -306,7 +306,8 @@ public class ClientAllocationService {
             String ownerDept = deptCodeOf(client.getOwnerStaffCode());
             if (!StringUtils.hasText(myDept) || !myDept.equalsIgnoreCase(targetDept)
                     || (StringUtils.hasText(ownerDept) && !myDept.equalsIgnoreCase(ownerDept))) {
-                throw new BusinessException(ResultCode.FORBIDDEN, "跨团队客户不可直接分配，需提交申请并由老板审批");
+                // D83：跨团队专用错误码，供前端按 code 分支（降级转转移申请），禁止按中文文案匹配。
+                throw new BusinessException(ResultCode.CLIENT_CROSS_TEAM, "跨团队客户不可直接分配，需提交申请并由老板审批");
             }
         }
         String expectedOwner = client.getOwnerStaffCode();
@@ -473,6 +474,11 @@ public class ClientAllocationService {
      * 跨团队待审单由其上级（BOSS 等）审批。其余审批角色可见全部。</p>
      */
     public PageResult<Map<String, Object>> pendingPage(int page, int size) {
+        return pendingPage(page, size, null, null, null);
+    }
+
+    /** 分配待审分页（带 keyword 与提交日期范围，D83-三批#6；全量+内存模式，过滤后再分页）。 */
+    public PageResult<Map<String, Object>> pendingPage(int page, int size, String keyword, String startDate, String endDate) {
         List<ClientAllocationApproval> all = approvalMapper.selectList(
                 new LambdaQueryWrapper<ClientAllocationApproval>()
                         .eq(ClientAllocationApproval::getApproveStatus, PENDING)
@@ -516,6 +522,28 @@ public class ClientAllocationService {
                 .in(ClientProfile::getClientCode, clientCodes)).stream()
                 .collect(Collectors.toMap(ClientProfile::getClientCode, Function.identity(), (a, b) -> a));
         Map<String, String> names = businessNameService.staffNames(staffCodes);
+
+        // D83-三批#6：keyword（企业名/联系人/申请人/客户编码）与提交日期范围过滤，过滤后再分页。
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim().toLowerCase();
+            all = all.stream().filter(a -> {
+                ClientProfile c = clients.get(a.getClientCode());
+                String applicant = names.get(a.getApplicantStaffCode());
+                boolean clientHit = c != null && ((c.getEnterpriseName() != null && c.getEnterpriseName().toLowerCase().contains(kw))
+                        || (c.getContactName() != null && c.getContactName().toLowerCase().contains(kw)));
+                return clientHit
+                        || (applicant != null && applicant.toLowerCase().contains(kw))
+                        || (a.getClientCode() != null && a.getClientCode().toLowerCase().contains(kw));
+            }).collect(Collectors.toList());
+        }
+        if (StringUtils.hasText(startDate)) {
+            java.time.LocalDateTime start = java.time.LocalDate.parse(startDate).atStartOfDay();
+            all = all.stream().filter(a -> a.getCreatedAt() == null || !a.getCreatedAt().isBefore(start)).collect(Collectors.toList());
+        }
+        if (StringUtils.hasText(endDate)) {
+            java.time.LocalDateTime end = java.time.LocalDate.parse(endDate).atTime(java.time.LocalTime.MAX);
+            all = all.stream().filter(a -> a.getCreatedAt() == null || !a.getCreatedAt().isAfter(end)).collect(Collectors.toList());
+        }
 
         int total = all.size();
         int fromIndex = Math.max(0, (page - 1) * size);

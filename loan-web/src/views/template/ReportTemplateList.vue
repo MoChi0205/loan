@@ -18,6 +18,8 @@
           <el-option label="已发布" value="ACTIVE" />
           <el-option label="已停用" value="INACTIVE" />
         </el-select>
+        <AppDateTime v-model="createdDateRange" type="daterange" start-placeholder="创建开始日期" end-placeholder="创建结束日期" width="260px" />
+        <el-input v-model="query.creator" placeholder="创建人 / 发布人" style="width: 160px" clearable @keyup.enter="onSearch" />
       </AppSearchBar>
 
       <el-table :data="data" v-loading="loading" stripe row-key="templateCode" @sort-change="handleSortChange" style="height: calc(100vh - 320px); min-height: 360px">
@@ -73,9 +75,10 @@
 
 <script setup>
 defineOptions({ name: '_report_template' });
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted , computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import AppSearchBar from '@/components/AppSearchBar.vue';
+import AppDateTime from '@/components/AppDateTime.vue';
 import AppPagination from '@/components/AppPagination.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import AppDialog from '@/components/AppDialog.vue';
@@ -83,7 +86,11 @@ import { useTable } from '@/composables/useTable';
 import { formatDateTime } from '@/utils/format';
 import { pageReportTemplates, saveReportTemplate, toggleReportTemplate } from '@/api/report-template';
 
-const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageReportTemplates, { keyword: '', status: '' });
+const { loading, data, total, query, load, onSearch, onReset, handleSortChange } = useTable(pageReportTemplates, { keyword: '', status: '', startDate: '', endDate: '', creator: '' });
+const createdDateRange = computed({
+  get: () => (query.startDate && query.endDate ? [query.startDate, query.endDate] : []),
+  set: (v) => { query.startDate = v?.[0] || ''; query.endDate = v?.[1] || ''; },
+});
 
 function rowActions(row) {
   return [
