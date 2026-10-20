@@ -22,7 +22,7 @@
       <el-select v-if="selectedScope !== 'SELF'" v-model="filterStaffCode" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" placeholder="全部员工" class="scope-select" @change="onStaffFilterChange">
         <el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" />
       </el-select>
-      <AppDateTime v-model="selectedDateRange" type="daterange" :clearable="false" width="280px" @update:model-value="onDateRangeChange" />
+      <AppDateTime v-model="selectedDateRange" type="daterange" :clearable="false" width="260px" @update:model-value="onDateRangeChange" />
       <el-checkbox v-model="includeUnfinished" @change="refreshCurrent">包含未完成</el-checkbox>
     </div>
 
