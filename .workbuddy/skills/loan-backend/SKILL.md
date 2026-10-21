@@ -131,6 +131,10 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - **审批列表不要硬编码「只返回待审」**：审批/待办类分页接口若 `eq(status, PENDING)` 写死，审批通过后数据从列表"消失"、无处可查。必须提供 `status` 可选参数（空=待审保持原语义，非空=按状态查全部），前端配合状态下拉。已踩：手机号/分配/渠道线索/外出/短信模板/报告模板六个审批 tab 全部硬编码（D83-九批统一补参数）。
 - **审批用 CAS 条件更新做幂等**（`eq(status, PENDING)` 的 update 返回 0 行即抛「不存在或已处理」），这是正确的并发防线；「审批单不存在或已处理」批量出现在日志里是**前端无防重导致连点重复提交**，不是后端 bug。后端保持 CAS，防重交给前端（按钮 loading / auditing 标志）。
 - **配置项短码 `varchar(32)` 必须用 `BizIdGenerator.generate(prefix, 32)`**：`generate(prefix)` 默认 = 前缀 + 32 位 hex（总长 = 前缀长 + 32）。当目标列是 `varchar(32)`（如 `t_bank_channel.channel_code`、`t_reward_rule.rule_version`）且前缀非空时，会生成 34 字符直接 `Data too long` 截断报错。凡是写 `channel_code` / `rule_version` / 其他定长 32 短码，一律 `generate(prefix, 32)` 固定总长；记录级业务 ID（`varchar(64)`）才用 `generate(prefix)`。改完 grep 全仓确认无 `generate("ch")` / `generate("rule")` 裸调用。
+- **编码长度三层防线：前端限长提示 + 后端显式校验 + 全链路禁截断**（用户明确规范）：
+  ① 前端编码输入框必须 `maxlength` + `show-word-limit` + placeholder 写明上限（如「不超过32个字符」）；**原生 maxlength 不拦截 JS 赋值/回填**，表单 rules 必须再加 `{ max: N, message: 'XX不能超过N个字符', trigger: 'blur' }` 兜底；
+  ② 后端保存入口必须显式校验，用 `FieldLengthGuard.requireMaxLength("字段名", value, max)`（`com.loan.common.util`），上限与 `db/loan-db-schema.sql` 列宽一致，超长抛 `BusinessException(PARAM_ERROR)` 给出「哪个字段、上限多少、当前多长」；
+  ③ **任何情况下禁止 substring/abbreviate 式静默截断**——MySQL 严格模式会抛 `Data too long for column` 原始 SQL 错误（用户无法定位字段），非严格模式则悄悄切掉数据造脏数据。已接入点：`OrgWriteService.saveDepartment`（dept_code **32**）/ `ProductService.validate` / `RuleService.validate` / `SmsAdminService.saveTemplate` / `ReportTemplateService.save`。
 - **认领/分配角色白名单必须四处对齐**：前端 `canForceAssign`、后端 `ClientController.assign/directAssign` 的 `Arrays.asList(...)`、`MiniRoleGuard` 的 `APPROVER_ROLES/APPROVAL_ROLES`、菜单 SQL 授权行——任一漏角色（如漏 `OPERATOR`）即导致该角色 403 或进页面却永远只读。改角色权限四处一起改并 grep 复核，能力标志（`canManage`/`canForceAssign`）由后端单一真源计算，前端禁止本地硬编码角色判断。
 - **企业名称/联系人必须后端 DTO 显式补齐 + 合并查询**：服务域 DTO（`StaffAppointmentDTO`/`StaffOutingDTO`/`DailyFollowDTO`/`DailyOrderDTO`）与订单出参必须显式加 `enterpriseName`/`contactName` 字段并在组装处 set；列表接口合并**一次**客户查询补齐（防 N+1），前端客户列主行企业名 + 副行联系人（个人客群仅联系人）。新增任何含「客户/企业」信息的列表，默认补这两个字段，不得只返业务编码让前端逐行查名称。
 
@@ -146,5 +150,6 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - `docs/knowledge-base/06-业务结论沉淀索引（C1-C19）.md#结论速查`
 - `docs/plans/archive/方案评审定稿纪要.html`（契约基线：第 15 章规则引擎语义、第 24 章代码开发规范；表数以 `db/loan-db-schema.sql` 为准）
 - 生成入口：`loan-service/src/main/java/com/loan/common/util/BizIdGenerator.java`
+- 长度守卫（编码超长显式报错、禁截断）：`loan-service/src/main/java/com/loan/common/util/FieldLengthGuard.java`
 - 参考 tse：`/Users/admin/Documents/crm/tse`（骨架）
 - 参考 mds：`/Users/admin/IdeaProjects/mds/mds-service/.../com/xr/dam/mds/v2`（规则引擎）

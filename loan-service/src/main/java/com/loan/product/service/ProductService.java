@@ -3,6 +3,7 @@ package com.loan.product.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
+import com.loan.common.util.FieldLengthGuard;
 import com.loan.exception.BusinessException;
 import com.loan.product.dto.ProductSaveReq;
 import com.loan.product.entity.BankChannel;
@@ -236,6 +237,9 @@ public class ProductService {
         if (!StringUtils.hasText(req.getProductCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "产品编码必填");
         }
+        // 长度显式校验：product_code varchar(64) / product_name varchar(128)，超长直接报错，禁止静默截断
+        FieldLengthGuard.requireMaxLength("产品编码", req.getProductCode(), 64);
+        FieldLengthGuard.requireMaxLength("产品名称", req.getProductName(), 128);
         if (!StringUtils.hasText(req.getProductName())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "产品名称必填");
         }

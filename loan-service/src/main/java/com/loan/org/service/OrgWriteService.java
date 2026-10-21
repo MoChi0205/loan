@@ -29,6 +29,7 @@ import com.loan.serviceops.mapper.StaffOutingMapper;
 import com.loan.resourcepool.entity.StaffDataTransferRecord;
 import com.loan.resourcepool.mapper.StaffDataTransferRecordMapper;
 import com.loan.common.util.BizIdGenerator;
+import com.loan.common.util.FieldLengthGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,6 +77,9 @@ public class OrgWriteService {
         if (!StringUtils.hasText(req.getDeptCode()) || !StringUtils.hasText(req.getDeptName())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "部门编码与名称必填");
         }
+        // 长度显式校验：dept_code varchar(32) / dept_name varchar(64)，超长直接报错，禁止静默截断
+        FieldLengthGuard.requireMaxLength("部门编码", req.getDeptCode(), 32);
+        FieldLengthGuard.requireMaxLength("部门名称", req.getDeptName(), 64);
         if (StringUtils.hasText(req.getParentCode()) && req.getParentCode().equals(req.getDeptCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "上级部门不能是自己");
         }

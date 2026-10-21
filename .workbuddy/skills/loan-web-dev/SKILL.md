@@ -116,6 +116,7 @@ src/
 - **审批/写操作必须防重**：后端用 CAS（`eq(status,PENDING)` 更新 0 行抛错）做幂等，前端连点/列表未刷新导致的重复提交会让后续请求报「审批单不存在或已处理」。单条/批量审批按钮都要加 loading 或 auditing 标志，请求进行中禁止重复触发。
 - **审批类列表要带状态筛选**：待审列表若后端只返回 PENDING，审批后数据"消失"；前端每个审批 tab 都要有「审批状态」下拉（待审/已通过/已驳回），联动后端 `status` 参数，别只给部分 tab 加。
 - **客户列主行企业名 + 副行联系人（企业/个人客群差异）**：服务域与客户列表的「客户」列，主行显示 `enterpriseName || contactName`（企业客群显企业名，个人客群显联系人），副行补 `联系人：{{contactName}}`（企业客群时）或脱敏手机号。后端 DTO 已补 `enterpriseName`/`contactName` 并由列表合并一次客户查询返回，前端**不得**逐行调接口查客户名称（N+1）；若接口未返回这两个字段，先联动后端补 DTO，不要前端自己查。
+- **编码类输入框必须限长 + 提示上限（用户明确规范）**：所有编码/短代码输入框统一 `maxlength="N" show-word-limit` + placeholder 写明「不超过N个字符」；**原生 maxlength 不拦截 JS 赋值/表单回填**，表单 rules 必须再加 `{ max: N, message: 'XX不能超过N个字符', trigger: 'blur' }` 兜底；N 与 `db/loan-db-schema.sql` 列宽一致（dept_code=32，其余 code 类=64）。上限值查 schema 或问后端，**禁止拍脑袋写 255**。
 
 ## 相关文档
 

@@ -1,8 +1,8 @@
 # 核心 Core
 
-> 由本地大脑自动蒸馏，生成时间 2026-10-21T09:38:18。
+> 由本地大脑自动蒸馏，生成时间 2026-10-21T10:26:37。
 
-条目数：**129**
+条目数：**130**
 
 
 ## 项目：abs
@@ -354,6 +354,11 @@
   - *域:operations-report · 类型:access-control*
   - 顾问仅本人；部门经理可切本人/团队；老板、运营、超管可切本人/全司。范围必须由后端强制校验，前端选择器不是权限边界。
   - 关联：旧经营总览范围修复、报表按归属范围统计、按业务域浏览、loan-main · 企融通后端
+
+### 编码长度三层防线：前端限长+后端显式校验+禁截断
+  - *域:前后端 · 类型:solution*
+  - 用户明确规范：①前端编码输入框 maxlength+show-word-limit+placeholder 写明上限，rules 再加 {max:N} 兜底(原生maxlength不拦JS赋值)；②后端保存入口 FieldLengthGuard.requireMaxLength(字段名,value,max) 显式校验，上限=schema列宽，超长抛 BusinessException(PARAM_ERROR)；③全链路禁 substring/abbreviate 静默截断(严格模式抛原始SQL错误用户看不懂，非严格模式悄悄切数据)。已接入 saveDepartment(dept_code 32)/ProductService.validate/RuleService.validate/SmsAdminService.saveTemplate/ReportTemplateService.save + 前端5页面7处。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、BizIdGenerator 配置项短码 varchar(32) 超长截断、后端开发规范 · 、前端开发规范 · 
 
 ### 网关链路访问日志
   - *类型:core*

@@ -103,7 +103,7 @@
     <AppDialog v-model:visible="templateVisible" :title="editing ? '编辑模板' : '新增模板'" :loading="savingT" @confirm="onSaveTemplate">
       <el-form ref="templateFormRef" :model="templateForm" :rules="templateRules" label-width="110px" label-position="right">
         <el-form-item label="模板编码" prop="templateCode">
-          <el-input v-model="templateForm.templateCode" placeholder="如 LOGIN_VERIFY" :disabled="editing" />
+          <el-input v-model="templateForm.templateCode" maxlength="64" show-word-limit placeholder="如 LOGIN_VERIFY（不超过64个字符）" :disabled="editing" />
         </el-form-item>
         <el-form-item label="模板名称" prop="templateName">
           <el-input v-model="templateForm.templateName" placeholder="如 登录验证码" />
@@ -211,10 +211,10 @@ const templateForm = reactive({
   smsType: 'NOTIFICATION', providerTemplateId: '', freqStrategy: '',
 });
 const templateRules = {
-  templateCode: [{ required: true, message: '请输入模板编码', trigger: 'blur' }],
-  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
+  templateCode: [{ required: true, message: '请输入模板编码', trigger: 'blur' }, { max: 64, message: '模板编码不能超过64个字符', trigger: 'blur' }],
+  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }, { max: 128, message: '模板名称不能超过128个字符', trigger: 'blur' }],
   content: [{ required: true, message: '请输入模板内容', trigger: 'blur' }],
-  signName: [{ required: true, message: '请输入短信签名', trigger: 'blur' }],
+  signName: [{ required: true, message: '请输入短信签名', trigger: 'blur' }, { max: 64, message: '短信签名不能超过64个字符', trigger: 'blur' }],
 };
 
 function openTemplate(row) {

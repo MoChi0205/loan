@@ -51,7 +51,7 @@
     <AppDialog v-model:visible="dialogVisible" :title="editing ? '编辑模板' : '新增模板'" :loading="saving" @confirm="onSave">
       <el-form ref="formRef" :model="dialogForm" :rules="formRules" label-width="110px" label-position="right">
         <el-form-item label="模板编码" prop="templateCode">
-          <el-input v-model="dialogForm.templateCode" placeholder="如 DEFAULT_REPORT" :disabled="editing" />
+          <el-input v-model="dialogForm.templateCode" maxlength="64" show-word-limit placeholder="如 DEFAULT_REPORT（不超过64个字符）" :disabled="editing" />
         </el-form-item>
         <el-form-item label="版本号" prop="versionNo">
           <el-input-number v-model="dialogForm.versionNo" :min="1" :controls="false" :disabled="editing" style="width: 140px" />
@@ -118,9 +118,9 @@ const dialogForm = reactive({
   gradeRuleJson: '', adviceRulesJson: '', wecomGuideConfig: '', watermarkConfig: '',
 });
 const formRules = {
-  templateCode: [{ required: true, message: '请输入模板编码', trigger: 'blur' }],
+  templateCode: [{ required: true, message: '请输入模板编码', trigger: 'blur' }, { max: 64, message: '模板编码不能超过64个字符', trigger: 'blur' }],
   versionNo: [{ required: true, message: '请输入版本号', trigger: 'blur' }],
-  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
+  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }, { max: 128, message: '模板名称不能超过128个字符', trigger: 'blur' }],
 };
 
 function openAdd() {

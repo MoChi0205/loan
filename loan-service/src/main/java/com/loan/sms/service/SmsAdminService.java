@@ -13,6 +13,7 @@ import com.loan.sms.mapper.SmsTemplateMapper;
 import com.loan.approval.mapper.ContentApprovalMapper;
 import com.loan.approval.entity.ContentApproval;
 import com.loan.common.util.BizIdGenerator;
+import com.loan.common.util.FieldLengthGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -124,6 +125,10 @@ public class SmsAdminService {
                 || !StringUtils.hasText(req.getSignName())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码/名称/内容/签名必填");
         }
+        // 长度显式校验：template_code varchar(64) / template_name varchar(128) / sign_name varchar(64)，超长直接报错，禁止静默截断
+        FieldLengthGuard.requireMaxLength("模板编码", req.getTemplateCode(), 64);
+        FieldLengthGuard.requireMaxLength("模板名称", req.getTemplateName(), 128);
+        FieldLengthGuard.requireMaxLength("短信签名", req.getSignName(), 64);
         SmsTemplate exist = smsTemplateMapper.selectOne(new LambdaQueryWrapper<SmsTemplate>()
                 .eq(SmsTemplate::getTemplateCode, req.getTemplateCode()));
         if (exist == null) {

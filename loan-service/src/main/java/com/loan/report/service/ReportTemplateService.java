@@ -10,6 +10,7 @@ import com.loan.report.mapper.ReportTemplateMapper;
 import com.loan.approval.mapper.ContentApprovalMapper;
 import com.loan.approval.entity.ContentApproval;
 import com.loan.common.util.BizIdGenerator;
+import com.loan.common.util.FieldLengthGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,6 +90,9 @@ public class ReportTemplateService {
                 || !StringUtils.hasText(req.getTemplateName())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码/版本号/名称必填");
         }
+        // 长度显式校验：template_code varchar(64) / template_name varchar(128)，超长直接报错，禁止静默截断
+        FieldLengthGuard.requireMaxLength("模板编码", req.getTemplateCode(), 64);
+        FieldLengthGuard.requireMaxLength("模板名称", req.getTemplateName(), 128);
         ReportTemplate exist = templateMapper.selectOne(new LambdaQueryWrapper<ReportTemplate>()
                 .eq(ReportTemplate::getTemplateCode, req.getTemplateCode())
                 .eq(ReportTemplate::getVersionNo, req.getVersionNo()));

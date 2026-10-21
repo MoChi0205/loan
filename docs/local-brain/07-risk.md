@@ -1,6 +1,6 @@
 # 风险 Risk
 
-> 由本地大脑自动蒸馏，生成时间 2026-10-21T09:38:18。
+> 由本地大脑自动蒸馏，生成时间 2026-10-21T10:26:37。
 
 条目数：**221**
 
@@ -70,8 +70,8 @@
 
 ### BizIdGenerator 配置项短码 varchar(32) 超长截断
   - *域:backend · 类型:pitfall*
-  - generate(prefix) 默认前缀+32hex，写 channel_code/rule_version 等 varchar(32) 会 34 字符 Data too long。定长32短码一律 generate(prefix,32)；grep 全仓无 generate("ch")/generate("rule") 裸调用。
-  - 关联：前后端 Bug 复盘检查清单(2026-10)、后端开发规范 · 
+  - generate(prefix) 默认前缀+32hex，写 channel_code/rule_version 等 varchar(32) 会 34 字符 Data too long。定长32短码一律 generate(prefix,32)；grep 全仓无 generate("ch")/generate("rule") 裸调用。 配套：用户可输入的编码字段另走三层防线(见 loan-code-length-3layer)：前端 maxlength+rules max，后端 FieldLengthGuard 显式校验，禁静默截断。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、后端开发规范 · 、编码长度三层防线：前端限长+后端显式校验+禁截断
 
 ### Loan 核心性能热点
   - *域:performance · 类型:risk*

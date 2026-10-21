@@ -138,7 +138,7 @@
     <AppDialog v-model:visible="deptVisible" :title="editingDept ? '编辑部门' : '新增部门'" :loading="savingDept" @confirm="onSaveDept">
       <el-form ref="deptFormRef" :model="deptForm" :rules="deptRules" label-width="100px" label-position="right">
         <el-form-item label="部门编码" prop="deptCode">
-          <el-input v-model="deptForm.deptCode" :disabled="editingDept" placeholder="如 CONSULT" />
+          <el-input v-model="deptForm.deptCode" :disabled="editingDept" maxlength="32" show-word-limit placeholder="如 CONSULT（不超过32个字符）" />
         </el-form-item>
         <el-form-item label="部门名称" prop="deptName">
           <el-input v-model="deptForm.deptName" placeholder="如 咨询部" />
@@ -357,8 +357,8 @@ const editingDept = ref(false);
 const deptFormRef = ref();
 const deptForm = reactive({ deptCode: '', deptName: '', parentCode: '', leaderStaffCode: '', sort: 0 });
 const deptRules = {
-  deptCode: [{ required: true, message: '请输入部门编码', trigger: 'blur' }],
-  deptName: [{ required: true, message: '请输入部门名称', trigger: 'blur' }],
+  deptCode: [{ required: true, message: '请输入部门编码', trigger: 'blur' }, { max: 32, message: '部门编码不能超过32个字符', trigger: 'blur' }],
+  deptName: [{ required: true, message: '请输入部门名称', trigger: 'blur' }, { max: 64, message: '部门名称不能超过64个字符', trigger: 'blur' }],
 };
 
 function openDept(data) {

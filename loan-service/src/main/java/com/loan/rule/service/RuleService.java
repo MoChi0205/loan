@@ -3,6 +3,7 @@ package com.loan.rule.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.loan.common.ResultCode;
+import com.loan.common.util.FieldLengthGuard;
 import com.loan.exception.BusinessException;
 import com.loan.rule.dto.RuleSaveReq;
 import com.loan.rule.entity.Rule;
@@ -116,6 +117,11 @@ public class RuleService {
         if (!StringUtils.hasText(req.getRuleCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "规则编码必填");
         }
+        // 长度显式校验：rule_code / field_code varchar(64) / rule_name varchar(128)，超长直接报错，禁止静默截断
+        FieldLengthGuard.requireMaxLength("规则编码", req.getRuleCode(), 64);
+        FieldLengthGuard.requireMaxLength("规则名称", req.getRuleName(), 128);
+        FieldLengthGuard.requireMaxLength("字段编码", req.getFieldCode(), 64);
+        FieldLengthGuard.requireMaxLength("字段名称", req.getFieldName(), 64);
         if (!StringUtils.hasText(req.getRuleName())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "规则名称必填");
         }
