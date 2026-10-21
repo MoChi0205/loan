@@ -97,6 +97,9 @@
             <el-table-column label="操作" width="240" fixed="right">
               <template #default="{ row }">
                 <div class="action-row">
+                  <!-- D83-八批：行级创建预约；该客户已有进行中预约时置灰（后端不拦同客户重复预约） -->
+                  <el-button v-if="hasActiveAppointment(row)" link disabled>已有预约</el-button>
+                  <el-button v-else link type="primary" @click="openCreateAppointment(row.clientCode)">创建预约</el-button>
                   <el-button v-if="canConfirm(row)" link type="primary" @click="runAppointmentAction('confirm', row)">确认预约</el-button>
                   <el-button v-if="canArrive(row)" link type="primary" @click="runAppointmentAction('arrive', row)">登记到访</el-button>
                   <el-button v-if="canStart(row)" link type="primary" @click="runAppointmentAction('start', row)">开始</el-button>
@@ -509,7 +512,19 @@ const appointmentClientOptions = ref([]);
 const clientSelectLoading = ref(false);
 const staffOptions = ref([]);
 const staffLoading = ref(false);
-function openCreateAppointment() { Object.assign(appointmentForm, { clientCode: '', hostStaffCode: userNo.value, serviceMethod: 'COMPANY_ON_SITE', timeRange: [], locationName: '', locationDetail: '', customerVisibleNote: '', internalNote: '' }); createVisible.value = true; loadClientOptions(''); if (!isAdviser.value) loadStaffOptions(''); }
+function openCreateAppointment(clientCode = '') { Object.assign(appointmentForm, { clientCode: clientCode || '', hostStaffCode: userNo.value, serviceMethod: 'COMPANY_ON_SITE', timeRange: [], locationName: '', locationDetail: '', customerVisibleNote: '', internalNote: '' }); createVisible.value = true; loadClientOptions(''); if (!isAdviser.value) loadStaffOptions(''); }
+/** 预约终态：已取消 / 已完成 / 已爽约（不计入“已有预约”）。 */
+const APPOINTMENT_TERMINAL = ['CANCELLED', 'COMPLETED', 'NO_SHOW'];
+/**
+ * 该客户是否已有进行中的预约（D83-八批）。
+ *
+ * <p>同一客户同时只应有一个有效预约；列表内同 clientCode 存在非终态记录即视为已预约，
+ * 行级「创建预约」按钮置灰，防止重复创建（后端只校验顾问时间冲突，不拦同客户重复）。</p>
+ */
+function hasActiveAppointment(row) {
+  if (!row?.clientCode) return false;
+  return appointments.value.some((r) => r.clientCode === row.clientCode && !APPOINTMENT_TERMINAL.includes(r.status));
+}
 let clientOptionTimer;
 let clientOptionSequence = 0;
 function loadClientOptions(keyword) {

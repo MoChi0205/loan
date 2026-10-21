@@ -342,9 +342,22 @@ public class SensitiveViewService {
     }
 
     public List<SensitiveViewApproval> pendingApprovals(com.loan.context.LoanUser user) {
+        return pendingApprovals(user, null);
+    }
+
+    /**
+     * 手机号查看审批列表（D83-九批：支持状态筛选，审批后数据不再从列表"消失"）。
+     *
+     * @param status PENDING / APPROVED / REJECTED；空=全部
+     */
+    public List<SensitiveViewApproval> pendingApprovals(com.loan.context.LoanUser user, String status) {
         if (user == null || !StringUtils.hasText(user.getRoleCode())) return java.util.Collections.emptyList();
         String role = user.getRoleCode().toUpperCase();
-        LambdaQueryWrapper<SensitiveViewApproval> q = new LambdaQueryWrapper<SensitiveViewApproval>().eq(SensitiveViewApproval::getApproveStatus, "PENDING").orderByDesc(SensitiveViewApproval::getCreatedAt);
+        LambdaQueryWrapper<SensitiveViewApproval> q = new LambdaQueryWrapper<SensitiveViewApproval>();
+        if (StringUtils.hasText(status)) {
+            q.eq(SensitiveViewApproval::getApproveStatus, status.trim().toUpperCase());
+        }
+        q.orderByDesc(SensitiveViewApproval::getCreatedAt);
         if ("DEPT_MANAGER".equals(role)) q.eq(SensitiveViewApproval::getApprovalStage, "MANAGER_REVIEW").eq(SensitiveViewApproval::getApplicantDeptCode, user.getDeptCode());
         else if (!Arrays.asList("BOSS", "SUPER_ADMIN", "SUPER").contains(role)) return java.util.Collections.emptyList();
         List<SensitiveViewApproval> rows = approvalMapper.selectList(q);

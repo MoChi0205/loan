@@ -470,8 +470,18 @@ public class OutingService {
      */
     public PageResult<StaffOutingDTO> pending(LoanUser user, int page, int size,
                                               String keyword, LocalDate dateFrom, LocalDate dateTo) {
+        return pending(user, page, size, keyword, dateFrom, dateTo, null);
+    }
+
+    /**
+     * 外出审批列表（D83-九批：支持审批状态筛选，已审数据不再从列表"消失"）。
+     *
+     * @param status PENDING_REVIEW / APPROVED / REJECTED；空=待审（保持原语义）
+     */
+    public PageResult<StaffOutingDTO> pending(LoanUser user, int page, int size,
+                                              String keyword, LocalDate dateFrom, LocalDate dateTo, String status) {
         LambdaQueryWrapper<StaffOuting> wrapper = new LambdaQueryWrapper<StaffOuting>()
-                .eq(StaffOuting::getStatus, OutingStatus.PENDING_REVIEW.name())
+                .eq(StaffOuting::getStatus, StringUtils.hasText(status) ? status.trim().toUpperCase() : OutingStatus.PENDING_REVIEW.name())
                 .ne(StaffOuting::getStaffCode, user == null ? null : user.getUserNo());
         if (dateFrom != null) {
             wrapper.ge(StaffOuting::getPlannedStart, dateFrom.atStartOfDay());

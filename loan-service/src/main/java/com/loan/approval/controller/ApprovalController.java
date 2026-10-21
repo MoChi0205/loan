@@ -67,11 +67,12 @@ public class ApprovalController {
             @RequestParam(required = false) String leadType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @CurrentUser LoanUser user) {
         miniRoleGuard.requireChannelFinalApprover(user);
-        return Result.ok(leadService.channelPendingPage(keyword, leadType, startDate, endDate, PageParams.page(page), PageParams.size(size)));
+        return Result.ok(leadService.channelPendingPage(keyword, leadType, startDate, endDate, PageParams.page(page), PageParams.size(size), status));
     }
 
     @PostMapping("/channel-lead/{leadNo}/audit")
@@ -227,11 +228,12 @@ public class ApprovalController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String status,
             @CurrentUser LoanUser user) {
         // D39：部门经理可审本人团队分配，其余管理角色按既有范围审批。
         miniRoleGuard.requireApprover(user);
         return Result.ok(miniClientService.pendingAllocations(
-                PageParams.page(page), PageParams.size(size), keyword, startDate, endDate));
+                PageParams.page(page), PageParams.size(size), keyword, startDate, endDate, status));
     }
 
     /**
@@ -343,10 +345,11 @@ public class ApprovalController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String applicantStaffCode,
+            @RequestParam(required = false) String status,
             @CurrentUser LoanUser user) {
         requireApprovalRole("DOWNLOAD", user);
         return Result.ok(approvalService.unifiedPending(type, page, size, keyword, startDate, endDate,
-                applicantStaffCode, miniRoleGuard.isChannelFinalApprover(user)));
+                applicantStaffCode, status, miniRoleGuard.isChannelFinalApprover(user)));
     }
 
     /**

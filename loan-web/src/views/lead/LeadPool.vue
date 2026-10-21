@@ -34,6 +34,11 @@
         <el-select v-if="activeTab !== 'clients'" v-model="query.followStatus" placeholder="跟进状态" clearable style="width: 140px">
           <el-option v-for="(v, k) in followStatusMap" :key="k" :label="v.label" :value="k" />
         </el-select>
+        <!-- D83-七批：可认领状态筛选（冷静期内不可认领） -->
+        <el-select v-if="activeTab === 'pool'" v-model="query.claimable" placeholder="可认领状态" clearable style="width: 140px">
+          <el-option label="可认领" value="CLAIMABLE" />
+          <el-option label="冷静期中" value="COOLDOWN" />
+        </el-select>
         <el-input v-model="query.keyword" :placeholder="activeTab === 'clients' ? '客户姓名 / 企业名称' : '联系人 / 手机号 / 企业名称'" clearable style="width: 220px" @keyup.enter="onSearch" />
         <AppDateTime v-if="activeTab !== 'clients'" v-model="query.createdAtRange" type="daterange" start-placeholder="录入起" end-placeholder="录入止" :shortcuts="true" />
       </AppSearchBar>
@@ -84,6 +89,10 @@
           </template>
         </el-table-column>
         <el-table-column v-if="activeTab !== 'clients'" prop="contactName" label="联系人" width="110" />
+        <!-- D83-八批：公司名称列（线索本身不存企业名，后端按关联客户补齐；无关联显示 —） -->
+        <el-table-column v-if="activeTab !== 'clients'" label="公司名称" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.enterpriseName || '—' }}</template>
+        </el-table-column>
         <el-table-column label="联系方式" width="190">
           <template #default="{ row }"><span>{{ revealedPhones.get(row.leadNo) || desensitizePhone(row.phone) || '未绑定' }}</span><el-button v-if="row.leadNo && !revealedPhones.has(row.leadNo)" link type="primary" size="small" @click.stop="requestLeadPhoneView(row)">申请查看</el-button><span v-else-if="revealedPhones.has(row.leadNo)" class="phone-revealed">已授权查看</span></template>
         </el-table-column>
@@ -118,10 +127,17 @@
         <el-table-column v-if="activeTab !== 'clients'" label="客户标签" width="110">
           <template #default="{ row }"><span class="loan-tag loan-tag-info">{{ customerTagMap[row.customerTag] || '新用户' }}</span></template>
         </el-table-column>
+        <!-- D83-七批：冷静期列（回收后 assign_blocked_until，仅原归属人不可认领） -->
+        <el-table-column v-if="activeTab === 'pool'" label="冷静期" width="110">
+          <template #default="{ row }">
+            <span v-if="cooldownRemaining(row) > 0" class="loan-tag loan-tag-warning">剩余 {{ cooldownRemaining(row) }} 天</span>
+            <span v-else class="loan-tag loan-tag-success">可认领</span>
+          </template>
+        </el-table-column>
         <el-table-column :prop="activeTab === 'clients' ? 'registeredAt' : 'createdAt'" :label="activeTab === 'clients' ? '注册时间' : '录入时间'" width="170" sortable>
           <template #default="{ row }">{{ formatDateTime(row.registeredAt || row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="rowActions(row)" :max-inline="3" />
           </template>
@@ -352,10 +368,17 @@ function clearSelection() {
 }
 
 async function onBatchClaim() {
-  const nos = selectedRows.value.map((r) => r.leadNo);
-  if (!nos.length) return;
+  // D83-七批：冷静期内的（原归属人视角）不参与批量认领，避免逐条失败
+  const blocked = selectedRows.value.filter((r) => isOwnRecorder(r) && cooldownRemaining(r) > 0);
+  const claimable = selectedRows.value.filter((r) => !(isOwnRecorder(r) && cooldownRemaining(r) > 0));
+  if (!claimable.length) {
+    ElMessage.warning(`选中 ${blocked.length} 条均在冷静期内，暂不可认领`);
+    return;
+  }
+  const nos = claimable.map((r) => r.leadNo);
+  const tip = blocked.length ? `（已跳过 ${blocked.length} 条冷静期内的线索）` : '';
   try {
-    await ElMessageBox.confirm(`确认认领选中的 ${nos.length} 条线索？认领后进入「我的线索」。`, '批量认领', { type: 'warning' });
+    await ElMessageBox.confirm(`确认认领选中的 ${nos.length} 条线索？认领后进入「我的线索」。${tip}`, '批量认领', { type: 'warning' });
   } catch {
     return;
   }
@@ -420,18 +443,32 @@ const { loading, data, total, query, load, onSearch, onReset, handleSortChange }
       poolCode: q.poolCode,
       createdAtStart: start || undefined,
       createdAtEnd: end || undefined,
+      claimable: q.claimable || undefined,
       pool: activeTab.value === 'pool',
       scope: activeTab.value === 'pool' ? (seaScope.value === 'team' ? 'team_sea' : 'company_sea') : undefined,
       page: q.page,
       size: q.size,
     });
   },
-  { leadType: '', source: '', followStatus: '', keyword: '', poolCode: '', createdAtRange: [] },
+  { leadType: '', source: '', followStatus: '', keyword: '', poolCode: '', createdAtRange: [], claimable: '' },
 );
 watch(activeTab, () => {
   query.page = 1;
   load();
 });
+
+/** D83-七批：冷静期剩余天数（回收后 assign_blocked_until；0=可认领）。 */
+function cooldownRemaining(row) {
+  if (!row || !row.assignBlockedUntil) return 0;
+  const end = new Date(String(row.assignBlockedUntil).replace(' ', 'T')).getTime();
+  if (Number.isNaN(end)) return 0;
+  const remain = Math.ceil((end - Date.now()) / 86400000);
+  return remain > 0 ? remain : 0;
+}
+/** 冷静期只拦原归属人（后端口径：recorderStaffCode === 当前用户才拒绝）。 */
+function isOwnRecorder(row) {
+  return !!row && !!row.recorderStaffCode && row.recorderStaffCode === userStore.user?.userNo;
+}
 
 /** 操作列 */
 function rowActions(row) {
@@ -459,7 +496,13 @@ function rowActions(row) {
     actions.push({ key: 'profile', label: '查看档案', onClick: () => openLeadProfile(row) });
   }
   if (activeTab.value === 'pool' && userStore.hasPerm(ACTION_PERMISSION.LEAD_CLAIM)) {
-    actions.push({ key: 'claim', label: '认领', type: 'success', confirm: `确认认领「${row.contactName}」？`, onClick: () => onClaim(row) });
+    // D83-七批：原归属人 + 冷静期中 → 置灰并显示剩余天数（后端同口径拒绝）
+    const cd = isOwnRecorder(row) ? cooldownRemaining(row) : 0;
+    if (cd > 0) {
+      actions.push({ key: 'claim-cooldown', label: `冷静期 ${cd} 天`, disabled: true });
+    } else {
+      actions.push({ key: 'claim', label: '认领', type: 'success', confirm: `确认认领「${row.contactName}」？`, onClick: () => onClaim(row) });
+    }
   } else if (activeTab.value === 'mine') {
     if (!isChannel.value && row.ownerStaffCode === userStore.user?.userNo) {
       actions.push({ key: 'follow', label: '填写跟进', type: 'primary', onClick: () => openFollow(row) });

@@ -139,6 +139,24 @@ public class ClientService {
                                                     int page, int size, String orderBy, String orderDir, String ownerDeptCode,
                                                     String ownershipScope, String customerGroup, String source, String customerTag, String status,
                                                     String followState, Boolean hasDeal, String poolCode) {
+        return pageLite(keyword, name, phone, enterpriseName, creditCode, ownerStaffCode,
+                createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd, page, size, orderBy, orderDir,
+                ownerDeptCode, ownershipScope, customerGroup, source, customerTag, status,
+                followState, hasDeal, poolCode, null);
+    }
+
+    /**
+     * 客户列表扩展筛选 + 「可认领状态」（D83-七批）。
+     *
+     * @param claimable CLAIMABLE=冷静期已过可认领 / COOLDOWN=冷静期中；空=不过滤
+     */
+    public PageResult<Map<String, Object>> pageLite(String keyword, String name, String phone, String enterpriseName,
+                                                    String creditCode, String ownerStaffCode,
+                                                    java.time.LocalDateTime createdAtStart, java.time.LocalDateTime createdAtEnd,
+                                                    java.time.LocalDateTime dealTimeStart, java.time.LocalDateTime dealTimeEnd,
+                                                    int page, int size, String orderBy, String orderDir, String ownerDeptCode,
+                                                    String ownershipScope, String customerGroup, String source, String customerTag, String status,
+                                                    String followState, Boolean hasDeal, String poolCode, String claimable) {
         LambdaQueryWrapper<ClientProfile> wrapper = new LambdaQueryWrapper<>();
         // 按资源池隔离：公海认领 / 客户列表按池过滤。
         if (StringUtils.hasText(poolCode)) {
@@ -156,6 +174,14 @@ public class ClientService {
         }
         if (StringUtils.hasText(ownerStaffCode)) {
             wrapper.eq(ClientProfile::getOwnerStaffCode, ownerStaffCode.trim());
+        }
+        // D83-七批：可认领状态筛选（冷静期=回收后 assign_blocked_until）
+        if ("CLAIMABLE".equalsIgnoreCase(claimable)) {
+            wrapper.and(w -> w.isNull(ClientProfile::getAssignBlockedUntil)
+                    .or().le(ClientProfile::getAssignBlockedUntil, java.time.LocalDateTime.now()));
+        } else if ("COOLDOWN".equalsIgnoreCase(claimable)) {
+            wrapper.and(w -> w.isNotNull(ClientProfile::getAssignBlockedUntil)
+                    .and(x -> x.gt(ClientProfile::getAssignBlockedUntil, java.time.LocalDateTime.now())));
         }
         if (StringUtils.hasText(ownerDeptCode)) {
             wrapper.inSql(ClientProfile::getOwnerStaffCode,

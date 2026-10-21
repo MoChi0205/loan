@@ -792,22 +792,29 @@ public class ApprovalService {
      * @return { page, size, total, records（每条含 type 字段）, paginationHint }
      */
     public Map<String, Object> unifiedPending(String type, int page, int size) {
-        return unifiedPending(type, page, size, null, null, null, null, true);
+        return unifiedPending(type, page, size, null, null, null, null, null, true);
     }
 
     /** 按当前角色能力聚合待审列表；非渠道终审人不返回 PRODUCT 待办。 */
     public Map<String, Object> unifiedPending(String type, int page, int size, boolean includeProduct) {
-        return unifiedPending(type, page, size, null, null, null, null, includeProduct);
+        return unifiedPending(type, page, size, null, null, null, null, null, includeProduct);
     }
 
     /** 带 keyword 的聚合待审列表（D83 #9：SMS/REPORT 模板审核按模板名过滤）。 */
     public Map<String, Object> unifiedPending(String type, int page, int size, String keyword, boolean includeProduct) {
-        return unifiedPending(type, page, size, keyword, null, null, null, includeProduct);
+        return unifiedPending(type, page, size, keyword, null, null, null, null, includeProduct);
     }
 
     /** 聚合待审列表（keyword/提交日期范围/提交人，SMS/REPORT 生效，D83-三批#9/#10）。 */
     public Map<String, Object> unifiedPending(String type, int page, int size, String keyword,
                                               String startDate, String endDate, String applicantStaffCode,
+                                              boolean includeProduct) {
+        return unifiedPending(type, page, size, keyword, startDate, endDate, applicantStaffCode, null, includeProduct);
+    }
+
+    /** 聚合待审列表（含审批状态筛选，D83-九批：SMS/REPORT 可查已审数据）。 */
+    public Map<String, Object> unifiedPending(String type, int page, int size, String keyword,
+                                              String startDate, String endDate, String applicantStaffCode, String status,
                                               boolean includeProduct) {
         int p = normalizePage(page);
         int s = normalizeSize(size);
@@ -820,7 +827,7 @@ public class ApprovalService {
             if (!typeEnabled(t)) {
                 continue;
             }
-            PageResult<Map<String, Object>> slice = pendingSlice(t, p, s, keyword, startDate, endDate, applicantStaffCode);
+            PageResult<Map<String, Object>> slice = pendingSlice(t, p, s, keyword, startDate, endDate, applicantStaffCode, status);
             List<Map<String, Object>> rows = slice.getRecords() == null
                     ? Collections.<Map<String, Object>>emptyList() : slice.getRecords();
             for (Map<String, Object> row : rows) {
@@ -1029,12 +1036,12 @@ public class ApprovalService {
 
     /** 带 keyword 的待审分页（当前仅 SMS/REPORT 模板审核按模板名过滤，D83 #9）。 */
     private PageResult<Map<String, Object>> pendingSlice(String type, int page, int size, String keyword) {
-        return pendingSlice(type, page, size, keyword, null, null, null);
+        return pendingSlice(type, page, size, keyword, null, null, null, null);
     }
 
     /** 待审分页（keyword/提交日期范围/提交人，SMS/REPORT 生效，D83-三批#9/#10）。 */
     private PageResult<Map<String, Object>> pendingSlice(String type, int page, int size, String keyword,
-                                                         String startDate, String endDate, String applicantStaffCode) {
+                                                         String startDate, String endDate, String applicantStaffCode, String status) {
         if (TYPE_PRODUCT.equals(type)) {
             return productPage(STATUS_PENDING, null, null, null, null, null, page, size, null, "DESC");
         }
@@ -1046,7 +1053,8 @@ public class ApprovalService {
         }
         if (TYPE_SMS_TEMPLATE.equals(type) || TYPE_REPORT_TEMPLATE.equals(type)) {
             LambdaQueryWrapper<ContentApproval> wrapper = new LambdaQueryWrapper<ContentApproval>()
-                    .eq(ContentApproval::getApprovalType, type).eq(ContentApproval::getStatus, STATUS_PENDING);
+                    .eq(ContentApproval::getApprovalType, type)
+                    .eq(ContentApproval::getStatus, StringUtils.hasText(status) ? status.trim().toUpperCase() : STATUS_PENDING);
             if (StringUtils.hasText(applicantStaffCode)) {
                 wrapper.eq(ContentApproval::getApplicantStaffCode, applicantStaffCode.trim());
             }

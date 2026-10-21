@@ -28,12 +28,55 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import { deleteAllNotifications, deleteNotifications, markAllNotificationsRead, markNotificationRead, myNotifications, unreadCount } from '@/api/notification';
+const router = useRouter();
 const visible = ref(false); const loading = ref(false); const unread = ref(0); const messages = ref([]); let timer;
 async function refreshUnread() { try { unread.value = Number((await unreadCount()).data || 0); } catch { /* 静默轮询 */ } }
 async function loadMessages() { loading.value = true; try { const res = await myNotifications({ page: 1, size: 20 }); messages.value = res.data?.records || []; unread.value = Number(res.data?.unreadCount || 0); } catch { messages.value = []; } finally { loading.value = false; } }
-async function read(item) { if (item.readStatus !== 0) return; await markNotificationRead(item.notificationId); item.readStatus = 1; unread.value = Math.max(0, unread.value - 1); }
+async function read(item) {
+  // D83-八批：点击消息=标记已读 + 查看详情 + 跳转对应数据（原来只标记已读，既不弹详情也不跳转）
+  if (item.readStatus === 0) {
+    try { await markNotificationRead(item.notificationId); } catch { /* 已读失败不阻塞查看 */ }
+    item.readStatus = 1; unread.value = Math.max(0, unread.value - 1);
+  }
+  const target = resolveTarget(item);
+  if (target) {
+    visible.value = false;
+    router.push(target);
+  } else {
+    showDetail(item);
+  }
+}
+
+/**
+ * 通知类型 → 跳转目标（relatedId 为业务单号/客户编码/线索编号）。
+ *
+ * <p>无映射的类型（如系统公告）走详情弹窗，不静默丢失。</p>
+ */
+const NOTIFY_TARGETS = {
+  LEAD_RECYCLE_WARN: (id) => ({ path: '/lead/my', query: id ? { keyword: id } : undefined }),
+  LEAD_RECYCLE_MANAGER_WARN: (id) => ({ path: '/lead/my', query: id ? { keyword: id } : undefined }),
+  CLIENT_RECYCLE_WARN: (id) => ({ path: '/client/my', query: id ? { keyword: id } : undefined }),
+  CLIENT_RECYCLE_MANAGER_WARN: (id) => ({ path: '/client/my', query: id ? { keyword: id } : undefined }),
+  PRODUCT_APPROVAL: () => ({ path: '/approval/product' }),
+  CONTENT_APPROVAL: () => ({ path: '/approval/mine' }),
+  SERVICE_ORDER: (id) => ({ path: '/service-operations/daily', query: id ? { keyword: id } : undefined }),
+  SYSTEM_NOTICE: () => ({ path: '/approval/sensitive-phone' }),
+};
+function resolveTarget(item) {
+  const build = NOTIFY_TARGETS[item.type];
+  return build ? build(item.relatedId) : null;
+}
+/** 无跳转映射时展示完整内容（列表只显示摘要，长内容被截断）。 */
+function showDetail(item) {
+  ElMessageBox.alert(
+    `${item.content || '（无内容）'}\n\n时间：${item.createdAt || '—'}`,
+    item.title || '消息详情',
+    { confirmButtonText: '知道了', customClass: 'notification-detail-dialog' },
+  ).catch(() => {});
+}
 async function markAll() { if (!unread.value) return; await markAllNotificationsRead(); messages.value.forEach((item) => { item.readStatus = 1; }); unread.value = 0; ElMessage.success('已全部标记为已读'); }
 /** 单条删除：复用批量删除接口传单个 ID，未读消息删除后同步扣减角标。 */
 async function removeOne(item) {

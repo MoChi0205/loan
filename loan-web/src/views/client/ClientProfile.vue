@@ -37,6 +37,11 @@
         <el-select v-model="clientQuery.poolCode" placeholder="资源池" clearable style="width: 150px">
           <el-option v-for="pl in clientPoolOptions" :key="pl.poolCode" :label="pl.poolName" :value="pl.poolCode" />
         </el-select>
+        <!-- D83-七批：公海视角显示「可认领状态」筛选（冷静期内不可认领） -->
+        <el-select v-if="['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope)" v-model="clientQuery.claimable" placeholder="可认领状态" clearable style="width: 140px">
+          <el-option label="可认领" value="CLAIMABLE" />
+          <el-option label="冷静期中" value="COOLDOWN" />
+        </el-select>
         <el-select v-if="clientScope === 'ALL'" v-model="clientQuery.ownerDeptCode" placeholder="归属团队" clearable filterable style="width: 160px" @change="onOwnerDepartmentChange"><el-option v-for="item in filterDepartments" :key="item.code" :label="item.name" :value="item.code" /></el-select>
         <el-select v-if="['TEAM', 'ALL'].includes(clientScope)" v-model="clientQuery.ownerStaffCode" placeholder="归属员工" clearable filterable remote :remote-method="searchFilterStaff" :loading="filterStaffLoading" style="width: 180px"><el-option v-for="item in filterStaffOptions" :key="item.staffCode" :label="`${item.staffName}（${item.roleName || '员工'}）`" :value="item.staffCode" /></el-select>
         <el-select v-model="clientQuery.customerTag" placeholder="客户标签" clearable style="width: 140px"><el-option v-for="(label, code) in customerTagMap" :key="code" :label="label" :value="code" /></el-select>
@@ -76,7 +81,8 @@
           />
         </template>
         <el-table-column v-if="['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope)" type="selection" width="46" />
-        <el-table-column label="客户" min-width="180">
+        <!-- D83-八批：客户列改固定宽度（原 min-width 是表格唯一弹性列，会吸收全部剩余宽度导致大片空白） -->
+        <el-table-column label="客户" width="220">
           <template #default="{ row }">
             <div class="cell-main">{{ row.enterpriseName || row.contactName || '—' }}</div>
             <div v-if="row.customerGroup !== 'PERSONAL' && row.contactName && row.enterpriseName" class="cell-sub">联系人：{{ row.contactName }}</div>
@@ -101,7 +107,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="建档时间" width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="ownClientActions(row)" :max-inline="3" />
           </template>
@@ -363,13 +369,27 @@ const moreFiltersVisible = ref(false);
 const scopeTitle = Object.freeze({ MY: '我的客户', TEAM: '团队客户', ALL: '客户列表', COMPANY_SEA: '客户公海', TEAM_SEA: '团队公海' });
 const listPageTitle = computed(() => scopeTitle[clientScope.value] || '客户档案');
 const selectedClientCodes = ref([]);
+const selectedClientRows = ref([]);
 const tagCounts = ref({});
-function onClientSelection(rows) { selectedClientCodes.value = rows.map((row) => row.clientCode); }
+function onClientSelection(rows) {
+  selectedClientRows.value = rows || [];
+  selectedClientCodes.value = (rows || []).map((row) => row.clientCode);
+}
 async function onBatchClaim() {
-  await ElMessageBox.confirm(`确认批量认领选中的 ${selectedClientCodes.value.length} 位客户？`, '批量认领');
-  await batchClaimClients(selectedClientCodes.value);
+  // D83-七批：冷静期内的客户不参与批量认领（后端同口径拒绝），跳过并提示
+  const blocked = selectedClientRows.value.filter((r) => Number(r.cooldownRemainingDays || 0) > 0);
+  const claimable = selectedClientRows.value.filter((r) => !(Number(r.cooldownRemainingDays || 0) > 0));
+  if (!claimable.length) {
+    ElMessage.warning(`选中 ${blocked.length} 位客户均在冷静期内，暂不可认领`);
+    return;
+  }
+  const codes = claimable.map((r) => r.clientCode);
+  const tip = blocked.length ? `（已跳过 ${blocked.length} 位冷静期内的客户）` : '';
+  await ElMessageBox.confirm(`确认批量认领选中的 ${codes.length} 位客户？${tip}`, '批量认领');
+  await batchClaimClients(codes);
   ElMessage.success('批量认领成功');
   selectedClientCodes.value = [];
+  selectedClientRows.value = [];
   loadClients();
 }
 const {
@@ -400,6 +420,8 @@ const {
   createdAtEnd: '',
   dealTimeStart: '',
   dealTimeEnd: '',
+  // D83-七批：可认领状态筛选（CLAIMABLE/COOLDOWN，仅公海视角有意义）
+  claimable: '',
   scope: defaultClientScope.value,
 });
 
@@ -569,13 +591,19 @@ function ownClientActions(row) {
     // D83-五批#1：认领与分配改为并列分支（原为 else-if，导致同时拥有两项权限的
     // 老板/超管只能看到「分配归属」、找不到「认领」入口）。
     if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_CLAIM)) {
-      actions.push({
-        key: 'claim-pool',
-        label: '认领',
-        type: 'success',
-        confirm: '确认认领该客户？认领成功后将进入「我的客户」。',
-        onClick: () => onClaimPoolClient(row),
-      });
+      // D83-七批：冷静期（回收后 assign_blocked_until）内不可认领，置灰 + 显示剩余天数（后端同口径拒绝）
+      const cd = Number(row.cooldownRemainingDays || 0);
+      if (cd > 0) {
+        actions.push({ key: 'claim-pool-cooldown', label: `冷静期 ${cd} 天`, disabled: true });
+      } else {
+        actions.push({
+          key: 'claim-pool',
+          label: '认领',
+          type: 'success',
+          confirm: '确认认领该客户？认领成功后将进入「我的客户」。',
+          onClick: () => onClaimPoolClient(row),
+        });
+      }
     }
   }
   if (clientScope.value === 'ALL' && userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {

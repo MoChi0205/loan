@@ -38,6 +38,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -217,6 +218,20 @@ public class LeadService {
                                  String poolCode, String seaScope, String seaDeptCode,
                                  String orderBy, String orderDir,
                                  LocalDate createdAtStart, LocalDate createdAtEnd) {
+        return page(selfStaffCode, leadType, followStatus, keyword, page, size, roleCode, userNo,
+                poolCode, seaScope, seaDeptCode, orderBy, orderDir, createdAtStart, createdAtEnd, null);
+    }
+
+    /**
+     * 线索分页（带「可认领状态」筛选，D83-七批）。
+     *
+     * @param claimable CLAIMABLE=冷静期已过可认领 / COOLDOWN=冷静期中；空=不过滤
+     */
+    public PageResult<Lead> page(String selfStaffCode, String leadType, String followStatus,
+                                 String keyword, int page, int size, String roleCode, String userNo,
+                                 String poolCode, String seaScope, String seaDeptCode,
+                                 String orderBy, String orderDir,
+                                 LocalDate createdAtStart, LocalDate createdAtEnd, String claimable) {
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<>();
         // 按资源池隔离：导入/认领只作用于指定池的线索。
         if (StringUtils.hasText(poolCode)) {
@@ -246,6 +261,14 @@ public class LeadService {
         if (StringUtils.hasText(leadType)) {
             wrapper.eq(Lead::getLeadType, leadType);
         }
+        // D83-七批：可认领状态筛选（冷静期=回收后 assign_blocked_until，仅影响原归属人认领）
+        if ("CLAIMABLE".equalsIgnoreCase(claimable)) {
+            wrapper.and(w -> w.isNull(Lead::getAssignBlockedUntil)
+                    .or().le(Lead::getAssignBlockedUntil, LocalDateTime.now()));
+        } else if ("COOLDOWN".equalsIgnoreCase(claimable)) {
+            wrapper.and(w -> w.isNotNull(Lead::getAssignBlockedUntil)
+                    .and(x -> x.gt(Lead::getAssignBlockedUntil, LocalDateTime.now())));
+        }
         if (StringUtils.hasText(followStatus)) {
             wrapper.eq(Lead::getFollowStatus, followStatus);
         }
@@ -274,7 +297,26 @@ public class LeadService {
             lead.setPhone(DesensitizeUtils.phone(plain));
             lead.setCustomerTag(customerTagOf(lead));
         });
+        fillEnterpriseNames(result.getRecords());
         return PageResult.build(page, size, result.getTotal(), result.getRecords());
+    }
+
+    /**
+     * 批量补齐线索关联客户的企业名称（D83-八批：线索公海/我的线索展示「公司名称」列）。
+     *
+     * <p>t_lead 不存企业名，按 clientProfileCode 一次 in 查询回填，避免逐条查库。</p>
+     */
+    private void fillEnterpriseNames(List<Lead> leads) {
+        if (leads == null || leads.isEmpty()) return;
+        Set<String> codes = leads.stream().map(Lead::getClientProfileCode)
+                .filter(StringUtils::hasText).collect(Collectors.toSet());
+        if (codes.isEmpty()) return;
+        Map<String, String> names = clientProfileMapper.selectList(new LambdaQueryWrapper<ClientProfile>()
+                        .select(ClientProfile::getClientCode, ClientProfile::getEnterpriseName)
+                        .in(ClientProfile::getClientCode, codes)).stream()
+                .filter(c -> StringUtils.hasText(c.getEnterpriseName()))
+                .collect(Collectors.toMap(ClientProfile::getClientCode, ClientProfile::getEnterpriseName, (a, b) -> a));
+        leads.forEach(lead -> lead.setEnterpriseName(names.get(lead.getClientProfileCode())));
     }
 
     /** 渠道本人录入线索分页；录入与归属两个维度不可混用。 */
@@ -328,9 +370,20 @@ public class LeadService {
     public PageResult<Map<String, Object>> channelPendingPage(String keyword, String leadType,
                                                               java.time.LocalDate startDate, java.time.LocalDate endDate,
                                                               int page, int size) {
+        return channelPendingPage(keyword, leadType, startDate, endDate, page, size, null);
+    }
+
+    /**
+     * 渠道线索终审分页（D83-九批：支持审批状态筛选，已审数据不再从列表"消失"）。
+     *
+     * @param status PENDING_APPROVAL=待审 / NEW=已通过 / REJECTED=已驳回；空=待审（保持原语义）
+     */
+    public PageResult<Map<String, Object>> channelPendingPage(String keyword, String leadType,
+                                                              java.time.LocalDate startDate, java.time.LocalDate endDate,
+                                                              int page, int size, String status) {
         LambdaQueryWrapper<Lead> wrapper = new LambdaQueryWrapper<Lead>()
                 .eq(Lead::getSource, "CHANNEL")
-                .eq(Lead::getFollowStatus, "PENDING_APPROVAL");
+                .eq(Lead::getFollowStatus, StringUtils.hasText(status) ? status.trim().toUpperCase() : "PENDING_APPROVAL");
         applyLeadFilters(wrapper, leadType, null, keyword);
         if (startDate != null) wrapper.ge(Lead::getCreatedAt, startDate.atStartOfDay());
         if (endDate != null) wrapper.lt(Lead::getCreatedAt, endDate.plusDays(1).atStartOfDay());

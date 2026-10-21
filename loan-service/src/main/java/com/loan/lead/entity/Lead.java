@@ -34,6 +34,15 @@ public class Lead implements Serializable {
     /** 联系人 */
     private String contactName;
 
+    /**
+     * 关联客户档案的企业名称（D83-八批）。
+     *
+     * <p>不落库：t_lead 本身不存企业名，page 接口按 {@link #clientProfileCode}
+     * 批量关联 t_client_profile.enterprise_name 补齐，供线索公海/我的线索展示。</p>
+     */
+    @TableField(exist = false)
+    private String enterpriseName;
+
     /** 手机号（AES 加密） */
     @TableField(typeHandler = AesTypeHandler.class)
     private String phone;

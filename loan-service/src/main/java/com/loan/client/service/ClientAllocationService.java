@@ -204,6 +204,16 @@ public class ClientAllocationService {
                     throw new BusinessException(ResultCode.FORBIDDEN, "该客户属于其他团队公海，不可直接认领");
                 }
             }
+            // D83-七批：回收冷静期（assign_blocked_until）。回收时已置值并通知“冷却期内不可认领”，
+            // 但此前认领入口漏校验（线索侧 claim 有、客户侧没有，口径不一致）。
+            // 客户回收后原归属已清空、无法识别原归属人，故按既有通知语义拦所有人，与列表
+            // cooldownRemainingDays 列展示口径一致；到期或重新归属后由 touchAssignment 清除。
+            if (client.getAssignBlockedUntil() != null
+                    && client.getAssignBlockedUntil().isAfter(LocalDateTime.now())) {
+                long days = java.time.temporal.ChronoUnit.DAYS.between(LocalDateTime.now(), client.getAssignBlockedUntil()) + 1;
+                throw new BusinessException(ResultCode.PARAM_ERROR,
+                        "该客户处于回收冷静期（剩余 " + Math.max(1, days) + " 天不可认领），到期后再试");
+            }
             // 数据保护期：进入公海后 N 天内所有人不可认领（认领设置 protect_days，0 = 不启用）
             enforceClaimProtectDays(clientCode, client.getPoolCode());
             enforceClaimQuota(targetStaffCode, client.getPoolCode());
@@ -479,6 +489,16 @@ public class ClientAllocationService {
 
     /** 分配待审分页（带 keyword 与提交日期范围，D83-三批#6；全量+内存模式，过滤后再分页）。 */
     public PageResult<Map<String, Object>> pendingPage(int page, int size, String keyword, String startDate, String endDate) {
+        return pendingPage(page, size, keyword, startDate, endDate, null);
+    }
+
+    /**
+     * 分配待审分页（带审批状态筛选，D83-九批）。
+     *
+     * <p>原实现硬编码只返回 PENDING，审批通过/驳回后数据从列表"消失"；
+     * status 空=全部（含已审批），前端审批中心默认传 PENDING 保持待审语义。</p>
+     */
+    public PageResult<Map<String, Object>> pendingPage(int page, int size, String keyword, String startDate, String endDate, String status) {
         List<ClientAllocationApproval> all = approvalMapper.selectList(
                 new LambdaQueryWrapper<ClientAllocationApproval>()
                         .eq(ClientAllocationApproval::getApproveStatus, PENDING)
@@ -523,6 +543,11 @@ public class ClientAllocationService {
                 .collect(Collectors.toMap(ClientProfile::getClientCode, Function.identity(), (a, b) -> a));
         Map<String, String> names = businessNameService.staffNames(staffCodes);
 
+        // D83-九批：审批状态筛选（原硬编码只返回 PENDING，审批后数据从列表"消失"）
+        if (StringUtils.hasText(status)) {
+            String st = status.trim().toUpperCase();
+            all = all.stream().filter(a -> st.equalsIgnoreCase(a.getApproveStatus())).collect(Collectors.toList());
+        }
         // D83-三批#6：keyword（企业名/联系人/申请人/客户编码）与提交日期范围过滤，过滤后再分页。
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim().toLowerCase();

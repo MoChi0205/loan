@@ -128,6 +128,8 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - **本地编译必须带 `-pl loan-service -am`**：`loan-service` 依赖 `loan-api` 模块，直接在 loan-service 目录 `mvn compile` 会用本地仓库旧 jar（报 `找不到符号 setXxx`）。正确姿势：`mvn -pl loan-service -am compile -DskipTests`，且 `JAVA_HOME` 指向 JDK8（否则报 `No compiler is provided...`）。
 - **NOT NULL 无默认列是运行时的坑，编译期发现不了**：生产库有 306 个 / 90 张表这类列。MyBatis-Plus 默认**跳过 null 字段**（不写进 INSERT），漏设 = SQL 缺列 = 报 `Field 'xxx' doesn't have a default value`。**往任何表 insert 前先跑 `python3 scripts/schema-diff-against-live.py`**，看目标表的 NOT NULL 无默认列清单，实体必须逐个显式赋值（语义可空的写 `""` 占位并注释「勿删」）。已踩：`t_client_business_fact.submission_no`、`t_service_attachment.order_no`（两个上传路径）。
 - **insert 与查询必须同时改**：给某列写空串占位后，所有 `isNull(该列)` 的查询都要改成 `isNull OR = ''`。只改 insert 不改查询 → 空串行查不到，每次保存都插新行（重复数据）；只改查询不改 insert → 照样缺列报错。
+- **审批列表不要硬编码「只返回待审」**：审批/待办类分页接口若 `eq(status, PENDING)` 写死，审批通过后数据从列表"消失"、无处可查。必须提供 `status` 可选参数（空=待审保持原语义，非空=按状态查全部），前端配合状态下拉。已踩：手机号/分配/渠道线索/外出/短信模板/报告模板六个审批 tab 全部硬编码（D83-九批统一补参数）。
+- **审批用 CAS 条件更新做幂等**（`eq(status, PENDING)` 的 update 返回 0 行即抛「不存在或已处理」），这是正确的并发防线；「审批单不存在或已处理」批量出现在日志里是**前端无防重导致连点重复提交**，不是后端 bug。后端保持 CAS，防重交给前端（按钮 loading / auditing 标志）。
 
 ## 相关文档
 

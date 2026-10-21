@@ -82,6 +82,7 @@ public class LeadController {
             @RequestParam(required = false) String orderDir,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtStart,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtEnd,
+            @RequestParam(required = false) String claimable,
             @CurrentUser LoanUser user) {
         // 渠道沙箱强制本人隔离：渠道按录入主体查询而不是按归属人查询（渠道线索归属为空）。
         boolean isChannel = user != null && LoanUser.TYPE_CHANNEL.equals(user.getUserType());
@@ -101,7 +102,7 @@ public class LeadController {
             seaDeptCode = user == null ? null : user.getDeptCode();
         }
         return Result.ok(leadService.page(selfNo, leadType, followStatus, keyword, page, size, roleCode, userNo,
-                poolCode, seaScope, seaDeptCode, orderBy, orderDir, createdAtStart, createdAtEnd));
+                poolCode, seaScope, seaDeptCode, orderBy, orderDir, createdAtStart, createdAtEnd, claimable));
     }
 
     /**

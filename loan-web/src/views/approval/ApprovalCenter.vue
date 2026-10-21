@@ -55,6 +55,7 @@
     <div v-show="activeTab === 'outing'" class="loan-card">
       <AppSearchBar :loading="outingLoading" @search="searchOutings" @reset="resetOutings">
         <el-input v-model="outingQuery.keyword" placeholder="申请人 / 客户名称" clearable style="width: 220px" @keyup.enter="searchOutings" />
+        <el-select v-model="outingQuery.status" placeholder="审批状态" clearable style="width: 140px"><el-option label="待审批" value="PENDING_REVIEW" /><el-option label="已通过" value="APPROVED" /><el-option label="已驳回" value="REJECTED" /></el-select>
         <AppDateTime v-model="outingDateRange" type="daterange" start-placeholder="外出开始日期" end-placeholder="外出结束日期" width="260px" />
         <el-button :disabled="!genericSelections.outing.value.length" @click="batchAuditGeneric('outing', true)">一键通过（{{ genericSelections.outing.value.length }}）</el-button>
         <el-button type="danger" :disabled="!genericSelections.outing.value.length" @click="batchAuditGeneric('outing', false)">一键驳回（{{ genericSelections.outing.value.length }}）</el-button>
@@ -79,6 +80,7 @@
     <div v-show="activeTab === 'sensitivePhone'" class="loan-card">
       <div class="batch-toolbar">
         <el-input v-model="sensitiveQuery" placeholder="申请人 / 客户名称" clearable style="width: 200px" />
+        <el-select v-model="sensitiveStatus" placeholder="审批状态" clearable style="width: 140px" @change="loadSensitiveApprovals"><el-option label="待审批" value="PENDING" /><el-option label="已通过" value="APPROVED" /><el-option label="已驳回" value="REJECTED" /></el-select>
         <AppDateTime v-model="sensitiveDateRange" type="daterange" start-placeholder="触发开始日期" end-placeholder="触发结束日期" width="260px" />
         <span class="batch-spacer" />
         <el-button :disabled="!genericSelections.sensitivePhone.value.length" @click="batchAuditGeneric('sensitivePhone', true)">一键通过（{{ genericSelections.sensitivePhone.value.length }}）</el-button>
@@ -99,6 +101,7 @@
       <div class="batch-toolbar">
         <el-input v-model="contentQuery[kind].keyword" placeholder="模板名称" clearable style="width: 180px" @keyup.enter="searchContent(kind)" />
         <AppDateTime v-model="contentQuery[kind].dateRange" type="daterange" start-placeholder="提交开始" end-placeholder="提交结束" width="260px" @update:model-value="onContentDate(kind)" />
+        <el-select v-model="contentQuery[kind].status" placeholder="审批状态" clearable style="width: 140px"><el-option label="待审批" value="PENDING" /><el-option label="已通过" value="APPROVED" /><el-option label="已驳回" value="REJECTED" /></el-select>
         <el-select v-model="contentQuery[kind].staffCode" placeholder="提交人" clearable filterable style="width: 150px">
           <el-option v-for="st in staffOptionsP" :key="st.staffCode" :label="st.staffName" :value="st.staffCode" />
         </el-select>
@@ -196,6 +199,7 @@
       <AppSearchBar :loading="loadingCL" @search="searchCL" @reset="resetCL">
         <el-input v-model="queryCL.keyword" placeholder="联系人 / 手机号 / 渠道名称" style="width: 260px" clearable @keyup.enter="searchCL" />
         <el-select v-model="queryCL.leadType" placeholder="客群" clearable style="width: 120px"><el-option label="个人" value="PERSONAL" /><el-option label="企业" value="ENTERPRISE" /></el-select>
+        <el-select v-model="queryCL.status" placeholder="审批状态" clearable style="width: 140px"><el-option label="待审批" value="PENDING_APPROVAL" /><el-option label="已通过" value="NEW" /><el-option label="已驳回" value="REJECTED" /></el-select>
         <AppDateTime v-model="queryCL.dateRange" type="daterange" value-format="YYYY-MM-DD" start-placeholder="提交开始" end-placeholder="提交结束" width="260px" @update:model-value="syncChannelDateRange" />
         <el-button :disabled="!genericSelections.channelLead.value.length" @click="batchAuditGeneric('channelLead', true)">一键通过（{{ genericSelections.channelLead.value.length }}）</el-button>
         <el-button type="danger" :disabled="!genericSelections.channelLead.value.length" @click="batchAuditGeneric('channelLead', false)">一键驳回（{{ genericSelections.channelLead.value.length }}）</el-button>
@@ -292,6 +296,7 @@
     <div v-show="activeTab === 'allocation'" class="loan-card">
       <AppSearchBar :loading="loadingA" @search="searchA" @reset="resetA">
         <el-input v-model="queryA.keyword" placeholder="企业名称 / 客户姓名 / 申请人" style="width: 240px" clearable @keyup.enter="searchA" />
+        <el-select v-model="queryA.status" placeholder="审批状态" clearable style="width: 140px"><el-option label="待审批" value="PENDING" /><el-option label="已通过" value="APPROVED" /><el-option label="已驳回" value="REJECTED" /></el-select>
         <AppDateTime v-model="allocationDateRange" type="daterange" start-placeholder="申请开始日期" end-placeholder="申请结束日期" width="260px" />
         <el-button :disabled="!allocationSelection.length || batchAuditing" @click="onBatchAuditAllocation(true)">一键通过（{{ allocationSelection.length }}）</el-button>
         <el-button type="danger" :disabled="!allocationSelection.length || batchAuditing" @click="onBatchAuditAllocation(false)">一键驳回（{{ allocationSelection.length }}）</el-button>
@@ -505,8 +510,8 @@ watch(() => mineQuery.type, (type) => { if (type !== 'SENSITIVE_VIEW') mineQuery
 const contentRows = reactive({ smsTemplate: [], reportTemplate: [] });
 const contentLoading = reactive({ smsTemplate: false, reportTemplate: false });
 const contentQuery = reactive({
-  smsTemplate: { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '' },
-  reportTemplate: { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '' },
+  smsTemplate: { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '', status: '' },
+  reportTemplate: { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '', status: '' },
 });
 function onContentDate(kind) {
   const r = contentQuery[kind].dateRange;
@@ -524,6 +529,7 @@ async function loadContent(kind) {
       startDate: q.startDate || undefined,
       endDate: q.endDate || undefined,
       applicantStaffCode: q.staffCode || undefined,
+      status: q.status || undefined,
     });
     contentRows[kind] = res?.records || res?.data?.records || [];
   }
@@ -531,7 +537,7 @@ async function loadContent(kind) {
 }
 function searchContent(kind) { loadContent(kind); }
 function resetContent(kind) {
-  contentQuery[kind] = { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '' };
+  contentQuery[kind] = { keyword: '', dateRange: null, startDate: '', endDate: '', staffCode: '', status: '' };
   loadContent(kind);
 }
 const statusText = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' };
@@ -580,7 +586,7 @@ const downloadDateRange = computed({
 
 /** 客户分配审核表 */
 const { loading: loadingA, error: errorA, data: dataA, total: totalA, query: queryA, load: loadA, onSearch: searchA, onReset: resetA, handleSortChange: handleSortChangeA } =
-  useTable(pageAllocationApprovals, { keyword: '', startDate: '', endDate: '' });
+  useTable(pageAllocationApprovals, { keyword: '', startDate: '', endDate: '', status: '' });
 const allocationDateRange = computed({
   get: () => (queryA.startDate && queryA.endDate ? [queryA.startDate, queryA.endDate] : []),
   set: (v) => { queryA.startDate = v?.[0] || ''; queryA.endDate = v?.[1] || ''; },
@@ -629,7 +635,7 @@ async function onBatchAuditAllocation(approve) {
 }
 
 const { loading: loadingCL, error: errorCL, data: dataCL, total: totalCL, query: queryCL, load: loadCL, onSearch: searchCL, onReset: resetCL } =
-  useTable(pageChannelLeadApprovals, { keyword: '', leadType: '', dateRange: [] });
+  useTable(pageChannelLeadApprovals, { keyword: '', leadType: '', dateRange: [], status: '' });
 function syncChannelDateRange(range) {
   queryCL.startDate = range?.[0] || '';
   queryCL.endDate = range?.[1] || '';
@@ -638,6 +644,7 @@ function syncChannelDateRange(range) {
 const outingRows = ref([]); const outingTotal = ref(0); const outingLoading = ref(false);
 const sensitiveRows = ref([]); const sensitiveLoading = ref(false);
 const sensitiveQuery = ref('');
+const sensitiveStatus = ref('');
 const sensitiveDateRange = ref(null);
 /** 手机号查看审批：后端无筛选参数、待审量小，前端本地按申请人/客户名/触发日期过滤。 */
 const filteredSensitiveRows = computed(() => {
@@ -657,19 +664,27 @@ const filteredSensitiveRows = computed(() => {
   }
   return rows;
 });
-async function loadSensitiveApprovals() { sensitiveLoading.value = true; try { sensitiveRows.value = (await pendingSensitiveViewApprovals()).data || []; } finally { sensitiveLoading.value = false; } }
+async function loadSensitiveApprovals() { sensitiveLoading.value = true; try { sensitiveRows.value = (await pendingSensitiveViewApprovals({ status: sensitiveStatus.value || undefined })).data || []; } finally { sensitiveLoading.value = false; } }
+/** D83-九批：敏感审批防重——后端 CAS 幂等，连点/重复请求会导致后续请求报「审批单不存在或已处理」。 */
+const sensitiveAuditing = ref(false);
 async function auditSensitive(row, approve) {
-  let opinion = null;
-  if (!approve) {
-    const answer = await ElMessageBox.prompt('请填写驳回原因', '手机号查看审批', { inputValidator: (value) => !!value?.trim() || '驳回原因必填', confirmButtonText: '确认驳回', cancelButtonText: '取消' }).catch(() => null);
-    if (!answer) return;
-    opinion = answer.value.trim();
+  if (sensitiveAuditing.value) return;
+  sensitiveAuditing.value = true;
+  try {
+    let opinion = null;
+    if (!approve) {
+      const answer = await ElMessageBox.prompt('请填写驳回原因', '手机号查看审批', { inputValidator: (value) => !!value?.trim() || '驳回原因必填', confirmButtonText: '确认驳回', cancelButtonText: '取消' }).catch(() => null);
+      if (!answer) return;
+      opinion = answer.value.trim();
+    }
+    await auditSensitiveViewApproval(row.approvalNo, { approve, opinion });
+    ElMessage.success(approve ? '审批已通过' : '审批已驳回');
+    await loadSensitiveApprovals();
+  } finally {
+    sensitiveAuditing.value = false;
   }
-  await auditSensitiveViewApproval(row.approvalNo, { approve, opinion });
-  ElMessage.success(approve ? '审批已通过' : '审批已驳回');
-  await loadSensitiveApprovals();
 }
-const outingQuery = reactive({ page: 1, size: 20, keyword: '', dateFrom: '', dateTo: '' });
+const outingQuery = reactive({ page: 1, size: 20, keyword: '', dateFrom: '', dateTo: '', status: '' });
 const outingDateRange = computed({
   get: () => (outingQuery.dateFrom && outingQuery.dateTo ? [outingQuery.dateFrom, outingQuery.dateTo] : []),
   set: (v) => {
@@ -684,6 +699,7 @@ async function loadOutings() {
     if (outingQuery.keyword.trim()) params.keyword = outingQuery.keyword.trim();
     if (outingQuery.dateFrom) params.dateFrom = outingQuery.dateFrom;
     if (outingQuery.dateTo) params.dateTo = outingQuery.dateTo;
+    if (outingQuery.status) params.status = outingQuery.status;
     const res = await pagePendingOutings(params);
     outingRows.value = res.data?.records || [];
     outingTotal.value = Number(res.data?.total || 0);
@@ -691,7 +707,7 @@ async function loadOutings() {
 }
 function searchOutings() { outingQuery.page = 1; loadOutings(); }
 function resetOutings() {
-  Object.assign(outingQuery, { page: 1, size: 20, keyword: '', dateFrom: '', dateTo: '' });
+  Object.assign(outingQuery, { page: 1, size: 20, keyword: '', dateFrom: '', dateTo: '', status: '' });
   loadOutings();
 }
 async function onApproveOuting(row) {

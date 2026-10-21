@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestHeader;
 
@@ -86,9 +87,16 @@ public class SensitiveViewController {
         return Result.ok();
     }
 
+    /**
+     * 手机号查看审批列表（D83-九批：支持按审批状态筛选）。
+     *
+     * @param status PENDING=待审 / APPROVED=已通过 / REJECTED=已驳回；空=全部
+     */
     @GetMapping("/approval/pending")
-    public Result<java.util.List<com.loan.sensitive.entity.SensitiveViewApproval>> pendingApprovals(@CurrentUser LoanUser user) {
-        return Result.ok(sensitiveViewService.pendingApprovals(user));
+    public Result<java.util.List<com.loan.sensitive.entity.SensitiveViewApproval>> pendingApprovals(
+            @RequestParam(required = false) String status,
+            @CurrentUser LoanUser user) {
+        return Result.ok(sensitiveViewService.pendingApprovals(user, status));
     }
 
     @PostMapping("/approval/{approvalNo}/audit")

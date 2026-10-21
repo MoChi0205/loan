@@ -282,6 +282,7 @@ public class ClientController {
             @RequestParam(required = false) String orderDir,
             @RequestParam(required = false) String poolCode,
             @RequestParam(defaultValue = "ALL") String scope,
+            @RequestParam(required = false) String claimable,
             @CurrentUser LoanUser user) {
         miniRoleGuard.requireStaff(user);
         String scopedOwner = ownerStaffCode;
@@ -332,7 +333,7 @@ public class ClientController {
         return Result.ok(clientService.pageLite(keyword, name, phone, enterpriseName, creditCode,
                 scopedOwner, createdAtStart, createdAtEnd, dealTimeStart, dealTimeEnd,
                 PageParams.page(page), PageParams.size(size), orderBy, orderDir, scopedDeptCode, ownershipScope,
-                customerGroup, source, customerTag, status, followState, hasDeal, poolCode));
+                customerGroup, source, customerTag, status, followState, hasDeal, poolCode, claimable));
     }
 
     /** 我的客户标签计数，与列表使用同一数据范围。 */

@@ -89,9 +89,10 @@ public class AdminOutingController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) String status,
             @CurrentUser LoanUser user) {
         return Result.ok(outingService.pending(user, PageParams.page(page), PageParams.size(size),
-                keyword, dateFrom, dateTo));
+                keyword, dateFrom, dateTo, status));
     }
 
     /** 提交外出申请（本人）。 */
