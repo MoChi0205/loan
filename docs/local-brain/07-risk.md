@@ -1,8 +1,8 @@
 # 风险 Risk
 
-> 由本地大脑自动蒸馏，生成时间 2026-10-19T03:00:04。
+> 由本地大脑自动蒸馏，生成时间 2026-10-21T09:38:18。
 
-条目数：**210**
+条目数：**221**
 
 
 ## 项目：abs
@@ -63,6 +63,16 @@
   - 重点风险是全量 selectList、内存统计、重复名称查询、深分页和缺少组合索引。
   - 关联：loan-main · 企融通后端、loan-main 避坑
 
+### AppDateTime 宽度由组件 prop 单一控制
+  - *域:frontend · 类型:pitfall*
+  - 管理端原3个日期组件规格打架；AppDateTime 缺省按type定死(date200/datetime220/daterange260/datetimerange360)。筛选条传width，表单内才100%；禁页面:deep覆盖日期宽度(与prop打架)。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、前端开发规范 · 
+
+### BizIdGenerator 配置项短码 varchar(32) 超长截断
+  - *域:backend · 类型:pitfall*
+  - generate(prefix) 默认前缀+32hex，写 channel_code/rule_version 等 varchar(32) 会 34 字符 Data too long。定长32短码一律 generate(prefix,32)；grep 全仓无 generate("ch")/generate("rule") 裸调用。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、后端开发规范 · 
+
 ### Loan 核心性能热点
   - *域:performance · 类型:risk*
   - 主要热点为上传同步等待60秒VLM、报表按维度和月份串行SQL、回收任务无界扫描、每请求多次Redis往返及文件目录扫描。
@@ -108,6 +118,11 @@
   - 仅在客户明确授权并上传相关账户资料后展示；自动结果只能描述往来频繁、用途待核对并建议分类记账，不直接使用资金混同嫌疑、体外循环等定性词。
   - 关联：数据授权必要但非营销授权替代、loan-main · 企融通后端、loan-main 避坑
 
+### 企业名称/联系人后端DTO补齐+合并查询
+  - *域:backend · 类型:pitfall*
+  - 服务域DTO(StaffAppointment/Outing/DailyFollow/DailyOrder)与订单出参须显式 enterpriseName/contactName 并由列表合并一次客户查询补齐(防N+1)；前端客户列主行企业名+副行联系人，禁逐行查名称。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、后端开发规范 · 
+
 ### 免费公开不等于可任意画像
   - *类型:bug*
   - 接口免费或信息公开不当然构成收集、关联、画像和对外提供的合法依据；接入前仍需核验来源许可、必要性、个人授权、准确性、保存期限和展示范围。
@@ -123,6 +138,11 @@
   - 每日来访、预约、外出、待回访及服务工单名单按顾问本人、经理本部门、老板运营超管全公司的范围过滤；渠道账号完全排除。
   - 关联：每日服务名单聚合、名单可见与操作权限分离、服务名单分级权限策略
 
+### 初始化先恢复标签再查权限(防弹回工作台)
+  - *域:frontend · 类型:pitfall*
+  - Layout.initializeLayout 先await loadRoleMenu后loadTabs→刷新非工作台页被弹回。改为 loadTabs→await loadRoleMenu→ensureTab。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、前端开发规范 · 
+
 ### 初筛报告显式分页计数
   - *类型:bug*
   - 先显式 selectCount，再关闭分页插件自动 count，规避生产 MySQL 派生表别名语法异常。
@@ -132,6 +152,11 @@
   - *类型:bug*
   - EXISTS 归属范围拼接移除多余右括号，并在生产库验证顾问和团队范围查询。
   - 关联：动态SQL括号与空集合审计、loan-main · 企融通后端、loan-main 避坑
+
+### 前端筛选假筛选(后端未接收参数)
+  - *域:frontend · 类型:pitfall*
+  - useTable 透传query但后端不接收即假筛选。补筛选=前端控件+后端@RequestParam+LambdaQueryWrapper三件套一起做，禁只改前端。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、前端开发规范 · 
 
 ### 动态SQL括号与空集合审计
   - *类型:bug*
@@ -168,6 +193,11 @@
   - 名单权限只表示列表数据可见范围，不自动授予修改、取消、打卡或异常处理能力；每个写操作仍须按负责人和角色独立校验。
   - 关联：内部名单分级数据范围、三端客户服务DTO分层、服务名单分级权限策略
 
+### 后端哨兵值前端展示前须判断语义
+  - *域:frontend · 类型:pitfall*
+  - remaining=-1 表示豁免角色不限次，前端原样显示'-1次'。展示前 remaining<0→'不限次数'，禁裸显哨兵值。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、前端开发规范 · 
+
 ### 员工产品渠道可见性
   - *类型:bug*
   - 银行、担保、保函渠道及候选进件产品只进入STAFF内部视角；客户和CHANNEL不可见，内部信息不得复制到客户报告或公开链接。
@@ -182,6 +212,11 @@
   - *域:privacy · 类型:data-protection*
   - 出发与返回必须顺序打卡；每次定位作为加密载荷保存，经纬度、精度、文本与采集时间不落明文列，不采集连续轨迹。
   - 关联：服务运营P0四表模型、外出打卡与预约履约联动
+
+### 多AI并行编辑 git pull --rebase 单一真源
+  - *域:ops · 类型:lesson*
+  - 本仓库多AI并行编辑同批问题。拉取用 git pull --rebase --autostash；冲突优先采纳单一真源方案(如日期宽度由组件prop控制)；动手前必 git status+diff 看清未提交改动。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)
 
 ### 客户状态枚举漂移（已修）
   - *域:client-lifecycle · 类型:bug*
@@ -283,6 +318,21 @@
   - 现有 last_followed_at 会在分配时刷新，无法可靠计算首次跟进时长；公海流水缺少显式入池批次配对，也不能准确计算平均停留时长，页面显示待补采集。
   - 关联：客户运营统计接口、首次跟进自然小时、公海停留自然小时口径与实现、loan-main · 企融通后端、loan-main 避坑
 
+### 统计计数与列表口径必须一致
+  - *域:backend · 类型:pitfall*
+  - chip计数把NULL/空/未知计入newCount，列表用customer_tag='NEW'精确匹配(NULL不命中)→计数1列表0。改计数口径同步对齐列表where。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、后端开发规范 · 
+
+### 菜单图标名必须真实存在
+  - *域:frontend · 类型:pitfall*
+  - icons.js 没有的名字(setting/sea等)让AppIcon静默空白不报错。新增/改菜单icon前 grep icons.js 确认；setting→settings、sea→layers。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、前端开发规范 · 
+
+### 认领/分配角色白名单四处必须对齐
+  - *域:backend · 类型:pitfall*
+  - 前端 canForceAssign / ClientController 白名单 / MiniRoleGuard APPROVER_ROLES / 菜单SQL 授权 任一漏角色(如漏OPERATOR)即 403 或只读。改权限四处一起改并 grep 复核；能力标志由后端单一真源。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、客户认领/分配/转移分级流转(唯一真源)、后端开发规范 · 
+
 ### 诊断数据来源状态
   - *域:loan-consult · 类型:bug*
   - 所有诊断字段区分系统已核验、OCR提取、待补采集；缺失不按0分处理，预测值必须明确标记。
@@ -312,6 +362,11 @@
   - *类型:bug*
   - 网关访问日志只记录链路元数据，不记录 Token、请求体等敏感内容。
   - 关联：网关链路访问日志、loan-main · 企融通后端、loan-main 避坑
+
+### 错误分支按后端code不按中文文案
+  - *域:frontend · 类型:pitfall*
+  - e.message.includes('跨团队')在文案变化后失效落静默兜底。后端加专属语义码(如CLIENT_CROSS_TEAM=1005)，前端按e.code分支。
+  - 关联：前后端 Bug 复盘检查清单(2026-10)、前端开发规范 · 
 
 ### 隐藏产品不当然排除网络营销
   - *域:compliance · 类型:bug*

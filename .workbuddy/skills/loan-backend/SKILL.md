@@ -130,6 +130,9 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - **insert 与查询必须同时改**：给某列写空串占位后，所有 `isNull(该列)` 的查询都要改成 `isNull OR = ''`。只改 insert 不改查询 → 空串行查不到，每次保存都插新行（重复数据）；只改查询不改 insert → 照样缺列报错。
 - **审批列表不要硬编码「只返回待审」**：审批/待办类分页接口若 `eq(status, PENDING)` 写死，审批通过后数据从列表"消失"、无处可查。必须提供 `status` 可选参数（空=待审保持原语义，非空=按状态查全部），前端配合状态下拉。已踩：手机号/分配/渠道线索/外出/短信模板/报告模板六个审批 tab 全部硬编码（D83-九批统一补参数）。
 - **审批用 CAS 条件更新做幂等**（`eq(status, PENDING)` 的 update 返回 0 行即抛「不存在或已处理」），这是正确的并发防线；「审批单不存在或已处理」批量出现在日志里是**前端无防重导致连点重复提交**，不是后端 bug。后端保持 CAS，防重交给前端（按钮 loading / auditing 标志）。
+- **配置项短码 `varchar(32)` 必须用 `BizIdGenerator.generate(prefix, 32)`**：`generate(prefix)` 默认 = 前缀 + 32 位 hex（总长 = 前缀长 + 32）。当目标列是 `varchar(32)`（如 `t_bank_channel.channel_code`、`t_reward_rule.rule_version`）且前缀非空时，会生成 34 字符直接 `Data too long` 截断报错。凡是写 `channel_code` / `rule_version` / 其他定长 32 短码，一律 `generate(prefix, 32)` 固定总长；记录级业务 ID（`varchar(64)`）才用 `generate(prefix)`。改完 grep 全仓确认无 `generate("ch")` / `generate("rule")` 裸调用。
+- **认领/分配角色白名单必须四处对齐**：前端 `canForceAssign`、后端 `ClientController.assign/directAssign` 的 `Arrays.asList(...)`、`MiniRoleGuard` 的 `APPROVER_ROLES/APPROVAL_ROLES`、菜单 SQL 授权行——任一漏角色（如漏 `OPERATOR`）即导致该角色 403 或进页面却永远只读。改角色权限四处一起改并 grep 复核，能力标志（`canManage`/`canForceAssign`）由后端单一真源计算，前端禁止本地硬编码角色判断。
+- **企业名称/联系人必须后端 DTO 显式补齐 + 合并查询**：服务域 DTO（`StaffAppointmentDTO`/`StaffOutingDTO`/`DailyFollowDTO`/`DailyOrderDTO`）与订单出参必须显式加 `enterpriseName`/`contactName` 字段并在组装处 set；列表接口合并**一次**客户查询补齐（防 N+1），前端客户列主行企业名 + 副行联系人（个人客群仅联系人）。新增任何含「客户/企业」信息的列表，默认补这两个字段，不得只返业务编码让前端逐行查名称。
 
 ## 相关文档
 

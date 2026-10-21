@@ -1,8 +1,8 @@
 # 功能 Feature
 
-> 由本地大脑自动蒸馏，生成时间 2026-10-19T03:00:04。
+> 由本地大脑自动蒸馏，生成时间 2026-10-21T09:38:18。
 
-条目数：**185**
+条目数：**186**
 
 
 ## 项目：abs
@@ -501,6 +501,10 @@
 
 
 ## 项目：market-cdp
+
+### CDP ingest：JDBC 直写 SR 联调（待续）
+  - *域:ingest · 类型:context*
+  - 待处理：本地 ingest 全链路 SR+*_stored。已 Nacos local write-mode=jdbc（overwrites 已 sync，*_sr Topic 配置保留）。下一步：重启 cdp-base → SHENCE_E2E_WITH_TRACK=0 跑 verify-shence-production-sa-e2e.sh → 验 SR users/events、Outbox PROFILE/TRACK_STORED=SENT。后续：dev Routine Load 验 routine-load 写 SR；勿把 jdbc overwrite 同步 dev。
 
 ### 设备/OAID 触点规则
   - *类型:feature*
