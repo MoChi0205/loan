@@ -93,7 +93,11 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - **审批权限真值（D60 覆盖 D59 的 PRODUCT 部分）**：`ALLOCATION` 审批包含 `DEPT_MANAGER`，但部门经理仅可审批本人团队；渠道 `PRODUCT` 录入/删除终审仅 `BOSS/SUPER_ADMIN/SUPER`；`DOWNLOAD/MATERIAL_REVIEW` 可包含 `DEPT_MANAGER/OPERATOR`。
   依据 `loan-service/src/main/java/com/loan/mini/service/MiniRoleGuard.java` 的 `APPROVER_ROLES` vs `APPROVAL_ROLES`
 - **OCR 回灌真名（D0-3）**：`SubmissionFactsMerger.mergeFromOcr(reportNo, ocrFacts, operator)`，**不是** `mergeToOcr`
-- **分工红线（D0-1）**：前端（loan-web / 小程序）由用户自己负责，助手只做后端 `loan-service`
+- **分工红线（D83 已更新，取代 D0-1）**：loan-web UI 缺陷修复已授权助手；改前端仍须先过 Step 0 门禁
+- **schema 文档不是真理（D83-六批）**：`db/loan-db-schema.sql` 曾与生产库偏差 76 处 / 缺 7 张表，
+  导致 insert 漏设 NOT NULL 无默认列时报 `Field 'xxx' doesn't have a default value`。
+  **契约真源顺序：生产库（Nacos 数据源）→ 重新生成的 schema 基线 → 代码**。
+  新增表 / 加列 / 改可空性后必须重新生成基线并提交。
 
 ## 自检清单（改完必过）
 
@@ -122,6 +126,8 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - **`LoanUser.userNo` 对员工就是工号（staff_code）**：申请认领/指派类接口传目标人时，`user.getUserNo()` 即工号，不要另寻 `staffCode` 字段（字段注释已写明）；跨团队转移申请的目标人经 `body.targetStaffCode` 传入、缺省回落申请人本人。
 - **哨兵值要有明确语义**：`remaining = -1` 表示"豁免角色不限次"，返回给前端时要能区分（配套 `unlimited=true` 之类标志），别让前端裸显 -1。
 - **本地编译必须带 `-pl loan-service -am`**：`loan-service` 依赖 `loan-api` 模块，直接在 loan-service 目录 `mvn compile` 会用本地仓库旧 jar（报 `找不到符号 setXxx`）。正确姿势：`mvn -pl loan-service -am compile -DskipTests`，且 `JAVA_HOME` 指向 JDK8（否则报 `No compiler is provided...`）。
+- **NOT NULL 无默认列是运行时的坑，编译期发现不了**：生产库有 306 个 / 90 张表这类列。MyBatis-Plus 默认**跳过 null 字段**（不写进 INSERT），漏设 = SQL 缺列 = 报 `Field 'xxx' doesn't have a default value`。**往任何表 insert 前先跑 `python3 scripts/schema-diff-against-live.py`**，看目标表的 NOT NULL 无默认列清单，实体必须逐个显式赋值（语义可空的写 `""` 占位并注释「勿删」）。已踩：`t_client_business_fact.submission_no`、`t_service_attachment.order_no`（两个上传路径）。
+- **insert 与查询必须同时改**：给某列写空串占位后，所有 `isNull(该列)` 的查询都要改成 `isNull OR = ''`。只改 insert 不改查询 → 空串行查不到，每次保存都插新行（重复数据）；只改查询不改 insert → 照样缺列报错。
 
 ## 相关文档
 

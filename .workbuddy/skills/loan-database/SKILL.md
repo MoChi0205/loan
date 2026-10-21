@@ -74,6 +74,26 @@ List<Map<String, Object>> rows = orderMapper.selectMaps(wrapper);
 - 涉及多表关联取名称（客户名 / 产品名）时：主表分页（走主键 / 索引）→ 一次性 `in` 查名称映射，**禁止逐行子查询**
 - 筛选字段（status / 客群 / 维度）组合查询时建复合索引（如 `idx_owner_status_follow`）
 
+## 五、schema 文档与生产库核对（D83-六批，2026-10-21）
+
+- **`db/loan-db-schema.sql` 不是真理，生产库才是**。2026-10-21 核对发现文档与生产库
+  **偏差 76 处 / 缺 7 张表**（`t_batch_import_task`、`t_content_approval`、`t_resource_pool`、
+  `t_resource_pool_config`、`t_staff_data_transfer_record`、`t_client_lifecycle_event`、
+  `t_batch_import_task_detail`），并直接导致两次线上报错
+  （`Field 'submission_no'/'order_no' doesn't have a default value`）。
+  该文件已用生产库 `SHOW CREATE TABLE` 重新生成（基线 91 表 / 1166 列）。
+- **契约真源顺序**：生产库（Nacos 数据源）→ 重新生成的 schema 基线 → 代码 → `docs/knowledge-base/`。
+  写文档引用表数一律 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 实查，**不写死数字**。
+- **核对脚本（新增，必用）**：`python3 scripts/schema-diff-against-live.py`
+  —— 从 Nacos 读数据源（不写死库地址，密码不回显）→ 连库 → 对比 schema 文档 →
+  输出差异清单 + **NOT NULL 无默认列清单**（306 个 / 90 张表）。
+  依赖 `pymysql`（装到受管 venv：`~/.workbuddy/binaries/python/envs/default/bin/pip install pymysql`）。
+- **何时必须重新生成基线**：新增表 / 加列 / 改可空性 / 改默认值后，立刻用 `SHOW CREATE TABLE`
+  重新导出并提交；漂移越久，`NOT NULL 无默认` 陷阱越多。
+- **NOT NULL 无默认列的代码纪律**：MyBatis-Plus 跳过 null 字段 → insert 漏设即运行时报错
+  （编译期发现不了）。insert 前先查脚本输出的清单；语义可空的列写 `""` 占位，
+  且**查询条件同步改 `isNull OR = ''`**（详见 `loan-backend` 实战坑位）。
+
 ## 契约红线速查
 
 - **契约真源（D7 / D0-2）**：`db/loan-db-schema.sql`——**表数以该文件的 `grep -c "CREATE TABLE" db/loan-db-schema.sql` 为准，不写死数字**（规则 9）

@@ -119,14 +119,14 @@ public class LeadController {
         return Result.ok("ok");
     }
 
-    /** 本人主动释放归属自己的线索到公司公海。 */
+    /** 本人主动释放归属自己的线索到公司公海（D83-五批#4：返回客户联动释放结果）。 */
     @PostMapping("/{leadNo}/release")
     @OpLog(bizType = "线索", action = "SELF_RELEASE")
     public Result<String> release(@org.springframework.web.bind.annotation.PathVariable String leadNo,
                                   @CurrentUser LoanUser user) {
-        leadService.release(leadNo, user == null ? null : user.getUserNo(),
-                user == null ? "system" : user.getName());
-        return Result.ok("ok");
+        String note = leadService.release(leadNo, user == null ? null : user.getUserNo(),
+                user == null ? "system" : user.getName(), user);
+        return Result.ok(org.springframework.util.StringUtils.hasText(note) ? note : "ok");
     }
 
     /** 本人线索档案（含流转/跟进记录，不对外暴露人员业务编码）。 */

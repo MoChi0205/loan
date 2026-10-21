@@ -101,7 +101,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="建档时间" width="170" sortable><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="ownClientActions(row)" :max-inline="3" />
           </template>
@@ -545,6 +545,19 @@ function ownClientActions(row) {
   const actions = [{ key: 'detail', label: '查看档案', onClick: () => openChannelClient(row) }];
   // 编辑档案：列表直开既有编辑弹窗（写权限由后端 requireWritable 兜底校验）
   actions.push({ key: 'edit', label: '编辑档案', onClick: () => openEditForRow(row) });
+  if (clientScope.value === 'MY' && !isChannel.value) {
+    // D83-五批#2：「释放回公海」前置到第 3 位——原顺序把它排在第 5，
+    // 被 AppTableActions 默认 maxInline=2 收进「更多」，用户反馈找不到释放入口。
+    actions.push({
+      key: 'release',
+      label: '释放回公海',
+      type: 'warning',
+      confirm: '确认将该客户释放回公海？释放后不再归属你，冷却期内不可认领。',
+      onClick: () => onReleaseOwnClient(row),
+    });
+    // 快速跟进：我的客户范围内全员可用（不再限定归属人本人）。
+    actions.push({ key: 'follow', label: '快速跟进', onClick: () => openFollow(row) });
+  }
   // 发起初筛：与详情页顶部按钮同一权限门控，带客户预选直达初筛中心
   if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_SCREENING)) {
     actions.push({ key: 'screening', label: '发起初筛', type: 'primary', onClick: () => goScreeningForRow(row) });
@@ -552,7 +565,10 @@ function ownClientActions(row) {
   if (['COMPANY_SEA', 'TEAM_SEA'].includes(clientScope.value)) {
     if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_ASSIGN)) {
       actions.push({ key: 'assign-pool', label: '分配归属', type: 'primary', onClick: () => openAssignForRow(row) });
-    } else if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_CLAIM)) {
+    }
+    // D83-五批#1：认领与分配改为并列分支（原为 else-if，导致同时拥有两项权限的
+    // 老板/超管只能看到「分配归属」、找不到「认领」入口）。
+    if (userStore.hasPerm(ACTION_PERMISSION.CLIENT_CLAIM)) {
       actions.push({
         key: 'claim-pool',
         label: '认领',
@@ -579,17 +595,6 @@ function ownClientActions(row) {
       type: 'warning',
       confirm: '确认将该客户回收至本团队公海？回收后本团队成员可再次认领。',
       onClick: () => onRecycleListRow(row),
-    });
-  }
-  if (clientScope.value === 'MY' && !isChannel.value) {
-    // 快速跟进：我的客户范围内全员可用（不再限定归属人本人）。
-    actions.push({ key: 'follow', label: '快速跟进', onClick: () => openFollow(row) });
-    actions.push({
-      key: 'release',
-      label: '释放回公海',
-      type: 'warning',
-      confirm: '确认将该客户释放回公海？释放后不再归属你，冷却期内不可认领。',
-      onClick: () => onReleaseOwnClient(row),
     });
   }
   return actions;

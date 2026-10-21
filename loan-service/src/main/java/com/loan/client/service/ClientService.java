@@ -480,12 +480,22 @@ public class ClientService {
         ENTERPRISE_FACT_KEYS = Collections.unmodifiableMap(keys);
     }
 
+    /**
+     * 无提交单占位值（档案维护来源写入 t_client_business_fact 时使用）。
+     *
+     * <p>生产库该列为 NOT NULL 且无默认值（与 db/loan-db-schema.sql 的 DEFAULT NULL 不一致），
+     * MyBatis-Plus 默认跳过 null 字段会导致 INSERT 缺列报错，故显式写空串；
+     * 查询侧统一按 {@code IS NULL OR = ''} 匹配，兼容历史 NULL 数据。</p>
+     */
+    private static final String NO_SUBMISSION = "";
+
     /** 读取客户企业经营事实（field_code → field_value）。 */
     private Map<String, Object> enterpriseFacts(String clientCode) {
         Map<String, Object> facts = new LinkedHashMap<>();
         for (ClientBusinessFact row : clientBusinessFactMapper.selectList(new LambdaQueryWrapper<ClientBusinessFact>()
                 .eq(ClientBusinessFact::getClientProfileCode, clientCode)
-                .isNull(ClientBusinessFact::getSubmissionNo))) {
+                .and(w -> w.isNull(ClientBusinessFact::getSubmissionNo)
+                        .or().eq(ClientBusinessFact::getSubmissionNo, NO_SUBMISSION)))) {
             facts.put(row.getFieldCode(), row.getFieldValue());
         }
         return facts;
@@ -514,11 +524,15 @@ public class ClientService {
             ClientBusinessFact existing = clientBusinessFactMapper.selectOne(new LambdaQueryWrapper<ClientBusinessFact>()
                     .eq(ClientBusinessFact::getClientProfileCode, clientCode)
                     .eq(ClientBusinessFact::getFieldCode, fieldCode)
-                    .isNull(ClientBusinessFact::getSubmissionNo)
+                    .and(w -> w.isNull(ClientBusinessFact::getSubmissionNo)
+                            .or().eq(ClientBusinessFact::getSubmissionNo, NO_SUBMISSION))
                     .last("LIMIT 1"));
             if (existing == null) {
                 ClientBusinessFact row = new ClientBusinessFact();
                 row.setClientProfileCode(clientCode);
+                // D83-四批#1：生产库 submission_no 为 NOT NULL 无默认（db/loan-db-schema.sql 与线上不一致），
+                // 显式写空串占位；语义=档案维护来源（无提交单），与提交单流程的真实单号互不干扰。
+                row.setSubmissionNo(NO_SUBMISSION);
                 row.setFieldCode(fieldCode);
                 row.setFieldValue(entry.getValue());
                 row.setFieldType("establish_years".equals(fieldCode) || "social_count".equals(fieldCode)

@@ -9,6 +9,7 @@ import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
+import com.loan.context.LoanUser;
 import com.loan.common.util.PageOrder;
 import com.loan.exception.BusinessException;
 import com.loan.infrastructure.security.AesUtils;
@@ -79,6 +80,11 @@ public class LeadService {
     private final LeadRecycleConfigMapper leadRecycleConfigMapper;
     private final com.loan.staff.mapper.StaffMapper staffMapper;
     private final DepartmentMapper departmentMapper;
+    /** D83-五批#4：线索释放时联动释放客户档案（复用客户侧 selfRelease，勿在此重写释放逻辑）。 */
+    private final com.loan.client.service.ClientAllocationService clientAllocationService;
+    /** 联动释放保护：成交 / 进行中工单判定。 */
+    private final com.loan.order.mapper.ServiceOrderMapper serviceOrderMapper;
+    private final com.loan.serviceops.mapper.ClientAppointmentMapper clientAppointmentMapper;
 
     private static final List<String> FOLLOW_STATUSES = Arrays.asList(
             "NEW", "INTENTION", "POTENTIAL", "VISITED", "NO_ANSWER", "NO_NEED");
@@ -453,9 +459,18 @@ public class LeadService {
         allocationRecordMapper.insert(buildRecord(lead.getLeadNo(), "CLAIM", null, staffCode, staffName, "公海认领"));
     }
 
-    /** 本人主动释放自己的线索到公司公海，释放后 7 天内本人不可重新认领。 */
+    /**
+     * 本人主动释放自己的线索到公司公海，释放后 7 天内本人不可重新认领。
+     *
+     * <p>D83-五批#4：释放后联动释放由该线索创建、且仍归属本人、无成交/进行中业务的客户档案。
+     * 根因：创建线索时 {@link #ensureClientProfile} 会同步建客户（owner=录入人），
+     * 而旧实现只改线索归属 → 客户仍留在「我的客户」，线索与客户两个列表口径不一致。
+     * 联动结果以返回值回给前端提示；客户释放失败不回滚线索释放（线索已回公海）。</p>
+     *
+     * @return 联动释放结果说明（无关联客户时为空串）
+     */
     @Transactional(rollbackFor = Exception.class)
-    public void release(String leadNo, String staffCode, String staffName) {
+    public String release(String leadNo, String staffCode, String staffName, LoanUser operator) {
         if (!StringUtils.hasText(leadNo) || !StringUtils.hasText(staffCode)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "线索编号与当前员工不能为空");
         }
@@ -476,6 +491,51 @@ public class LeadService {
         }
         allocationRecordMapper.insert(buildRecord(leadNo.trim(), "RELEASE", staffCode, null,
                 staffName, "本人主动释放到公司公海"));
+        return releaseLinkedClient(lead.getClientProfileCode(), staffCode, operator);
+    }
+
+    /** 兼容旧签名：无操作人上下文时跳过联动释放（内部调用方未传 LoanUser）。 */
+    public String release(String leadNo, String staffCode, String staffName) {
+        return release(leadNo, staffCode, staffName, null);
+    }
+
+    /**
+     * 联动释放线索关联的客户档案（D83-五批#4）。
+     *
+     * <p>仅当客户仍归属释放本人、且无成交/进行中业务时联动；其余情况保留客户归属并返回原因，
+     * 绝不因客户释放失败而回滚已成功的线索释放。</p>
+     */
+    private String releaseLinkedClient(String clientCode, String staffCode, LoanUser operator) {
+        if (!StringUtils.hasText(clientCode)) return "";
+        ClientProfile client = clientProfileMapper.selectOne(new LambdaQueryWrapper<ClientProfile>()
+                .eq(ClientProfile::getClientCode, clientCode).last("LIMIT 1"));
+        if (client == null) return "";
+        if (!StringUtils.hasText(staffCode) || !staffCode.equals(client.getOwnerStaffCode())) {
+            return "客户已归属其他同事，未联动释放";
+        }
+        if (hasActiveBusiness(clientCode)) {
+            return "客户已有跟进或成交记录，未联动释放";
+        }
+        try {
+            clientAllocationService.selfRelease(clientCode, operator);
+            return "关联客户已一并释放回公司公海";
+        } catch (Exception e) {
+            // 线索释放已成功，此处只做客户联动兜底：失败不回滚，交由前端提示用户手动处理
+            return "客户释放失败，请在「我的客户」中手动释放";
+        }
+    }
+
+    /** 客户是否存在成交或进行中的业务（联动释放保护）。 */
+    private boolean hasActiveBusiness(String clientCode) {
+        Long dealt = serviceOrderMapper.selectCount(new LambdaQueryWrapper<com.loan.order.entity.ServiceOrder>()
+                .eq(com.loan.order.entity.ServiceOrder::getClientProfileCode, clientCode)
+                .eq(com.loan.order.entity.ServiceOrder::getStatus, "DEAL"));
+        if (dealt != null && dealt > 0) return true;
+        Long active = clientAppointmentMapper.selectCount(new LambdaQueryWrapper<com.loan.serviceops.entity.ClientAppointment>()
+                .eq(com.loan.serviceops.entity.ClientAppointment::getClientCode, clientCode)
+                .in(com.loan.serviceops.entity.ClientAppointment::getStatus,
+                        "REQUESTED", "CONFIRMED", "ARRIVED", "SERVING"));
+        return active != null && active > 0;
     }
 
     /**

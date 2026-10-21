@@ -121,7 +121,7 @@
         <el-table-column :prop="activeTab === 'clients' ? 'registeredAt' : 'createdAt'" :label="activeTab === 'clients' ? '注册时间' : '录入时间'" width="170" sortable>
           <template #default="{ row }">{{ formatDateTime(row.registeredAt || row.createdAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" min-width="260" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <AppTableActions :actions="rowActions(row)" :max-inline="3" />
           </template>
@@ -467,7 +467,8 @@ function rowActions(row) {
         key: 'release',
         label: '释放到公海',
         type: 'warning',
-        confirm: `确认将「${row.contactName}」释放到公司公海？释放后其他员工可认领。`,
+        // D83-五批#4：确认框明示联动范围，避免用户以为只释放线索
+        confirm: `确认将「${row.contactName}」释放到公司公海？释放后其他员工可认领；该线索关联的客户（仍归属你、且无跟进/成交记录）将一并释放回公司公海。`,
         onClick: () => onRelease(row),
       });
     }
@@ -620,8 +621,9 @@ async function onClaim(row) {
 
 async function onRelease(row) {
   try {
-    await releaseLead(row.leadNo);
-    ElMessage.success('已释放到公司公海');
+    const res = await releaseLead(row.leadNo);
+    // D83-五批#4：后端返回客户联动释放结果（关联客户一并释放 / 保留原因），原样提示
+    ElMessage.success(res?.data && res.data !== 'ok' ? res.data : '已释放到公司公海');
     load();
   } catch (e) {
     // 拦截器已提示

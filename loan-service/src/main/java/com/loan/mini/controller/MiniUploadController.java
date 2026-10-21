@@ -102,6 +102,9 @@ public class MiniUploadController {
                 att.setFileSize(file.getSize());
                 att.setAttachmentType(normalizedBizType);
                 att.setClientProfileCode(scopedClientCode);
+                // D83-六批#1：order_no 生产库 NOT NULL 无默认（文档 schema 与线上不一致）。
+                // 客户维度上传不属于任何工单，写空串占位；勿删（漏设即 "doesn't have a default value"）。
+                att.setOrderNo("");
                 att.setReportNo(reportNo);
                 att.setUploadTime(LocalDateTime.now());
                 attachmentMapper.insert(att);

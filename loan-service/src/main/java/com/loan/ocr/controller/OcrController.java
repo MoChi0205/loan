@@ -120,6 +120,9 @@ public class OcrController {
         OcrResult result = ocrService.recognize(fileKey, normalizedBizType, customerGroup);
         ServiceAttachment attachment = new ServiceAttachment();
         attachment.setClientProfileCode(scopedClientCode);
+        // D83-六批#1：order_no 生产库 NOT NULL 无默认（文档 schema 与线上不一致）。
+        // OCR 识别上传为材料维度、不属于任何工单，写空串占位；漏设即 "doesn't have a default value"。
+        attachment.setOrderNo("");
         attachment.setReportNo(reportNo);
         attachment.setAttachmentType(normalizedBizType);
         attachment.setFileKey(fileKey);
