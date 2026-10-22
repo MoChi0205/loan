@@ -67,17 +67,17 @@
 
           <view v-if="needLocation" class="field">
             <text class="field-label">地点名称</text>
-            <input v-model="form.locationName" class="field-input" placeholder="公司门店或拜访地点" placeholder-class="ph" />
+            <input v-model="form.locationName" class="field-input" placeholder="公司门店或拜访地点" placeholder-class="ph" maxlength="128" />
           </view>
 
           <view v-if="needLocation" class="field">
             <text class="field-label">详细地址</text>
-            <input v-model="form.locationDetail" class="field-input" placeholder="详细地址（选填）" placeholder-class="ph" />
+            <input v-model="form.locationDetail" class="field-input" placeholder="详细地址（选填）" placeholder-class="ph" maxlength="255" />
           </view>
 
           <view class="field">
             <text class="field-label">补充说明</text>
-            <input v-model="form.customerVisibleNote" class="field-input" placeholder="希望顾问提前准备的资料（选填）" placeholder-class="ph" />
+            <input v-model="form.customerVisibleNote" class="field-input" placeholder="希望顾问提前准备的资料（选填）" placeholder-class="ph" maxlength="500" />
           </view>
 
           <AppButton variant="primary" size="md" block :loading="submitting" @click="submitForm">提交预约</AppButton>

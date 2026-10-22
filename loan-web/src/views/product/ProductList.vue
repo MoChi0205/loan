@@ -157,10 +157,10 @@
           <el-input v-model="dialogForm.productCode" maxlength="64" show-word-limit placeholder="如 WH_TAX_LOAN_A（不超过64个字符）" />
         </el-form-item>
         <el-form-item label="产品名称" prop="productName">
-          <el-input v-model="dialogForm.productName" placeholder="如 武汉某行企业税贷 A" />
+          <el-input v-model="dialogForm.productName" placeholder="如 武汉某行企业税贷 A（不超过128个字符）" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="所属银行" prop="bankName">
-          <el-input v-model="dialogForm.bankName" placeholder="如 武汉某银行" />
+          <el-input v-model="dialogForm.bankName" placeholder="如 武汉某银行（不超过128个字符）" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
           <DictSelect v-model="dialogForm.customerGroup" type="customerGroup" placeholder="请选择客群" />
@@ -668,7 +668,7 @@ const dialogForm = reactive({
 const formRules = {
   productCode: [{ required: true, message: '请输入产品编码', trigger: 'blur' }, { max: 64, message: '产品编码不能超过64个字符', trigger: 'blur' }],
   productName: [{ required: true, message: '请输入产品名称', trigger: 'blur' }, { max: 128, message: '产品名称不能超过128个字符', trigger: 'blur' }],
-  bankName: [{ required: true, message: '请输入所属银行', trigger: 'blur' }],
+  bankName: [{ required: true, message: '请输入所属银行', trigger: 'blur' }, { max: 128, message: '所属银行不能超过128个字符', trigger: 'blur' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
   source: [{ required: true, message: '请选择来源', trigger: 'change' }],
 };

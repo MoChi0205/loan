@@ -241,7 +241,7 @@ public class MiniLeadService {
         if (user == null || !LoanUser.TYPE_STAFF.equals(user.getUserType())) {
             throw new BusinessException(ResultCode.FORBIDDEN, "仅公司员工可释放线索");
         }
-        leadService.release(leadNo, user.getUserNo(), user.getName());
+        leadService.release(leadNo, user.getUserNo(), user.getName(), user);
     }
 
     /**

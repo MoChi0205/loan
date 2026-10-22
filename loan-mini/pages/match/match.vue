@@ -137,23 +137,23 @@
         <template v-else-if="dupState === 'miss'">
           <view class="field">
             <text class="field-label">企业名称</text><text class="req"> *</text>
-            <input class="field-input" v-model="newClient.entName" placeholder="如：某某科技有限公司" placeholder-class="ph" />
+            <input class="field-input" v-model="newClient.entName" placeholder="如：某某科技有限公司" placeholder-class="ph" maxlength="128" />
           </view>
           <view class="field">
             <text class="field-label">联系人</text>
-            <input class="field-input" v-model="newClient.contactName" placeholder="如：王经理" placeholder-class="ph" />
+            <input class="field-input" v-model="newClient.contactName" placeholder="如：王经理" placeholder-class="ph" maxlength="64" />
           </view>
           <view class="field">
             <text class="field-label">手机号</text>
-            <input class="field-input" type="number" v-model="newClient.contactPhone" placeholder="如：13800000000" placeholder-class="ph" />
+            <input class="field-input" type="number" v-model="newClient.contactPhone" placeholder="如：13800000000" placeholder-class="ph" maxlength="11" />
           </view>
           <view class="field">
             <text class="field-label">统一社会信用代码</text>
-            <input class="field-input" v-model="newClient.creditCode" placeholder="选填，18 位" placeholder-class="ph" />
+            <input class="field-input" v-model="newClient.creditCode" placeholder="选填，18 位" placeholder-class="ph" maxlength="18" />
           </view>
           <view class="field">
             <text class="field-label">客群</text>
-            <input class="field-input" v-model="newClient.customerGroup" placeholder="如：制造业" placeholder-class="ph" />
+            <input class="field-input" v-model="newClient.customerGroup" placeholder="如：制造业" placeholder-class="ph" maxlength="16" />
           </view>
           <AppButton variant="primary" size="lg" block :loading="creating" @click="onCreateClient">
             创建客户并申请认领
@@ -208,7 +208,7 @@
           </view>
           <view class="field">
             <text class="field-label">所属行业</text><text class="req"> *</text>
-            <input class="field-input" v-model="enterpriseFacts.industry" placeholder="如：制造业" placeholder-class="ph" />
+            <input class="field-input" v-model="enterpriseFacts.industry" placeholder="如：制造业" placeholder-class="ph" maxlength="64" />
           </view>
           <view class="field">
             <text class="field-label">资产负债率（%）</text>

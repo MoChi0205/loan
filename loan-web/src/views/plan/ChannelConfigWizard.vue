@@ -248,7 +248,7 @@
           <el-input v-model="strategyDialog.form.strategyCode" placeholder="渠道内唯一" :disabled="strategyDialog.editing" />
         </el-form-item>
         <el-form-item label="策略名称" prop="strategyName">
-          <el-input v-model="strategyDialog.form.strategyName" />
+          <el-input v-model="strategyDialog.form.strategyName" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="执行计划" prop="executionPlanCode">
           <AppSelect v-model="strategyDialog.form.executionPlanCode" placeholder="选择计划(1:1)" filterable style="width: 100%">
@@ -262,7 +262,7 @@
     <AppDialog v-model:visible="planDialog.visible" :title="planDialog.title" :loading="planDialog.saving" @confirm="onSavePlan">
       <el-form ref="planFormRef" :model="planDialog.form" :rules="planRules" label-width="90px">
         <el-form-item label="计划编码" prop="planCode"><el-input v-model="planDialog.form.planCode" placeholder="唯一业务编码" /></el-form-item>
-        <el-form-item label="计划名称" prop="planName"><el-input v-model="planDialog.form.planName" /></el-form-item>
+        <el-form-item label="计划名称" prop="planName"><el-input v-model="planDialog.form.planName" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="版本"><el-input-number v-model="planDialog.form.version" :min="1" /></el-form-item>
       </el-form>
     </AppDialog>
@@ -271,7 +271,7 @@
     <AppDialog v-model:visible="moduleDialog.visible" :title="moduleDialog.title" :loading="moduleDialog.saving" @confirm="onSaveModule">
       <el-form ref="moduleFormRef" :model="moduleDialog.form" :rules="moduleRules" label-width="90px">
         <el-form-item label="模块编码" prop="moduleCode"><el-input v-model="moduleDialog.form.moduleCode" placeholder="模块内唯一" /></el-form-item>
-        <el-form-item label="模块名称" prop="moduleName"><el-input v-model="moduleDialog.form.moduleName" /></el-form-item>
+        <el-form-item label="模块名称" prop="moduleName"><el-input v-model="moduleDialog.form.moduleName" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="逻辑">
           <AppSelect v-model="moduleDialog.form.logicType" style="width: 100%">
             <el-option label="AND（模块内遇FAIL短路）" value="AND" />
@@ -371,7 +371,7 @@
           <el-input v-model="tplImportDialog.form.strategyCode" placeholder="当前渠道内唯一" />
         </el-form-item>
         <el-form-item label="策略名称">
-          <el-input v-model="tplImportDialog.form.strategyName" placeholder="缺省用模版名" />
+          <el-input v-model="tplImportDialog.form.strategyName" placeholder="缺省用模版名" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="客群">
           <AppSelect v-model="tplImportDialog.form.customerGroup" style="width: 100%">
@@ -673,7 +673,7 @@ const strategyRules = {
   bankProductCode: [{ required: true, message: '请选择产品', trigger: 'change' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
   strategyCode: [{ required: true, message: '请输入策略编码', trigger: 'blur' }],
-  strategyName: [{ required: true, message: '请输入策略名称', trigger: 'blur' }],
+  strategyName: [{ required: true, message: '请输入策略名称', trigger: 'blur' }, { max: 128, message: '策略名称不能超过128个字符', trigger: 'blur' }],
   executionPlanCode: [{ required: true, message: '请选择执行计划', trigger: 'change' }],
 };
 function openStrategyDialog(row) {
@@ -759,7 +759,7 @@ const planDialog = reactive({ visible: false, title: '新建计划', saving: fal
 const planFormRef = ref();
 const planRules = {
   planCode: [{ required: true, message: '请输入计划编码', trigger: 'blur' }],
-  planName: [{ required: true, message: '请输入计划名称', trigger: 'blur' }],
+  planName: [{ required: true, message: '请输入计划名称', trigger: 'blur' }, { max: 128, message: '计划名称不能超过128个字符', trigger: 'blur' }],
 };
 async function onSavePlan() {
   try {
@@ -790,7 +790,7 @@ const moduleDialog = reactive({ visible: false, title: '', saving: false, editin
 const moduleFormRef = ref();
 const moduleRules = {
   moduleCode: [{ required: true, message: '请输入模块编码', trigger: 'blur' }],
-  moduleName: [{ required: true, message: '请输入模块名称', trigger: 'blur' }],
+  moduleName: [{ required: true, message: '请输入模块名称', trigger: 'blur' }, { max: 128, message: '模块名称不能超过128个字符', trigger: 'blur' }],
 };
 function openModuleDialog(m) {
   moduleDialog.title = m ? '编辑模块' : '添加模块';

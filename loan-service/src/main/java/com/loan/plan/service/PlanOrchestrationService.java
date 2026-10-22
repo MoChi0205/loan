@@ -3,6 +3,7 @@ package com.loan.plan.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
+import com.loan.common.util.FieldLengthGuard;
 import com.loan.engine.rule.StepConditionEvaluator;
 import com.loan.exception.BusinessException;
 import com.loan.plan.entity.AdmissionExecutionPlan;
@@ -161,6 +162,7 @@ public class PlanOrchestrationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public String createPlan(AdmissionExecutionPlan plan, String operator) {
+        FieldLengthGuard.requireMaxLength("计划名称", plan.getPlanName(), 128);
         plan.setId(null);
         if (plan.getVersion() == null) {
             plan.setVersion(1);
@@ -184,6 +186,7 @@ public class PlanOrchestrationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void updatePlan(String planCode, AdmissionExecutionPlan plan, String operator) {
+        FieldLengthGuard.requireMaxLength("计划名称", plan.getPlanName(), 128);
         AdmissionExecutionPlan existing = findByCode(planCode);
         plan.setId(existing.getId());
         plan.setPlanCode(null);
@@ -218,6 +221,7 @@ public class PlanOrchestrationService {
             module.setPlanId(findByCode(module.getPlanCode()).getId());
         }
         if (module.getPlanId() == null) throw new BusinessException(ResultCode.PARAM_ERROR, "计划编码必填");
+        FieldLengthGuard.requireMaxLength("模块名称", module.getModuleName(), 128);
         module.setId(null);
         module.setModuleBizCode(StringUtils.hasText(module.getModuleBizCode()) ? module.getModuleBizCode() : "module_" + UUID.randomUUID().toString().replace("-", ""));
         if (module.getSort() == null) {
@@ -241,6 +245,7 @@ public class PlanOrchestrationService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void updateModule(String moduleBizCode, AdmissionPlanModule module, String operator) {
+        FieldLengthGuard.requireMaxLength("模块名称", module.getModuleName(), 128);
         AdmissionPlanModule current = moduleMapper.selectOne(new LambdaQueryWrapper<AdmissionPlanModule>()
                 .eq(AdmissionPlanModule::getModuleBizCode, moduleBizCode));
         if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模块不存在");

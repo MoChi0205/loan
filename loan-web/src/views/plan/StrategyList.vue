@@ -80,7 +80,7 @@
           <el-input v-model="form.strategyCode" placeholder="渠道内唯一，如 WH_BANK_TAX" :disabled="editing" />
         </el-form-item>
         <el-form-item label="策略名称" prop="strategyName">
-          <el-input v-model="form.strategyName" placeholder="如 武汉某行企业税贷准入策略" />
+          <el-input v-model="form.strategyName" placeholder="如 武汉某行企业税贷准入策略（不超过128个字符）" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="执行计划" prop="executionPlanCode">
           <AppSelect v-model="form.executionPlanCode" placeholder="选择计划(1:1)" style="width: 100%">
@@ -188,7 +188,7 @@ const formRules = {
   bankProductCode: [{ required: true, message: '请选择产品', trigger: 'change' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
   strategyCode: [{ required: true, message: '请输入策略编码', trigger: 'blur' }],
-  strategyName: [{ required: true, message: '请输入策略名称', trigger: 'blur' }],
+  strategyName: [{ required: true, message: '请输入策略名称', trigger: 'blur' }, { max: 128, message: '策略名称不能超过128个字符', trigger: 'blur' }],
   executionPlanCode: [{ required: true, message: '请选择执行计划', trigger: 'change' }],
 };
 

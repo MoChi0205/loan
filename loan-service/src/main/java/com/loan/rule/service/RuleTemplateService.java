@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BatchQueryUtils;
+import com.loan.common.util.FieldLengthGuard;
 import com.loan.exception.BusinessException;
 import com.loan.rule.entity.Rule;
 import com.loan.rule.entity.RuleCategory;
@@ -93,6 +94,7 @@ public class RuleTemplateService {
         if (!StringUtils.hasText(template.getTemplateCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
         }
+        FieldLengthGuard.requireMaxLength("模板名称", template.getTemplateName(), 128);
         if (templateMapper.selectCount(new LambdaQueryWrapper<RuleTemplate>()
                 .eq(RuleTemplate::getTemplateCode, template.getTemplateCode())) > 0) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码已存在");
@@ -112,6 +114,7 @@ public class RuleTemplateService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(RuleTemplate template, String operator) {
+        FieldLengthGuard.requireMaxLength("模板名称", template.getTemplateName(), 128);
         RuleTemplate current = requireByCode(template.getTemplateCode());
         template.setId(current.getId());
         template.setUpdatedBy(operator);
@@ -210,6 +213,7 @@ public class RuleTemplateService {
             field.setTemplateId(requireByCode(field.getTemplateCode()).getId());
         }
         if (field.getTemplateId() == null) throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
+        FieldLengthGuard.requireMaxLength("字段名称", field.getFieldName(), 64);
         field.setId(null);
         field.setFieldBizCode(StringUtils.hasText(field.getFieldBizCode()) ? field.getFieldBizCode() : "field_" + UUID.randomUUID().toString().replace("-", ""));
         if (field.getRequired() == null) {
@@ -229,6 +233,7 @@ public class RuleTemplateService {
     /** 更新字段定义 */
     @Transactional(rollbackFor = Exception.class)
     public void updateField(String fieldBizCode, RuleTemplateField field) {
+        FieldLengthGuard.requireMaxLength("字段名称", field.getFieldName(), 64);
         RuleTemplateField current = fieldMapper.selectOne(new LambdaQueryWrapper<RuleTemplateField>()
                 .eq(RuleTemplateField::getFieldBizCode, fieldBizCode));
         if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "字段定义不存在");

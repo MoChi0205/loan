@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BatchQueryUtils;
+import com.loan.common.util.FieldLengthGuard;
 import com.loan.exception.BusinessException;
 import com.loan.plan.entity.AdmissionExecutionPlan;
 import com.loan.plan.entity.AdmissionPlanModule;
@@ -97,6 +98,7 @@ public class StrategyTemplateService {
         if (!StringUtils.hasText(template.getTemplateCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码必填");
         }
+        FieldLengthGuard.requireMaxLength("模版名称", template.getTemplateName(), 128);
         template.setId(null);
         template.setStatus(STATUS_DISABLED);
         template.setCreatedBy(operator);
@@ -112,6 +114,7 @@ public class StrategyTemplateService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(StrategyTemplate template, String operator) {
+        FieldLengthGuard.requireMaxLength("模版名称", template.getTemplateName(), 128);
         StrategyTemplate current = requireByCode(template.getTemplateCode());
         template.setId(current.getId());
         template.setUpdatedBy(operator);
@@ -244,6 +247,7 @@ public class StrategyTemplateService {
             module.setTemplateId(requireByCode(module.getTemplateCode()).getId());
         }
         if (module.getTemplateId() == null) throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
+        FieldLengthGuard.requireMaxLength("模块名称", module.getModuleName(), 128);
         module.setId(null);
         module.setModuleBizCode(StringUtils.hasText(module.getModuleBizCode()) ? module.getModuleBizCode() : "module_" + UUID.randomUUID().toString().replace("-", ""));
         if (module.getSort() == null) {
@@ -260,6 +264,7 @@ public class StrategyTemplateService {
     /** 更新模块 */
     @Transactional(rollbackFor = Exception.class)
     public void updateModule(String moduleBizCode, StrategyTemplateModule module) {
+        FieldLengthGuard.requireMaxLength("模块名称", module.getModuleName(), 128);
         StrategyTemplateModule current = moduleMapper.selectOne(new LambdaQueryWrapper<StrategyTemplateModule>()
                 .eq(StrategyTemplateModule::getModuleBizCode, moduleBizCode));
         if (current == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模块不存在");

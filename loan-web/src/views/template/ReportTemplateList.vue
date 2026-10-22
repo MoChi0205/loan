@@ -57,7 +57,7 @@
           <el-input-number v-model="dialogForm.versionNo" :min="1" :controls="false" :disabled="editing" style="width: 140px" />
         </el-form-item>
         <el-form-item label="模板名称" prop="templateName">
-          <el-input v-model="dialogForm.templateName" placeholder="如 企业税贷标准报告" />
+          <el-input v-model="dialogForm.templateName" placeholder="如 企业税贷标准报告（不超过128个字符）" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="免责声明">
           <el-input v-model="dialogForm.disclaimerText" type="textarea" :rows="2" placeholder="不构成银行通过承诺" />

@@ -113,7 +113,7 @@
           <el-input v-model="staffForm.crmUserId" :disabled="editingStaff" placeholder="SSO 映射键" />
         </el-form-item>
         <el-form-item label="姓名" prop="staffName">
-          <el-input v-model="staffForm.staffName" placeholder="员工姓名" />
+          <el-input v-model="staffForm.staffName" placeholder="员工姓名（不超过64个字符）" maxlength="64" show-word-limit />
         </el-form-item>
         <el-form-item label="部门">
           <AppSelect v-model="staffForm.deptCode" clearable filterable placeholder="选择部门" style="width: 100%">
@@ -141,7 +141,7 @@
           <el-input v-model="deptForm.deptCode" :disabled="editingDept" maxlength="32" show-word-limit placeholder="如 CONSULT（不超过32个字符）" />
         </el-form-item>
         <el-form-item label="部门名称" prop="deptName">
-          <el-input v-model="deptForm.deptName" placeholder="如 咨询部" />
+          <el-input v-model="deptForm.deptName" placeholder="如 咨询部（不超过64个字符）" maxlength="64" show-word-limit />
         </el-form-item>
         <el-form-item label="上级部门">
           <AppSelect v-model="deptForm.parentCode" clearable filterable placeholder="顶级" style="width: 100%">
@@ -309,7 +309,7 @@ const staffForm = reactive({
 const staffRules = {
   staffCode: [{ required: true, message: '请输入工号', trigger: 'blur' }],
   crmUserId: [{ required: true, message: '请输入 CRM 员工 ID', trigger: 'blur' }],
-  staffName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  staffName: [{ required: true, message: '请输入姓名', trigger: 'blur' }, { max: 64, message: '姓名不能超过64个字符', trigger: 'blur' }],
   roleCode: [{ required: true, message: '请选择角色', trigger: 'change' }],
 };
 

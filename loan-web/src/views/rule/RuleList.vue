@@ -141,13 +141,13 @@
           <el-input v-model="ruleForm.ruleCode" maxlength="64" show-word-limit placeholder="如 ENT_REJECT_DISHONEST（不超过64个字符）" :disabled="editing" />
         </el-form-item>
         <el-form-item label="规则名称" prop="ruleName">
-          <el-input v-model="ruleForm.ruleName" placeholder="如 失信被执行人拦截" />
+          <el-input v-model="ruleForm.ruleName" placeholder="如 失信被执行人拦截（不超过128个字符）" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="字段编码" prop="fieldCode">
           <el-input v-model="ruleForm.fieldCode" maxlength="64" show-word-limit placeholder="如 dishonest_flag（不超过64个字符）" />
         </el-form-item>
         <el-form-item label="字段名称" prop="fieldName">
-          <el-input v-model="ruleForm.fieldName" placeholder="如 失信标记" />
+          <el-input v-model="ruleForm.fieldName" placeholder="如 失信标记（不超过64个字符）" maxlength="64" show-word-limit />
         </el-form-item>
         <el-form-item label="运算符" prop="operator">
           <DictSelect v-model="ruleForm.operator" type="ruleOperator" placeholder="请选择运算符" />
@@ -415,6 +415,7 @@ const ruleRules = {
   ruleCode: [{ required: true, message: '请输入规则编码', trigger: 'blur' }, { max: 64, message: '规则编码不能超过64个字符', trigger: 'blur' }],
   ruleName: [{ required: true, message: '请输入规则名称', trigger: 'blur' }, { max: 128, message: '规则名称不能超过128个字符', trigger: 'blur' }],
   fieldCode: [{ required: true, message: '请输入字段编码', trigger: 'blur' }, { max: 64, message: '字段编码不能超过64个字符', trigger: 'blur' }],
+  fieldName: [{ max: 64, message: '字段名称不能超过64个字符', trigger: 'blur' }],
   operator: [{ required: true, message: '请选择运算符', trigger: 'change' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
   status: [{ required: true, message: '请选择状态', trigger: 'change' }],

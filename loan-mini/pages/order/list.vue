@@ -26,6 +26,7 @@
           v-model="filters.clientName"
           placeholder="客户姓名"
           placeholder-class="ph"
+          maxlength="64"
           confirm-type="search"
           @confirm="onSearch"
         />
@@ -33,6 +34,7 @@
           class="filter-input"
           v-model="filters.phone"
           type="number"
+          maxlength="11"
           placeholder="手机号"
           placeholder-class="ph"
           confirm-type="search"

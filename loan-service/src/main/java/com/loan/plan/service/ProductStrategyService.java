@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
+import com.loan.common.util.FieldLengthGuard;
 import com.loan.exception.BusinessException;
 import com.loan.plan.entity.AdmissionExecutionPlan;
 import com.loan.plan.entity.AdmissionPlanModule;
@@ -160,6 +161,7 @@ public class ProductStrategyService {
         if (!StringUtils.hasText(strategy.getStrategyCode())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "策略编码必填");
         }
+        FieldLengthGuard.requireMaxLength("策略名称", strategy.getStrategyName(), 128);
         validateAssociations(strategy);
         // 渠道内策略编码唯一
         Long cnt = strategyMapper.selectCount(new LambdaQueryWrapper<ProductStrategy>()
@@ -187,6 +189,7 @@ public class ProductStrategyService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(String strategyCode, ProductStrategy strategy, String operator) {
+        FieldLengthGuard.requireMaxLength("策略名称", strategy.getStrategyName(), 128);
         ProductStrategy existing = requireEditable(strategyCode);
         validateAssociations(strategy);
         // 草稿态：允许全量编辑；仅保留主键与审计字段，避免被篡改

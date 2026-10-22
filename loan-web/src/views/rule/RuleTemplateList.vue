@@ -54,7 +54,7 @@
     <AppDialog v-model:visible="tplDialog.visible" :title="tplDialog.title" :loading="tplDialog.saving" @confirm="onSaveTpl">
       <el-form ref="tplFormRef" :model="tplDialog.form" :rules="tplRules" label-width="90px">
         <el-form-item label="模版编码" prop="templateCode"><el-input v-model="tplDialog.form.templateCode" placeholder="唯一编码" /></el-form-item>
-        <el-form-item label="模版名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" /></el-form-item>
+        <el-form-item label="模版名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="分类">
           <AppSelect v-model="tplDialog.form.categoryId" clearable placeholder="选择分类" style="width: 100%">
             <el-option v-for="c in categoryList" :key="c.id" :label="c.categoryName" :value="c.id" />
@@ -106,7 +106,7 @@
     <AppDialog v-model:visible="fieldDialog.visible" :title="fieldDialog.title" :loading="fieldDialog.saving" @confirm="onSaveField">
       <el-form ref="fieldFormRef" :model="fieldDialog.form" :rules="fieldRules" label-width="90px">
         <el-form-item label="字段编码" prop="fieldCode"><el-input v-model="fieldDialog.form.fieldCode" /></el-form-item>
-        <el-form-item label="字段名称" prop="fieldName"><el-input v-model="fieldDialog.form.fieldName" /></el-form-item>
+        <el-form-item label="字段名称" prop="fieldName"><el-input v-model="fieldDialog.form.fieldName" maxlength="64" show-word-limit /></el-form-item>
         <el-form-item label="类型" prop="fieldType">
           <AppSelect v-model="fieldDialog.form.fieldType" style="width: 100%">
             <el-option v-for="t in FIELD_TYPES" :key="t" :label="t" :value="t" />
@@ -190,7 +190,7 @@ const tplDialog = reactive({ visible: false, title: '', saving: false, editingCo
 const tplFormRef = ref();
 const tplRules = {
   templateCode: [{ required: true, message: '请输入模版编码', trigger: 'blur' }],
-  templateName: [{ required: true, message: '请输入模版名称', trigger: 'blur' }],
+  templateName: [{ required: true, message: '请输入模版名称', trigger: 'blur' }, { max: 128, message: '模版名称不能超过128个字符', trigger: 'blur' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
 };
 function openCreate() {
@@ -232,7 +232,7 @@ const fieldDialog = reactive({ visible: false, title: '', saving: false, editing
 const fieldFormRef = ref();
 const fieldRules = {
   fieldCode: [{ required: true, message: '请输入字段编码', trigger: 'blur' }],
-  fieldName: [{ required: true, message: '请输入字段名称', trigger: 'blur' }],
+  fieldName: [{ required: true, message: '请输入字段名称', trigger: 'blur' }, { max: 64, message: '字段名称不能超过64个字符', trigger: 'blur' }],
   fieldType: [{ required: true, message: '请选择类型', trigger: 'change' }],
   operator: [{ required: true, message: '请选择运算符', trigger: 'change' }],
 };

@@ -117,6 +117,7 @@ src/
 - **审批类列表要带状态筛选**：待审列表若后端只返回 PENDING，审批后数据"消失"；前端每个审批 tab 都要有「审批状态」下拉（待审/已通过/已驳回），联动后端 `status` 参数，别只给部分 tab 加。
 - **客户列主行企业名 + 副行联系人（企业/个人客群差异）**：服务域与客户列表的「客户」列，主行显示 `enterpriseName || contactName`（企业客群显企业名，个人客群显联系人），副行补 `联系人：{{contactName}}`（企业客群时）或脱敏手机号。后端 DTO 已补 `enterpriseName`/`contactName` 并由列表合并一次客户查询返回，前端**不得**逐行调接口查客户名称（N+1）；若接口未返回这两个字段，先联动后端补 DTO，不要前端自己查。
 - **编码类输入框必须限长 + 提示上限（用户明确规范）**：所有编码/短代码输入框统一 `maxlength="N" show-word-limit` + placeholder 写明「不超过N个字符」；**原生 maxlength 不拦截 JS 赋值/表单回填**，表单 rules 必须再加 `{ max: N, message: 'XX不能超过N个字符', trigger: 'blur' }` 兜底；N 与 `db/loan-db-schema.sql` 列宽一致（dept_code=32，其余 code 类=64）。上限值查 schema 或问后端，**禁止拍脑袋写 255**。
+- **名称/标题类输入框同样限长（同型，别只盯编码）**：`productName`/`bankName`/`strategyName`/`planName`/`moduleName`/`templateName`/`ruleName`/`fieldName`/`staffName`/`signName` 等名称字段与编码同型，必须 `maxlength + show-word-limit + rules max`。上限与 DB 列宽一致：多数 name 类 =128，`dept_name`/`staff_name`/`field_name`/`sign_name` =64。**警惕 input 的 maxlength、rules 的 max、后端校验三处不一致**（曾出现 PlanEdit `max:64` 而列宽 128、input 128，导致能输入 70 字符却在提交时报 64）。
 
 ## 相关文档
 

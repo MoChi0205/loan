@@ -106,13 +106,13 @@
           <el-input v-model="templateForm.templateCode" maxlength="64" show-word-limit placeholder="如 LOGIN_VERIFY（不超过64个字符）" :disabled="editing" />
         </el-form-item>
         <el-form-item label="模板名称" prop="templateName">
-          <el-input v-model="templateForm.templateName" placeholder="如 登录验证码" />
+          <el-input v-model="templateForm.templateName" placeholder="如 登录验证码（不超过128个字符）" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="模板内容" prop="content">
           <el-input v-model="templateForm.content" type="textarea" :rows="3" placeholder="变量占位符如 ${code}" />
         </el-form-item>
         <el-form-item label="短信签名" prop="signName">
-          <el-input v-model="templateForm.signName" placeholder="如 资金服务平台" />
+          <el-input v-model="templateForm.signName" placeholder="如 资金服务平台（不超过64个字符）" maxlength="64" show-word-limit />
         </el-form-item>
         <el-form-item label="短信类型">
           <AppSelect v-model="templateForm.smsType" style="width: 100%">

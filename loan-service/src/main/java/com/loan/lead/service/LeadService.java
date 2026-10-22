@@ -570,7 +570,16 @@ public class LeadService {
             return "客户已有跟进或成交记录，未联动释放";
         }
         try {
-            clientAllocationService.selfRelease(clientCode, operator);
+            // 自动回收等系统场景 operator 为 null：用归属人工号构造 system 操作人，
+            // 使 selfRelease 的归属校验（operator.userNo == owner）通过，避免误判「非本人」。
+            LoanUser op = operator;
+            if (op == null) {
+                op = new LoanUser();
+                op.setUserNo(staffCode);
+                op.setName("system");
+                op.setUserType(LoanUser.TYPE_STAFF);
+            }
+            clientAllocationService.selfRelease(clientCode, op);
             return "关联客户已一并释放回公司公海";
         } catch (Exception e) {
             // 线索释放已成功，此处只做客户联动兜底：失败不回滚，交由前端提示用户手动处理
@@ -863,6 +872,9 @@ public class LeadService {
                         .set(Lead::getAssignBlockedUntil, LocalDateTime.now().plusDays(cfg.getCooldownDays() == null ? 7 : cfg.getCooldownDays()))
                         .set(Lead::getUpdatedBy, "system"));
                 recycled++;
+                // 联动释放关联客户（与手动释放同口径：复用 releaseLinkedClient/selfRelease，不在此重写释放逻辑）。
+                // 操作人 system（operator=null → 内部以原归属人工号构造 system 操作人，使归属校验通过）。
+                releaseLinkedClient(lead.getClientProfileCode(), from, null);
                 // 站内通知：线索已回收进公海（非 DB 操作，保持逐条、顺序与位置不变）
                 if (ownerNo != null) {
                     notificationService.send(buildNotice(ownerNo, Notification.TYPE_LEAD_RECYCLE_WARN,

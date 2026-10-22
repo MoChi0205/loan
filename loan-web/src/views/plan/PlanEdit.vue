@@ -88,7 +88,7 @@
           </AppSelect>
         </el-form-item>
         <el-form-item label="计划编码" prop="planCode"><el-input v-model="planDialog.form.planCode" placeholder="如 ENT_TAX_PLAN_V2" /></el-form-item>
-        <el-form-item label="计划名称" prop="planName"><el-input v-model="planDialog.form.planName" placeholder="计划名称" /></el-form-item>
+        <el-form-item label="计划名称" prop="planName"><el-input v-model="planDialog.form.planName" placeholder="计划名称" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="版本"><el-input-number v-model="planDialog.form.version" :min="1" /></el-form-item>
       </el-form>
     </AppDialog>
@@ -97,7 +97,7 @@
     <AppDialog v-model:visible="moduleDialog.visible" :title="moduleDialog.title" :loading="moduleDialog.saving" @confirm="onSaveModule">
       <el-form ref="moduleFormRef" :model="moduleDialog.form" :rules="moduleRules" label-width="90px">
         <el-form-item label="模块编码" prop="moduleCode"><el-input v-model="moduleDialog.form.moduleCode" placeholder="如 OPERATION" /></el-form-item>
-        <el-form-item label="模块名称" prop="moduleName"><el-input v-model="moduleDialog.form.moduleName" placeholder="模块名称" /></el-form-item>
+        <el-form-item label="模块名称" prop="moduleName"><el-input v-model="moduleDialog.form.moduleName" placeholder="模块名称" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="逻辑">
           <AppSelect v-model="moduleDialog.form.logicType" style="width: 100%" teleported>
             <el-option label="AND（模块内遇FAIL短路）" value="AND" />
@@ -594,7 +594,7 @@ const planFormRef = ref();
 const planRules = {
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
   planCode: [{ required: true, message: '计划编码必填', trigger: 'blur' }, { min: 2, max: 64, message: '2-64 字符', trigger: 'blur' }],
-  planName: [{ required: true, message: '计划名称必填', trigger: 'blur' }, { min: 2, max: 64, message: '2-64 字符', trigger: 'blur' }],
+  planName: [{ required: true, message: '计划名称必填', trigger: 'blur' }, { min: 2, max: 128, message: '2-128 字符', trigger: 'blur' }],
 };
 function openPlanDialog(p) {
   planDialog.title = p ? '编辑计划' : '新建计划';
@@ -705,7 +705,7 @@ const moduleDialog = reactive({ visible: false, title: '', saving: false, editin
 const moduleFormRef = ref();
 const moduleRules = {
   moduleCode: [{ required: true, message: '模块编码必填', trigger: 'blur' }, { min: 2, max: 64, message: '2-64 字符', trigger: 'blur' }],
-  moduleName: [{ required: true, message: '模块名称必填', trigger: 'blur' }, { min: 2, max: 64, message: '2-64 字符', trigger: 'blur' }],
+  moduleName: [{ required: true, message: '模块名称必填', trigger: 'blur' }, { min: 2, max: 128, message: '2-128 字符', trigger: 'blur' }],
 };
 function openModuleDialog(m) {
   moduleDialog.title = m ? '编辑模块' : '添加模块';

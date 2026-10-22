@@ -60,7 +60,7 @@
     <AppDialog v-model:visible="tplDialog.visible" :title="tplDialog.title" :loading="tplDialog.saving" @confirm="onSaveTpl">
       <el-form ref="tplFormRef" :model="tplDialog.form" :rules="tplRules" label-width="90px">
         <el-form-item label="模版编码" prop="templateCode"><el-input v-model="tplDialog.form.templateCode" placeholder="渠道内唯一" /></el-form-item>
-        <el-form-item label="模版名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" /></el-form-item>
+        <el-form-item label="模版名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="客群" prop="customerGroup">
           <AppSelect v-model="tplDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
@@ -108,7 +108,7 @@
     <AppDialog v-model:visible="modDialog.visible" :title="modDialog.title" :loading="modDialog.saving" @confirm="onSaveModule">
       <el-form ref="modFormRef" :model="modDialog.form" :rules="modRules" label-width="90px">
         <el-form-item label="模块编码" prop="moduleCode"><el-input v-model="modDialog.form.moduleCode" /></el-form-item>
-        <el-form-item label="模块名称" prop="moduleName"><el-input v-model="modDialog.form.moduleName" /></el-form-item>
+        <el-form-item label="模块名称" prop="moduleName"><el-input v-model="modDialog.form.moduleName" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="逻辑">
           <AppSelect v-model="modDialog.form.logicType" style="width: 100%">
             <el-option label="AND" value="AND" /><el-option label="OR" value="OR" />
@@ -192,7 +192,7 @@
           <RemoteProductSelect v-model="importDialog.form.bankProductCode" :customer-group="importDialog.form.customerGroup" />
         </el-form-item>
         <el-form-item label="策略编码" prop="strategyCode"><el-input v-model="importDialog.form.strategyCode" placeholder="渠道内唯一" /></el-form-item>
-        <el-form-item label="策略名称"><el-input v-model="importDialog.form.strategyName" placeholder="缺省用模版名" /></el-form-item>
+        <el-form-item label="策略名称"><el-input v-model="importDialog.form.strategyName" placeholder="缺省用模版名" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="客群">
           <AppSelect v-model="importDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
@@ -217,7 +217,7 @@
           <el-input v-model="snapshotDialog.templateCode" placeholder="需唯一" />
         </el-form-item>
         <el-form-item label="模版名称" required>
-          <el-input v-model="snapshotDialog.templateName" placeholder="缺省用策略名" />
+          <el-input v-model="snapshotDialog.templateName" placeholder="缺省用策略名" maxlength="128" show-word-limit />
         </el-form-item>
         <p class="tpl-condition-hint">将渠道策略及其执行计划树（模块/步骤/规则）快照为模版草稿，可继续编排后上线供其他渠道导入。</p>
       </el-form>
@@ -329,7 +329,7 @@ const tplDialog = reactive({ visible: false, title: '', saving: false, editingCo
 const tplFormRef = ref();
 const tplRules = {
   templateCode: [{ required: true, message: '请输入模版编码', trigger: 'blur' }],
-  templateName: [{ required: true, message: '请输入模版名称', trigger: 'blur' }],
+  templateName: [{ required: true, message: '请输入模版名称', trigger: 'blur' }, { max: 128, message: '模版名称不能超过128个字符', trigger: 'blur' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
 };
 function openCreate() {
@@ -379,7 +379,7 @@ const modDialog = reactive({ visible: false, title: '', saving: false, editingId
 const modFormRef = ref();
 const modRules = {
   moduleCode: [{ required: true, message: '请输入模块编码', trigger: 'blur' }],
-  moduleName: [{ required: true, message: '请输入模块名称', trigger: 'blur' }],
+  moduleName: [{ required: true, message: '请输入模块名称', trigger: 'blur' }, { max: 128, message: '模块名称不能超过128个字符', trigger: 'blur' }],
 };
 function openModuleDialog(m) {
   modDialog.title = m ? '编辑模块' : '添加模块';
