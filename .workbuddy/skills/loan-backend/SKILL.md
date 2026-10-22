@@ -139,6 +139,7 @@ OssStorageService → local / aliyun（@ConditionalOnProperty 切换）
 - **企业名称/联系人必须后端 DTO 显式补齐 + 合并查询**：服务域 DTO（`StaffAppointmentDTO`/`StaffOutingDTO`/`DailyFollowDTO`/`DailyOrderDTO`）与订单出参必须显式加 `enterpriseName`/`contactName` 字段并在组装处 set；列表接口合并**一次**客户查询补齐（防 N+1），前端客户列主行企业名 + 副行联系人（个人客群仅联系人）。新增任何含「客户/企业」信息的列表，默认补这两个字段，不得只返业务编码让前端逐行查名称。
 - **回收/释放/转移必须联动关联对象（手动与自动同一套）**：线索与客户档案存在 `clientProfileCode` 关联，任何「线索释放/回收」都要同步处理关联客户，否则线索回公海、客户仍挂原顾问「我的客户」→ 两个列表口径分裂。手动路径（`LeadService.release`）与自动路径（`recycleOverdue` 定时任务）**必须复用同一个 `releaseLinkedClient`**，禁止只改一个入口。联动调用 `selfRelease` 时 operator 不能为 null（其归属校验 `operator.userNo == ownerStaffCode`），系统场景用归属人工号构造 system LoanUser。
 - **长度三层防线不只针对编码，名称/标题/地址/备注等所有用户可输入文本同样适用**：前端 maxlength + rules max、后端 `FieldLengthGuard.requireMaxLength`、DB 列宽三处必须同值。已接入名称校验的入口：`StrategyTemplateService` / `ProductStrategyService` / `RuleTemplateService` / `PlanOrchestrationService` 的 create/update（上限 128 / 64）。注意 DB 列宽 name 类多为 128，仅 `dept_name`/`staff_name`/`field_name`/`sign_name` 为 64。
+- **枚举/字典字段建档必须白名单校验，禁静默透传自由值**：`customer_group`（ENTERPRISE/PERSONAL，部分维度表另有 COMMON）、`status`、`lead_type` 等枚举列，写库前必须 `Arrays.asList(...).contains(v)` 校验，非法抛 `PARAM_ERROR`。曾出现 `MiniClientService.create` 把前端自由文本（行业「制造业」）原样写入 `customer_group` 硬分流枚举的漏网——同类 `OrderService`/`MiniProductService` 早已校验，唯独新建档入口漏了。新增任何接收客户端传入枚举的入口，第一反应是先找同列的其他写入口是否已有校验，照抄对齐。
 
 ## 相关文档
 
