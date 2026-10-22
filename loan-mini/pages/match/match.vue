@@ -151,10 +151,6 @@
             <text class="field-label">统一社会信用代码</text>
             <input class="field-input" v-model="newClient.creditCode" placeholder="选填，18 位" placeholder-class="ph" maxlength="18" />
           </view>
-          <view class="field">
-            <text class="field-label">客群</text>
-            <input class="field-input" v-model="newClient.customerGroup" placeholder="如：制造业" placeholder-class="ph" maxlength="16" />
-          </view>
           <AppButton variant="primary" size="lg" block :loading="creating" @click="onCreateClient">
             创建客户并申请认领
           </AppButton>
@@ -364,7 +360,7 @@ const creating = ref(false);
 const targetName = ref('');          // 已确定归属的企业名
 const targetClientCode = ref('');    // 已确定归属的客户编号
 const newClient = reactive({
-  entName: '', contactName: '', contactPhone: '', creditCode: '', customerGroup: '',
+  entName: '', contactName: '', contactPhone: '', creditCode: '',
 });
 
 let dupTimer = null;
@@ -415,7 +411,8 @@ async function onCreateClient() {
       contactName: newClient.contactName.trim(),
       contactPhone: newClient.contactPhone.trim(),
       creditCode: newClient.creditCode.trim(),
-      customerGroup: newClient.customerGroup.trim(),
+      // 客群由「企业经营/个人资质」tab 派生，不再让用户自由填写（schema 硬分流枚举 ENTERPRISE/PERSONAL）
+      customerGroup: factType.value === 'personal' ? 'PERSONAL' : 'ENTERPRISE',
     });
     const clientCode = (data && data.clientCode) || '';
     if (!clientCode) throw new Error('创建结果缺少客户编码');

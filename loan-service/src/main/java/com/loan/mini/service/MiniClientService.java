@@ -27,6 +27,7 @@ import org.springframework.util.StringUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -185,7 +186,13 @@ public class MiniClientService {
         client.setClientCode(BizIdGenerator.generate("client"));
         client.setEnterpriseName(entName);
         client.setContactName(payload.get("contactName") == null ? null : String.valueOf(payload.get("contactName")).trim());
-        client.setCustomerGroup(strValue(payload.get("customerGroup"), "ENTERPRISE"));
+        // 客群是硬分流枚举（ENTERPRISE企业/PERSONAL个人），必须白名单校验；
+        // 前端已由「企业经营/个人资质」tab 派生，此处防非法值（如行业文本「制造业」）静默落库。
+        String customerGroup = strValue(payload.get("customerGroup"), "ENTERPRISE");
+        if (!Arrays.asList("ENTERPRISE", "PERSONAL").contains(customerGroup)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "客群只能为 ENTERPRISE/PERSONAL");
+        }
+        client.setCustomerGroup(customerGroup);
         // 状态枚举对齐 schema（ACTIVE/DISABLED）与其他建档入口（AuthService/MiniAuthService）；
         // 历史误写为 "NORMAL"，无任何查询按该值过滤，故此处归位为 ACTIVE。
         client.setStatus(CLIENT_STATUS_ACTIVE);
