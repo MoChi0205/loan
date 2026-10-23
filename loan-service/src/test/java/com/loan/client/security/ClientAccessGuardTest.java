@@ -5,6 +5,7 @@ import com.loan.client.entity.ClientProfile;
 import com.loan.client.mapper.ClientProfileMapper;
 import com.loan.context.LoanUser;
 import com.loan.exception.BusinessException;
+import com.loan.lead.mapper.LeadMapper;
 import com.loan.staff.entity.Staff;
 import com.loan.staff.mapper.StaffMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,13 +25,15 @@ class ClientAccessGuardTest {
 
     private ClientProfileMapper clientMapper;
     private StaffMapper staffMapper;
+    private LeadMapper leadMapper;
     private ClientAccessGuard guard;
 
     @BeforeEach
     void setUp() {
         clientMapper = mock(ClientProfileMapper.class);
         staffMapper = mock(StaffMapper.class);
-        guard = new ClientAccessGuard(clientMapper, staffMapper);
+        leadMapper = mock(LeadMapper.class);
+        guard = new ClientAccessGuard(clientMapper, staffMapper, leadMapper);
     }
 
     @Test

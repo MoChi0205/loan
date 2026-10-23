@@ -12,6 +12,7 @@ import com.loan.exception.BusinessException;
 import com.loan.invitation.mapper.InvitationMapper;
 import com.loan.personal.mapper.PersonalProfileMapper;
 import com.loan.personal.service.PersonalProfileService;
+import com.loan.submission.mapper.ClientBusinessFactMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,8 @@ class ClientServiceAccessTest {
         accessGuard = mock(ClientAccessGuard.class);
         service = new ClientService(clientMapper, personalMapper, mock(PersonalProfileService.class),
                 mock(InvitationMapper.class), mock(BusinessNameService.class), accessGuard,
-                mock(StaffMapper.class), mock(ResourcePoolConfigService.class));
+                mock(StaffMapper.class), mock(ResourcePoolConfigService.class),
+                mock(ClientBusinessFactMapper.class));
     }
 
     @Test

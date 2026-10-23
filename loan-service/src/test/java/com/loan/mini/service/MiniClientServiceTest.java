@@ -25,6 +25,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 /** 小程序直接建客户档案仍进入未分配池；线索录入的自动归属由 LeadService 负责。 */
@@ -49,7 +50,7 @@ class MiniClientServiceTest {
     @BeforeEach
     void setUp() {
         service = new MiniClientService(clientProfileMapper, lifecycleEventMapper, allocationRecordMapper,
-                staffMapper, clientAllocationService, businessNameService);
+                staffMapper, mock(com.loan.org.mapper.DepartmentMapper.class), clientAllocationService, businessNameService);
     }
 
     @Test

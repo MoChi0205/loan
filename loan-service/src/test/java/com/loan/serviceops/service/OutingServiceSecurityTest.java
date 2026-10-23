@@ -63,7 +63,8 @@ class OutingServiceSecurityTest {
         activityService = mock(ClientActivityService.class);
         ossStorageService = mock(OssStorageService.class);
         service = new OutingService(outingMapper, staffMapper, appointmentService,
-                scopeService, activityService, new ObjectMapper(), ossStorageService);
+                scopeService, activityService, new ObjectMapper(), ossStorageService,
+                mock(com.loan.client.mapper.ClientProfileMapper.class));
     }
 
     @Test

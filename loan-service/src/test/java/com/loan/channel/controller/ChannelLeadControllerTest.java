@@ -53,11 +53,11 @@ class ChannelLeadControllerTest {
     @Test
     void ownPageDoesNotImplicitlyFilterApprovalStatus() {
         when(leadService.pageByRecorder(eq("channel-a"), any(), any(), any(),
-                eq(1), eq(10), any(), any()))
+                eq(1), eq(10), any(), any(), any(), any()))
                 .thenReturn(PageResult.build(1, 10, 0L, Collections.emptyList()));
 
-        controller.leadPage(null, null, null, 1, 10, null, null, channel);
+        controller.leadPage(null, null, null, 1, 10, null, null, null, null, channel);
 
-        verify(leadService).pageByRecorder("channel-a", null, null, null, 1, 10, null, null);
+        verify(leadService).pageByRecorder("channel-a", null, null, null, 1, 10, null, null, null, null);
     }
 }

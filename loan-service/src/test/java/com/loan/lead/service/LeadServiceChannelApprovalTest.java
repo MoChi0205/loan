@@ -50,7 +50,11 @@ class LeadServiceChannelApprovalTest {
         service = new LeadService(leadMapper, mock(ClientProfileMapper.class), recordMapper,
                 mock(NotificationService.class), mock(SensitiveViewService.class),
                 mock(ClaimQuotaService.class), mock(LeadRecycleConfigMapper.class),
-                mock(com.loan.staff.mapper.StaffMapper.class));
+                mock(com.loan.staff.mapper.StaffMapper.class),
+                mock(com.loan.org.mapper.DepartmentMapper.class),
+                mock(com.loan.client.service.ClientAllocationService.class),
+                mock(com.loan.order.mapper.ServiceOrderMapper.class),
+                mock(com.loan.serviceops.mapper.ClientAppointmentMapper.class));
     }
 
     @Test
@@ -110,7 +114,8 @@ class LeadServiceChannelApprovalTest {
             return page;
         });
 
-        service.page(null, null, null, null, 1, 10, "ADVISER", "ADV001", null, null, null, null, null);
+        service.page(null, null, null, null, 1, 10, "ADVISER", "ADV001", null, null, null, null, null,
+                null, null);
 
         ArgumentCaptor<LambdaQueryWrapper<Lead>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
         verify(leadMapper).selectPage(any(Page.class), captor.capture());

@@ -18,6 +18,7 @@ import com.loan.staff.mapper.StaffMapper;
 import com.loan.client.mapper.ClientRecycleConfigMapper;
 import com.loan.notification.service.NotificationService;
 import com.loan.common.service.BusinessNameService;
+import com.loan.org.mapper.DepartmentMapper;
 import com.loan.resourcepool.service.ResourcePoolConfigService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -69,7 +70,7 @@ class ClientAllocationServiceTest {
     @BeforeEach
     void setUp() {
         service = new ClientAllocationService(redisTemplate, claimQuotaService, clientMapper, approvalMapper,
-                staffMapper, recordMapper, clientRecycleConfigMapper, lifecycleEventMapper,
+                staffMapper, mock(DepartmentMapper.class), recordMapper, clientRecycleConfigMapper, lifecycleEventMapper,
                 notificationService, businessNameService, mock(ResourcePoolConfigService.class));
     }
 

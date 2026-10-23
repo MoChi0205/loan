@@ -39,7 +39,8 @@ class AppointmentServiceSecurityTest {
         ServiceOrderMapper orderMapper = mock(ServiceOrderMapper.class);
         scopeService = mock(ServiceOperationScopeService.class);
         activityService = mock(ClientActivityService.class);
-        service = new AppointmentService(appointmentMapper, staffMapper, orderMapper, scopeService, activityService);
+        service = new AppointmentService(appointmentMapper, staffMapper, orderMapper, scopeService, activityService,
+                mock(com.loan.client.mapper.ClientProfileMapper.class));
     }
 
     @Test
