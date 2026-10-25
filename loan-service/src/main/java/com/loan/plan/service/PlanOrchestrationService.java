@@ -1,6 +1,8 @@
 package com.loan.plan.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loan.common.ResultCode;
 import com.loan.common.util.BizIdGenerator;
 import com.loan.common.util.FieldLengthGuard;
@@ -48,6 +50,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class PlanOrchestrationService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final AdmissionExecutionPlanMapper planMapper;
     private final AdmissionPlanModuleMapper moduleMapper;
@@ -133,6 +137,7 @@ public class PlanOrchestrationService {
                 svo.put("joinWithNext", step.getJoinWithNext());
                 svo.put("isDryRun", step.getIsDryRun());
                 svo.put("stepConfigJson", step.getStepConfigJson());
+                svo.put("ruleValue", stepRuleValue(step.getStepConfigJson()));
                 svo.put("conditionField", step.getConditionField());
                 svo.put("conditionOperator", step.getConditionOperator());
                 svo.put("conditionValue", step.getConditionValue());
@@ -147,6 +152,18 @@ public class PlanOrchestrationService {
         result.put("plan", plan);
         result.put("modules", moduleVOs);
         return result;
+    }
+
+    /** V2：规则参数属于执行计划步骤实例；旧数据无 ruleValue 时返回空，避免继续把目录值当实例值。 */
+    private String stepRuleValue(String stepConfigJson) {
+        if (stepConfigJson == null || stepConfigJson.trim().isEmpty()) return "";
+        try {
+            JsonNode node = OBJECT_MAPPER.readTree(stepConfigJson);
+            JsonNode value = node == null ? null : node.get("ruleValue");
+            return value == null || value.isNull() ? "" : value.asText("");
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     private AdmissionExecutionPlan findByCode(String planCode) {

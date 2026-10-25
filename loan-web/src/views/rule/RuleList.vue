@@ -155,8 +155,9 @@
         <el-form-item label="值类型" prop="valueType">
           <DictSelect v-model="ruleForm.valueType" type="ruleValueType" placeholder="请选择值类型" />
         </el-form-item>
-        <el-form-item label="规则值" prop="valueText">
-          <el-input v-model="ruleForm.valueText" type="textarea" :rows="2" placeholder="如 true / 100000 / [A,B]" />
+        <el-form-item label="历史默认值">
+          <el-input v-model="ruleForm.valueText" type="textarea" :rows="2" disabled placeholder="仅兼容历史数据；运行值请在执行计划步骤中配置" />
+          <span class="form-tip">规则目录只定义事实字段和运算符，不在此处编辑执行计划运行值。</span>
         </el-form-item>
         <el-form-item label="客群" prop="customerGroup">
           <DictSelect v-model="ruleForm.customerGroup" type="customerGroup" placeholder="请选择客群" />

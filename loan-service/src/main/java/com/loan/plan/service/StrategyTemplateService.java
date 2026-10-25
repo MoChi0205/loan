@@ -1,6 +1,8 @@
 package com.loan.plan.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.loan.api.dto.PageResult;
 import com.loan.common.ResultCode;
@@ -46,6 +48,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class StrategyTemplateService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String STATUS_DISABLED = "DISABLED";
@@ -211,6 +215,7 @@ public class StrategyTemplateService {
                 svo.put("joinWithNext", step.getJoinWithNext());
                 svo.put("isDryRun", step.getIsDryRun());
                 svo.put("stepConfigJson", step.getStepConfigJson());
+                svo.put("ruleValue", stepRuleValue(step.getStepConfigJson()));
                 svo.put("conditionField", step.getConditionField());
                 svo.put("conditionOperator", step.getConditionOperator());
                 svo.put("conditionValue", step.getConditionValue());
@@ -225,6 +230,17 @@ public class StrategyTemplateService {
         result.put("template", template);
         result.put("modules", moduleVOs);
         return result;
+    }
+
+    private String stepRuleValue(String stepConfigJson) {
+        if (stepConfigJson == null || stepConfigJson.trim().isEmpty()) return "";
+        try {
+            JsonNode node = OBJECT_MAPPER.readTree(stepConfigJson);
+            JsonNode value = node == null ? null : node.get("ruleValue");
+            return value == null || value.isNull() ? "" : value.asText("");
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     /** 按模板业务编码查询模板，物理主键仅在模板聚合内部使用。 */

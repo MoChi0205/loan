@@ -156,6 +156,11 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-divider content-position="left">规则参数（按执行计划独立配置）</el-divider>
+        <el-form-item label="规则值">
+          <el-input v-model="stepDialog.form.ruleValue" type="textarea" :rows="2" placeholder="当前执行计划专属值；不会修改规则目录" />
+          <span class="condition-hint">同一规则可被多个执行计划复用，各计划使用自己的规则值。</span>
+        </el-form-item>
         <el-divider content-position="left">步骤前置条件（可选附加条件）</el-divider>
         <el-form-item label="启用前置条件">
           <el-switch v-model="stepConditionEnabled" />
@@ -335,6 +340,7 @@ import AppIcon from '@/components/AppIcon.vue';
 import AppTableActions from '@/components/AppTableActions.vue';
 import { appConfirm } from '@/utils/confirm';
 import { formatDateTime } from '@/utils/format';
+import { readRuleValue, mergeRuleValue } from '@/utils/stepConfig';
 import {
   listPlans, pagePlans, planDetail, createPlan, updatePlan, deletePlan,
   createModule, updateModule, deleteModule, createStep, updateStep, deleteStep,
@@ -838,7 +844,7 @@ async function onDeleteModule(m) {
 
 // 步骤弹窗（添加/编辑）
 function emptyStepForm() {
-  return { categoryCode: '', ruleId: null, stepSort: 0, joinWithNext: 'AND', isDryRun: 0, conditionField: '', conditionOperator: '', conditionValue: '' };
+  return { categoryCode: '', ruleId: null, stepSort: 0, joinWithNext: 'AND', isDryRun: 0, ruleValue: '', stepConfigJson: '', conditionField: '', conditionOperator: '', conditionValue: '' };
 }
 const stepDialog = reactive({ visible: false, title: '添加步骤', saving: false, editingId: null, moduleId: null, form: emptyStepForm() });
 const stepFormRef = ref();
@@ -846,13 +852,16 @@ const stepRules = {
   ruleId: [{ required: true, message: '请选择规则', trigger: 'change' }],
 };
 function openStepDialog(m, s) {
+  let ruleValue = '';
+  try { ruleValue = s ? (s.ruleValue ?? readRuleValue(s.stepConfigJson)) : ''; }
+  catch (err) { ElMessage.error(err.message); return; }
   stepDialog.moduleId = m.moduleBizCode;
   stepDialog.editingId = s?.stepCode || null;
   stepDialog.title = s ? '编辑步骤' : '添加步骤';
   // 编辑时从已有规则反推分类
   const existingRule = s ? (rules.value || []).find((r) => (r.ruleId && r.ruleId === s.ruleId) || r.ruleCode === s.ruleCode) : null;
   Object.assign(stepDialog.form, s
-    ? { categoryCode: existingRule?.categoryCode || '', ruleId: s.ruleId, stepSort: s.stepSort, joinWithNext: s.joinWithNext || 'AND', isDryRun: s.isDryRun || 0, conditionField: s.conditionField || '', conditionOperator: s.conditionOperator || '', conditionValue: s.conditionValue || '' }
+    ? { categoryCode: existingRule?.categoryCode || '', ruleId: s.ruleId, stepSort: s.stepSort, joinWithNext: s.joinWithNext || 'AND', isDryRun: s.isDryRun || 0, ruleValue, stepConfigJson: s.stepConfigJson ?? '', conditionField: s.conditionField || '', conditionOperator: s.conditionOperator || '', conditionValue: s.conditionValue || '' }
     : { ...emptyStepForm(), stepSort: (m.steps?.length || 0) });
   stepFormRef.value?.clearValidate();
   stepDialog.visible = true;
@@ -871,7 +880,8 @@ async function onSaveStep() {
   }
   stepDialog.saving = true;
   try {
-    const form = { ...stepDialog.form };
+    const form = { ...stepDialog.form, stepConfigJson: mergeRuleValue(stepDialog.form.stepConfigJson, stepDialog.form.ruleValue) };
+    delete form.ruleValue;
     form.joinWithNext = (form.joinWithNext || 'AND').toUpperCase();
     // 运算符为空时清空条件字段/值，避免脏数据
     if (!form.conditionOperator) {
@@ -890,6 +900,7 @@ async function onSaveStep() {
     loadDetail();
   } finally { stepDialog.saving = false; }
 }
+
 async function onDeleteStep(m, s) {
   try { await appConfirm(`确认删除步骤「${s.ruleName}」？`); } catch { return; }
   await deleteStep(s.stepCode);
@@ -921,6 +932,13 @@ onMounted(async () => {
     loadPlans(),
     loadRulesByCG(activeCustomerGroup.value),
   ]);
+  if (route.query.planCode) {
+    const target = plans.value.find((p) => p.planCode === route.query.planCode) || { planCode: route.query.planCode, planName: route.query.planCode, customerGroup: activeCustomerGroup.value };
+    selectPlan(target);
+    detailDialog.visible = true;
+    await loadDetail();
+    detailDialog.activeModuleCode = modules.value[0]?.moduleBizCode || null;
+  }
   nextTick(initColumnDrag);
 });
 </script>

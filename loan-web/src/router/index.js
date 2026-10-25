@@ -58,7 +58,7 @@ const routes = [
         path: 'channel-config',
         name: 'ChannelConfigList',
         component: () => import('@/views/plan/ChannelConfigList.vue'),
-        meta: { title: '渠道档案' },
+        meta: { title: '渠道管理' },
       },
       {
         path: 'channel-strategy',

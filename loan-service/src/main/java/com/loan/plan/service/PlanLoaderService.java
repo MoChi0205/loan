@@ -1,6 +1,8 @@
 package com.loan.plan.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loan.engine.catalog.RuleCatalog;
 import com.loan.engine.enums.CustomerGroup;
 import com.loan.engine.execute.AdmissionPlan;
@@ -45,6 +47,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PlanLoaderService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final AdmissionExecutionPlanMapper planMapper;
     private final AdmissionPlanModuleMapper moduleMapper;
@@ -202,6 +206,7 @@ public class PlanLoaderService {
         if (fieldName == null && catalog != null) {
             fieldName = catalog.getDisplayName();
         }
+        String ruleValue = stepRuleValue(step.getStepConfigJson());
         return RuleStepConfig.builder()
                 .planId(planId)
                 .moduleId(module.getId())
@@ -215,7 +220,7 @@ public class PlanLoaderService {
                 .fieldName(fieldName)
                 .operator(rule.getOperator())
                 .valueType(rule.getValueType())
-                .valueText(rule.getValueText())
+                .valueText(ruleValue.isEmpty() ? rule.getValueText() : ruleValue)
                 .stepSort(step.getStepSort())
                 .joinWithNext(step.getJoinWithNext())
                 .isDryRun(step.getIsDryRun())
@@ -224,5 +229,16 @@ public class PlanLoaderService {
                 .conditionOperator(step.getConditionOperator())
                 .conditionValue(step.getConditionValue())
                 .build();
+    }
+
+    private String stepRuleValue(String stepConfigJson) {
+        if (stepConfigJson == null || stepConfigJson.trim().isEmpty()) return "";
+        try {
+            JsonNode node = OBJECT_MAPPER.readTree(stepConfigJson);
+            JsonNode value = node == null ? null : node.get("ruleValue");
+            return value == null || value.isNull() ? "" : value.asText("");
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 }

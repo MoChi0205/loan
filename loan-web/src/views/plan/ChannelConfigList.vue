@@ -2,7 +2,7 @@
   <div class="cc-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">渠道档案</h2>
+        <h2 class="loan-page-title">渠道管理</h2>
         <p class="loan-page-subtitle">按银行合作渠道查看准入策略；执行计划统一在「执行计划」中编排</p>
       </div>
       <el-button type="primary" @click="router.push('/channel-strategy')">

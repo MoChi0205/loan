@@ -89,6 +89,32 @@
         </el-form-item>
       </el-form>
     </AppDialog>
+
+    <AppDialog v-model:visible="flowVisible" :title="`准入流程 · ${flowStrategy?.strategyName || ''}`" width="920px">
+      <div v-loading="flowLoading" class="admission-flow">
+        <el-alert v-if="flowPlan" type="info" :closable="false" show-icon>
+          执行计划：{{ flowPlan.planName || flowPlan.planCode }} · {{ flowPlan.status === 'ACTIVE' ? '已上线' : '草稿' }}
+        </el-alert>
+        <AppEmpty v-if="!flowLoading && !flowModules.length" title="暂无准入步骤" desc="该策略尚未配置执行计划模块或步骤" />
+        <div v-for="(m, index) in flowModules" :key="m.moduleBizCode || m.id || index" class="flow-module">
+          <div class="flow-module-head">
+            <span class="flow-index">{{ index + 1 }}</span>
+            <strong>{{ m.moduleName || m.categoryName || '未命名模块' }}</strong>
+            <span class="loan-tag loan-tag-info">{{ m.logicType || 'AND' }}</span>
+            <span class="flow-join">与下一模块：{{ m.joinWithNextModule || 'AND' }}</span>
+          </div>
+          <div v-for="(s, stepIndex) in (m.steps || [])" :key="s.stepCode || s.id || stepIndex" class="flow-step">
+            <span class="flow-step-order">{{ s.stepOrder ?? s.stepSort ?? stepIndex + 1 }}</span>
+            <span class="flow-step-name">{{ s.ruleName || s.ruleCode || '未命名规则' }}</span>
+            <span v-if="s.conditionField || s.conditionOperator || s.conditionValue" class="flow-condition">
+              {{ s.conditionField || '条件' }} {{ s.conditionOperator || '' }} {{ s.conditionValue || '' }}
+            </span>
+            <span class="loan-tag loan-tag-muted">与下一步：{{ s.joinWithNext || 'AND' }}</span>
+            <span v-if="s.isDryRun === 1" class="loan-tag loan-tag-warning">空跑</span>
+          </div>
+        </div>
+      </div>
+    </AppDialog>
   </div>
 </template>
 
@@ -96,7 +122,7 @@
 import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_channel_strategy' });
 import { ref, reactive, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
@@ -107,15 +133,16 @@ import AppDialog from '@/components/AppDialog.vue';
 import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
 import { useTable } from '@/composables/useTable';
 import { listChannels } from '@/api/channel';
-import { listPlans } from '@/api/plan';
+import { listPlans, planDetail } from '@/api/plan';
 import {
-  pageStrategy, createStrategy, updateStrategy, deleteStrategy, enableStrategy, disableStrategy,
+  pageStrategy, createStrategy, updateStrategy, deleteStrategy, enableStrategy, disableStrategy, validateStrategy,
 } from '@/api/channelStrategy';
 
 
 const channels = ref([]);
 const plans = ref([]);
 const route = useRoute();
+const router = useRouter();
 
 const { loading, data, total, query, load, onSearch, onReset } = useTable(pageStrategy, {
   channelCode: String(route.query.channelCode || ''),
@@ -137,12 +164,50 @@ function planName(code) {
 function rowActions(row) {
   const active = row.status === 'ACTIVE';
   return [
+    { key: 'flow', label: '编排计划', type: 'primary', onClick: () => goStrategy(row) },
+    { key: 'view', label: '查看流程', onClick: () => openFlow(row) },
     { key: 'edit', label: '编辑', disabled: active, onClick: () => openEdit(row) },
     active
       ? { key: 'disable', label: '下线', type: 'warning', confirm: `确认下线「${row.strategyName}」？`, onClick: () => onDisable(row) }
       : { key: 'enable', label: '上线', type: 'success', onClick: () => onEnable(row) },
     { key: 'del', label: '删除', type: 'danger', confirm: `确认删除「${row.strategyName}」？（将级联删除计划树）`, onClick: () => onDelete(row) },
   ];
+}
+
+function goStrategy(row) {
+  if (!row.executionPlanCode) {
+    ElMessage.warning('该策略尚未绑定执行计划');
+    return;
+  }
+  router.push({ name: 'PlanEdit', query: {
+    planCode: row.executionPlanCode,
+    strategyCode: row.strategyCode,
+    channelCode: row.channelCode,
+    bankProductCode: row.bankProductCode,
+    customerGroup: row.customerGroup,
+  } });
+}
+
+const flowVisible = ref(false);
+const flowLoading = ref(false);
+const flowStrategy = ref(null);
+const flowPlan = ref(null);
+const flowModules = ref([]);
+async function openFlow(row) {
+  flowStrategy.value = row;
+  flowVisible.value = true;
+  flowLoading.value = true;
+  flowPlan.value = null;
+  flowModules.value = [];
+  try {
+    if (!row.executionPlanCode) return;
+    const res = await planDetail(row.executionPlanCode);
+    const detail = res.data || {};
+    flowPlan.value = detail.plan || detail.executionPlan || detail;
+    flowModules.value = detail.modules || detail.moduleList || [];
+  } finally {
+    flowLoading.value = false;
+  }
 }
 
 async function onEnable(row) {
@@ -240,3 +305,16 @@ onMounted(async () => {
   load();
 });
 </script>
+
+<style scoped>
+.admission-flow { min-height: 180px; }
+.flow-module { margin-top: 14px; border: 1px solid var(--loan-border); border-radius: var(--loan-radius); overflow: hidden; }
+.flow-module-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--loan-surface); border-bottom: 1px solid var(--loan-border); }
+.flow-index { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--loan-primary); color: white; font-size: 12px; }
+.flow-join { margin-left: auto; color: var(--loan-text-muted); font-size: 12px; }
+.flow-step { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--loan-border-soft); }
+.flow-step:last-child { border-bottom: 0; }
+.flow-step-order { width: 24px; color: var(--loan-text-muted); text-align: center; }
+.flow-step-name { min-width: 150px; color: var(--loan-text); }
+.flow-condition { flex: 1; color: var(--loan-text-muted); font-size: 12px; font-family: monospace; }
+</style>

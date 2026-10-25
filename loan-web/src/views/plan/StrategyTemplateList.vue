@@ -72,9 +72,13 @@
     </AppDialog>
 
     <!-- 编排弹窗 -->
-    <AppDialog v-model:visible="editVisible" :title="`模板编排 · ${currentTpl?.templateName || ''}`" width="720px">
+    <AppDialog v-model:visible="editVisible" :title="`模板工作流 · ${currentTpl?.templateName || ''}`" width="860px">
+      <el-alert :closable="false" type="info" title="按模块顺序编排规则；规则自身判断由规则目录维护，步骤前置条件仅用于可选的执行门控。" />
+      <el-tabs v-model="activeModuleCode" type="card">
+        <el-tab-pane v-for="m in editModules" :key="m.moduleBizCode" :name="m.moduleBizCode" :label="`${m.sort ?? 0} · ${m.moduleName}`" />
+      </el-tabs>
       <div class="tpl-edit">
-        <div v-for="m in editModules" :key="m.moduleBizCode" class="tpl-module">
+        <div v-for="m in editModules.filter(item => item.moduleBizCode === activeModuleCode)" :key="m.moduleBizCode" class="tpl-module">
           <div class="tpl-module-head">
             <span class="tpl-module-name">{{ m.moduleName }}</span>
             <span class="loan-tag" :class="m.logicType === 'OR' ? 'loan-tag-warning' : 'loan-tag-info'">{{ m.logicType }}</span>
@@ -155,7 +159,17 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-divider content-position="left">步骤前置条件（字段来自规则；运算符可下拉调整，条件值按策略填写）</el-divider>
+        <el-form-item label="规则参数">
+          <el-input v-model="stepDialog.form.ruleValue" type="textarea" :rows="2" maxlength="2000" show-word-limit placeholder="该模板步骤的默认参数；导入后可在执行计划中独立修改" />
+          <span class="condition-hint">这是步骤实例参数，不会修改规则目录；无参数规则可留空。</span>
+        </el-form-item>
+        <div class="condition-toggle-row">
+          <el-switch v-model="stepConditionEnabled" @change="onConditionToggle" />
+          <span>配置可选前置条件</span>
+          <span class="condition-toggle-hint">开启后条件不满足将跳过本步骤</span>
+        </div>
+        <template v-if="stepConditionEnabled">
+        <el-divider content-position="left">执行门控（不是规则的业务判断条件）</el-divider>
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item label="条件字段">
@@ -165,7 +179,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="运算符">
-              <AppSelect v-model="stepDialog.form.conditionOperator" placeholder="选择规则后自动带出" style="width: 100%">
+              <AppSelect v-model="stepDialog.form.conditionOperator" placeholder="选择运算符" style="width: 100%">
                 <el-option v-for="op in OPERATOR_OPTIONS" :key="op.value" :label="op.label" :value="op.value" />
               </AppSelect>
             </el-form-item>
@@ -176,7 +190,8 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <p class="tpl-condition-hint">条件字段由所选规则带出（显示中文名，实际提交字段编码）；运算符可在支持范围内调整，为空 / 不为空无需条件值；运行时条件不满足将标记为 SKIP 并继续后续步骤。</p>
+        <p class="tpl-condition-hint">条件不满足时跳过本步骤；默认关闭，不复制规则自身的运算符与判断值。</p>
+        </template>
       </el-form>
     </AppDialog>
 
@@ -227,8 +242,10 @@
 
 <script setup>
 import AppSelect from '@/components/AppSelect.vue';
+import { readRuleValue, mergeRuleValue } from '@/utils/stepConfig';
 defineOptions({ name: '_strategy_template' });
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { resolveModuleCode, conditionPayload } from '@/utils/templateWorkflow';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
@@ -286,14 +303,8 @@ const router = useRouter();
 const rules = ref([]);
 const channels = ref([]);
 const selectedRule = computed(() => (rules.value || []).find((r) => String(r.id) === String(stepDialog.form.ruleId)) || null);
-/** 条件值是否无需手填：为空/不为空运算符、布尔型规则、黑名单/失信类规则（2026-10-19 改为按步骤运算符判定）。 */
-const noManualCondition = computed(() => {
-  if (['IS_BLANK', 'IS_NOT_BLANK'].includes(stepDialog.form.conditionOperator)) return true;
-  const r = selectedRule.value;
-  if (!r) return true;
-  return String(r.valueType || '').toUpperCase() === 'BOOLEAN'
-    || /blacklist|dishonest|失信|黑名单/i.test(`${r.ruleCode || ''}${r.name || ''}`);
-});
+/** 前置门控是否需要值由运算符决定，不以规则名称猜测接口行为。 */
+const noManualCondition = computed(() => ['IS_BLANK', 'IS_NOT_BLANK'].includes(stepDialog.form.conditionOperator));
 const { loading, data, total, query, load, onSearch, onReset } = useTable(pageTemplate, { customerGroup: route.query.cg || '', keyword: '', status: '' });
 
 /** 客群页内切换（6合3 · T10：企业/个贷单入口，URL ?cg= 同步） */
@@ -334,7 +345,7 @@ const tplRules = {
 };
 function openCreate() {
   tplDialog.title = '新建模板';
-  tplDialog.editingId = null;
+  tplDialog.editingCode = null;
   Object.assign(tplDialog.form, { templateCode: '', templateName: '', customerGroup: 'ENTERPRISE', description: '' });
   tplDialog.visible = true;
 }
@@ -360,6 +371,16 @@ async function onSaveTpl() {
 const editVisible = ref(false);
 const currentTpl = ref(null);
 const editModules = ref([]);
+const activeModuleCode = ref('');
+watch(editModules, modules => {
+  activeModuleCode.value = resolveModuleCode(modules, activeModuleCode.value);
+}, { flush: 'sync' });
+const stepConditionEnabled = ref(false);
+function onConditionToggle(enabled) {
+  stepDialog.form.conditionField = enabled ? (selectedRule.value?.fieldCode || '') : '';
+  stepDialog.form.conditionOperator = '';
+  stepDialog.form.conditionValue = '';
+}
 /** 按模板客群加载规则（个人/企业规则分开维护，避免个人模板选到企业规则） */
 async function loadRules(customerGroup) {
   try {
@@ -373,6 +394,7 @@ async function openEdit(row) {
   await loadRules(row.customerGroup);
   const res = await templateDetail(row.templateCode);
   editModules.value = res.data?.modules || [];
+  activeModuleCode.value = editModules.value[0]?.moduleBizCode || '';
 }
 
 const modDialog = reactive({ visible: false, title: '', saving: false, editingId: null, form: { moduleCode: '', moduleName: '', logicType: 'AND', joinWithNextModule: 'AND', sort: 0 } });
@@ -421,7 +443,7 @@ const availableRules = computed(() => {
   return (rules.value || []).filter((r) => r.id != null && !used.has(r.id));
 });
 
-/** 选择规则后自动带出步骤前置条件（字段 / 运算符 / 条件值），无需手动配置 */
+/** 更换规则仅更新门控字段，不复制规则自身的判断条件。 */
 function onRuleChange(ruleId) {
   const r = (rules.value || []).find((x) => String(x.id) === String(ruleId));
   if (!r) {
@@ -430,13 +452,11 @@ function onRuleChange(ruleId) {
     stepDialog.form.conditionValue = '';
     return;
   }
-  stepDialog.form.conditionField = r.fieldCode || '';
-  stepDialog.form.conditionOperator = OP_MAP[r.operator] || '';
-  stepDialog.form.conditionValue = r.valueText || '';
+  onConditionToggle(stepConditionEnabled.value);
 }
 
 function emptyStepForm() {
-  return { ruleId: null, stepSort: 0, joinWithNext: 'AND', isDryRun: 0, conditionField: '', conditionOperator: '', conditionValue: '' };
+  return { ruleId: null, stepSort: 0, joinWithNext: 'AND', isDryRun: 0, ruleValue: '', stepConfigJson: '', conditionField: '', conditionOperator: '', conditionValue: '' };
 }
 const stepDialog = reactive({ visible: false, title: '添加步骤', saving: false, editingId: null, moduleId: null, form: emptyStepForm() });
 const stepFormRef = ref();
@@ -444,11 +464,15 @@ const stepRules = {
   ruleId: [{ required: true, message: '请选择规则', trigger: 'change' }],
 };
 function openStepDialog(m, s) {
+  let ruleValue = '';
+  try { ruleValue = s ? (s.ruleValue ?? readRuleValue(s.stepConfigJson)) : ''; }
+  catch (err) { ElMessage.error(err.message); return; }
+  stepConditionEnabled.value = !!(s?.conditionField || s?.conditionOperator || s?.conditionValue);
   stepDialog.moduleId = m.moduleBizCode;
   stepDialog.editingId = s?.stepCode || null;
   stepDialog.title = s ? '编辑步骤' : '添加步骤';
   Object.assign(stepDialog.form, s
-    ? { ruleId: s.ruleId, stepSort: s.stepSort, joinWithNext: s.joinWithNext || 'AND', isDryRun: s.isDryRun || 0, conditionField: s.conditionField || '', conditionOperator: s.conditionOperator || '', conditionValue: s.conditionValue || '' }
+    ? { ruleId: s.ruleId, stepSort: s.stepSort, joinWithNext: s.joinWithNext || 'AND', isDryRun: s.isDryRun || 0, ruleValue, stepConfigJson: s.stepConfigJson ?? '', conditionField: s.conditionField || '', conditionOperator: s.conditionOperator || '', conditionValue: s.conditionValue || '' }
     : { ...emptyStepForm(), stepSort: (m.steps?.length || 0) });
   stepFormRef.value?.clearValidate();
   stepDialog.visible = true;
@@ -459,10 +483,16 @@ async function onSaveStep() {
   } catch (e) {
     return;
   }
+  if (stepConditionEnabled.value && (!stepDialog.form.conditionField || !stepDialog.form.conditionOperator || (!noManualCondition.value && !String(stepDialog.form.conditionValue ?? '').trim()))) {
+    ElMessage.warning('请填写完整前置条件，或关闭可选前置条件');
+    return;
+  }
   stepDialog.saving = true;
   try {
     // 条件字段由所选规则自动带出，保留提交；未选规则时清空条件三件套
-    const form = { ...stepDialog.form };
+    const form = conditionPayload(stepDialog.form, stepConditionEnabled.value);
+    form.stepConfigJson = mergeRuleValue(stepDialog.form.stepConfigJson, stepDialog.form.ruleValue);
+    delete form.ruleValue;
     if (!form.ruleId) {
       form.conditionField = '';
       form.conditionOperator = '';
@@ -591,4 +621,6 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--loan-text-muted);
 }
+.condition-toggle-row { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; color: var(--loan-text); font-size: 13px; }
+.condition-toggle-hint { color: var(--loan-text-muted); font-size: 12px; }
 </style>
