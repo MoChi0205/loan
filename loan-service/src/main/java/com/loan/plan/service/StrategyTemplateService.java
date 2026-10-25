@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
 import java.util.UUID;
 
 /**
- * 策略模版服务：模版 CRUD + 模块/步骤编排 + 上线/下线（对齐 mds 功能策略模版）。
+ * 策略模板服务：模板 CRUD + 模块/步骤编排 + 上线/下线（对齐 mds 功能策略模板）。
  *
  * @author loan-platform
  */
@@ -60,7 +60,7 @@ public class StrategyTemplateService {
     private final ProductStrategyMapper strategyMapper;
 
     /**
-     * 分页查询模版。
+     * 分页查询模板。
      */
     public PageResult<StrategyTemplate> page(String customerGroup, String keyword, String status, int page, int size) {
         LambdaQueryWrapper<StrategyTemplate> wrapper = new LambdaQueryWrapper<>();
@@ -91,14 +91,14 @@ public class StrategyTemplateService {
     }
 
     /**
-     * 新建模版（草稿）。
+     * 新建模板（草稿）。
      */
     @Transactional(rollbackFor = Exception.class)
     public String create(StrategyTemplate template, String operator) {
         if (!StringUtils.hasText(template.getTemplateCode())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码必填");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
         }
-        FieldLengthGuard.requireMaxLength("模版名称", template.getTemplateName(), 128);
+        FieldLengthGuard.requireMaxLength("模板名称", template.getTemplateName(), 128);
         template.setId(null);
         template.setStatus(STATUS_DISABLED);
         template.setCreatedBy(operator);
@@ -110,11 +110,11 @@ public class StrategyTemplateService {
     }
 
     /**
-     * 编辑模版。
+     * 编辑模板。
      */
     @Transactional(rollbackFor = Exception.class)
     public void update(StrategyTemplate template, String operator) {
-        FieldLengthGuard.requireMaxLength("模版名称", template.getTemplateName(), 128);
+        FieldLengthGuard.requireMaxLength("模板名称", template.getTemplateName(), 128);
         StrategyTemplate current = requireByCode(template.getTemplateCode());
         template.setId(current.getId());
         template.setUpdatedBy(operator);
@@ -123,7 +123,7 @@ public class StrategyTemplateService {
     }
 
     /**
-     * 删除模版（级联模块/步骤）。
+     * 删除模板（级联模块/步骤）。
      */
     @Transactional(rollbackFor = Exception.class)
     public void delete(String templateCode) {
@@ -164,7 +164,7 @@ public class StrategyTemplateService {
     }
 
     /**
-     * 模版详情（模版 + 模块 + 步骤，含规则信息）。
+     * 模板详情（模板 + 模块 + 步骤，含规则信息）。
      */
     public Map<String, Object> detail(String templateCode) {
         StrategyTemplate template = requireByCode(templateCode);
@@ -230,12 +230,12 @@ public class StrategyTemplateService {
     /** 按模板业务编码查询模板，物理主键仅在模板聚合内部使用。 */
     private StrategyTemplate requireByCode(String templateCode) {
         if (!StringUtils.hasText(templateCode)) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码必填");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
         }
         StrategyTemplate template = templateMapper.selectOne(new LambdaQueryWrapper<StrategyTemplate>()
                 .eq(StrategyTemplate::getTemplateCode, templateCode.trim()));
         if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模版不存在");
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "模板不存在");
         }
         return template;
     }
@@ -333,24 +333,24 @@ public class StrategyTemplateService {
     }
 
     /**
-     * 执行计划另存为策略模版（对齐 mds v2 save-as-template）。
+     * 执行计划另存为策略模板（对齐 mds v2 save-as-template）。
      *
-     * <p>把执行计划（模块 + 步骤）深拷贝为草稿态模版；模版编码唯一且不可改。
+     * <p>把执行计划（模块 + 步骤）深拷贝为草稿态模板；模板编码唯一且不可改。
      *
      * @param planId       源执行计划 ID
-     * @param templateCode 目标模版编码（唯一）
-     * @param templateName 模版名称
+     * @param templateCode 目标模板编码（唯一）
+     * @param templateName 模板名称
      * @param operator     操作人
-     * @return 新模版 ID
+     * @return 新模板 ID
      */
     @Transactional(rollbackFor = Exception.class)
     public String saveAsTemplateFromPlan(String planCode, String templateCode, String templateName, String operator) {
         if (!StringUtils.hasText(templateCode)) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码必填");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
         }
         if (templateMapper.selectCount(new LambdaQueryWrapper<StrategyTemplate>()
                 .eq(StrategyTemplate::getTemplateCode, templateCode)) > 0) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码已存在: " + templateCode);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码已存在: " + templateCode);
         }
         AdmissionExecutionPlan plan = planMapper.selectOne(new LambdaQueryWrapper<AdmissionExecutionPlan>()
                 .eq(AdmissionExecutionPlan::getPlanCode, planCode));
@@ -373,16 +373,16 @@ public class StrategyTemplateService {
     }
 
     /**
-     * 渠道策略生成模版快照（对齐 mds v2 snapshot-from-channel）。
+     * 渠道策略生成模板快照（对齐 mds v2 snapshot-from-channel）。
      *
-     * <p>把渠道下某策略关联的执行计划深拷贝为草稿态模版，供复用沉淀；模版编码唯一。
+     * <p>把渠道下某策略关联的执行计划深拷贝为草稿态模板，供复用沉淀；模板编码唯一。
      *
      * @param channelCode  源渠道编码
      * @param strategyCode 源策略编码
-     * @param templateCode 目标模版编码（唯一）
-     * @param templateName 模版名称
+     * @param templateCode 目标模板编码（唯一）
+     * @param templateName 模板名称
      * @param operator     操作人
-     * @return 新模版 ID
+     * @return 新模板 ID
      */
     @Transactional(rollbackFor = Exception.class)
     public String snapshotFromChannel(String channelCode, String strategyCode, String templateCode,
@@ -391,7 +391,7 @@ public class StrategyTemplateService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "源渠道与策略编码必填");
         }
         if (!StringUtils.hasText(templateCode)) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码必填");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码必填");
         }
         ProductStrategy strategy = strategyMapper.selectOne(new LambdaQueryWrapper<ProductStrategy>()
                 .eq(ProductStrategy::getChannelCode, channelCode)
@@ -409,7 +409,7 @@ public class StrategyTemplateService {
         }
         if (templateMapper.selectCount(new LambdaQueryWrapper<StrategyTemplate>()
                 .eq(StrategyTemplate::getTemplateCode, templateCode)) > 0) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版编码已存在: " + templateCode);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板编码已存在: " + templateCode);
         }
 
         StrategyTemplate template = new StrategyTemplate();
@@ -428,7 +428,7 @@ public class StrategyTemplateService {
         return template.getTemplateCode();
     }
 
-    /** 深拷贝执行计划树（模块 + 步骤，含 AND/OR 链 / 空跑 / 步骤参数 / 前置条件）到策略模版 */
+    /** 深拷贝执行计划树（模块 + 步骤，含 AND/OR 链 / 空跑 / 步骤参数 / 前置条件）到策略模板 */
     private void copyPlanTreeToTemplate(AdmissionExecutionPlan plan, Long templateId, String operator) {
         List<AdmissionPlanModule> modules = planModuleMapper.selectList(
                 new LambdaQueryWrapper<AdmissionPlanModule>()

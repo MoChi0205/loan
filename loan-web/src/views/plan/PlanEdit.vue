@@ -29,7 +29,7 @@
           </el-button>
           <el-button v-if="planId" @click="openPlanDialog(currentPlan)">编辑计划</el-button>
           <el-button v-if="planId" @click="onCopyPlan(currentPlan)">复制计划</el-button>
-          <el-button v-if="planId" @click="onSaveAsTemplate(currentPlan)">另存为模版</el-button>
+          <el-button v-if="planId" @click="onSaveAsTemplate(currentPlan)">另存为模板</el-button>
           <el-button v-if="planId" type="danger" plain @click="onDeletePlan(currentPlan)">删除计划</el-button>
         </template>
       </AppSearchBar>
@@ -156,8 +156,12 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-divider content-position="left">步骤前置条件（选填；字段 + 运算符非空时生效）</el-divider>
-        <el-row :gutter="16">
+        <el-divider content-position="left">步骤前置条件（可选附加条件）</el-divider>
+        <el-form-item label="启用前置条件">
+          <el-switch v-model="stepConditionEnabled" />
+          <span class="condition-hint-inline">规则自身的字段、运算符和值已由规则目录/事实接口决定；只有需要额外跳过条件时才启用。</span>
+        </el-form-item>
+        <el-row v-if="stepConditionEnabled" :gutter="16">
           <el-col :span="7">
             <el-form-item label="条件字段">
               <AppSelect v-model="stepDialog.form.conditionField" filterable allow-create default-first-option clearable placeholder="fact 字段码" style="width: 100%" teleported>
@@ -540,10 +544,23 @@ const conditionValueOptions = computed(() => (selectedRule.value ? splitEnumValu
 function onRuleChange() {
   const r = selectedRule.value;
   if (r) {
-    stepDialog.form.conditionField = r.fieldCode || '';
+    // 规则目录自身已包含字段/运算符/值；步骤前置条件是独立的可选附加条件。
+    stepDialog.form.conditionField = '';
+    stepDialog.form.conditionOperator = '';
     stepDialog.form.conditionValue = '';
   }
 }
+
+const stepConditionEnabled = computed({
+  get: () => Boolean(stepDialog.form.conditionOperator || stepDialog.form.conditionField || stepDialog.form.conditionValue),
+  set: (enabled) => {
+    if (!enabled) {
+      stepDialog.form.conditionField = '';
+      stepDialog.form.conditionOperator = '';
+      stepDialog.form.conditionValue = '';
+    }
+  },
+});
 
 /** 条件值（多选枚举下拉 ↔ 逗号字符串 双向绑定） */
 const conditionValueArray = computed({
@@ -676,17 +693,17 @@ async function onCopyPlan(plan) {
   } catch { /* 拦截器已提示 */ }
 }
 
-/** 另存为模版（对齐 mds v2 save-as-template） */
+/** 另存为模板（对齐 mds v2 save-as-template） */
 async function onSaveAsTemplate(plan) {
   const target = plan || currentPlan.value;
   if (!target) return;
   try {
     const { value } = await ElMessageBox.prompt(
-      '输入模版编码（需唯一）与名称，将当前计划保存为策略模版草稿',
-      '另存为模版',
+      '输入模板编码（需唯一）与名称，将当前计划保存为策略模板草稿',
+      '另存为模板',
       {
         inputPlaceholder: '如 TPL_ENT_TAX_V1',
-        inputValidator: (v) => (v && v.trim().length >= 2 ? true : '模版编码至少 2 个字符'),
+        inputValidator: (v) => (v && v.trim().length >= 2 ? true : '模板编码至少 2 个字符'),
         confirmButtonText: '保存',
         cancelButtonText: '取消',
       },
@@ -694,9 +711,9 @@ async function onSaveAsTemplate(plan) {
     await saveAsTemplate({
       planCode: target.planCode,
       templateCode: value.trim(),
-      templateName: `${target.planName}-模版`,
+      templateName: `${target.planName}-模板`,
     });
-    ElMessage.success('已另存为模版草稿');
+    ElMessage.success('已另存为模板草稿');
   } catch { /* 取消或拦截器已提示 */ }
 }
 

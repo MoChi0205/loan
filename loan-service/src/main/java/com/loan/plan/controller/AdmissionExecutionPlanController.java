@@ -196,7 +196,7 @@ public class AdmissionExecutionPlanController {
     }
 
     /**
-     * 另存为模版：把执行计划深拷贝为策略模版（草稿态）。
+     * 另存为模板：把执行计划深拷贝为策略模板（草稿态）。
      */
     @PostMapping("/save-as-template")
     public Result<String> saveAsTemplate(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {
@@ -205,7 +205,7 @@ public class AdmissionExecutionPlanController {
     }
 
     /**
-     * 应用模版：把策略模版实例化为执行计划（草稿态）。
+     * 应用模板：把策略模板实例化为执行计划（草稿态）。
      */
     @PostMapping("/apply-template")
     public Result<String> applyTemplate(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {

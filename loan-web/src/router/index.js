@@ -61,12 +61,6 @@ const routes = [
         meta: { title: '渠道档案' },
       },
       {
-        path: 'channel-config-wizard',
-        name: 'ChannelConfigWizard',
-        component: () => import('@/views/plan/ChannelConfigWizard.vue'),
-        meta: { title: '渠道配置向导' },
-      },
-      {
         path: 'channel-strategy',
         name: 'StrategyList',
         component: () => import('@/views/plan/StrategyList.vue'),
@@ -88,7 +82,7 @@ const routes = [
         path: 'strategy-template',
         name: 'StrategyTemplateList',
         component: () => import('@/views/plan/StrategyTemplateList.vue'),
-        meta: { title: '策略方案' },
+        meta: { title: '策略模板' },
       },
       {
         path: 'debug',

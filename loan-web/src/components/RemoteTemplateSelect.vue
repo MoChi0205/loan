@@ -1,5 +1,5 @@
 <template>
-  <el-select :model-value="modelValue" filterable remote clearable :remote-method="search" :loading="loading" placeholder="输入模版名称搜索" style="width:100%" @update:model-value="onChange" @visible-change="v => { if (v && !items.length) search('') }">
+  <el-select :model-value="modelValue" filterable remote clearable :remote-method="search" :loading="loading" placeholder="输入模板名称搜索" style="width:100%" @update:model-value="onChange" @visible-change="v => { if (v && !items.length) search('') }">
     <el-option v-for="item in items" :key="item.value" :label="item.label" :value="item.value" />
     <div v-if="!finished && items.length" class="remote-more" @mousedown.prevent @click="loadMore">{{ loading ? '加载中…' : '加载更多' }}</div>
     <div v-else-if="error" class="remote-more is-error" @mousedown.prevent @click="search('')">加载失败，点击重试</div>
@@ -12,7 +12,7 @@ const props = defineProps({ modelValue: { type: String, default: '' }, customerG
 const emit = defineEmits(['update:modelValue', 'selected']);
 const { items, loading, finished, error, search, loadMore } = useRemoteOptions(
   params => pageTemplate({ ...params, customerGroup: props.customerGroup || undefined, status: props.activeOnly ? 'ACTIVE' : undefined }),
-  { normalize: t => ({ value: t.templateCode, label: `${t.templateName || '未命名模版'} · ${t.customerGroup === 'PERSONAL' ? '个人' : '企业'}`, raw: t }) },
+  { normalize: t => ({ value: t.templateCode, label: `${t.templateName || '未命名模板'} · ${t.customerGroup === 'PERSONAL' ? '个人' : '企业'}`, raw: t }) },
 );
 function onChange(value) {
   emit('update:modelValue', value);

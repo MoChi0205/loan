@@ -342,7 +342,7 @@ const BASE_MENU_GROUPS = [
       { title: '规则策略', icon: 'strategy', isSection: true },
       { path: '/rule-template', title: '规则模板', icon: 'ruleTemplate', indent: true },
       { path: '/rule', title: '规则实例', icon: 'rule', indent: true },
-      { path: '/strategy-template', title: '策略方案', icon: 'strategy', indent: true },
+      { path: '/strategy-template', title: '策略模板', icon: 'strategy', indent: true },
       { path: '/plan-edit', title: '执行计划', icon: 'plan', indent: true },
       { path: '/blacklist', title: '风控名单', icon: 'ban', indent: true },
     ],
@@ -476,9 +476,7 @@ function isActive(path) {
 
 /** 合并菜单的页内 Tab 仍高亮所属主菜单。 */
 function menuOwnsRoute(menuPath) {
-  const owners = {
-    '/channel-config-wizard': '/channel-config',
-  };
+  const owners = {};
   return owners[route.path] === String(menuPath || '').split('?')[0];
 }
 

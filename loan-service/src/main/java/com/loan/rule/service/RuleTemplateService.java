@@ -263,34 +263,42 @@ public class RuleTemplateService {
     @Transactional(rollbackFor = Exception.class)
     public String importToRule(String templateCode, String fieldCode, String operator) {
         RuleTemplate template = requireByCode(templateCode);
+        if (!STATUS_ACTIVE.equals(template.getStatus())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "只有已发布的模板才能导入规则");
+        }
         Long id = template.getId();
         RuleTemplateField field;
-        if (StringUtils.hasText(fieldCode)) {
-            field = fieldMapper.selectOne(new LambdaQueryWrapper<RuleTemplateField>()
-                    .eq(RuleTemplateField::getTemplateId, id)
-                    .eq(RuleTemplateField::getFieldBizCode, fieldCode));
-            if (field == null) {
-                throw new BusinessException(ResultCode.DATA_NOT_FOUND, "字段定义不存在");
-            }
-        } else {
-            field = fieldMapper.selectOne(new LambdaQueryWrapper<RuleTemplateField>()
-                    .eq(RuleTemplateField::getTemplateId, id)
-                    .orderByAsc(RuleTemplateField::getSort)
-                    .last("LIMIT 1"));
+        RuleTemplateVersion published = versionMapper.selectOne(new LambdaQueryWrapper<RuleTemplateVersion>()
+                .eq(RuleTemplateVersion::getTemplateId, id)
+                .eq(RuleTemplateVersion::getStatus, STATUS_ACTIVE)
+                .orderByDesc(RuleTemplateVersion::getVersionNo)
+                .last("LIMIT 1"));
+        if (published == null || !StringUtils.hasText(published.getSnapshotJson())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板没有可用的已发布版本");
         }
-        if (field == null) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模板无字段定义，无法导入");
+        List<Map<String, Object>> snapshot;
+        try {
+            snapshot = objectMapper.readValue(published.getSnapshotJson(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class));
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板发布快照损坏，无法导入");
         }
+        Map<String, Object> selected = snapshot.stream()
+                .filter(item -> !StringUtils.hasText(fieldCode) || fieldCode.equals(String.valueOf(item.get("fieldBizCode"))) || fieldCode.equals(String.valueOf(item.get("fieldCode"))))
+                .findFirst().orElse(null);
+        if (selected == null) throw new BusinessException(ResultCode.DATA_NOT_FOUND, "发布版本中不存在所选字段");
 
-        String ruleCode = template.getTemplateCode() + "_" + field.getFieldCode() + "_" + System.currentTimeMillis();
+        String fieldCodeValue = String.valueOf(selected.get("fieldCode"));
+        String fieldName = String.valueOf(selected.get("fieldName"));
+        String ruleCode = template.getTemplateCode() + "_" + fieldCodeValue + "_" + System.currentTimeMillis();
         Rule rule = new Rule();
         rule.setRuleCode(ruleCode);
-        rule.setRuleName(template.getTemplateName() + "·" + field.getFieldName());
-        rule.setFieldCode(field.getFieldCode());
-        rule.setFieldName(field.getFieldName());
-        rule.setOperator(field.getOperator());
-        rule.setValueType(field.getFieldType());
-        rule.setValueText(field.getDefaultValue());
+        rule.setRuleName(template.getTemplateName() + "·" + fieldName);
+        rule.setFieldCode(fieldCodeValue);
+        rule.setFieldName(fieldName);
+        rule.setOperator(String.valueOf(selected.get("operator")));
+        rule.setValueType(String.valueOf(selected.get("fieldType")));
+        rule.setValueText(selected.get("defaultValue") == null ? null : String.valueOf(selected.get("defaultValue")));
         rule.setCustomerGroup(template.getCustomerGroup());
         rule.setDescription(template.getDescription());
         rule.setStatus("DRAFT");

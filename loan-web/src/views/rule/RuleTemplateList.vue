@@ -2,12 +2,12 @@
   <div class="rt-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">规则模版</h2>
-        <p class="loan-page-subtitle">一条可复用规则的骨架（字段定义 + 版本快照），上线后可「导入为规则」实例化</p>
+        <h2 class="loan-page-title">规则模板</h2>
+        <p class="loan-page-subtitle">可复用的规则骨架（字段定义 + 版本快照），上线后可导入为规则实例</p>
       </div>
       <el-button type="primary" @click="openCreate">
         <AppIcon name="add" :size="14" />
-        新建模版
+        新建模板
       </el-button>
     </div>
 
@@ -17,7 +17,7 @@
           <el-option label="企业" value="ENTERPRISE" />
           <el-option label="个人" value="PERSONAL" />
         </el-select>
-        <el-input v-model="query.keyword" placeholder="模版名称" clearable style="width: 200px" @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" placeholder="模板名称" clearable style="width: 200px" @keyup.enter="onSearch" />
         <el-select v-model="query.status" placeholder="状态" clearable style="width: 130px">
           <el-option label="已上线" value="ACTIVE" />
           <el-option label="草稿" value="DRAFT" />
@@ -26,9 +26,9 @@
 
       <el-table :data="data" v-loading="loading" stripe row-key="templateCode">
         <template #empty>
-          <AppEmpty title="暂无规则模版" desc="创建规则模版并发布后，可一键导入为规则" />
+          <AppEmpty title="暂无规则模板" desc="创建规则模板并发布后，可一键导入为规则" />
         </template>
-        <el-table-column prop="templateName" label="模版名称" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="templateName" label="模板名称" min-width="160" show-overflow-tooltip />
         <el-table-column label="分类" width="130">
           <template #default="{ row }">{{ categoryName(row.categoryId) }}</template>
         </el-table-column>
@@ -50,11 +50,11 @@
       <AppPagination v-model:page="query.page" v-model:size="query.size" :total="total" @change="load" />
     </div>
 
-    <!-- 新建/编辑模版 -->
+    <!-- 新建/编辑模板 -->
     <AppDialog v-model:visible="tplDialog.visible" :title="tplDialog.title" :loading="tplDialog.saving" @confirm="onSaveTpl">
       <el-form ref="tplFormRef" :model="tplDialog.form" :rules="tplRules" label-width="90px">
-        <el-form-item label="模版编码" prop="templateCode"><el-input v-model="tplDialog.form.templateCode" placeholder="唯一编码" /></el-form-item>
-        <el-form-item label="模版名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" maxlength="128" show-word-limit /></el-form-item>
+        <el-form-item label="模板编码" prop="templateCode"><el-input v-model="tplDialog.form.templateCode" placeholder="唯一编码" /></el-form-item>
+        <el-form-item label="模板名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="分类">
           <AppSelect v-model="tplDialog.form.categoryId" clearable placeholder="选择分类" style="width: 100%">
             <el-option v-for="c in categoryList" :key="c.id" :label="c.categoryName" :value="c.id" />
@@ -130,10 +130,10 @@
       <el-form label-width="90px">
         <el-form-item label="选择字段">
           <AppSelect v-model="importDialog.fieldCode" placeholder="选择字段定义（缺省取第一个）" clearable style="width: 100%">
-            <el-option v-for="f in importFields" :key="f.fieldBizCode" :label="`${f.fieldName}（${f.fieldCode}）`" :value="f.fieldBizCode" />
+            <el-option v-for="f in importFields" :key="f.fieldBizCode" :label="`${f.fieldName}（${f.fieldCode}）`" :value="f.fieldCode" />
           </AppSelect>
         </el-form-item>
-        <div class="rt-import-tip">将按所选字段定义实例化一条「规则目录」规则（草稿态），字段编码/名称/运算符/默认值均来自模版。</div>
+        <div class="rt-import-tip">将按所选字段定义实例化一条「规则目录」规则（草稿态），字段编码/名称/运算符/默认值均来自模板。</div>
       </el-form>
     </AppDialog>
   </div>
@@ -185,22 +185,22 @@ async function onPublish(row) { await publishTemplate(row.templateCode); ElMessa
 async function onOffline(row) { await offlineTemplate(row.templateCode); ElMessage.success('已下线'); load(); }
 async function onDelete(row) { await deleteTemplate(row.templateCode); ElMessage.success('已删除'); load(); }
 
-// 模版 CRUD
+// 模板 CRUD
 const tplDialog = reactive({ visible: false, title: '', saving: false, editingCode: null, form: { templateCode: '', templateName: '', categoryId: null, customerGroup: 'ENTERPRISE', description: '' } });
 const tplFormRef = ref();
 const tplRules = {
-  templateCode: [{ required: true, message: '请输入模版编码', trigger: 'blur' }],
-  templateName: [{ required: true, message: '请输入模版名称', trigger: 'blur' }, { max: 128, message: '模版名称不能超过128个字符', trigger: 'blur' }],
+  templateCode: [{ required: true, message: '请输入模板编码', trigger: 'blur' }],
+  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }, { max: 128, message: '模板名称不能超过128个字符', trigger: 'blur' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
 };
 function openCreate() {
-  tplDialog.title = '新建模版';
+  tplDialog.title = '新建模板';
   tplDialog.editingId = null;
   Object.assign(tplDialog.form, { templateCode: '', templateName: '', categoryId: null, customerGroup: 'ENTERPRISE', description: '' });
   tplDialog.visible = true;
 }
 function openTplDialog(row) {
-  tplDialog.title = '编辑模版';
+  tplDialog.title = '编辑模板';
   tplDialog.editingCode = row.templateCode;
   Object.assign(tplDialog.form, { templateCode: row.templateCode, templateName: row.templateName, categoryId: row.categoryId, customerGroup: row.customerGroup, description: row.description });
   tplDialog.visible = true;

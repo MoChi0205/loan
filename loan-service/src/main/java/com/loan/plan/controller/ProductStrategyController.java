@@ -127,7 +127,7 @@ public class ProductStrategyController {
     }
 
     /**
-     * 模版导入到策略：把已上线的策略模版实例化为渠道准入策略（含计划树）。
+     * 模板导入到策略：把已上线的策略模板实例化为渠道准入策略（含计划树）。
      */
     @PostMapping("/import-from-template")
     public Result<String> importFromTemplate(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {

@@ -1,7 +1,7 @@
 import request from '@/utils/request';
 
 /**
- * 策略模版接口（对接 loan-service /api/admin/strategy-template）。
+ * 策略模板接口（对接 loan-service /api/admin/strategy-template）。
  */
 export function pageTemplate(params) {
   return request({ url: '/api/admin/strategy-template/page', method: 'get', params });
@@ -53,7 +53,7 @@ export function deleteTemplateStep(code) {
   return request({ url: `/api/admin/strategy-template/step/${encodeURIComponent(code)}`, method: 'delete' });
 }
 
-// 渠道策略 → 模版快照（对齐 mds v2 snapshot-from-channel）
+// 渠道策略 → 模板快照（对齐 mds v2 snapshot-from-channel）
 export function snapshotFromChannel(data) {
   return request({ url: '/api/admin/strategy-template/snapshot-from-channel', method: 'post', data });
 }

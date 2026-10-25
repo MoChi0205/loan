@@ -9,10 +9,32 @@
  * @returns {string} 格式化后字符串，空值返回 '-'
  */
 export function formatDateTime(value) {
-  if (!value) return '-';
+  if (isBlank(value)) return '-';
   const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+export function isBlank(value) {
+  return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+}
+
+/** 空值统一展示，避免页面散落 `|| '-'` 和不一致的破折号。 */
+export function displayValue(value, fallback = '-') {
+  return isBlank(value) ? fallback : String(value);
+}
+
+/** 相对日期展示：今天为 T+0，未来第 N 天为 T+N，过去为 T-N。 */
+export function formatTPlus(value, base = new Date()) {
+  if (isBlank(value)) return '-';
+  const date = new Date(value);
+  const anchor = new Date(base);
+  if (Number.isNaN(date.getTime()) || Number.isNaN(anchor.getTime())) return '-';
+  date.setHours(0, 0, 0, 0);
+  anchor.setHours(0, 0, 0, 0);
+  const days = Math.round((date.getTime() - anchor.getTime()) / 86400000);
+  return `T${days >= 0 ? '+' : ''}${days}`;
 }
 
 /**

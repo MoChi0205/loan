@@ -14,7 +14,6 @@ describe('动态菜单路由准入', () => {
     const paths = new Set(['/workbench', '/client', '/channel-config', '/report/center']);
     expect(canAccessRoute('/client', paths)).toBe(true);
     expect(canAccessRoute('/product', paths)).toBe(false);
-    expect(canAccessRoute('/channel-config-wizard', paths)).toBe(true);
     expect(canAccessRoute('/report/overview', paths)).toBe(true);
     expect(canAccessRoute('/403', new Set())).toBe(true);
   });
@@ -28,7 +27,6 @@ describe('动态菜单路由准入', () => {
 
   it('标签清理保留合法子路由且永不保留瞬时 403', () => {
     const paths = new Set(['/workbench', '/channel-config', '/report/center']);
-    expect(canKeepOpenedTab('/channel-config-wizard?channelCode=C001', paths)).toBe(true);
     expect(canKeepOpenedTab('/report/overview', paths)).toBe(true);
     expect(canKeepOpenedTab('/403?from=/product', paths)).toBe(false);
     expect(canKeepOpenedTab('/product', paths)).toBe(false);

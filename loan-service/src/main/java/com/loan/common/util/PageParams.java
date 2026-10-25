@@ -27,4 +27,27 @@ public final class PageParams {
     public static int size(int size) {
         return size <= 0 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
     }
+
+    /** 一次归一化分页参数，供控制器/适配器复用，避免重复调用 page/size。 */
+    public static PageSpec normalize(int page, int size) {
+        return new PageSpec(page(page), size(size));
+    }
+
+    public static final class PageSpec {
+        private final int page;
+        private final int size;
+
+        public PageSpec(int page, int size) {
+            this.page = page;
+            this.size = size;
+        }
+
+        public int page() {
+            return page;
+        }
+
+        public int size() {
+            return size;
+        }
+    }
 }

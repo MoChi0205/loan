@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.List;
 
 /**
- * 策略模版 HTTP 接口（Web 管理端）：模版 CRUD + 模块/步骤编排 + 上线/下线。
+ * 策略模板 HTTP 接口（Web 管理端）：模板 CRUD + 模块/步骤编排 + 上线/下线。
  *
  * @author loan-platform
  */
@@ -35,7 +35,7 @@ public class StrategyTemplateController {
     private final StrategyTemplateService templateService;
 
     /**
-     * 分页查询模版。
+     * 分页查询模板。
      */
     @GetMapping("/page")
     public Result<PageResult<StrategyTemplate>> page(
@@ -54,7 +54,7 @@ public class StrategyTemplateController {
     }
 
     /**
-     * 新建模版（草稿）。
+     * 新建模板（草稿）。
      */
     @PostMapping
     public Result<String> create(@RequestBody StrategyTemplate template, @CurrentUser LoanUser user) {
@@ -62,7 +62,7 @@ public class StrategyTemplateController {
     }
 
     /**
-     * 编辑模版。
+     * 编辑模板。
      */
     @PutMapping("/{templateCode}")
     public Result<String> update(@PathVariable("templateCode") String templateCode, @RequestBody StrategyTemplate template,
@@ -73,7 +73,7 @@ public class StrategyTemplateController {
     }
 
     /**
-     * 删除模版（级联）。
+     * 删除模板（级联）。
      */
     @DeleteMapping("/{templateCode}")
     public Result<String> delete(@PathVariable("templateCode") String templateCode) {
@@ -100,7 +100,7 @@ public class StrategyTemplateController {
     }
 
     /**
-     * 模版详情（模版 + 模块 + 步骤）。
+     * 模板详情（模板 + 模块 + 步骤）。
      */
     @GetMapping("/{templateCode}/detail")
     public Result<Map<String, Object>> detail(@PathVariable("templateCode") String templateCode) {
@@ -160,7 +160,7 @@ public class StrategyTemplateController {
     }
 
     /**
-     * 渠道策略生成模版快照：把渠道下某策略的执行计划深拷贝为草稿态模版。
+     * 渠道策略生成模板快照：把渠道下某策略的执行计划深拷贝为草稿态模板。
      */
     @PostMapping("/snapshot-from-channel")
     public Result<String> snapshotFromChannel(@RequestBody Map<String, String> body, @CurrentUser LoanUser user) {

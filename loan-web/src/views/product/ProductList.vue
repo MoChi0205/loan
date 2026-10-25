@@ -36,7 +36,7 @@
           </template>
           <el-table-column label="产品" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
-              <div>{{ row.productName || '—' }}</div>
+              <div>{{ displayValue(row.productName) }}</div>
             </template>
           </el-table-column>
           <el-table-column prop="bankName" label="所属银行" width="160" />
@@ -65,7 +65,7 @@
             </template>
           </el-table-column>
           <el-table-column label="录入人" width="90" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.createdByName || row.createdBy || '—' }}</template>
+            <template #default="{ row }">{{ displayValue(row.createdByName || row.createdBy) }}</template>
           </el-table-column>
           <!-- 操作列 -->
           <el-table-column v-if="canManageProduct" label="操作" width="180" fixed="right">
@@ -101,12 +101,12 @@
           </template>
           <el-table-column label="产品" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
-              <div>{{ row.productName || '—' }}</div>
+              <div>{{ displayValue(row.productName) }}</div>
             </template>
           </el-table-column>
           <el-table-column label="合作到期日" width="170">
             <template #default="{ row }">
-              <span :class="{ 'expiring-until': isNearExpire(row) }">{{ formatDateTime(row.cooperateUntil) }}</span>
+              <span :class="{ 'expiring-until': isNearExpire(row) }">{{ formatTPlus(row.cooperateUntil) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="剩余" width="90" align="center">
@@ -121,7 +121,7 @@
             </template>
           </el-table-column>
           <el-table-column label="录入人" width="90" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.createdByName || row.createdBy || '—' }}</template>
+            <template #default="{ row }">{{ displayValue(row.createdByName || row.createdBy) }}</template>
           </el-table-column>
           <el-table-column label="录入时间" width="165" show-overflow-tooltip>
             <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
@@ -233,7 +233,7 @@
 
     <!-- 续签弹窗 -->
     <AppDialog v-model:visible="renewDialog.visible" title="续签合作库" width="460px" :loading="renewDialog.saving" @confirm="onRenewSave">
-      <p class="renew-hint">为产品「{{ renewDialog.productName || '产品名称待补充' }}」续签，原到期日：{{ formatDateTime(renewDialog.oldUntil) }}</p>
+      <p class="renew-hint">为产品「{{ displayValue(renewDialog.productName, '产品名称待补充') }}」续签，原到期日：{{ formatTPlus(renewDialog.oldUntil) }}</p>
       <el-form ref="renewFormRef" :model="renewDialog.form" :rules="renewRules" label-width="110px" label-position="right">
         <el-form-item label="新到期日" prop="cooperateUntil">
           <AppDateTime
@@ -287,7 +287,7 @@ import RemoteProductSelect from '@/components/RemoteProductSelect.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import AppTableState from '@/components/AppTableState.vue';
 import { useTable } from '@/composables/useTable';
-import { formatDateTime } from '@/utils/format';
+import { formatDateTime, formatTPlus, displayValue } from '@/utils/format';
 import { appConfirm } from '@/utils/confirm';
 import { pageProducts, createProduct, updateProduct, deleteProduct } from '@/api/product';
 import {

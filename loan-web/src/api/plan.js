@@ -50,7 +50,7 @@ export function deleteStep(code) {
   return request({ url: `/api/admin/execution-plan/step/${encodeURIComponent(code)}`, method: 'delete' });
 }
 
-// 模版应用 / 另存为模版 / 计划复制（对齐 mds v2 apply-template / save-as-template / copy）
+// 模板应用 / 另存为模板 / 计划复制（对齐 mds v2 apply-template / save-as-template / copy）
 export function applyTemplate(data) {
   return request({ url: '/api/admin/execution-plan/apply-template', method: 'post', data });
 }

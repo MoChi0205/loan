@@ -3,7 +3,7 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">规则目录</h2>
-        <p class="loan-page-subtitle">企业 / 个人准入规则，四分类管理；规则表达式后台可配</p>
+        <p class="loan-page-subtitle">企业 / 个人准入规则，四分类管理；字段事实由接口提供，规则表达式仅配置业务判断</p>
       </div>
       <el-button type="primary" @click="onAdd">
         <AppIcon name="add" :size="14" />
@@ -144,7 +144,7 @@
           <el-input v-model="ruleForm.ruleName" placeholder="如 失信被执行人拦截（不超过128个字符）" maxlength="128" show-word-limit />
         </el-form-item>
         <el-form-item label="字段编码" prop="fieldCode">
-          <el-input v-model="ruleForm.fieldCode" maxlength="64" show-word-limit placeholder="如 dishonest_flag（不超过64个字符）" />
+          <el-input v-model="ruleForm.fieldCode" maxlength="64" show-word-limit placeholder="由事实接口/规则模板确定" :disabled="editing" />
         </el-form-item>
         <el-form-item label="字段名称" prop="fieldName">
           <el-input v-model="ruleForm.fieldName" placeholder="如 失信标记（不超过64个字符）" maxlength="64" show-word-limit />

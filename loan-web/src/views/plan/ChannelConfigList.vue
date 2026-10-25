@@ -3,11 +3,11 @@
     <div class="loan-page-header">
       <div>
         <h2 class="loan-page-title">渠道档案</h2>
-        <p class="loan-page-subtitle">按银行合作渠道查看准入配置，进入向导分步配置该渠道的策略与执行计划</p>
+        <p class="loan-page-subtitle">按银行合作渠道查看准入策略；执行计划统一在「执行计划」中编排</p>
       </div>
-      <el-button type="primary" @click="goWizard(null)">
+      <el-button type="primary" @click="router.push('/channel-strategy')">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: -2px"><path d="M12 5v14M5 12h14"/></svg>
-        进入向导
+        管理准入策略
       </el-button>
     </div>
 
@@ -22,7 +22,7 @@
             <div class="cc-expand">
               <el-skeleton v-if="strategyLoading[row.channelCode]" :rows="2" animated />
               <template v-else>
-                <div v-if="!strategyMap[row.channelCode]?.length" class="cc-empty">该渠道暂无准入策略，点右上角「进入向导」创建</div>
+                <div v-if="!strategyMap[row.channelCode]?.length" class="cc-empty">该渠道暂无准入策略，请点击右上角「管理准入策略」创建</div>
                 <el-table v-else :data="strategyMap[row.channelCode]" size="small" stripe>
                   <el-table-column prop="strategyName" label="策略名称" min-width="150" show-overflow-tooltip />
                   <el-table-column label="产品" min-width="160">
@@ -42,7 +42,7 @@
                   <el-table-column label="操作" width="190" fixed="right">
                     <template #default="{ row: s }">
                       <AppTableActions :max-inline="2" :actions="[
-                        { key: 'orchestrate', label: '编排', onClick: () => gotoOrch(row, s) },
+                        { key: 'orchestrate', label: '查看策略', onClick: () => goStrategy(row) },
                         { key: 'validate', label: '校验', onClick: () => onValidate(s) },
                         s.status !== 'ACTIVE'
                           ? { key: 'enable', label: '上线', type: 'success', onClick: () => onEnable(s) }
@@ -72,7 +72,7 @@
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="goWizard(row)">进入向导</el-button>
+          <el-button link type="primary" @click="goStrategy(row)">查看策略</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -119,14 +119,9 @@ async function onExpandChange(row, expandedRows) {
   }
 }
 
-function goWizard(row) {
+function goStrategy(row) {
   const query = row?.channelCode ? { channelCode: row.channelCode } : {};
-  router.push({ path: '/channel-config-wizard', query });
-}
-
-/** 展开行「编排」：跳向导并携带策略业务编码，断点续做直接定位规则编排。 */
-function gotoOrch(row, s) {
-  router.push({ path: '/channel-config-wizard', query: { channelCode: row.channelCode, strategyCode: s.strategyCode } });
+  router.push({ path: '/channel-strategy', query });
 }
 
 /** 强制重拉某渠道策略（绕过展开缓存，用于上线/下线后刷新状态） */

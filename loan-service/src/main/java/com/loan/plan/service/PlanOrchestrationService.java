@@ -326,7 +326,14 @@ public class PlanOrchestrationService {
 
     /** 步骤前置条件校验：运算符/字段须在白名单内；配置运算符时须同时配置字段与值（对齐 mds v2）。 */
     private void validateStepCondition(AdmissionPlanStep step) {
-        if (step.getConditionOperator() == null) {
+        boolean hasField = step.getConditionField() != null && !step.getConditionField().trim().isEmpty();
+        boolean hasValue = step.getConditionValue() != null && !step.getConditionValue().trim().isEmpty();
+        boolean hasOperator = step.getConditionOperator() != null && !step.getConditionOperator().trim().isEmpty();
+        if (!hasOperator && (hasField || hasValue)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR,
+                    "步骤前置条件必须同时配置运算符；如不需要附加条件，请清空条件字段和条件值");
+        }
+        if (!hasOperator) {
             return;
         }
         String operator = StepConditionEvaluator.normalizeOperator(step.getConditionOperator());
@@ -424,13 +431,13 @@ public class PlanOrchestrationService {
     }
 
     /**
-     * 策略模版应用为执行计划（对齐 mds v2 apply-template）。
+     * 策略模板应用为执行计划（对齐 mds v2 apply-template）。
      *
-     * <p>把已上线策略模版（模块 + 步骤）实例化为草稿态执行计划，供策略绑定。
+     * <p>把已上线策略模板（模块 + 步骤）实例化为草稿态执行计划，供策略绑定。
      *
-     * @param templateId 策略模版 ID
-     * @param planCode   新计划编码（可选，缺省用模版编码 + 时间戳）
-     * @param planName   新计划名称（可选，缺省用模版名）
+     * @param templateId 策略模板 ID
+     * @param planCode   新计划编码（可选，缺省用模板编码 + 时间戳）
+     * @param planName   新计划名称（可选，缺省用模板名）
      * @param operator   操作人
      * @return 新计划 ID
      */
@@ -439,7 +446,7 @@ public class PlanOrchestrationService {
         StrategyTemplate template = templateMapper.selectOne(new LambdaQueryWrapper<StrategyTemplate>()
                 .eq(StrategyTemplate::getTemplateCode, templateCode));
         if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "策略模版不存在");
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "策略模板不存在");
         }
         AdmissionExecutionPlan plan = new AdmissionExecutionPlan();
         plan.setPlanCode(StringUtils.hasText(planCode) ? planCode
@@ -499,7 +506,7 @@ public class PlanOrchestrationService {
 
     /**
      * 解析规则当前生效版本 id（t_rule.current_version → t_rule_version.id），
-     * 供「模版步骤 → 计划步骤」实例化使用（模版步骤无版本概念，只存 ruleId）。
+     * 供「模板步骤 → 计划步骤」实例化使用（模板步骤无版本概念，只存 ruleId）。
      * 版本记录缺失时回退 ruleId（兼容现有单版本数据形态）。
      *
      * @param ruleId 规则 ID
@@ -507,11 +514,11 @@ public class PlanOrchestrationService {
      */
     private Long resolveRuleVersionId(Long ruleId) {
         if (ruleId == null) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版步骤缺少规则 ruleId");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板步骤缺少规则 ruleId");
         }
         Rule rule = ruleMapper.selectById(ruleId);
         if (rule == null) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版引用的规则不存在: " + ruleId);
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板引用的规则不存在: " + ruleId);
         }
         Long versionId = ruleMapper.selectCurrentVersionId(ruleId);
         return versionId != null ? versionId : ruleId;

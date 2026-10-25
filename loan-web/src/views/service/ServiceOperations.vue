@@ -60,8 +60,8 @@
             <section class="list-panel" :class="{ 'list-panel--focused': focus === 'pendingFollows' }">
               <div class="panel-head"><h3>{{ serviceLabels.follows }}</h3><span>{{ totalOf(workbench.pendingFollows) }} 项</span></div>
               <button v-for="row in recordsOf(workbench.pendingFollows)" :key="row.followNo" class="record-item" type="button" @click="openClientReplay(row.clientCode)">
-                <span><strong>{{ row.customerName || '未命名客户' }}</strong><small>{{ formatDateTime(row.nextFollowAt) }}</small></span>
-                <span class="record-note">{{ row.nextAction || '待跟进' }}</span>
+                <span><strong>{{ displayValue(row.customerName, '未命名客户') }}</strong><small>{{ formatTPlus(row.nextFollowAt) }}</small></span>
+                <span class="record-note">{{ displayValue(row.nextAction, '待跟进') }}</span>
               </button>
               <el-empty v-if="!recordsOf(workbench.pendingFollows).length" description="当日暂无待回访" :image-size="52" />
             </section>
@@ -90,8 +90,8 @@
             <el-table-column label="客户" min-width="170">
               <template #default="{ row }"><button class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || '未命名客户' }}</button><div class="cell-sub">{{ row.contactName || '—' }} {{ row.contactPhoneMasked || '' }}</div></template>
             </el-table-column>
-            <el-table-column label="联系方式" width="150"><template #default="{ row }">{{ row.contactPhoneMasked || '—' }}</template></el-table-column>
-            <el-table-column label="服务安排" min-width="210"><template #default="{ row }"><div>{{ enumLabel(methodText, row.serviceMethod) }}</div><div class="cell-sub">{{ formatDateTime(row.scheduledStart) }} 至 {{ timeOnly(row.scheduledEnd) }}</div></template></el-table-column>
+            <el-table-column label="联系方式" width="150"><template #default="{ row }">{{ displayValue(row.contactPhoneMasked) }}</template></el-table-column>
+            <el-table-column label="服务安排" min-width="210"><template #default="{ row }"><div>{{ enumLabel(methodText, row.serviceMethod) }}</div><div class="cell-sub">{{ formatTPlus(row.scheduledStart) }} {{ timeOnly(row.scheduledStart) }} 至 {{ timeOnly(row.scheduledEnd) }}</div></template></el-table-column>
             <el-table-column label="顾问/地点" min-width="160"><template #default="{ row }"><div>{{ row.hostStaffName || '顾问姓名待补充' }}</div><div class="cell-sub">{{ row.locationName || '线上服务' }}</div></template></el-table-column>
             <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="appointmentTag(row.status)" size="small">{{ enumLabel(appointmentStatusText, row.status) }}</el-tag><div class="cell-sub">{{ row.createdByType === 'STAFF' ? '公司已确认安排' : (row.customerConfirmStatus === 'CONFIRMED' ? '客户已提交确认' : '待客户确认') }}</div></template></el-table-column>
             <el-table-column label="操作" width="240" fixed="right">
@@ -128,7 +128,7 @@
           <el-table v-loading="outingLoading" :data="outings" stripe row-key="outingNo">
             <el-table-column label="员工" min-width="130"><template #default="{ row }"><div>{{ row.staffName || '员工姓名待补充' }}</div><div class="cell-sub">{{ row.deptName || '所属部门待补充' }}</div></template></el-table-column>
             <el-table-column label="客户" min-width="160"><template #default="{ row }"><template v-if="row.clientCode"><button class="text-link" @click="openClientReplay(row.clientCode)">{{ row.customerName || '客户名称待补充' }}</button><div v-if="row.enterpriseName" class="cell-sub">{{ row.enterpriseName }}</div></template><span v-else>无关联客户</span></template></el-table-column>
-            <el-table-column label="计划时间" min-width="190"><template #default="{ row }">{{ formatDateTime(row.plannedStart) }}<div class="cell-sub">至 {{ timeOnly(row.plannedEnd) }}</div></template></el-table-column>
+            <el-table-column label="计划时间" min-width="190"><template #default="{ row }">{{ formatTPlus(row.plannedStart) }}<div class="cell-sub">{{ timeOnly(row.plannedStart) }} 至 {{ timeOnly(row.plannedEnd) }}</div></template></el-table-column>
             <el-table-column label="目的地/目的" min-width="190"><template #default="{ row }"><div>{{ row.destination }}</div><div class="cell-sub">{{ row.purpose }}</div></template></el-table-column>
             <el-table-column label="打卡" min-width="210"><template #default="{ row }"><div>出发：{{ row.actualDepartedAt ? formatDateTime(row.actualDepartedAt) : '未打卡' }}<button v-if="row.departedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'DEPART', '出发打卡照片')">照片</button></div><div class="cell-sub">返回：{{ row.actualReturnedAt ? formatDateTime(row.actualReturnedAt) : '未打卡' }}<button v-if="row.returnedPhotoKey" class="text-link" type="button" @click="viewPhoto(row, 'RETURN', '返回打卡照片')">照片</button></div></template></el-table-column>
             <el-table-column label="审核" min-width="170"><template #default="{ row }"><div>{{ row.reviewerName || (row.status === 'PENDING_REVIEW' ? '待审核' : '—') }}</div><div class="cell-sub" :title="row.reviewRemark || ''">{{ row.reviewedAt ? formatDateTime(row.reviewedAt) : '' }}<span v-if="row.reviewRemark"> · {{ row.reviewRemark }}</span></div></template></el-table-column>
@@ -317,7 +317,7 @@ import {
   getClientInsight, getClientInsightHistory, generateClientInsight, reviewClientInsight,
 } from '@/api/serviceOperations';
 import { useUserStore } from '@/store/user';
-import { formatDateTime } from '@/utils/format';
+import { formatDateTime, formatTPlus, displayValue } from '@/utils/format';
 
 const route = useRoute();
 const router = useRouter();

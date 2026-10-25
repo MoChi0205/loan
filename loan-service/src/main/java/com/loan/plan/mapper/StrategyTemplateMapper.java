@@ -5,7 +5,7 @@ import com.loan.plan.entity.StrategyTemplate;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
- * 策略模版 Mapper。
+ * 策略模板 Mapper。
  *
  * @author loan-platform
  */

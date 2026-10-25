@@ -33,11 +33,17 @@ export function useTable(loader, initialQuery = {}, options = {}) {
     sortDir: '',
     ...initialQuery,
   });
+
+  function normalizeQuery() {
+    query.page = Math.max(1, Number(query.page) || 1);
+    query.size = Math.min(100, Math.max(1, Number(query.size) || pageSize));
+  }
   // 请求序列号：连续搜索、分页或 Tab 切换时，旧响应不得覆盖最后一次请求结果。
   let requestSeq = 0;
 
   async function load() {
     if (typeof loader !== 'function') return;
+    normalizeQuery();
     const seq = ++requestSeq;
     loading.value = true;
     error.value = null;
@@ -107,5 +113,6 @@ export function useTable(loader, initialQuery = {}, options = {}) {
     onPageChange,
     onSizeChange,
     handleSortChange,
+    normalizeQuery,
   };
 }

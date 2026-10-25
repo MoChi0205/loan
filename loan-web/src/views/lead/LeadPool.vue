@@ -224,7 +224,7 @@
           <el-descriptions-item label="跟进状态">{{ followStatusText(leadProfile.followStatus) }}</el-descriptions-item>
           <el-descriptions-item label="创建人">{{ leadProfile.createdBy || '—' }}</el-descriptions-item>
           <el-descriptions-item label="录入时间">{{ formatDateTime(leadProfile.createdAt) }}</el-descriptions-item>
-          <el-descriptions-item label="最近跟进">{{ formatDateTime(leadProfile.lastFollowedAt) }}</el-descriptions-item>
+          <el-descriptions-item label="最近跟进">{{ formatTPlus(leadProfile.lastFollowedAt) }}</el-descriptions-item>
         </el-descriptions>
         <div class="profile-section-title">跟进与流转记录</div>
         <el-timeline v-if="leadProfile?.history?.length">
@@ -267,7 +267,7 @@ import AppDialog from '@/components/AppDialog.vue';
 import AppDateTime from '@/components/AppDateTime.vue';
 import DialogSelect from '@/components/DialogSelect.vue';
 import { useTable } from '@/composables/useTable';
-import { formatDateTime, desensitizePhone } from '@/utils/format';
+import { formatDateTime, formatTPlus, displayValue, desensitizePhone } from '@/utils/format';
 import { listResourcePools } from '@/api/importing';
 import { pageLead, createLead, claimLead, releaseLead, assignLead, batchClaimLead, batchAssignLead, batchDeleteLead, getLeadDetail, followLead } from '@/api/lead';
 import { staffPage } from '@/api/org';

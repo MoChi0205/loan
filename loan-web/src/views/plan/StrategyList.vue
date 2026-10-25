@@ -96,6 +96,7 @@
 import AppSelect from '@/components/AppSelect.vue';
 defineOptions({ name: '_channel_strategy' });
 import { ref, reactive, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DictTag from '@/components/DictTag.vue';
 import AppSearchBar from '@/components/AppSearchBar.vue';
@@ -114,9 +115,10 @@ import {
 
 const channels = ref([]);
 const plans = ref([]);
+const route = useRoute();
 
 const { loading, data, total, query, load, onSearch, onReset } = useTable(pageStrategy, {
-  channelCode: '',
+  channelCode: String(route.query.channelCode || ''),
   customerGroup: '',
   keyword: '',
 });

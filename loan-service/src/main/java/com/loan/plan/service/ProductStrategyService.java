@@ -355,14 +355,14 @@ public class ProductStrategyService {
     }
 
     /**
-     * 模版导入到策略：把已上线的策略模版（模块→步骤→规则）实例化为一个新的执行计划，并绑定到渠道准入策略。
+     * 模板导入到策略：把已上线的策略模板（模块→步骤→规则）实例化为一个新的执行计划，并绑定到渠道准入策略。
      *
-     * @param templateCode   策略模版业务编码
+     * @param templateCode   策略模板业务编码
      * @param channelCode    目标渠道编码
      * @param strategyCode   目标策略编码
-     * @param strategyName   目标策略名称（可选，缺省用模版名）
+     * @param strategyName   目标策略名称（可选，缺省用模板名）
      * @param bankProductCode 目标产品编码（业务 key）
-     * @param customerGroup  目标客群（可选，缺省用模版客群）
+     * @param customerGroup  目标客群（可选，缺省用模板客群）
      * @param operator       操作人
      * @return 新策略业务编码
      */
@@ -372,10 +372,10 @@ public class ProductStrategyService {
         StrategyTemplate template = templateMapper.selectOne(new LambdaQueryWrapper<StrategyTemplate>()
                 .eq(StrategyTemplate::getTemplateCode, templateCode));
         if (template == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "策略模版不存在");
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND, "策略模板不存在");
         }
         if (!STATUS_ACTIVE.equals(template.getStatus())) {
-            throw new BusinessException(ResultCode.PARAM_ERROR, "模版未上线，无法导入");
+            throw new BusinessException(ResultCode.PARAM_ERROR, "模板未上线，无法导入");
         }
         if (!StringUtils.hasText(channelCode)) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "目标渠道必填");

@@ -7,7 +7,7 @@
     :start-placeholder="startPlaceholder"
     :end-placeholder="endPlaceholder"
     :value-format="valueFormat"
-    :format="format"
+    :format="resolvedFormat"
     :range-separator="rangeSeparator"
     :time-format="timeFormat"
     :default-time="defaultTime"
@@ -98,6 +98,8 @@ const resolvedStyle = computed(() => ({
   width: resolvedWidth.value,
   flex: '0 0 auto',
 }));
+
+const resolvedFormat = computed(() => ({ datetime: 'YYYY-MM-DD HH:mm', datetimerange: 'YYYY-MM-DD HH:mm' }[props.type] || props.format));
 
 /** 默认快捷选项（按 valueFormat 输出） */
 const resolvedShortcuts = computed(() => {

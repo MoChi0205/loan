@@ -10,7 +10,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 策略模版步骤实体（t_strategy_template_step）。
+ * 策略模板步骤实体（t_strategy_template_step）。
  *
  * @author loan-platform
  */
@@ -27,14 +27,14 @@ public class StrategyTemplateStep implements Serializable {
     /** 步骤业务编码（对外唯一标识，父级模块范围内唯一） */
     private String stepCode;
 
-    /** 模版模块 ID */
+    /** 模板模块 ID */
     private Long templateModuleId;
 
     /** 父模块业务编码（接口入参使用，不落库） */
     @TableField(exist = false)
     private String moduleBizCode;
 
-    /** 规则模版 ID（可选，引用规则模版） */
+    /** 规则模板 ID（可选，引用规则模板） */
     private Long ruleTemplateId;
 
     /** 直接引用规则 ID */

@@ -1,4 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { displayValue, formatTPlus } from '@/utils/format';
+
+describe('公共展示格式', () => {
+  it('统一空值与 T+N 日期', () => {
+    expect(displayValue(null)).toBe('-');
+    expect(displayValue('  ')).toBe('-');
+    expect(formatTPlus('2026-11-02', new Date('2026-10-25T12:00:00'))).toBe('T+8');
+    expect(formatTPlus('bad')).toBe('-');
+  });
+});
 import { enumLabel } from '../enumDisplay';
 
 describe('业务枚举展示', () => {

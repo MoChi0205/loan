@@ -9,8 +9,7 @@ const LAYOUT_COMMON_PATHS = new Set(['/workbench', '/403']);
 const ROUTE_PARENT = Object.freeze({
   '/client': '/client/my',
   '/service-operations': '/service-operations/daily',
-  '/channel-config-wizard': '/channel-config',
-  // 合并菜单后的旧页面仍作为“渠道管理 / 奖励管理”的页内 Tab 保留。
+  // 合并菜单后的奖励管理仍作为页内 Tab 保留。
   '/reward-rule': '/reward/rules',
   '/report/overview': '/report/center',
   '/report/center': '/report/center',

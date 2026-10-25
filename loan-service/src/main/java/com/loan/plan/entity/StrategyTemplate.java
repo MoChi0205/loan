@@ -10,7 +10,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 策略模版实体（t_strategy_template，对齐 mds 功能策略模版）。
+ * 策略模板实体（t_strategy_template，对齐 mds 功能策略模板）。
  *
  * @author loan-platform
  */
@@ -25,16 +25,16 @@ public class StrategyTemplate implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 模版编码 */
+    /** 模板编码 */
     private String templateCode;
 
-    /** 模版名称 */
+    /** 模板名称 */
     private String templateName;
 
     /** 客群 */
     private String customerGroup;
 
-    /** 模版说明 */
+    /** 模板说明 */
     private String description;
 
     /** 状态（ACTIVE/DISABLED） */

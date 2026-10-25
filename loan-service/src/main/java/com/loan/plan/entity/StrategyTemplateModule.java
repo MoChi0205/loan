@@ -10,7 +10,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 策略模版模块实体（t_strategy_template_module）。
+ * 策略模板模块实体（t_strategy_template_module）。
  *
  * @author loan-platform
  */
@@ -27,7 +27,7 @@ public class StrategyTemplateModule implements Serializable {
     /** 模块业务编码（对外标识） */
     private String moduleBizCode;
 
-    /** 策略模版 ID */
+    /** 策略模板 ID */
     private Long templateId;
 
     /** 父模板业务编码（接口入参使用，不落库） */

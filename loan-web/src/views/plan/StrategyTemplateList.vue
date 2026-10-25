@@ -2,8 +2,8 @@
   <div class="tpl-page">
     <div class="loan-page-header">
       <div>
-        <h2 class="loan-page-title">策略模版</h2>
-        <p class="loan-page-subtitle">模版 → 模块 → 步骤；上线后可被渠道策略导入复用</p>
+        <h2 class="loan-page-title">策略模板</h2>
+        <p class="loan-page-subtitle">模板 → 模块 → 步骤；上线后可被渠道策略导入复用</p>
       </div>
       <el-button @click="openSnapshot">
         <AppIcon name="download" :size="14" />
@@ -11,13 +11,13 @@
       </el-button>
       <el-button type="primary" @click="openCreate">
         <AppIcon name="add" :size="14" />
-        新建模版
+        新建模板
       </el-button>
     </div>
 
     <div class="cg-switch">
       <el-segmented v-model="activeCG" :options="cgOptions" size="default" @change="onCGChange" />
-      <span class="cg-switch__hint">策略模版按客群分开维护，切换后自动过滤（URL ?cg= 同步）</span>
+      <span class="cg-switch__hint">策略模板按客群分开维护，切换后自动过滤（URL ?cg= 同步）</span>
     </div>
 
     <div class="loan-card">
@@ -30,14 +30,14 @@
           <el-option label="已上线" value="ACTIVE" />
           <el-option label="草稿/未上线" value="DRAFT" />
         </el-select>
-        <el-input v-model="query.keyword" placeholder="模版名称" clearable style="width: 200px" @keyup.enter="onSearch" />
+        <el-input v-model="query.keyword" placeholder="模板名称" clearable style="width: 200px" @keyup.enter="onSearch" />
       </AppSearchBar>
 
       <el-table :data="data" v-loading="loading" stripe row-key="templateCode" style="height: calc(100vh - 320px); min-height: 360px">
         <template #empty>
-          <AppEmpty title="暂无策略模版" desc="创建策略模版后，可通过「导入到策略」一键应用到渠道" />
+          <AppEmpty title="暂无策略模板" desc="创建策略模板后，可通过「导入到策略」一键应用到渠道" />
         </template>
-        <el-table-column prop="templateName" label="模版名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="templateName" label="模板名称" min-width="180" show-overflow-tooltip />
         <el-table-column label="客群" width="90">
           <template #default="{ row }"><DictTag type="customerGroup" :value="row.customerGroup" /></template>
         </el-table-column>
@@ -56,11 +56,11 @@
       <AppPagination v-model:page="query.page" v-model:size="query.size" :total="total" @change="load" />
     </div>
 
-    <!-- 新建/编辑模版 -->
+    <!-- 新建/编辑模板 -->
     <AppDialog v-model:visible="tplDialog.visible" :title="tplDialog.title" :loading="tplDialog.saving" @confirm="onSaveTpl">
       <el-form ref="tplFormRef" :model="tplDialog.form" :rules="tplRules" label-width="90px">
-        <el-form-item label="模版编码" prop="templateCode"><el-input v-model="tplDialog.form.templateCode" placeholder="渠道内唯一" /></el-form-item>
-        <el-form-item label="模版名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" maxlength="128" show-word-limit /></el-form-item>
+        <el-form-item label="模板编码" prop="templateCode"><el-input v-model="tplDialog.form.templateCode" placeholder="渠道内唯一" /></el-form-item>
+        <el-form-item label="模板名称" prop="templateName"><el-input v-model="tplDialog.form.templateName" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="客群" prop="customerGroup">
           <AppSelect v-model="tplDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
@@ -72,7 +72,7 @@
     </AppDialog>
 
     <!-- 编排弹窗 -->
-    <AppDialog v-model:visible="editVisible" :title="`模版编排 · ${currentTpl?.templateName || ''}`" width="720px">
+    <AppDialog v-model:visible="editVisible" :title="`模板编排 · ${currentTpl?.templateName || ''}`" width="720px">
       <div class="tpl-edit">
         <div v-for="m in editModules" :key="m.moduleBizCode" class="tpl-module">
           <div class="tpl-module-head">
@@ -192,7 +192,7 @@
           <RemoteProductSelect v-model="importDialog.form.bankProductCode" :customer-group="importDialog.form.customerGroup" />
         </el-form-item>
         <el-form-item label="策略编码" prop="strategyCode"><el-input v-model="importDialog.form.strategyCode" placeholder="渠道内唯一" /></el-form-item>
-        <el-form-item label="策略名称"><el-input v-model="importDialog.form.strategyName" placeholder="缺省用模版名" maxlength="128" show-word-limit /></el-form-item>
+        <el-form-item label="策略名称"><el-input v-model="importDialog.form.strategyName" placeholder="缺省用模板名" maxlength="128" show-word-limit /></el-form-item>
         <el-form-item label="客群">
           <AppSelect v-model="importDialog.form.customerGroup" style="width: 100%">
             <el-option label="企业" value="ENTERPRISE" />
@@ -202,8 +202,8 @@
       </el-form>
     </AppDialog>
 
-    <!-- 从渠道策略快照为模版 -->
-    <AppDialog v-model:visible="snapshotDialog.visible" title="从渠道策略快照为模版" :loading="snapshotDialog.saving" @confirm="onSnapshot">
+    <!-- 从渠道策略快照为模板 -->
+    <AppDialog v-model:visible="snapshotDialog.visible" title="从渠道策略快照为模板" :loading="snapshotDialog.saving" @confirm="onSnapshot">
       <el-form label-width="110px">
         <el-form-item label="源渠道">
           <AppSelect v-model="snapshotDialog.channelCode" placeholder="选择渠道" filterable style="width: 100%" @change="onSnapshotChannelChange">
@@ -213,13 +213,13 @@
         <el-form-item label="源策略" v-loading="snapshotDialog.loadingStrategies">
           <RemoteStrategySelect v-model="snapshotDialog.strategyCode" :channel-code="snapshotDialog.channelCode" @selected="snapshotSource = $event" />
         </el-form-item>
-        <el-form-item label="模版编码" required>
+        <el-form-item label="模板编码" required>
           <el-input v-model="snapshotDialog.templateCode" placeholder="需唯一" />
         </el-form-item>
-        <el-form-item label="模版名称" required>
+        <el-form-item label="模板名称" required>
           <el-input v-model="snapshotDialog.templateName" placeholder="缺省用策略名" maxlength="128" show-word-limit />
         </el-form-item>
-        <p class="tpl-condition-hint">将渠道策略及其执行计划树（模块/步骤/规则）快照为模版草稿，可继续编排后上线供其他渠道导入。</p>
+        <p class="tpl-condition-hint">将渠道策略及其执行计划树（模块/步骤/规则）快照为模板草稿，可继续编排后上线供其他渠道导入。</p>
       </el-form>
     </AppDialog>
   </div>
@@ -324,22 +324,22 @@ async function onPublish(row) { await publishTemplate(row.templateCode); ElMessa
 async function onOffline(row) { await offlineTemplate(row.templateCode); ElMessage.success('已下线'); load(); }
 async function onDelete(row) { await deleteTemplate(row.templateCode); ElMessage.success('已删除'); load(); }
 
-// 模版 CRUD
+// 模板 CRUD
 const tplDialog = reactive({ visible: false, title: '', saving: false, editingCode: null, form: { templateCode: '', templateName: '', customerGroup: 'ENTERPRISE', description: '' } });
 const tplFormRef = ref();
 const tplRules = {
-  templateCode: [{ required: true, message: '请输入模版编码', trigger: 'blur' }],
-  templateName: [{ required: true, message: '请输入模版名称', trigger: 'blur' }, { max: 128, message: '模版名称不能超过128个字符', trigger: 'blur' }],
+  templateCode: [{ required: true, message: '请输入模板编码', trigger: 'blur' }],
+  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }, { max: 128, message: '模板名称不能超过128个字符', trigger: 'blur' }],
   customerGroup: [{ required: true, message: '请选择客群', trigger: 'change' }],
 };
 function openCreate() {
-  tplDialog.title = '新建模版';
+  tplDialog.title = '新建模板';
   tplDialog.editingId = null;
   Object.assign(tplDialog.form, { templateCode: '', templateName: '', customerGroup: 'ENTERPRISE', description: '' });
   tplDialog.visible = true;
 }
 function openTplDialog(row) {
-  tplDialog.title = '编辑模版';
+  tplDialog.title = '编辑模板';
   tplDialog.editingCode = row.templateCode;
   Object.assign(tplDialog.form, { templateCode: row.templateCode, templateName: row.templateName, customerGroup: row.customerGroup, description: row.description });
   tplDialog.visible = true;
@@ -360,7 +360,7 @@ async function onSaveTpl() {
 const editVisible = ref(false);
 const currentTpl = ref(null);
 const editModules = ref([]);
-/** 按模版客群加载规则（个人/企业规则分开维护，避免个人模版选到企业规则） */
+/** 按模板客群加载规则（个人/企业规则分开维护，避免个人模板选到企业规则） */
 async function loadRules(customerGroup) {
   try {
     const res = await listRules({ customerGroup: customerGroup || 'ENTERPRISE' });
@@ -517,7 +517,7 @@ async function onImport() {
   } finally { importDialog.saving = false; }
 }
 
-// 从渠道策略快照为模版（对齐 mds v2 snapshot-from-channel）
+// 从渠道策略快照为模板（对齐 mds v2 snapshot-from-channel）
 const snapshotDialog = reactive({ visible: false, saving: false, loadingStrategies: false, channelCode: '', strategyCode: '', templateCode: '', templateName: '', strategies: [] });
 const snapshotSource = ref(null);
 function openSnapshot() {
@@ -539,7 +539,7 @@ async function onSnapshotChannelChange() {
 async function onSnapshot() {
   if (!snapshotDialog.channelCode) { ElMessage.warning('请选择源渠道'); return; }
   if (!snapshotDialog.strategyCode) { ElMessage.warning('请选择源策略'); return; }
-  if (!snapshotDialog.templateCode?.trim()) { ElMessage.warning('请输入模版编码'); return; }
+  if (!snapshotDialog.templateCode?.trim()) { ElMessage.warning('请输入模板编码'); return; }
   const source = snapshotSource.value;
   if (source && !source.executionPlanCode) { ElMessage.warning('该策略尚未绑定执行计划，无法快照'); return; }
   snapshotDialog.saving = true;
@@ -550,7 +550,7 @@ async function onSnapshot() {
       templateCode: snapshotDialog.templateCode.trim(),
       templateName: snapshotDialog.templateName?.trim() || source?.strategyName || snapshotDialog.templateCode.trim(),
     });
-    ElMessage.success('已快照为模版草稿');
+    ElMessage.success('已快照为模板草稿');
     snapshotDialog.visible = false;
     load();
   } catch (e) { /* 拦截器已提示 */ } finally {

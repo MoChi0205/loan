@@ -1,6 +1,6 @@
 # 核心 Core
 
-> 由本地大脑自动蒸馏，生成时间 2026-10-23T03:08:16。
+> 由本地大脑自动蒸馏，生成时间 2026-10-25T03:07:01。
 
 条目数：**130**
 
@@ -747,3 +747,11 @@
   - 开发/规范参考真源；捕获相关知识点时链接到此节点，做到『引用而非复制』。 规范 skill 待创建（建议路径 ~/.workbuddy/skills/<维度>-规范）。
   - 关联：规范总枢纽、开发参考
 
+
+## 公共展示与输入契约（2026-10-25）
+
+- 页面展示空值统一使用 `loan-web/src/utils/format.js` 的 `displayValue(value, fallback)`；禁止新增散落的 `|| '-'`、`|| '—'` 和不一致手写判空。
+- 计划、跟进、预约、外出、产品合作到期等业务日期使用 `formatTPlus(value)` 展示相对日（例如 `T+8`）；创建时间、审计时间保留完整时间格式。
+- `AppDateTime` 对 `datetime` / `datetimerange` 默认展示 `YYYY-MM-DD HH:mm`，避免用户选了时分但输入框只显示日期。
+- 输入校验优先复用 `loan-web/src/utils/validation.js` 的 `validators` 与 `normalizeText`；前端 `maxlength` 只是交互限制，后端仍需 `FieldLengthGuard`。
+- 分页统一使用前端 `useTable` 与后端 `PageParams/PageResult`，页码从 1 开始，每页 1-100 条。
